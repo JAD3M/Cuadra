@@ -7,7 +7,7 @@ import { listaSql, ROLES, type Rol } from './tipos';
 
 /**
  * Pertenencia de un usuario a una empresa, con su rol. La unicidad es sobre
- * la terna completa, así que alguien puede ser a la vez contador y auditor
+ * la terna completa, así que alguien puede ser a la vez contador y revisor
  * en la misma empresa sin necesitar dos cuentas.
  */
 @Entity('user_company_roles')

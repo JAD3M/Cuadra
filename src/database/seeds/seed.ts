@@ -60,7 +60,7 @@ const ROLES: ReadonlyArray<{ email: string; rfc: string; rol: Rol }> = [
   { email: 'luis.mendoza@fdb.mx', rfc: 'FDB190215QK4', rol: 'contador' },
   { email: 'carmen.olvera@cuautla.mx', rfc: 'TCU170830R52', rol: 'admin' },
   { email: 'jorge.tapia@despacho.mx', rfc: 'FDB190215QK4', rol: 'contador' },
-  { email: 'jorge.tapia@despacho.mx', rfc: 'TCU170830R52', rol: 'auditor' },
+  { email: 'jorge.tapia@despacho.mx', rfc: 'TCU170830R52', rol: 'revisor' },
 ];
 
 /**

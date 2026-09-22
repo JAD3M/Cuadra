@@ -486,7 +486,7 @@ describe('semilla', () => {
     );
     expect(asignaciones).toEqual([
       { rfc: 'FDB190215QK4', rol: 'contador' },
-      { rfc: 'TCU170830R52', rol: 'auditor' },
+      { rfc: 'TCU170830R52', rol: 'revisor' },
     ]);
   });
 });

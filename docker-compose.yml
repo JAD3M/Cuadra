@@ -19,7 +19,7 @@ services:
       POSTGRES_PASSWORD: cuadra
       POSTGRES_DB: cuadra
     ports: ["5432:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
+    volumes: ["pgdata:/var/lib/postgresql"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U cuadra"]
       interval: 5s
