@@ -1,7 +1,9 @@
 // src/health/health.controller.ts
 import { Controller, Get } from '@nestjs/common';
 import {
-  HealthCheck, HealthCheckService, TypeOrmHealthIndicator,
+  HealthCheck,
+  HealthCheckService,
+  TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
 
 @Controller('health')

@@ -5,7 +5,7 @@
 
 | | |
 |---|---|
-| **Estado** | Día 1 de 9 · CU-01 ✅ · 3 / 69 pts |
+| **Estado** | Día 1 de 9 ✅ · CU-01, CU-02 · 8 / 69 pts |
 | **Entrega** | 2 de octubre de 2026 |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 18 historias · 69 puntos · 9 días hábiles |
@@ -124,7 +124,270 @@ para validar lo que entra, Swagger generado por decoradores de Nest.
 
 ---
 
-## 4. Alcance
+## 4. Modelo de datos, tabla por tabla
+
+### El mapa
+
+```mermaid
+flowchart TD
+  subgraph L1["1 · quién eres"]
+    companies[(companies)]
+    ucr[(user_company_roles)]
+    users[(users)]
+  end
+  subgraph L2["2 · qué subiste"]
+    cargas[(cargas)]
+  end
+  subgraph L3["3 · qué hay adentro"]
+    cfdi[(cfdi)]
+    movimientos[(movimientos)]
+  end
+  subgraph L4["4 · qué concluimos"]
+    conciliaciones[(conciliaciones)]
+  end
+  bitacora[(bitacora<br/>observa todo)]
+
+  companies --- ucr --- users
+  companies --> cargas
+  cargas --> cfdi
+  cargas --> movimientos
+  cfdi --> conciliaciones
+  movimientos --> conciliaciones
+  conciliaciones -.-> bitacora
+```
+
+Cuatro capas: **quién eres**, **qué subiste**, **qué hay adentro**, **qué
+concluimos** — y la bitácora observando todo. Las seis tablas de dominio
+llevan `company_id` con FK `RESTRICT`: no se puede borrar una empresa que
+todavía tiene datos.
+
+---
+
+### `companies` — la raíz
+
+Las empresas que usan el sistema. Es el inquilino.
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `rfc` | varchar(13) | único |
+| `razon_social` | varchar(255) | |
+| `regimen_fiscal` | varchar(3) | opcional, catálogo `c_RegimenFiscal` |
+| `activa` | boolean | default `true` |
+
+**No lleva `company_id` porque lo es.** Único caso del esquema.
+
+`varchar(13)` porque el RFC es de 12 para persona moral y 13 para física.
+`activa` en vez de borrar: cuando un cliente se va se desactiva, porque
+borrarlo rompería su contabilidad histórica — y la FK `RESTRICT` de hecho lo
+impide.
+
+### `users` — globales, no de una empresa
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `email` | varchar(320) | único |
+| `nombre` | varchar(255) | |
+| `password_hash` | varchar(255) | nunca texto plano |
+| `activo` | boolean | default `true` |
+
+**Un usuario no pertenece a una empresa**, pertenece al sistema. Es lo que
+permite que un contador externo atienda tres clientes con una sola cuenta,
+en vez de tres cuentas con tres contraseñas.
+
+`varchar(320)` es el máximo del estándar de correo: 64 de parte local + `@`
++ 255 de dominio. El nombre `password_hash` es documentación: quien lo lea
+sabe que ahí no va texto plano.
+
+### `user_company_roles` — la tabla puente
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `user_id` | uuid | FK → users, `CASCADE` |
+| `company_id` | uuid | FK → companies, `CASCADE` |
+| `rol` | varchar(32) | `admin` · `contador` · `revisor` |
+
+Sin ella el rol viviría en `users` —y sería global— o en `companies` —y no
+sabrías de quién. `CASCADE` en ambas llaves porque un acceso de un usuario
+que ya no existe no significa nada.
+
+**La unicidad es sobre la terna `(user_id, company_id, rol)`**, no sobre el
+par: una persona puede tener dos roles en la misma empresa. Ver el pendiente
+en la sección de riesgos.
+
+Historias: CU-03, CU-04.
+
+### `cargas` — la puerta de entrada
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `tipo` | varchar(32) | `cfdi` · `estado_cuenta` |
+| `estado` | varchar(32) | pendiente → procesando → procesada / fallida |
+| `nombre_archivo` | varchar(512) | como lo llamó el usuario |
+| `hash_archivo` | char(64) | SHA-256 en hex |
+| `total_registros`, `registros_ok`, `registros_error` | int | `CHECK >= 0` |
+| `error_mensaje` | text | opcional |
+| `subido_por_id` | uuid | FK `SET NULL` |
+
+Sin esta tabla no sabrías de dónde vino cada factura. `char(64)` y no
+`varchar` porque un SHA-256 en hexadecimal mide exactamente 64 caracteres
+siempre.
+
+El índice único `(company_id, hash_archivo)` es la idempotencia de CU-07.
+`subido_por_id` con `SET NULL`: si el usuario se va, la carga sobrevive sin
+dueño — es información histórica que no debe desaparecer porque alguien
+renunció.
+
+Historias: CU-06, CU-07, CU-08, CU-09.
+
+### `cfdi` — la tabla con más decisiones
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `uuid_fiscal` | varchar(36) | folio fiscal del SAT |
+| `rfc_emisor`, `rfc_receptor` | varchar(13) | |
+| `fecha_emision` | **timestamp** | sin zona horaria |
+| `tipo_comprobante` | varchar(1) | `I` `E` `T` `N` `P` |
+| `moneda` | char(3) | default `MXN` |
+| `tipo_cambio` | numeric(18,**6**) | opcional |
+| `subtotal`, `descuento`, `total` | numeric(18,4) | |
+| `metodo_pago` | varchar(3) | `PUE` / `PPD` |
+| `forma_pago` | varchar(2) | catálogo del SAT |
+| `estado` | varchar(32) | abierta · conciliada · cancelada |
+| `xml_raw` | **jsonb** | obligatorio |
+
+**`fecha_emision` es `timestamp`, no `timestamptz`** — la única columna del
+esquema sin zona horaria, y es correcto: el SAT emite la fecha en hora local
+sin offset. Convertirla a UTC inventaría un dato que el documento no tiene, y
+una factura del 31 de marzo podría volverse del 1 de abril.
+
+**`tipo_cambio` con 6 decimales**, no 4: los montos llevan 4 porque es lo que
+el SAT permite en impuestos, pero el tipo de cambio se cotiza con más
+precisión.
+
+**`uuid_fiscal` único por `(company_id, uuid_fiscal)`, no global.** El folio
+es irrepetible en México, pero dos empresas del mismo grupo pueden recibir el
+mismo CFDI y cada una lo concilia. Hay dos tests que prueban los dos lados.
+
+**Índice parcial** `(company_id, rfc_emisor) WHERE estado = 'abierta'`: al año
+habrá miles de conciliadas y decenas abiertas; el motor solo busca entre las
+abiertas, así que el índice se mantiene pequeño para siempre.
+
+**`ck_cfdi_xml_raw_integro`** exige que `xml_raw` sea un objeto y contenga la
+llave `_xml` con el XML tal como llegó. El criterio "se conserva íntegro"
+dejó de ser promesa. Además, si mañana hace falta un campo del SAT no
+previsto, está ahí sin migrar nada.
+
+Historias: CU-05, CU-06; es la fuente de candidatos de CU-11.
+
+### `movimientos` — cada línea del banco
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `linea_numero` | int | posición en el archivo, `CHECK >= 0` |
+| `fecha` | **date** | sin hora |
+| `descripcion` | text | |
+| `referencia` | varchar(128) | opcional |
+| `monto` | numeric(18,4) | `CHECK <> 0` |
+| `banco`, `cuenta` | varchar | opcionales |
+| `estado` | varchar(32) | abierto · conciliado · descartado |
+
+**`fecha` es `date`**: el banco da el día, no la hora. Guardar medianoche
+inventaría precisión y al convertir zonas podría saltar al día anterior.
+
+**La idempotencia es por `(company_id, carga_id, linea_numero)`, no por hash
+del contenido.** Lo intuitivo sería deduplicar por contenido, pero dos cargos
+legítimos pueden ser idénticos el mismo día — dos pagos de $500 del mismo
+cliente son dos pagos. Identificar por posición en el archivo resuelve las
+dos cosas: reprocesar no duplica, y dos movimientos idénticos siguen siendo
+dos.
+
+**Hueco conocido:** falta `referencia_norm`. Se paga en CU-11 con una columna
+generada `STORED` y su índice.
+
+Historias: CU-09, CU-10.
+
+### `conciliaciones` — donde vive la regla de oro
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `cfdi_id` | uuid | FK `CASCADE` |
+| `movimiento_id` | uuid | FK `CASCADE` |
+| `estado` | varchar(32) | propuesta · confirmada · rechazada |
+| `origen` | varchar(32) | regla · llm · manual |
+| `regla` | varchar(64) | cuál regla disparó |
+| `score` | numeric(5,4) | confianza en `[0,1]` |
+| `diferencia_monto` | numeric(18,4) | |
+| `motivo` | text | legible |
+| `confirmada_por_id` | uuid | FK `RESTRICT` |
+| `confirmada_at` | timestamptz | |
+
+Es una tabla y no dos columnas en `cfdi` porque la conciliación **tiene
+historia propia**: nace como propuesta, alguien la revisa, y termina
+confirmada o rechazada. Con dos columnas solo cabría un match por factura y
+no habría dónde guardar el porqué.
+
+**Tres índices únicos:**
+
+- `ux_conciliaciones_par (company_id, cfdi_id, movimiento_id)` — no se
+  propone el mismo par dos veces.
+- `ux_conciliaciones_cfdi_confirmada` — parcial, `WHERE estado='confirmada'`.
+- `ux_conciliaciones_movimiento_confirmada` — parcial, igual.
+
+Los dos parciales permiten muchas propuestas pero **una sola confirmada** por
+factura y por movimiento. Es "un falso positivo es peor que no conciliar"
+escrito en el esquema: aunque el código tenga un bug, la base no deja que un
+pago se aplique a dos facturas.
+
+**`ck_conciliaciones_confirmada_requiere_persona`**: llegar a `confirmada`
+exige `confirmada_por_id` y `confirmada_at`. El motor y el LLM solo producen
+`propuesta`, porque no tienen un `user_id` que poner. La decisión D-03 dejó
+de depender de que el código se porte bien.
+
+**`RESTRICT` en `confirmada_por_id`**: no se puede borrar a quien confirmó
+algo. Si alguien se va, se desactiva. En un sistema contable, poder decir
+"esto lo confirmó Fulano el 15 de marzo" tres años después no es opcional.
+
+Historias: CU-11 a CU-15, CU-17.
+
+### `bitacora` — append-only por construcción
+
+| Columna | Tipo | Notas |
+|---|---|---|
+| `user_id` | uuid | FK `SET NULL`, **opcional** |
+| `entidad` | varchar(64) | nombre de la tabla afectada |
+| `entidad_id` | uuid | |
+| `accion` | varchar(32) | crear · actualizar · eliminar · cargar · confirmar · rechazar |
+| `datos` | jsonb | el antes y el después |
+| `ip` | **inet** | |
+| `user_agent` | text | |
+| `created_at` | timestamptz | **sin `updated_at`** |
+
+**No hereda de `EntidadBase`**, y ésa es la decisión que la define: heredaría
+`updated_at`, y una bitácora que se puede modificar no sirve como evidencia.
+
+`user_id` opcional porque no toda acción la hace una persona: cuando el motor
+concilia solo, `NULL` significa exactamente "lo hizo el sistema".
+
+`ip` es tipo `inet`, nativo de Postgres: valida el formato, ocupa menos que
+texto y permite consultas por subred.
+
+El diseño genérico —`entidad` + `entidad_id` en vez de una FK por tabla—
+permite auditar cualquier cosa sin agregar columnas. El costo es que no hay
+integridad referencial, lo cual en una bitácora es correcto: quieres
+conservar el registro aunque la fila original desaparezca.
+
+Historia: CU-16.
+
+### `migrations` — la que no diseñaste
+
+TypeORM la crea sola: `id serial`, `timestamp bigint`, `name varchar`.
+Guarda qué migraciones ya se aplicaron, y es por eso que `migration:run`
+sabe qué no repetir. Es la única tabla del esquema con `id serial` — a
+TypeORM no le importa la convención de UUIDv7 para su tabla interna.
+
+---
+
+## 5. Alcance
 
 ### Dentro — entrega 2 de octubre
 
@@ -149,7 +412,7 @@ como evidencia.
 
 ---
 
-## 5. Decisiones
+## 6. Decisiones
 
 ### D-01 · Monolito modular en lugar de microservicios
 
@@ -227,7 +490,7 @@ JSONB para cuando el flujo básico ya corra.
 
 ---
 
-## 6. Historias
+## 7. Historias
 
 Puntos = tamaño relativo entre historias, no horas.
 
@@ -296,7 +559,7 @@ Jira (`cuadra-jira.csv`) y en las issues importadas.
 
 ---
 
-## 7. Riesgos
+## 8. Riesgos
 
 | Nivel | Riesgo | Mitigación |
 |---|---|---|
@@ -308,13 +571,36 @@ Jira (`cuadra-jira.csv`) y en las issues importadas.
 
 ---
 
-## 8. Bitácora
+## 9. Bitácora
 
 Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
 
 ### 22 sep 2026
 
+- **CU-02 terminado.** Ocho entidades, migración inicial aplicada y seed con
+  dos empresas, cuatro usuarios y cinco roles. Tres decisiones de esquema que
+  vale la pena conservar, todas encodadas en constraints y no en código:
+  - Índices únicos parciales en `conciliaciones`: a lo más una fila
+    `'confirmada'` por CFDI y por movimiento, con varias propuestas
+    conviviendo. Es "un falso positivo es peor que no conciliar" en el
+    esquema.
+  - `CHECK ck_conciliaciones_confirmada_requiere_persona`: pasar a
+    `'confirmada'` exige `confirmada_por_id` y `confirmada_at`. La IA no
+    puede cerrar un caso aunque el código lo intente.
+  - Idempotencia de movimientos por `(company_id, carga_id, linea_numero)`,
+    no por hash del contenido: dos cargos legítimos pueden ser idénticos el
+    mismo día.
+
+  **Trampa de infraestructura, para no repetirla:** las imágenes
+  `postgres:18+` guardan los datos en una ruta con número de versión. El
+  volumen se monta en `/var/lib/postgresql`, **no** en
+  `/var/lib/postgresql/data`; con la ruta vieja el contenedor sale con
+  código 1 y todo lo demás falla con `ECONNREFUSED`.
+
+  **Lección de método:** la primera corrida del agente no encontró
+  `CUADRA.md` porque el archivo no estaba en el repo todavía, y generó el rol
+  `auditor` en vez de `revisor`. El contexto solo sirve si está versionado.
 - **CU-01 terminado.** `docker compose up` levanta api, postgres y redis;
   `/health` responde `{"status":"ok"}` con Postgres en ~11 ms. Stack
   confirmado: NestJS 11, Node 22, Postgres 17, Redis 7, validación de `.env`

@@ -5,6 +5,7 @@ import { validateEnv } from './config/env.validation';
 import { ENTIDADES } from './database/entities';
 import { SnakeNamingStrategy } from './database/naming.strategy';
 import { HealthModule } from './health/health.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { HealthModule } from './health/health.module';
       }),
     }),
     HealthModule,
+    AuthModule,
   ],
 })
 export class AppModule {}

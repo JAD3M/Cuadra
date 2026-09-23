@@ -1,33 +1,10 @@
 // src/database/seeds/seed.ts
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { DataSource } from 'typeorm';
 import dataSource from '../data-source';
 import type { Rol } from '../entities';
+import { PasswordHasher } from '../../auth/password';
 
-/**
- * Hash de contraseña con scrypt de la stdlib. Es un placeholder deliberado:
- * la historia de autenticación decidirá el algoritmo definitivo y sus
- * parámetros. Basta con que la semilla nunca guarde texto plano.
- */
-function hashear(password: string): string {
-  const sal = randomBytes(16);
-  const derivada = scryptSync(password, sal, 64);
-  return `scrypt$${sal.toString('base64')}$${derivada.toString('base64')}`;
-}
-
-/** Contraparte de `hashear`, para que la semilla pueda verificarse a sí misma. */
-export function verificar(password: string, guardado: string): boolean {
-  const [algoritmo, salB64, hashB64] = guardado.split('$');
-  if (algoritmo !== 'scrypt' || !salB64 || !hashB64) return false;
-  const esperado = Buffer.from(hashB64, 'base64');
-  const derivada = scryptSync(
-    password,
-    Buffer.from(salB64, 'base64'),
-    esperado.length,
-  );
-  return timingSafeEqual(esperado, derivada);
-}
-
+const passwordHasher = new PasswordHasher();
 /** Contraseña única para todas las cuentas de ejemplo. Solo desarrollo. */
 export const PASSWORD_SEMILLA = 'cuadra-dev-2026';
 
@@ -87,6 +64,7 @@ export async function sembrar(ds: DataSource): Promise<void> {
 
     const idsUsuario = new Map<string, string>();
     for (const usuario of USUARIOS) {
+      const passwordHash = await passwordHasher.hashear(PASSWORD_SEMILLA);
       const [fila] = await manager.query<Array<{ id: string }>>(
         `INSERT INTO users (email, nombre, password_hash)
          VALUES ($1, $2, $3)
@@ -94,7 +72,7 @@ export async function sembrar(ds: DataSource): Promise<void> {
            SET nombre = EXCLUDED.nombre,
                updated_at = now()
          RETURNING id`,
-        [usuario.email, usuario.nombre, hashear(PASSWORD_SEMILLA)],
+        [usuario.email, usuario.nombre, passwordHash],
       );
       idsUsuario.set(usuario.email, fila.id);
     }
