@@ -211,8 +211,8 @@ sabrías de quién. `CASCADE` en ambas llaves porque un acceso de un usuario
 que ya no existe no significa nada.
 
 **La unicidad es sobre la terna `(user_id, company_id, rol)`**, no sobre el
-par: una persona puede tener dos roles en la misma empresa. Ver el pendiente
-en la sección de riesgos.
+par: una persona puede tener dos roles en la misma empresa, a propósito. Ver
+[D-08](#d-08--varios-roles-por-persona-y-la-segregación-a-nivel-de-acción).
 
 Historias: CU-03, CU-04.
 
@@ -459,6 +459,25 @@ consultora. Los roles son un enum extensible (`admin`, `contador`,
 **Qué cuesta:** un join más en cada verificación de permiso.
 Reestructurar la relación después es tocar auth completo.
 
+### D-08 · Varios roles por persona, y la segregación a nivel de acción
+
+Una persona **sí** puede tener varios roles en la misma empresa: la unicidad
+de `user_company_roles` se queda sobre la terna, no sobre el par. El guard de
+CU-03 autoriza si cualquiera de los roles del usuario en esa empresa alcanza.
+
+La alternativa —un rol por empresa— se descartó porque en una empresa de tres
+personas el contador *es* el revisor; obligar a que sean distintos daría un
+sistema que nadie puede usar.
+
+El riesgo que eso abre —que alguien confirme una conciliación de una factura
+que él mismo cargó— **se cierra en CU-15, a nivel de acción y no de rol**:
+quien subió una carga no puede confirmar sus conciliaciones. Es como lo
+resuelven los sistemas contables, porque la segregación de funciones real se
+impone sobre lo que se hace, no sobre cómo se llama el puesto.
+
+**Qué cuesta:** una regla más en CU-15. Cambiar la unicidad después sí sería
+una migración con datos encima.
+
 ### D-07 · Llaves primarias UUIDv7, no UUIDv4 ni serial
 
 `UUID` porque con multiempresa un ID secuencial filtra volumen: un cliente
@@ -487,6 +506,48 @@ en garantía de la base en vez de disciplina del código.
 **Qué cuesta:** curva de aprendizaje a mitad de un sprint de nueve días.
 Se mitiga usándolo como relacional normal desde el día 1 y dejando RLS y
 JSONB para cuando el flujo básico ya corra.
+
+### D-09 · Dos tokens: selección (5 min) y sesión (15 min)
+
+Una persona puede pertenecer a varias empresas (D-05). El login **no** puede
+saber a cuál va a entrar, así que el acceso se parte en dos pasos, cada uno
+con su propio token:
+
+| | `scope: 'seleccion'` | `scope: 'sesion'` |
+|---|---|---|
+| Lo emite | `POST /auth/login` | `POST /auth/empresa/:id` |
+| Lleva | `sub` | `sub` + `companyId` |
+| Vive | 5 min | 15 min |
+| Sirve para | elegir empresa | todo lo demás |
+
+El token de selección solo abre la lista de empresas del usuario y el
+endpoint que canjea una. Dura 5 minutos porque es una pantalla de un clic —
+si alguien lo roba, no alcanza a usarlo y de todos modos no abre nada del
+dominio.
+
+**El `companyId` viaja firmado dentro del token, no como parámetro.** Si
+fuera un `?companyId=` o un header suelto, cualquiera lo cambiaría por el de
+otra empresa; dentro del token lo protege la firma, y la validación de que
+esa persona sí pertenece a esa empresa ocurre una sola vez, al canjear.
+
+Lo que **no** va en el token son los roles: se leen de
+`user_company_roles` en cada request. Un token es un papel firmado que ya
+no se puede retirar — si el rol viviera ahí, quitarle permisos a alguien
+tardaría hasta que expirara el token. Leyéndolos de la base, la revocación
+es inmediata.
+
+**El default del módulo se queda corto a propósito.** `JwtModule` define
+`signOptions: { expiresIn: '5m' }` aunque cada `sign()` pase el suyo
+explícito. Razón: si se olvida el `expiresIn` en un punto de firma y no hay
+default, `jsonwebtoken` emite el token **sin `exp`**, y `verify()` acepta
+tokens sin expiración para siempre. Un token eterno no se nota porque todo
+"funciona". Una sesión que caduca en 5 minutos sí se nota, y se arregla en
+un minuto. El default tiene que ser el restrictivo para que la falla sea
+ruidosa en vez de silenciosa.
+
+**Qué cuesta:** un request más en el login y un test por tipo de token que
+decodifique el `exp` y verifique la duración — no opcional, es lo que
+sostiene el punto anterior.
 
 ---
 
@@ -575,6 +636,30 @@ Jira (`cuadra-jira.csv`) y en las issues importadas.
 
 Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
+
+### 23 sep 2026
+
+- **CU-03 en curso, escrito a mano** (sin agente, a propósito, para verificar
+  que el módulo de auth se entiende de arriba a abajo). Paso 1 de 8 cerrado:
+  `POST /auth/login` valida credenciales y responde 200 / 401.
+  - `PasswordHasher` con `scrypt` **asíncrono** (`promisify`, no `scryptSync`:
+    el síncrono bloquea el event loop ~100 ms por login) y `timingSafeEqual`
+    para comparar el hash.
+  - **Hash señuelo** contra enumeración de usuarios: si el email no existe se
+    verifica igual contra un hash falso, así los dos caminos cuestan lo mismo.
+    Medido en Postman: 33 ms (usuario inexistente) vs 39 ms (contraseña mala).
+    Mismo mensaje 401 en ambos casos.
+  - Detalle deliberado: el 400 de validación **sí** dice qué campo falta —
+    el contrato de la API es público. El 401 **no** dice cuál de los dos
+    falló.
+- **D-09 registrada:** dos tokens, selección 5 min y sesión 15 min.
+- **Corrección de rumbo (yo tenía razón, el asistente no):** se propuso
+  quitar `signOptions: { expiresIn }` del `JwtModule` para forzar que cada
+  firma pusiera el suyo. Se descartó: sin default, un `sign()` al que se le
+  olvide el `expiresIn` emite un token **sin `exp`** que no caduca nunca, y
+  `verify()` lo acepta. Se cambia un error molesto por un hueco silencioso.
+  El default se queda corto, cada firma pasa el suyo explícito, y hay un test
+  por tipo de token que decodifica el `exp`.
 
 ### 22 sep 2026
 

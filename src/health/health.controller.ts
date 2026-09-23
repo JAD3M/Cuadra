@@ -5,6 +5,7 @@ import {
   HealthCheckService,
   TypeOrmHealthIndicator,
 } from '@nestjs/terminus';
+import { Publico } from '../auth/decoradores';
 
 @Controller('health')
 export class HealthController {
@@ -14,6 +15,7 @@ export class HealthController {
   ) {}
 
   @Get()
+  @Publico()
   @HealthCheck()
   check() {
     return this.health.check([() => this.db.pingCheck('postgres')]);

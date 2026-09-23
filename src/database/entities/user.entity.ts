@@ -8,8 +8,12 @@ import { EntidadBase } from './base.entity';
  * atender varias empresas con una sola credencial.
  */
 @Entity('users')
-@Index('ux_users_email', ['email'], { unique: true })
+// Único sobre lower(email), creado en la migración EmailSinMayusculas.
+// TypeORM no sabe declarar índices de expresión: `synchronize: false` hace que
+// lo respete en vez de intentar borrarlo.
+@Index('ux_users_email_lower', { synchronize: false })
 export class User extends EntidadBase {
+  /** Siempre normalizado con `normalizarEmail` (src/auth/email.ts). */
   @Column({ type: 'varchar', length: 320 })
   email: string;
 

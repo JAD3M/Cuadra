@@ -3,6 +3,7 @@ import type { DataSource } from 'typeorm';
 import dataSource from '../data-source';
 import type { Rol } from '../entities';
 import { PasswordHasher } from '../../auth/password';
+import { normalizarEmail } from '../../auth/email';
 
 const passwordHasher = new PasswordHasher();
 /** Contraseña única para todas las cuentas de ejemplo. Solo desarrollo. */
@@ -68,11 +69,11 @@ export async function sembrar(ds: DataSource): Promise<void> {
       const [fila] = await manager.query<Array<{ id: string }>>(
         `INSERT INTO users (email, nombre, password_hash)
          VALUES ($1, $2, $3)
-         ON CONFLICT (email) DO UPDATE
+         ON CONFLICT (lower(email)) DO UPDATE
            SET nombre = EXCLUDED.nombre,
                updated_at = now()
          RETURNING id`,
-        [usuario.email, usuario.nombre, passwordHash],
+        [normalizarEmail(usuario.email), usuario.nombre, passwordHash],
       );
       idsUsuario.set(usuario.email, fila.id);
     }

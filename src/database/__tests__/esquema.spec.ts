@@ -494,7 +494,11 @@ describe('semilla', () => {
 // Va al final: vacía la base y la vuelve a levantar.
 describe('reversibilidad', () => {
   it('revierte sin dejar rastro y se puede volver a aplicar', async () => {
-    await ds.undoLastMigration();
+    // Todas, de la más nueva a la más vieja: cada `down` debe dejar a la
+    // anterior en condiciones de revertirse.
+    for (let i = 0; i < ds.migrations.length; i++) {
+      await ds.undoLastMigration();
+    }
 
     const tablas = await filas<{ table_name: string }>(
       ds,
