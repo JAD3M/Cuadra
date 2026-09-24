@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+    user: node
     env_file: .env
     environment:
       DATABASE_URL: postgres://cuadra:cuadra@postgres:5432/cuadra
@@ -11,7 +12,6 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-      - /app/dist
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

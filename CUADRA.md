@@ -668,6 +668,13 @@ arriba.
     (`deleteOutDir` contra el volumen `/app/dist`); `/health` responde ok
     con `node dist/main`. Esto rompe el criterio de CU-01 y se corrige en
     el commit siguiente.
+- **CU-01 restaurado: `docker compose up` vuelve a levantar la api.** Causa:
+  el volumen anónimo `/app/dist` que agregó `b386a5b` choca con
+  `deleteOutDir: true` (`EBUSY rmdir '/app/dist'`). Arreglo: se quita ese
+  volumen y la api corre con `user: node` (uid 1000), para que lo que el
+  watch escribe en `./dist` del host no quede con dueño root.
+  `deleteOutDir` no cambia. Verificado con `down -v` + `up --build`:
+  `/health` ok, `npm run build` en el host sin sudo, 61 tests en verde.
 - **CU-04 terminado. Épica A cerrada (16 de 16 pts).** Escrito a mano.
   `src/database/__tests__/aislamiento.spec.ts`, 5 casos contra la app
   levantada por HTTP, con los guards globales reales (nada de
