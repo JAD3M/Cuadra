@@ -675,6 +675,11 @@ arriba.
   watch escribe en `./dist` del host no quede con dueño root.
   `deleteOutDir` no cambia. Verificado con `down -v` + `up --build`:
   `/health` ok, `npm run build` en el host sin sudo, 61 tests en verde.
+- **Lint sin errores.** En `src/auth/password.ts`, el cast
+  `promisify(scrypt) as (...)` de `b386a5b` pasa a ser una anotación de
+  tipo en `scryptAsync`. Con el cast, `--fix` lo borraba y el tipo quedaba
+  sin resolver (`no-unsafe-call`). Queda un warning previo en `main.ts:34`
+  (`no-floating-promises`). Build ok, 61 tests en verde.
 - **CU-04 terminado. Épica A cerrada (16 de 16 pts).** Escrito a mano.
   `src/database/__tests__/aislamiento.spec.ts`, 5 casos contra la app
   levantada por HTTP, con los guards globales reales (nada de

@@ -2,11 +2,11 @@ import { randomBytes, scrypt, timingSafeEqual } from 'crypto';
 import { Injectable } from '@nestjs/common';
 import { promisify } from 'util';
 
-const scryptAsync = promisify(scrypt) as (
+const scryptAsync: (
   password: string,
   salt: Buffer,
   keylen: number,
-) => Promise<Buffer>;
+) => Promise<Buffer> = promisify(scrypt);
 
 @Injectable()
 export class PasswordHasher {
