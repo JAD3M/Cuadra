@@ -644,6 +644,50 @@ Jira (`cuadra-jira.csv`) y en las issues importadas.
 Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
 
+### 24 sep 2026
+
+- **CU-04 terminado. Épica A cerrada (16 de 16 pts).** Escrito a mano.
+  `src/database/__tests__/aislamiento.spec.ts`, 5 casos contra la app
+  levantada por HTTP, con los guards globales reales (nada de
+  `overrideGuard` ni llamadas directas al controlador). 61 tests en verde.
+  - Carga ajena → 404, **con el cuerpo idéntico al de una carga que no
+    existe**. Si fueran distintos, con un token válido se podría averiguar
+    qué UUIDs existen en otras empresas. Es el mismo principio que el 401
+    único del login.
+  - Jorge con token de Ferretería no ve la carga de Transportes aunque
+    pertenezca a las dos: **manda el `companyId` del token, no la persona.**
+  - Token de selección contra dominio → 401.
+  - **Control positivo:** Jorge con token de Transportes sí ve la suya →
+    200. Sin este caso, un aislamiento que bloquea todo (por ejemplo, RLS
+    sin la empresa fijada) dejaría los otros cuatro en verde.
+  - **Precisión sobre qué protege qué:** el 404 lo da el handler, que
+    filtra por el `companyId` del token. Los guards deciden quién eres y en
+    qué empresa estás, pero no saben nada de cargas. Hoy el aislamiento
+    depende de que cada handler escriba ese `WHERE`, y esa es la razón de
+    ser de CU-04b.
+  - **Prueba de mutación:** con la comprobación del scope quitada a
+    propósito de `JwtAuthGuard`, el caso 4 se puso rojo (500 en vez de 401)
+    y los otros cuatro siguieron verdes. Antes, el handler de prueba
+    respondía su propio 401 y **tapaba al guard**: el test habría pasado
+    con el guard roto. Ahora, si el guard deja pasar un scope equivocado, el
+    handler lanza un `Error` que da 500. Regla: un test que nunca has visto
+    fallar no sabes si funciona.
+- **Pendiente para CU-06:** el caso 3 (`companyId` en la query se ignora)
+  hoy no puede fallar, porque el controlador de prueba nunca lee
+  `@Query()`. El riesgo real es un handler de producción que sí lo lea, y
+  eso solo se prueba contra el endpoint real de cargas.
+- **Pendiente, CU-04b (RLS), 25 sep:** segunda capa sobre `cargas`, `cfdi`,
+  `movimientos`, `conciliaciones` y `bitacora`, con `FORCE ROW LEVEL
+  SECURITY`, el rol `cuadra_app` sin `BYPASSRLS` y `SET LOCAL
+  app.company_id` dentro de una transacción por petición. Quedan fuera
+  `companies`, `users` y `user_company_roles`: esta última se consulta antes
+  de elegir empresa, y una política sobre ella bloquearía el login. El
+  test de CU-04 detecta un RLS demasiado restrictivo, pero **no** uno que no
+  haga nada; eso necesita un test propio: una consulta sin `WHERE` con el
+  rol de la app que tiene que devolver cero filas. Ojo: en Docker, `cuadra`
+  es superusuario y el superusuario ignora las políticas incluso con
+  `FORCE`.
+
 ### 23 sep 2026
 
 - **CU-03 terminado.** Login en dos pasos según D-09: `POST /auth/login`
