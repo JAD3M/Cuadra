@@ -1,9 +1,13 @@
-// src/database/entities/movimiento.entity.ts
+// src/bancos/movimiento.entity.ts
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
-import { EntidadBase } from './base.entity';
-import { Carga } from './carga.entity';
-import { Company } from './company.entity';
-import { ESTADOS_MOVIMIENTO, listaSql, type EstadoMovimiento } from './tipos';
+import { EntidadBase } from '../common/entities/base.entity';
+import { Carga } from '../cargas/carga.entity';
+import { Company } from '../companies/company.entity';
+import {
+  ESTADOS_MOVIMIENTO,
+  listaSql,
+  type EstadoMovimiento,
+} from '../common/entities/tipos';
 
 /** Una línea del estado de cuenta bancario. */
 @Entity('movimientos')

@@ -1,4 +1,4 @@
-// src/database/entities/base.entity.ts
+// src/common/entities/base.entity.ts
 import { CreateDateColumn, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 
 /**

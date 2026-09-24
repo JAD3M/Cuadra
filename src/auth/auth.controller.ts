@@ -18,7 +18,11 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { Publico, Scope, UsuarioActual } from './decoradores';
+import {
+  Publico,
+  Scope,
+  UsuarioActual,
+} from '../common/decorators/decoradores';
 import { LoginDto } from './dto/LoginDto';
 import {
   EmpresaDisponibleDto,

@@ -1,17 +1,17 @@
-// src/database/entities/conciliacion.entity.ts
+// src/conciliacion/conciliacion.entity.ts
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
-import { EntidadBase } from './base.entity';
-import { Cfdi } from './cfdi.entity';
-import { Company } from './company.entity';
-import { Movimiento } from './movimiento.entity';
-import { User } from './user.entity';
+import { EntidadBase } from '../common/entities/base.entity';
+import { Cfdi } from '../cfdi/cfdi.entity';
+import { Company } from '../companies/company.entity';
+import { Movimiento } from '../bancos/movimiento.entity';
+import { User } from '../users/user.entity';
 import {
   ESTADOS_CONCILIACION,
   listaSql,
   ORIGENES_CONCILIACION,
   type EstadoConciliacion,
   type OrigenConciliacion,
-} from './tipos';
+} from '../common/entities/tipos';
 
 /** El cruce entre un CFDI y un movimiento bancario. */
 @Entity('conciliaciones')

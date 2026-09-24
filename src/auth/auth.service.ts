@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PasswordHasher } from './password';
-import { User } from '../database/entities/user.entity';
+import { User } from '../users/user.entity';
 import { Raw, Repository } from 'typeorm';
 import {
   UnauthorizedException,
@@ -10,10 +10,10 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
-import { UserCompanyRole } from '../database/entities/user-company-role.entity';
+import { UserCompanyRole } from '../companies/user-company-role.entity';
 import { EmpresaDisponible, JwtPayload } from './tipos';
-import type { Rol } from '../database/entities';
-import { normalizarEmail } from './email';
+import type { Rol } from '../common/entities/tipos';
+import { normalizarEmail } from '../users/email';
 import { RespuestaLoginDto, RespuestaTokenDto } from './dto/respuestas.dto';
 
 /** D-09. Cada firma pasa la suya; el default del módulo es solo la red. */

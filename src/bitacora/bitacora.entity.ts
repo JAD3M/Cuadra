@@ -1,4 +1,4 @@
-// src/database/entities/bitacora.entity.ts
+// src/bitacora/bitacora.entity.ts
 import {
   Check,
   Column,
@@ -9,9 +9,13 @@ import {
   ManyToOne,
   PrimaryColumn,
 } from 'typeorm';
-import { Company } from './company.entity';
-import { User } from './user.entity';
-import { ACCIONES_BITACORA, listaSql, type AccionBitacora } from './tipos';
+import { Company } from '../companies/company.entity';
+import { User } from '../users/user.entity';
+import {
+  ACCIONES_BITACORA,
+  listaSql,
+  type AccionBitacora,
+} from '../common/entities/tipos';
 
 /**
  * Append-only: no hereda de EntidadBase porque una bitácora que se puede

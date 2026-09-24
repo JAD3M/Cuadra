@@ -1,9 +1,10 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Repository } from 'typeorm';
-import type { User, UserCompanyRole } from '../../database/entities';
-import { AuthService } from '../auth.service';
-import { PasswordHasher } from '../password';
+import type { User } from '../users/user.entity';
+import type { UserCompanyRole } from '../companies/user-company-role.entity';
+import { AuthService } from './auth.service';
+import { PasswordHasher } from './password';
 
 /**
  * Unitarias: repositorios simulados, hasher y JwtService reales. El

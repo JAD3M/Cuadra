@@ -1,4 +1,4 @@
-// src/database/entities/tipos.ts
+// src/common/entities/tipos.ts
 // Los estados viajan como VARCHAR con CHECK, no como ENUM de Postgres:
 // agregar un valor es un ALTER ... DROP/ADD CONSTRAINT reversible dentro de
 // una transacción, mientras que ALTER TYPE ... ADD VALUE no se puede revertir.

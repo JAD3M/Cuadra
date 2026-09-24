@@ -4,8 +4,8 @@ import {
   SetMetadata,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import type { Rol } from '../database/entities';
-import type { JwtPayload, UsuarioAutenticado } from './tipos';
+import type { Rol } from '../entities/tipos';
+import type { JwtPayload, UsuarioAutenticado } from '../../auth/tipos';
 
 export const LLAVE_PUBLICO = 'auth:publico';
 export const LLAVE_SCOPE = 'auth:scope';

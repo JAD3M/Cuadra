@@ -1,12 +1,12 @@
 import { DataSource } from 'typeorm';
-import { opcionesDataSource } from '../data-source';
-import { sembrar } from '../seeds/seed';
+import { opcionesDataSource } from './data-source';
+import { sembrar } from './seeds/seed';
 import {
   crearBaseDePruebas,
   filas,
   una,
   urlDePruebas,
-} from './base-de-pruebas';
+} from './testing/base-de-pruebas';
 
 /**
  * Migración EmailSinMayusculas. Los usuarios del seed ya están en minúsculas

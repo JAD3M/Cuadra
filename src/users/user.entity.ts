@@ -1,6 +1,6 @@
-// src/database/entities/user.entity.ts
+// src/users/user.entity.ts
 import { Column, Entity, Index } from 'typeorm';
-import { EntidadBase } from './base.entity';
+import { EntidadBase } from '../common/entities/base.entity';
 
 /**
  * Los usuarios son globales, no de una empresa: la pertenencia y el rol

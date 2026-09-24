@@ -1,15 +1,15 @@
-// src/database/entities/carga.entity.ts
+// src/cargas/carga.entity.ts
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
-import { EntidadBase } from './base.entity';
-import { Company } from './company.entity';
-import { User } from './user.entity';
+import { EntidadBase } from '../common/entities/base.entity';
+import { Company } from '../companies/company.entity';
+import { User } from '../users/user.entity';
 import {
   ESTADOS_CARGA,
   listaSql,
   TIPOS_CARGA,
   type EstadoCarga,
   type TipoCarga,
-} from './tipos';
+} from '../common/entities/tipos';
 
 /** Un archivo ingerido: un lote de CFDI o un estado de cuenta bancario. */
 @Entity('cargas')

@@ -1,6 +1,6 @@
-// src/database/entities/company.entity.ts
+// src/companies/company.entity.ts
 import { Column, Entity, Index } from 'typeorm';
-import { EntidadBase } from './base.entity';
+import { EntidadBase } from '../common/entities/base.entity';
 
 /** Raíz del aislamiento multiempresa: no lleva `company_id`, lo es. */
 @Entity('companies')

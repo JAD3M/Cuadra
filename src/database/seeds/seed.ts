@@ -1,9 +1,9 @@
 // src/database/seeds/seed.ts
 import type { DataSource } from 'typeorm';
 import dataSource from '../data-source';
-import type { Rol } from '../entities';
+import type { Rol } from '../../common/entities/tipos';
 import { PasswordHasher } from '../../auth/password';
-import { normalizarEmail } from '../../auth/email';
+import { normalizarEmail } from '../../users/email';
 
 const passwordHasher = new PasswordHasher();
 /** Contraseña única para todas las cuentas de ejemplo. Solo desarrollo. */

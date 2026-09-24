@@ -5,13 +5,13 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { Rol } from '../../database/entities';
+import type { Rol } from '../../common/entities/tipos';
 import { AuthService } from '../auth.service';
 import {
   LLAVE_PUBLICO,
   LLAVE_ROLES,
   type SolicitudAutenticada,
-} from '../decoradores';
+} from '../../common/decorators/decoradores';
 
 /**
  * Guard global, corre después de `JwtAuthGuard`. Los roles no viajan en el

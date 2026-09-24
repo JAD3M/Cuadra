@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { validateEnv } from './config/env.validation';
-import { ENTIDADES } from './database/entities';
+import { ENTIDADES } from './database/entidades';
 import { SnakeNamingStrategy } from './database/naming.strategy';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';

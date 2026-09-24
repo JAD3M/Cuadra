@@ -1,13 +1,13 @@
-// src/database/__tests__/esquema.spec.ts
+// src/database/esquema.spec.ts
 import { DataSource, QueryRunner } from 'typeorm';
-import { opcionesDataSource } from '../data-source';
-import { sembrar } from '../seeds/seed';
+import { opcionesDataSource } from './data-source';
+import { sembrar } from './seeds/seed';
 import {
   crearBaseDePruebas,
   filas,
   una,
   urlDePruebas,
-} from './base-de-pruebas';
+} from './testing/base-de-pruebas';
 
 /**
  * CU-02: esquema, migración y semilla. Las pruebas corren contra Postgres real

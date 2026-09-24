@@ -15,15 +15,19 @@ import { createHash, randomUUID } from 'crypto';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
-import { AuthModule } from '../../auth/auth.module';
-import { UsuarioActual } from '../../auth/decoradores';
-import type { JwtPayload, UsuarioAutenticado } from '../../auth/tipos';
-import { validateEnv } from '../../config/env.validation';
-import { opcionesDataSource } from '../../database/data-source';
-import { ENTIDADES } from '../../database/entities';
-import { SnakeNamingStrategy } from '../../database/naming.strategy';
-import { sembrar } from '../../database/seeds/seed';
-import { crearBaseDePruebas, urlDePruebas, una } from './base-de-pruebas';
+import { AuthModule } from '../auth/auth.module';
+import { UsuarioActual } from '../common/decorators/decoradores';
+import type { JwtPayload, UsuarioAutenticado } from '../auth/tipos';
+import { validateEnv } from '../config/env.validation';
+import { opcionesDataSource } from './data-source';
+import { ENTIDADES } from './entidades';
+import { SnakeNamingStrategy } from './naming.strategy';
+import { sembrar } from './seeds/seed';
+import {
+  crearBaseDePruebas,
+  urlDePruebas,
+  una,
+} from './testing/base-de-pruebas';
 
 const CARMEN = 'carmen.olvera@cuautla.mx'; // admin en Transportes
 const JORGE = 'jorge.tapia@despacho.mx'; // contador en Ferretería, revisor en Transportes

@@ -1,9 +1,9 @@
-// src/database/entities/user-company-role.entity.ts
+// src/companies/user-company-role.entity.ts
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
-import { EntidadBase } from './base.entity';
+import { EntidadBase } from '../common/entities/base.entity';
 import { Company } from './company.entity';
-import { User } from './user.entity';
-import { listaSql, ROLES, type Rol } from './tipos';
+import { User } from '../users/user.entity';
+import { listaSql, ROLES, type Rol } from '../common/entities/tipos';
 
 /**
  * Pertenencia de un usuario a una empresa, con su rol. La unicidad es sobre

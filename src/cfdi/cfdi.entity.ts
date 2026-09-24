@@ -1,15 +1,15 @@
-// src/database/entities/cfdi.entity.ts
+// src/cfdi/cfdi.entity.ts
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
-import { EntidadBase } from './base.entity';
-import { Carga } from './carga.entity';
-import { Company } from './company.entity';
+import { EntidadBase } from '../common/entities/base.entity';
+import { Carga } from '../cargas/carga.entity';
+import { Company } from '../companies/company.entity';
 import {
   ESTADOS_CFDI,
   listaSql,
   TIPOS_COMPROBANTE,
   type EstadoCfdi,
   type TipoComprobante,
-} from './tipos';
+} from '../common/entities/tipos';
 
 @Entity('cfdi')
 // El folio fiscal es único a nivel SAT, pero lo acotamos por empresa: dos

@@ -11,7 +11,7 @@ import {
   LLAVE_PUBLICO,
   LLAVE_SCOPE,
   type SolicitudAutenticada,
-} from '../decoradores';
+} from '../../common/decorators/decoradores';
 import type { JwtPayload, UsuarioAutenticado } from '../tipos';
 
 /** Un solo mensaje para todo: no decimos si faltó, expiró o era de otro tipo. */

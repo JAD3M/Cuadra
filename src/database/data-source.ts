@@ -2,7 +2,7 @@
 import 'reflect-metadata';
 import { config as cargarEnv } from 'dotenv';
 import { DataSource, type DataSourceOptions } from 'typeorm';
-import { ENTIDADES } from './entities';
+import { ENTIDADES } from './entidades';
 import { SnakeNamingStrategy } from './naming.strategy';
 
 cargarEnv({ quiet: true });

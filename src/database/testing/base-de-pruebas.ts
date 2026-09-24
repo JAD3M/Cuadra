@@ -1,4 +1,4 @@
-// src/database/__tests__/base-de-pruebas.ts
+// src/database/testing/base-de-pruebas.ts
 import { DataSource } from 'typeorm';
 
 /** `query()` devuelve `any`; estos ayudantes le ponen tipo en un solo lugar. */

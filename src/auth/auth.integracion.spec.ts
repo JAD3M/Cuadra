@@ -11,18 +11,18 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
-import { validateEnv } from '../../config/env.validation';
-import { opcionesDataSource } from '../../database/data-source';
-import { ENTIDADES } from '../../database/entities';
-import { SnakeNamingStrategy } from '../../database/naming.strategy';
-import { PASSWORD_SEMILLA, sembrar } from '../../database/seeds/seed';
+import { validateEnv } from '../config/env.validation';
+import { opcionesDataSource } from '../database/data-source';
+import { ENTIDADES } from '../database/entidades';
+import { SnakeNamingStrategy } from '../database/naming.strategy';
+import { PASSWORD_SEMILLA, sembrar } from '../database/seeds/seed';
 import {
   crearBaseDePruebas,
   una,
   urlDePruebas,
-} from '../../database/__tests__/base-de-pruebas';
-import { AuthModule } from '../auth.module';
-import { Roles, Scope } from '../decoradores';
+} from '../database/testing/base-de-pruebas';
+import { AuthModule } from './auth.module';
+import { Roles, Scope } from '../common/decorators/decoradores';
 
 /**
  * CU-03 de punta a punta contra Postgres real y el seed: guards globales,

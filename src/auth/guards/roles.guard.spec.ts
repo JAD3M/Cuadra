@@ -1,9 +1,9 @@
 import { ForbiddenException, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { Rol } from '../../database/entities';
+import type { Rol } from '../../common/entities/tipos';
 import type { AuthService } from '../auth.service';
-import { LLAVE_ROLES } from '../decoradores';
-import { RolesGuard } from '../guards/roles.guard';
+import { LLAVE_ROLES } from '../../common/decorators/decoradores';
+import { RolesGuard } from './roles.guard';
 import type { UsuarioAutenticado } from '../tipos';
 
 const SESION: UsuarioAutenticado = {
