@@ -185,7 +185,7 @@ impide.
 
 | Columna | Tipo | Notas |
 |---|---|---|
-| `email` | varchar(320) | único |
+| `email` | varchar(320) | único sobre `lower(email)` |
 | `nombre` | varchar(255) | |
 | `password_hash` | varchar(255) | nunca texto plano |
 | `activo` | boolean | default `true` |
@@ -197,6 +197,13 @@ en vez de tres cuentas con tres contraseñas.
 `varchar(320)` es el máximo del estándar de correo: 64 de parte local + `@`
 + 255 de dominio. El nombre `password_hash` es documentación: quien lo lea
 sabe que ahí no va texto plano.
+
+**La unicidad va sobre `lower(email)`, no sobre `email`.** Un `UNIQUE` plano
+deja convivir `ana@x.mx` y `Ana@x.mx` como dos personas distintas, y el día
+que el login normalice a minúsculas una de las dos queda inalcanzable para
+siempre. El índice es `ux_users_email_lower`, y el login busca comparando
+`lower(email)` — si buscara por `email` directo, el índice no lo usaría
+nadie.
 
 ### `user_company_roles` — la tabla puente
 
@@ -639,7 +646,37 @@ arriba.
 
 ### 23 sep 2026
 
-- **CU-03 en curso, escrito a mano** (sin agente, a propósito, para verificar
+- **CU-03 terminado.** Login en dos pasos según D-09: `POST /auth/login`
+  devuelve token de selección (5 min) y la lista de empresas sin duplicar;
+  `POST /auth/empresa/:id` lo canjea por uno de sesión (15 min, con
+  `companyId`) solo si el usuario tiene roles vigentes ahí. `GET
+  /auth/empresas` repite la lista para cuando el front recarga y la pierde.
+  56 tests en verde.
+  - **`JwtAuthGuard` y `RolesGuard` son globales**, con `@Publico()` para las
+    excepciones (`/health`, `/docs`). Mismo criterio que el default del
+    `expiresIn`: si fueran por endpoint, olvidarse dejaría la ruta abierta;
+    siendo globales, olvidarse la deja cerrada. La falla tiene que ser
+    ruidosa.
+  - Sin `@Scope` se exige el token de sesión. El restrictivo es el default.
+  - **El guard rechaza tokens sin `exp` y fija el algoritmo en `HS256`.** Lo
+    primero es la segunda capa contra el token eterno de D-09. Lo segundo
+    cierra el ataque de `alg: "none"`, donde un token sin firma pasa como
+    válido si la librería acepta el algoritmo que le dicta el header.
+  - Los roles se leen de `user_company_roles` en cada request, filtrando
+    además por usuario y empresa activos. Revocar un rol o desactivar a
+    alguien surte efecto con el mismo token, en la siguiente petición.
+  - **Unicidad de email sobre `lower(email)`**, con migración que normaliza
+    lo existente y se detiene si dos correos chocan al normalizarse — sin
+    escribir cuáles en el log, porque son datos personales y los logs se
+    guardan. Trampa que dejó: `ON CONFLICT (email)` del seed deja de inferir
+    índice al quitar el `UNIQUE` plano; va sobre `lower(email)`.
+  - Swagger en `/docs`, nunca con `NODE_ENV=production`.
+  - **Los tests corren contra `cuadra_test`**, una base aparte que se crea
+    sola (`urlDePruebas()` en `src/database/__tests__/base-de-pruebas.ts`).
+    Hace falta porque las pruebas de esquema revierten todas las migraciones:
+    apuntando a la base de desarrollo, un `npm test` borraría los datos
+    cargados a mano para probar.
+- **CU-03 paso 1, escrito a mano** (sin agente, a propósito, para verificar
   que el módulo de auth se entiende de arriba a abajo). Paso 1 de 8 cerrado:
   `POST /auth/login` valida credenciales y responde 200 / 401.
   - `PasswordHasher` con `scrypt` **asíncrono** (`promisify`, no `scryptSync`:
