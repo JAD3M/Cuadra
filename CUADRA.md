@@ -646,6 +646,28 @@ arriba.
 
 ### 24 sep 2026
 
+- **Refactor: estructura por módulos de dominio.** Sin cambios de esquema,
+  endpoints ni comportamiento; `migration:generate --check` sin cambios.
+  61 tests antes y 61 después. Entidades junto a su dominio (`users/`,
+  `companies/`, `cargas/`, `cfdi/`, `bancos/`, `conciliacion/`,
+  `bitacora/`), base y tipos en `common/entities/`, decoradores en
+  `common/decorators/`, lista explícita de entidades en
+  `database/entidades.ts`. Specs junto a lo que prueban;
+  `tsconfig.build.json` los excluye de `dist/`.
+  - Rutas que cambiaron y que citan entradas anteriores:
+    `src/database/__tests__/aislamiento.spec.ts` →
+    `src/database/aislamiento.spec.ts`;
+    `src/database/__tests__/base-de-pruebas.ts` →
+    `src/database/testing/base-de-pruebas.ts`; `src/database/entities/*`
+    → carpeta de su dominio; `src/auth/email.ts` → `src/users/email.ts`
+    (normaliza el email del usuario y también lo usa el seed);
+    `src/auth/decoradores.ts` → `src/common/decorators/decoradores.ts`.
+  - **Previos, no del refactor:** `npm run lint` falla en
+    `src/auth/password.ts` (cast innecesario, commit `b386a5b`).
+    `docker compose up` falla con `EBUSY rmdir '/app/dist'`
+    (`deleteOutDir` contra el volumen `/app/dist`); `/health` responde ok
+    con `node dist/main`. Esto rompe el criterio de CU-01 y se corrige en
+    el commit siguiente.
 - **CU-04 terminado. Épica A cerrada (16 de 16 pts).** Escrito a mano.
   `src/database/__tests__/aislamiento.spec.ts`, 5 casos contra la app
   levantada por HTTP, con los guards globales reales (nada de
