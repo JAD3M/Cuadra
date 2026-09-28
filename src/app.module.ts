@@ -6,6 +6,7 @@ import { ENTIDADES } from './database/entidades';
 import { SnakeNamingStrategy } from './database/naming.strategy';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
+import { CargasModule } from './cargas/cargas.module';
 import { ContextoEmpresaModule } from './database/contexto-empresa.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { ContextoEmpresaModule } from './database/contexto-empresa.module';
     ContextoEmpresaModule,
     HealthModule,
     AuthModule,
+    CargasModule,
   ],
 })
 export class AppModule {}

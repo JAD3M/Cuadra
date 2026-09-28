@@ -646,6 +646,92 @@ arriba.
 
 ### 28 sep 2026
 
+- **CU-06 terminado: carga de archivos.**
+  - **Endpoints:** `POST /cargas/cfdi` (multipart, campo `archivos`, roles
+    admin y contador) y `GET /cargas/:id`.
+  - **Verificación:** 101 tests en verde (86 + 15), estables en dos
+    corridas seguidas. Lint sin errores (sigue el warning de `main.ts:34`), build
+    ok, `migration:generate --check` sin cambios, `docker compose up` +
+    `/health` ok y una subida real por la api en Docker.
+  - **Una fila en `cargas` por petición.** `hash_archivo` = SHA-256 de la
+    lista ordenada de los SHA-256 de cada archivo: el mismo lote en otro
+    orden da el mismo hash. Repetido → el índice único salta → 409. El
+    resto de la idempotencia es CU-07.
+  - **Síncrono dentro de la petición** (la cola es CU-08). Cada archivo pasa
+    por `leerCfdi()` y un `INSERT` en `cfdi` con `carga_id`, estado inicial
+    y `xml_raw`, **dentro de su propio SAVEPOINT**. Si falla, `ROLLBACK TO
+    SAVEPOINT` y sigue con el siguiente.
+  - **Estado final:** `procesada` si entró al menos uno, `fallida` si no.
+    Contadores y `errores` = `[{archivo, motivo}]`.
+  - **Error por archivo solo si es del archivo.** Son dos casos:
+    `CfdiRechazado` del lector (su motivo tal cual) y la violación de
+    unicidad del UUID (23505 sobre `ux_cfdi_company_id_uuid_fiscal`, "ya
+    existe en la empresa"). **Cualquier otro error aborta la petición
+    completa**: el interceptor hace rollback de todo, incluida la fila de
+    `cargas`, y Nest responde 500. Reportarlo como fallo del archivo
+    escondería un problema nuestro detrás de "el CFDI venía mal".
+    - Primera versión: todo error contaba como fallo del archivo, con
+      motivo genérico. Se corrigió antes del commit.
+    - Caso real que hoy da 500: una `Serie` de más de 25 caracteres. El
+      lector la acepta y la base la rechaza con 22001. Si se vuelve común,
+      la validación de largo va en el lector y pasa a ser motivo del
+      archivo.
+  - **Fecha:** `fecha_emision` se inserta como texto con `$n::timestamp`.
+    Pasarla por `Date` la movería a la zona del servidor.
+  - **Migración `CargaDeArchivos1790639046548`:**
+    - `cargas.errores jsonb NOT NULL DEFAULT '[]'`.
+    - `'parcialidades'` en `ck_cfdi_estado`, escrito **a mano**:
+      TypeORM no compara el texto de los CHECK y `migration:generate` no
+      lo detecta.
+    - Sin GRANTs nuevos: los de tabla cubren la columna nueva.
+    - El `down` se detiene si ya hay CFDI en `parcialidades`: decidir a
+      qué estado pasan es trabajo de una persona.
+  - **Límites con motivo en español:**
+    - 400: 2 MB por archivo, 500 por petición, solo `.xml`, al menos uno.
+    - **413: 50 MB por petición.** Sin este tope, 500 × 2 MB = 1 GB en
+      memoria.
+    - El 413 tiene dos capas. Si `Content-Length` pasa el tope, se
+      rechaza antes de leer un byte. Si no viene (chunked) o miente,
+      cuenta un almacenamiento propio de multer (`memoriaConTope`, como
+      `memoryStorage` pero con contador por petición), que corta en
+      cuanto la suma pasa el tope.
+  - **El multipart se lee en un guard (`ArchivosXmlGuard`) y no con
+    `FilesInterceptor`, por el orden:**
+    - Los guards globales corren antes, así que un revisor recibe 403 sin
+      que se lea el cuerpo.
+    - Los interceptores globales corren antes que los del endpoint: con
+      `FilesInterceptor`, la transacción de empresa retendría una
+      conexión del pool mientras el cliente sube hasta 50 MB.
+  - `GET /cargas/:id`: la empresa sale del token, con `WHERE company_id`
+    además de RLS. Ajena o inexistente → 404 con cuerpo idéntico. Todo va
+    por `ContextoEmpresa`, sin `@Res()` y sin escribir en `bitacora`.
+  - **Pruebas de mutación:**
+    - **Sin los SAVEPOINT**, se pone rojo exactamente el test del UUID
+      repetido: el error de la base aborta la transacción.
+    - **Con el controlador leyendo `companyId` de la query**, los 12
+      siguen en verde. Lo frena RLS: la empresa fijada sale del token. El
+      pendiente de CU-04 queda cubierto como comportamiento, pero **ese
+      test no detecta por sí solo un handler que lea la query**; la capa
+      que lo detiene es RLS.
+    - **Sin el contador del almacenamiento**, se pone rojo solo el 413
+      chunked. El de `Content-Length` sigue verde por el atajo del
+      header, y por eso el test chunked arma el multipart a mano:
+      supertest siempre manda `Content-Length`.
+    - **Con los errores desconocidos de vuelta como fallo del archivo**,
+      se pone rojo solo el test del 500.
+    - Código restaurado en todos los casos.
+  - **Tests:** el spec de cargas hace `TRUNCATE cfdi, cargas` al entrar y
+    al salir. Si deja un CFDI en `parcialidades`, el `down` de
+    `CargaDeArchivos` se detiene y rompe los specs que revierten
+    migraciones (`esquema`, `email-normalizado`).
+  - **`lint --fix` quita los `as` sobre `query()`** porque cast desde
+    `any` le parece innecesario, y luego truena con `no-unsafe-*`. El tipo
+    va como genérico: `manager.query<Fila[]>(...)`.
+  - Dependencias: `multer` pasa a ser directa (antes solo llegaba por
+    Nest) y `@types/multer` en dev.
+- **Al agregar dependencias, `docker compose up -d --build -V`**; sin `-V`
+  el volumen anónimo de `node_modules` conserva la versión vieja.
+
 - **CU-05 terminado: lector de CFDI 4.0.** Solo el parser, sin endpoints,
   persistencia ni colas. `leerCfdi(xml)` en `src/cfdi/lector-cfdi.ts`,
   tipos en `src/cfdi/cfdi-leido.ts`. 86 tests en verde (67 + 19), lint sin

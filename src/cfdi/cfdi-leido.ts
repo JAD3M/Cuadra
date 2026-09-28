@@ -1,14 +1,15 @@
 // src/cfdi/cfdi-leido.ts
-import type { TipoComprobante } from '../common/entities/tipos';
+import type { EstadoCfdi, TipoComprobante } from '../common/entities/tipos';
 
 /**
  * Estado con el que nace el CFDI según su método de pago (CU-05). PPD se paga
  * en partes y exige complementos de pago: no se concilia igual que PUE.
- *
- * Ojo: `ck_cfdi_estado` todavía no admite 'parcialidades'. La migración va en
- * CU-06, que es la que persiste.
+ * Atado a `EstadoCfdi` para que no pueda salir un estado que el CHECK rechace.
  */
-export type EstadoInicialCfdi = 'abierta' | 'parcialidades';
+export type EstadoInicialCfdi = Extract<
+  EstadoCfdi,
+  'abierta' | 'parcialidades'
+>;
 
 /** Totales de impuestos tal como los declara el CFDI; '0' si no hay nodo. */
 export interface ImpuestosCfdi {

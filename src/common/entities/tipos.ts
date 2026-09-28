@@ -17,7 +17,16 @@ export const ESTADOS_CARGA = [
 ] as const;
 export type EstadoCarga = (typeof ESTADOS_CARGA)[number];
 
-export const ESTADOS_CFDI = ['abierta', 'conciliada', 'cancelada'] as const;
+/**
+ * 'parcialidades': PPD recién leído (CU-05). Se paga en partes y exige
+ * complementos de pago, así que no se concilia igual que una PUE 'abierta'.
+ */
+export const ESTADOS_CFDI = [
+  'abierta',
+  'parcialidades',
+  'conciliada',
+  'cancelada',
+] as const;
 export type EstadoCfdi = (typeof ESTADOS_CFDI)[number];
 
 /** c_TipoDeComprobante del SAT: Ingreso, Egreso, Traslado, Nómina, Pago. */
