@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SINTÉTICO. Rechazo: SubTotal no es la suma de Importes. RFCs y UUID inventados; nunca datos reales. -->
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigitalv11" xmlns:implocal="http://www.sat.gob.mx/implocal" Version="4.0" Serie="A" Folio="1001" Fecha="2026-09-15T10:30:00" FormaPago="03" SubTotal="3850.00" Moneda="MXN" Total="4466.08" TipoDeComprobante="I" Exportacion="01" MetodoPago="PUE" LugarExpedicion="62740" Sello="SINTETICO" NoCertificado="00000000000000000000" Certificado="SINTETICO">
+  <cfdi:Emisor Rfc="FDB190215QK4" Nombre="FERRETERIA DEL BAJIO" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="TCU170830R52" Nombre="TRANSPORTES CUAUTLA" DomicilioFiscalReceptor="62740" RegimenFiscalReceptor="601" UsoCFDI="G03"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="01010101" Cantidad="1" ClaveUnidad="E48" Descripcion="Servicio de prueba" ValorUnitario="1500.00" Importe="1500.00" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados><cfdi:Traslado Base="1500.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="240.00"/></cfdi:Traslados></cfdi:Impuestos>
+    </cfdi:Concepto>
+    <cfdi:Concepto ClaveProdServ="01010101" Cantidad="1" ClaveUnidad="E48" Descripcion="Servicio de prueba" ValorUnitario="2350.50" Importe="2350.50" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados><cfdi:Traslado Base="2350.50" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="376.08"/></cfdi:Traslados></cfdi:Impuestos>
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="616.08"/>
+  <cfdi:Complemento><tfd:TimbreFiscalDigital Version="1.1" UUID="5E2D6AFF-2DD7-43D1-83D3-14C1ACA396D9" FechaTimbrado="2026-09-15T10:30:00" RfcProvCertif="AAA010101AAA" SelloCFD="SINTETICO" NoCertificadoSAT="00000000000000000000" SelloSAT="SINTETICO"/></cfdi:Complemento>
+</cfdi:Comprobante>

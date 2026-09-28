@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SINTÉTICO. Importes de 6 decimales: suman 999.999999 y cuadran solo al redondear a 1000.00. RFCs y UUID inventados; nunca datos reales. -->
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigitalv11" xmlns:implocal="http://www.sat.gob.mx/implocal" Version="4.0" Serie="A" Folio="1005" Fecha="2026-09-15T10:30:00" FormaPago="03" SubTotal="1000.00" Moneda="MXN" Total="1160.00" TipoDeComprobante="I" Exportacion="01" MetodoPago="PUE" LugarExpedicion="62740" Sello="SINTETICO" NoCertificado="00000000000000000000" Certificado="SINTETICO">
+  <cfdi:Emisor Rfc="FDB190215QK4" Nombre="FERRETERIA DEL BAJIO" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="TCU170830R52" Nombre="TRANSPORTES CUAUTLA" DomicilioFiscalReceptor="62740" RegimenFiscalReceptor="601" UsoCFDI="G03"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="01010101" Cantidad="1" ClaveUnidad="E48" Descripcion="Servicio de prueba" ValorUnitario="333.333333" Importe="333.333333" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados><cfdi:Traslado Base="333.333333" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="53.333333"/></cfdi:Traslados></cfdi:Impuestos>
+    </cfdi:Concepto>
+    <cfdi:Concepto ClaveProdServ="01010101" Cantidad="1" ClaveUnidad="E48" Descripcion="Servicio de prueba" ValorUnitario="333.333333" Importe="333.333333" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados><cfdi:Traslado Base="333.333333" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="53.333333"/></cfdi:Traslados></cfdi:Impuestos>
+    </cfdi:Concepto>
+    <cfdi:Concepto ClaveProdServ="01010101" Cantidad="1" ClaveUnidad="E48" Descripcion="Servicio de prueba" ValorUnitario="333.333333" Importe="333.333333" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados><cfdi:Traslado Base="333.333333" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="53.333333"/></cfdi:Traslados></cfdi:Impuestos>
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="160.00"/>
+  <cfdi:Complemento><tfd:TimbreFiscalDigital Version="1.1" UUID="D3D94468-02A4-4E3B-8C1D-9B2A7F6E5D4C" FechaTimbrado="2026-09-15T10:30:00" RfcProvCertif="AAA010101AAA" SelloCFD="SINTETICO" NoCertificadoSAT="00000000000000000000" SelloSAT="SINTETICO"/></cfdi:Complemento>
+</cfdi:Comprobante>

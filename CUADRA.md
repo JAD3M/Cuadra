@@ -646,6 +646,62 @@ arriba.
 
 ### 28 sep 2026
 
+- **CU-05 terminado: lector de CFDI 4.0.** Solo el parser, sin endpoints,
+  persistencia ni colas. `leerCfdi(xml)` en `src/cfdi/lector-cfdi.ts`,
+  tipos en `src/cfdi/cfdi-leido.ts`. 86 tests en verde (67 + 19), lint sin
+  errores (sigue el warning de `main.ts:34`), build ok. Dependencias nuevas:
+  `fast-xml-parser` y `decimal.js`. La imagen de la api necesita
+  `docker compose up --build`.
+  - **Montos:**
+    - `fast-xml-parser` con `parseTagValue` y `parseAttributeValue` en
+      `false`: todo sale como texto y nunca pasa por `number`.
+    - La aritmética va por `src/common/dinero.ts`, que envuelve `decimal.js`
+      (clone propio, half-up). Solo acepta decimales estrictos:
+      `4.46658e3` se rechaza.
+  - **Qué devuelve:**
+    - Los campos de la tabla `cfdi`. `uuid_fiscal` sale del
+      TimbreFiscalDigital, en mayúsculas para que la idempotencia de CU-07
+      no dependa del caso.
+    - Serie y Folio, opcionales.
+    - Impuestos: trasladados, retenidos y los del complemento
+      `ImpuestosLocales`, con `'0'` si no hay nodo.
+    - `fechaEmision` como texto sin zona, tal cual viene.
+    - `xmlRaw` = árbol parseado + `_xml` con el original byte por byte.
+  - **Estado inicial:** PUE → `'abierta'`, PPD → `'parcialidades'`.
+    **Pendiente para CU-06:** `ck_cfdi_estado` solo admite `abierta`,
+    `conciliada` y `cancelada`. La migración que agrega `parcialidades` va
+    con la persistencia. `ESTADOS_CFDI` no se tocó: cambiarlo sin
+    migración rompería `migration:generate --check`.
+  - **Rechazos**, con `CfdiRechazado` y un `motivo` estable que dice cuál
+    falló:
+    - Versión distinta de 4.0.
+    - RFC de emisor o receptor fuera del patrón del SAT (incluye Ñ y &).
+    - UUID ausente o mal formado.
+    - Las tres sumas: SubTotal = Σ Importe, Descuento = Σ Descuento y
+      Total = SubTotal − Descuento + trasladados − retenidos ± locales.
+    - Cada suma se redondea a los decimales de la moneda y después se
+      compara con igualdad exacta.
+    - También: XML mal formado, campos sin formato y moneda sin decimales
+      conocidos. La tabla cubre MXN, USD, EUR, CAD, GBP, JPY y XXX; una
+      moneda fuera de ella se rechaza en vez de adivinar.
+  - **XML con `DOCTYPE` se rechaza antes de parsear.** Un CFDI nunca lo
+    trae, y así la expansión de entidades (billion laughs) no depende de
+    los límites de la librería.
+  - **Fixtures sintéticos** en `src/cfdi/fixtures/`. Todos se generaron
+    con RFCs del seed, UUIDs inventados y sellos de relleno:
+    - Válidos: PUE, PPD con retención, con descuento, USD con tipo de
+      cambio de 6 decimales, Importes de 6 decimales que suman 999.999999
+      y cuadran solo al redondear, e impuestos locales.
+    - Un fixture por cada rechazo; cada uno rompe una sola cosa.
+  - **Prueba de mutación:**
+    - Sin el redondeo de Σ Importe, el fixture de 6 decimales se pone rojo.
+    - Sin `isArray`, 5 casos rojos: un único `Concepto` llega como objeto y
+      no como lista.
+    - Código restaurado.
+  - **Fuera de alcance, a propósito:** no se valida el sello ni el
+    certificado, ni el esquema XSD completo, ni el cruce Σ impuestos de
+    conceptos contra los totales. Solo lo que exige el criterio de CU-05.
+
 - **CU-04b terminado: RLS como segunda capa.** Migración
   `AislamientoRls1790636466878`. Las existentes no se tocaron. 67 tests en
   verde (61 + 6), lint sin errores (sigue el warning previo de

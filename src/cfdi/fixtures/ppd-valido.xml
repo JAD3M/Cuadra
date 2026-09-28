@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SINTÉTICO. PPD con retención de ISR. RFCs y UUID inventados; nunca datos reales. -->
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigitalv11" xmlns:implocal="http://www.sat.gob.mx/implocal" Version="4.0" Serie="A" Folio="1002" Fecha="2026-09-15T10:30:00" FormaPago="99" SubTotal="12000.00" Moneda="MXN" Total="12720.00" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="62740" Sello="SINTETICO" NoCertificado="00000000000000000000" Certificado="SINTETICO">
+  <cfdi:Emisor Rfc="FDB190215QK4" Nombre="FERRETERIA DEL BAJIO" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="TCU170830R52" Nombre="TRANSPORTES CUAUTLA" DomicilioFiscalReceptor="62740" RegimenFiscalReceptor="601" UsoCFDI="G03"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="01010101" Cantidad="1" ClaveUnidad="E48" Descripcion="Servicio de prueba" ValorUnitario="12000.00" Importe="12000.00" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados><cfdi:Traslado Base="12000.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="1920.00"/></cfdi:Traslados><cfdi:Retenciones><cfdi:Retencion Base="12000.00" Impuesto="001" TipoFactor="Tasa" TasaOCuota="0.100000" Importe="1200.00"/></cfdi:Retenciones></cfdi:Impuestos>
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosRetenidos="1200.00" TotalImpuestosTrasladados="1920.00"/>
+  <cfdi:Complemento><tfd:TimbreFiscalDigital Version="1.1" UUID="8F14E45F-CEEA-467A-9575-1A0A4E1B2C3D" FechaTimbrado="2026-09-15T10:30:00" RfcProvCertif="AAA010101AAA" SelloCFD="SINTETICO" NoCertificadoSAT="00000000000000000000" SelloSAT="SINTETICO"/></cfdi:Complemento>
+</cfdi:Comprobante>

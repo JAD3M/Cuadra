@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SINTÉTICO. Complemento ImpuestosLocales con ISH 2%. RFCs y UUID inventados; nunca datos reales. -->
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigitalv11" xmlns:implocal="http://www.sat.gob.mx/implocal" Version="4.0" Serie="A" Folio="1006" Fecha="2026-09-15T10:30:00" FormaPago="03" SubTotal="10000.00" Moneda="MXN" Total="11800.00" TipoDeComprobante="I" Exportacion="01" MetodoPago="PUE" LugarExpedicion="62740" Sello="SINTETICO" NoCertificado="00000000000000000000" Certificado="SINTETICO">
+  <cfdi:Emisor Rfc="FDB190215QK4" Nombre="FERRETERIA DEL BAJIO" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="TCU170830R52" Nombre="TRANSPORTES CUAUTLA" DomicilioFiscalReceptor="62740" RegimenFiscalReceptor="601" UsoCFDI="G03"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="01010101" Cantidad="1" ClaveUnidad="E48" Descripcion="Servicio de prueba" ValorUnitario="10000.00" Importe="10000.00" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados><cfdi:Traslado Base="10000.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="1600.00"/></cfdi:Traslados></cfdi:Impuestos>
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="1600.00"/>
+  <cfdi:Complemento><tfd:TimbreFiscalDigital Version="1.1" UUID="6512BD43-D9CA-4E5F-A0B1-C2D3E4F5A6B7" FechaTimbrado="2026-09-15T10:30:00" RfcProvCertif="AAA010101AAA" SelloCFD="SINTETICO" NoCertificadoSAT="00000000000000000000" SelloSAT="SINTETICO"/><implocal:ImpuestosLocales version="1.0" TotaldeRetenciones="0.00" TotaldeTraslados="200.00"><implocal:TrasladosLocales ImpLocTrasladado="ISH" TasadeTraslado="2.00" Importe="200.00"/></implocal:ImpuestosLocales></cfdi:Complemento>
+</cfdi:Comprobante>
