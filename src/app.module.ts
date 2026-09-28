@@ -6,6 +6,7 @@ import { ENTIDADES } from './database/entidades';
 import { SnakeNamingStrategy } from './database/naming.strategy';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
+import { ContextoEmpresaModule } from './database/contexto-empresa.module';
 
 @Module({
   imports: [
@@ -14,15 +15,17 @@ import { AuthModule } from './auth/auth.module';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'postgres',
-        url: config.get<string>('DATABASE_URL'),
+        // cuadra_app, sujeto a RLS. Migraciones y seed van por data-source.ts
+        // con el dueño.
+        url: config.get<string>('DATABASE_APP_URL'),
         entities: ENTIDADES,
-        migrations: [__dirname + '/database/migrations/*.{ts,js}'],
         namingStrategy: new SnakeNamingStrategy(),
         // El esquema solo cambia por migración explícita.
         synchronize: false,
         migrationsRun: false,
       }),
     }),
+    ContextoEmpresaModule,
     HealthModule,
     AuthModule,
   ],

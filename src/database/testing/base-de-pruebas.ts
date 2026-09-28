@@ -29,13 +29,26 @@ export async function una<T>(
  * crea sola la primera vez.
  */
 export function urlDePruebas(): string {
-  const explicita = process.env.DATABASE_URL_TEST;
+  return aBaseDePruebas('DATABASE_URL');
+}
+
+/**
+ * Misma base de pruebas, pero como `cuadra_app` (CU-04b): la conexión con la
+ * que corre la app, sujeta a RLS. La de `urlDePruebas()` es la del dueño y
+ * solo sirve para migrar y sembrar.
+ */
+export function urlAppDePruebas(): string {
+  return aBaseDePruebas('DATABASE_APP_URL');
+}
+
+function aBaseDePruebas(variable: 'DATABASE_URL' | 'DATABASE_APP_URL'): string {
+  const explicita = process.env[`${variable}_TEST`];
   if (explicita) return explicita;
 
-  const base = process.env.DATABASE_URL;
+  const base = process.env[variable];
   if (!base) {
     throw new Error(
-      'Falta DATABASE_URL (o DATABASE_URL_TEST) para las pruebas de esquema.',
+      `Falta ${variable} (o ${variable}_TEST) para las pruebas de base.`,
     );
   }
   const url = new URL(base);

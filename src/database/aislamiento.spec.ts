@@ -19,6 +19,8 @@ import { AuthModule } from '../auth/auth.module';
 import { UsuarioActual } from '../common/decorators/decoradores';
 import type { JwtPayload, UsuarioAutenticado } from '../auth/tipos';
 import { validateEnv } from '../config/env.validation';
+import { ContextoEmpresa } from './contexto-empresa';
+import { ContextoEmpresaModule } from './contexto-empresa.module';
 import { opcionesDataSource } from './data-source';
 import { ENTIDADES } from './entidades';
 import { SnakeNamingStrategy } from './naming.strategy';
@@ -27,6 +29,7 @@ import {
   crearBaseDePruebas,
   urlDePruebas,
   una,
+  urlAppDePruebas,
 } from './testing/base-de-pruebas';
 
 const CARMEN = 'carmen.olvera@cuautla.mx'; // admin en Transportes
@@ -36,7 +39,7 @@ const TRANSPORTES = 'TCU170830R52';
 
 @Controller('prueba')
 class ControlCargas {
-  constructor(private readonly ds: DataSource) {}
+  constructor(private readonly contexto: ContextoEmpresa) {}
   @Get('cargas/:id')
   async getCarga(
     @Param('id', ParseUUIDPipe) id: string,
@@ -47,8 +50,10 @@ class ControlCargas {
     }
     // El companyId sale solo del token. Ajena o inexistente, la respuesta es
     // la misma: no se confirma que exista lo que no es tuyo.
+    // El manager de la transacción de la petición: cuadra_app con la
+    // empresa del token fijada, así que RLS filtra aunque falte el WHERE.
     const carga = await una<{ id: string } | undefined>(
-      this.ds,
+      this.contexto.manager(),
       'SELECT id FROM cargas WHERE id = $1 AND company_id = $2',
       [id, usuario.companyId],
     );
@@ -125,10 +130,12 @@ beforeAll(async () => {
       ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
       TypeOrmModule.forRoot({
         type: 'postgres',
-        url,
+        // Como en producción: cuadra_app, sujeto a RLS.
+        url: urlAppDePruebas(),
         entities: ENTIDADES,
         namingStrategy: new SnakeNamingStrategy(),
       }),
+      ContextoEmpresaModule,
       AuthModule,
     ],
     controllers: [ControlCargas],

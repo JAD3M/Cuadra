@@ -11,6 +11,8 @@ arquitectura, las decisiones y las 18 historias con sus criterios.
 - El motor de reglas decide. El LLM solo sugiere en casos ambiguos
   y nunca cierra un caso.
 - Un falso positivo es peor que no conciliar.
+- Toda tabla de dominio nueva lleva company_id, RLS con FORCE y su
+  política, y GRANTs explícitos para cuadra_app en la misma migración.
 
 ## Flujo
 

@@ -46,12 +46,28 @@ async function insertarUsuario(email: string): Promise<void> {
   );
 }
 
+/**
+ * Ya no es la última migración: se revierten las posteriores y luego ella.
+ * El `runMigrations()` de cada `finally` las vuelve a aplicar todas.
+ */
+async function revertirEmailSinMayusculas(): Promise<void> {
+  for (;;) {
+    const ultima = await una<{ name: string } | undefined>(
+      ds,
+      'SELECT name FROM migrations ORDER BY timestamp DESC LIMIT 1',
+    );
+    if (!ultima) throw new Error('EmailSinMayusculas no estaba aplicada');
+    await ds.undoLastMigration();
+    if (ultima.name === 'EmailSinMayusculas1790205607191') return;
+  }
+}
+
 async function borrarUsuariosDePrueba(): Promise<void> {
   await ds.query(`DELETE FROM users WHERE nombre = 'Prueba'`);
 }
 
 it('normaliza los emails existentes y cambia el UNIQUE plano por lower(email)', async () => {
-  await ds.undoLastMigration();
+  await revertirEmailSinMayusculas();
   expect(await indicesDeUsers()).toContain('ux_users_email');
   try {
     await insertarUsuario('  Mixto@Ejemplo.MX ');
@@ -75,7 +91,7 @@ it('normaliza los emails existentes y cambia el UNIQUE plano por lower(email)', 
 });
 
 it('aborta sin tocar nada si dos emails chocan al normalizar', async () => {
-  await ds.undoLastMigration();
+  await revertirEmailSinMayusculas();
   try {
     await insertarUsuario('choque@ejemplo.mx');
     await insertarUsuario('CHOQUE@ejemplo.mx');

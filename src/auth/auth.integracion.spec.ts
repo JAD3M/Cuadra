@@ -19,6 +19,7 @@ import { PASSWORD_SEMILLA, sembrar } from '../database/seeds/seed';
 import {
   crearBaseDePruebas,
   una,
+  urlAppDePruebas,
   urlDePruebas,
 } from '../database/testing/base-de-pruebas';
 import { AuthModule } from './auth.module';
@@ -62,6 +63,10 @@ const FERRETERIA = 'FDB190215QK4';
 const TRANSPORTES = 'TCU170830R52';
 
 let app: INestApplication<App>;
+/**
+ * Dueño del esquema, para preparar datos (revocar un rol). La app corre como
+ * cuadra_app, que no tiene DELETE en ninguna tabla.
+ */
 let ds: DataSource;
 let jwt: JwtService;
 const empresas = new Map<string, string>();
@@ -69,20 +74,20 @@ const empresas = new Map<string, string>();
 beforeAll(async () => {
   const url = urlDePruebas();
   await crearBaseDePruebas(url);
-  const preparacion = await new DataSource({
+  ds = await new DataSource({
     ...opcionesDataSource,
     url,
   } as typeof opcionesDataSource).initialize();
-  await preparacion.runMigrations();
-  await sembrar(preparacion);
-  await preparacion.destroy();
+  await ds.runMigrations();
+  await sembrar(ds);
 
   const modulo = await Test.createTestingModule({
     imports: [
       ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
       TypeOrmModule.forRoot({
         type: 'postgres',
-        url,
+        // Como en producción: la app corre como cuadra_app, no como el dueño.
+        url: urlAppDePruebas(),
         entities: ENTIDADES,
         namingStrategy: new SnakeNamingStrategy(),
       }),
@@ -104,7 +109,6 @@ beforeAll(async () => {
   // cada petición y las anidadas (pedir un token dentro de otra) chocan.
   await app.listen(0);
 
-  ds = app.get(DataSource);
   jwt = new JwtService({
     secret: app.get(ConfigService).getOrThrow<string>('JWT_SECRET'),
   });
@@ -120,6 +124,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await app?.close();
+  if (ds?.isInitialized) await ds.destroy();
 });
 
 const http = () => request(app.getHttpServer());

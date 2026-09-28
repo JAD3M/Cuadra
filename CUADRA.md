@@ -644,6 +644,82 @@ Jira (`cuadra-jira.csv`) y en las issues importadas.
 Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
 
+### 28 sep 2026
+
+- **CU-04b terminado: RLS como segunda capa.** Migración
+  `AislamientoRls1790636466878`. Las existentes no se tocaron. 67 tests en
+  verde (61 + 6), lint sin errores (sigue el warning previo de
+  `main.ts:34`), build ok, `migration:generate --check` sin cambios,
+  `docker compose up` + `/health` ok, con la api conectada como
+  `cuadra_app`.
+  - `ENABLE` + `FORCE ROW LEVEL SECURITY` en `cargas`, `cfdi`,
+    `movimientos`, `conciliaciones` y `bitacora`. Política `USING` y
+    `WITH CHECK` con `company_id = nullif(current_setting('app.company_id',
+    true), '')::uuid`. Sin empresa fijada, cero filas. El `nullif` es
+    necesario: tras la primera transacción de una conexión el valor queda
+    en `''`, no en `NULL`, y `''::uuid` truena.
+  - **Rol `cuadra_app`**: `LOGIN NOSUPERUSER NOBYPASSRLS` y sin
+    `CREATEDB`/`CREATEROLE`/`INHERIT`/`REPLICATION`. GRANTs:
+    - `SELECT` en `companies`, `users` y `user_company_roles`.
+    - `SELECT/INSERT/UPDATE` en las cuatro de dominio.
+    - `SELECT/INSERT` en `bitacora`.
+  - **Sin `DELETE` en ninguna tabla**: nada se borra, se cambia de estado
+    (`rechazada`, `descartado`). Si una historia lo pide, va en su
+    migración.
+  - **El rol es del clúster, no de la base.** `cuadra` y `cuadra_test` lo
+    comparten, así que el `up` lo crea solo si no existe y el `down` revoca
+    GRANTs y quita políticas, pero nunca hace `DROP ROLE`. Verificado: tras
+    el revert completo de `esquema.spec` sobre `cuadra_test`, el rol y sus
+    17 GRANTs en `cuadra` siguen intactos.
+  - La contraseña de `cuadra_app` no está en el repo: la migración la toma
+    de `DATABASE_APP_URL` y la aplica con `format('%L')` en el servidor.
+- **Dos conexiones.** `DATABASE_URL` es del dueño (`cuadra`, superusuario en
+  Docker) y solo la usan migraciones, seed y la preparación de tests.
+  `DATABASE_APP_URL` es la de la app. Zod rechaza que las dos usen el
+  mismo usuario: sería correr como superusuario, que ignora RLS aunque
+  haya `FORCE`, sin que nada falle.
+- **Transacción por petición.** `TransaccionEmpresaInterceptor` es global
+  y corre después de los guards. Solo con token de sesión: abre la
+  transacción, hace `SELECT set_config('app.company_id', $1, true)`
+  parametrizado y corre el handler dentro de un `AsyncLocalStorage`.
+  Commit o rollback, y `release` en `finally`. Los handlers piden
+  `ContextoEmpresa.manager()`: sin transacción lanza y da 500, no cae al
+  pool en silencio. `@Publico` y selección no abren transacción.
+  `RolesGuard` y `AuthService` siguen con el pool, sobre tablas sin RLS.
+  - **`AsyncLocalStorage` y no `nestjs-cls`**: es una sola clave, y así no
+    se suma una dependencia.
+  - **La suscripción (`lastValueFrom(next.handle())`) va dentro del
+    `run`**, no solo la llamada. Medido: en Nest 11.2.5 envolver solo la
+    llamada **también pasa** (5 verdes), porque Nest hace
+    `AsyncResource.bind` al llamar `handle()`. Se deja la suscripción
+    dentro para no depender de ese detalle interno. Control: sin ALS, 4 de
+    5 en rojo con 500 ("Sin transacción de empresa").
+- **Tests nuevos** (`src/database/rls.spec.ts`, contra la base, sin la app):
+  - Como `cuadra_app` y sin empresa, `SELECT * FROM cargas` da cero filas.
+    Antes comprueba con el dueño que hay al menos 2, para que el cero
+    pruebe algo.
+  - Con Ferretería fijada ve exactamente su empresa.
+  - Un `INSERT` con el `company_id` de Transportes falla por RLS.
+  - La empresa no sobrevive al `COMMIT` en la misma conexión: es el caso
+    del pool.
+  - Atributos del rol y flags de RLS/FORCE en las 5 tablas.
+- **Prueba de mutación.** Sin el `AND company_id = $2` en el handler de
+  `aislamiento.spec.ts`, **los 5 casos de CU-04 siguen en verde** gracias a
+  RLS. Contraprueba: la misma mutación con la app conectada como `cuadra`
+  (superusuario) pone 3 en rojo. Es RLS quien los salva. Handler
+  restaurado.
+- **Ajustes a tests existentes.**
+  - `email-normalizado.spec` revertía "la última migración" dando por hecho
+    que era la suya. Ahora revierte hasta `EmailSinMayusculas` incluida.
+  - `auth.integracion.spec` borraba roles con la conexión de la app. Ahora
+    prepara datos con la del dueño.
+  - Las apps de prueba corren como `cuadra_app` (`urlAppDePruebas()`).
+- **Regla nueva en `CLAUDE.md`:** toda tabla de dominio nueva lleva
+  `company_id`, RLS con FORCE y su política, y GRANTs explícitos para
+  `cuadra_app` en la misma migración. No hay `ALTER DEFAULT PRIVILEGES`
+  a propósito: una tabla nueva sin su GRANT falla ruidoso, no queda
+  abierta.
+
 ### 24 sep 2026
 
 - **Refactor: estructura por módulos de dominio.** Sin cambios de esquema,
