@@ -3,16 +3,24 @@ import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import type { EstadoCarga } from '../common/entities/tipos';
 import { TransaccionEmpresa } from '../database/transaccion-empresa';
-import type { ResultadoDeArchivo } from './carga.entity';
+import { procesarEstadoDeCuenta } from '../bancos/guardar-movimientos';
+import type { TipoCarga } from '../common/entities/tipos';
 import { COLA_CARGAS, type TrabajoDeCarga } from './cola-cargas';
-import { type ArchivoEnEspera, guardarCfdi } from './guardar-cfdi';
+import { procesarLoteCfdi } from './guardar-cfdi';
+
+interface CargaTomada {
+  tipo: TipoCarga;
+  banco: string | null;
+  cuenta: string | null;
+}
 
 /** Lo que ve la persona. El error real va al log, no a la base ni al cliente. */
 export const MENSAJE_FALLIDA =
   'No se pudo procesar la carga por un problema del sistema. Vuelve a intentarlo más tarde.';
 
 /**
- * Worker de CU-08. No pasa por el interceptor de CU-04b: abre sus propias
+ * Worker de CU-08; despacha por `cargas.tipo` (CFDI o estado de cuenta,
+ * CU-09). No pasa por el interceptor de CU-04b: abre sus propias
  * transacciones como `cuadra_app` con la empresa del job fijada, así que RLS
  * aplica igual que en una petición.
  *
@@ -47,43 +55,32 @@ export class ProcesadorCargas extends WorkerHost {
   async procesar({ cargaId, companyId }: TrabajoDeCarga): Promise<void> {
     // (a) Transacción corta para que el GET vea 'procesando' mientras dura
     // (b). En un reintento ya está en 'procesando', y sigue.
-    const tomada = await this.transaccion.ejecutar(companyId, (manager) =>
-      manager.query<[unknown[], number]>(
+    const [tomadas] = await this.transaccion.ejecutar(companyId, (manager) =>
+      manager.query<[CargaTomada[], number]>(
         `UPDATE cargas SET estado = 'procesando', updated_at = now()
           WHERE id = $1 AND company_id = $2
             AND estado IN ('pendiente', 'procesando')
-          RETURNING id`,
+          RETURNING tipo, banco, cuenta`,
         [cargaId, companyId],
       ),
     );
-    if (tomada[0].length === 0) {
+    const carga = tomadas[0];
+    if (!carga) {
       // Ya terminó (job duplicado) o no es de esta empresa: RLS no la deja
       // ver. En ambos casos no hay nada que hacer.
       this.logger.warn(`Carga ${cargaId}: nada que procesar`);
       return;
     }
 
-    // (b) Todo o nada. Si algo lanza, rollback completo: ni CFDI ni
+    // (b) Todo o nada. Si algo lanza, rollback completo: ni registros ni
     // contadores quedan a medias, y el reintento empieza limpio.
     await this.transaccion.ejecutar(companyId, async (manager) => {
-      const archivos = await manager.query<ArchivoEnEspera[]>(
-        `SELECT nombre, contenido FROM carga_archivos
-          WHERE carga_id = $1 AND company_id = $2
-          ORDER BY orden`,
-        [cargaId, companyId],
-      );
-      const resultados: ResultadoDeArchivo[] = [];
-      for (const archivo of archivos) {
-        resultados.push(
-          await guardarCfdi(manager, companyId, cargaId, archivo),
-        );
-      }
-
-      const cuenta = (r: ResultadoDeArchivo['resultado']) =>
-        resultados.filter((x) => x.resultado === r).length;
-      const errores = cuenta('error');
-      // 'fallida' es solo de infraestructura: aunque todos los XML sean
-      // inválidos, la carga terminó.
+      const { resultados, nuevos, existentes, errores } =
+        carga.tipo === 'cfdi'
+          ? await procesarLoteCfdi(manager, companyId, cargaId)
+          : await procesarEstadoDeCuenta(manager, companyId, cargaId, carga);
+      // 'fallida' es solo de infraestructura: aunque todo lo que venía sea
+      // inválido, la carga terminó.
       const estado: EstadoCarga = errores > 0 ? 'con_errores' : 'procesada';
 
       await manager.query(
@@ -94,8 +91,8 @@ export class ProcesadorCargas extends WorkerHost {
           WHERE id = $6 AND company_id = $7 AND estado = 'procesando'`,
         [
           estado,
-          cuenta('nuevo'),
-          cuenta('ya_existia'),
+          nuevos,
+          existentes,
           errores,
           JSON.stringify(resultados),
           cargaId,

@@ -1,5 +1,5 @@
 import type { EstadoCarga } from '../common/entities/tipos';
-import type { ResultadoDeArchivo } from './carga.entity';
+import type { ResultadoDeCarga } from './carga.entity';
 
 /** Lo que ven el POST y el GET de una carga. */
 export interface EstadoDeCarga {
@@ -9,7 +9,7 @@ export interface EstadoDeCarga {
   registrosOk: number;
   registrosExistentes: number;
   registrosError: number;
-  resultados: ResultadoDeArchivo[];
+  resultados: ResultadoDeCarga[];
   /** Solo en 'fallida': mensaje genérico; el detalle va al log. */
   errorMensaje: string | null;
 }
@@ -21,7 +21,7 @@ export interface FilaCarga {
   registros_ok: number;
   registros_existentes: number;
   registros_error: number;
-  resultados: ResultadoDeArchivo[];
+  resultados: ResultadoDeCarga[];
   error_mensaje: string | null;
 }
 

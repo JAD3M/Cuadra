@@ -36,7 +36,11 @@ export class Movimiento extends EntidadBase {
   @Column({ type: 'uuid', nullable: true })
   cargaId: string | null;
 
-  /** Posición de la línea dentro del archivo, base 0. */
+  /**
+   * Línea física del archivo donde empieza la fila, con el encabezado en la
+   * 1 (CU-09): el contador la encuentra al abrir el CSV. Así la primera fila
+   * de datos es la 2.
+   */
   @Column({ type: 'integer' })
   lineaNumero: number;
 

@@ -228,11 +228,13 @@ Historias: CU-03, CU-04.
 | Columna | Tipo | Notas |
 |---|---|---|
 | `tipo` | varchar(32) | `cfdi` · `estado_cuenta` |
-| `estado` | varchar(32) | pendiente → procesando → procesada / fallida |
+| `estado` | varchar(32) | pendiente → procesando → procesada / con_errores / fallida (CU-08) |
 | `nombre_archivo` | varchar(512) | como lo llamó el usuario |
-| `hash_archivo` | char(64) | SHA-256 en hex |
-| `total_registros`, `registros_ok`, `registros_error` | int | `CHECK >= 0` |
-| `error_mensaje` | text | opcional |
+| `hash_archivo` | char(64) | SHA-256 en hex: del archivo (estado de cuenta) o de los hashes ordenados del lote (CFDI) |
+| `total_registros`, `registros_ok`, `registros_error`, `registros_existentes` | int | `CHECK >= 0`; suma exacta al terminar (`ck_cargas_total_cuadra`) |
+| `resultados` | jsonb | CFDI: uno por archivo; estado de cuenta: una por fila que no entró |
+| `banco`, `cuenta` | varchar(128), varchar(32) | estado de cuenta: se copian a cada movimiento (CU-09) |
+| `error_mensaje` | text | solo en `fallida`, genérico |
 | `subido_por_id` | uuid | FK `SET NULL` |
 
 Sin esta tabla no sabrías de dónde vino cada factura. `char(64)` y no
@@ -290,7 +292,7 @@ Historias: CU-05, CU-06; es la fuente de candidatos de CU-11.
 
 | Columna | Tipo | Notas |
 |---|---|---|
-| `linea_numero` | int | posición en el archivo, `CHECK >= 0` |
+| `linea_numero` | int | línea física del archivo, encabezado = 1 (CU-09), `CHECK >= 0` |
 | `fecha` | **date** | sin hora |
 | `descripcion` | text | |
 | `referencia` | varchar(128) | opcional |
@@ -310,6 +312,42 @@ dos.
 
 **Hueco conocido:** falta `referencia_norm`. Se paga en CU-11 con una columna
 generada `STORED` y su índice.
+
+#### Formato canónico del estado de cuenta (CU-09)
+
+`POST /cargas/estado-cuenta`, multipart: un archivo en el campo `archivo`
+(`.csv`, 10 MB máximo) y, opcionales, `banco` (≤ 128) y `cuenta` (≤ 32,
+enmascarada), que se copian a cada movimiento. Roles admin y contador. Los
+formatos de cada banco (CU-10) se traducen a este.
+
+```csv
+fecha,descripcion,referencia,monto
+2026-09-01,DEPOSITO SPEI FERRETERIA DEL BAJIO,A1001,4466.58
+2026-09-02,"PAGO FACTURA A-1001, A-1002",,-1500.00
+```
+
+| Regla | Detalle |
+|---|---|
+| Codificación | UTF-8; el BOM se tolera. Latin-1 u otra → 400. |
+| Separador | Coma, con comillas dobles estándar: `""` dentro de comillas es una comilla, y un campo entre comillas puede traer comas y saltos de línea. Fin de línea LF o CRLF. |
+| Encabezados | Exactamente `fecha,descripcion,referencia,monto`, en ese orden y en minúsculas. Otro → 400. |
+| `fecha` | `AAAA-MM-DD`, un día que exista. |
+| `descripcion` | Obligatoria; no puede ser solo espacios. |
+| `referencia` | Opcional (vacía = sin referencia), máximo 128 caracteres. |
+| `monto` | Con signo: positivo = abono, negativo = cargo. Punto decimal, sin separador de miles ni notación científica, máximo 4 decimales y 14 enteros, distinto de 0. |
+
+- **Archivo completo, en el POST, antes de guardar nada:** extensión,
+  UTF-8, sin bytes nulos, CSV bien formado (comillas cerradas), encabezados
+  exactos y al menos una fila. Si falla → 400 con motivo y no se crea
+  carga.
+- **Cada fila, en el worker:** una fila malformada (columnas de más o de
+  menos, fecha inválida, monto no numérico, en 0 o con más de 4 decimales,
+  referencia larga, descripción vacía) se reporta como `{fila, motivo}` en
+  `cargas.resultados`, y el resto se carga. `fila` es la línea física: el
+  contador la encuentra al abrir el archivo.
+- Las líneas vacías se ignoran y no cuentan como filas.
+- Idempotencia: SHA-256 del archivo. El mismo archivo dos veces en la
+  empresa → 200 `yaExistia`, sin movimientos nuevos.
 
 Historias: CU-09, CU-10.
 
@@ -645,6 +683,73 @@ Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
 
 ### 28 sep 2026
+
+- **CU-09 terminado: carga del estado de cuenta.** `POST
+  /cargas/estado-cuenta`, formato canónico documentado en la tabla
+  `movimientos`.
+  - **Verificación:** 159 tests en verde (120 + 28 unitarios del formato +
+    11 de integración), estables en dos corridas. Lint sin errores, build
+    ok, `migration:generate --check` sin cambios. `docker compose up -d
+    --build -V` + `/health` ok, con una carga real: fila 4 reportada y 4
+    movimientos con su banco.
+  - **Validación en dos niveles:**
+    - **El archivo, en el POST, antes de guardar nada:** UTF-8 (con
+      `TextDecoder` fatal), sin bytes nulos, CSV bien formado, encabezados
+      exactos y al menos una fila. Si falla → 400 y no se crea carga.
+    - **Las filas, en el worker:** una malformada es `{fila, resultado:
+      'error', motivo}` y el resto entra.
+    - El POST parsea el archivo completo: así sabe `total_registros`
+      desde el principio (CU-08 lo exige) y un CSV con comillas sin cerrar
+      es error del archivo, no de una fila.
+  - **Mismo camino que CFDI, reutilizado, no copiado:**
+    `CargasService.registrar()` concentra idempotencia, reanudación,
+    `carga_archivos` y encolado después del commit. `cargarCfdi` y
+    `cargarEstadoCuenta` solo arman lo que cambia (tipo, hash, total,
+    archivos).
+    - El worker despacha por `cargas.tipo`: `procesarLoteCfdi` o
+      `procesarEstadoDeCuenta`.
+    - El guard pasó a ser una fábrica (`ArchivosGuard`) con dos
+      instancias: XML (500 archivos) y CSV (1 archivo, 10 MB, 2 campos de
+      texto).
+  - **`linea_numero` = línea física** donde empieza la fila (encabezado =
+    1). Una descripción entre comillas puede abarcar varias líneas, y las
+    líneas vacías se saltan pero cuentan. Antes la entidad decía "base 0";
+    no hubo filas con esa convención.
+  - **Trampa de csv-parse 7:** con CRLF dentro de un campo entre comillas
+    cuenta cada salto doble, y los números de línea salen corridos. Se
+    normaliza CRLF → LF antes de parsear: no mueve ninguna línea física y
+    el archivo guardado queda tal cual. Lo detectó el test unitario de
+    CRLF.
+  - **Sin SAVEPOINT por fila, a diferencia de lo pedido.** `leerMovimiento`
+    valida todo lo que la base rechazaría por culpa de la fila: fecha real
+    con año ≥ 1, monto ≠ 0 con ≤ 14 enteros y ≤ 4 decimales, largo de la
+    referencia. Así, un error de base al insertar siempre es de
+    infraestructura, y con la regla de CU-06 aborta el intento completo:
+    el savepoint nunca se usaría para seguir. Además costaría dos idas a
+    la base por fila. Si se quiere de todos modos, son tres líneas.
+  - **`cargas.banco` y `cargas.cuenta`** (migración
+    `EstadoDeCuenta1790642871649`, sin GRANTs nuevos): el job solo lleva
+    `{cargaId, companyId}`, así que el worker los lee de la carga. Se
+    validan con un DTO: máximo 128 y 32, como en `movimientos`. La
+    idempotencia es por el archivo: el mismo CSV con otro banco devuelve
+    la carga original.
+  - **Resultados:** en estado de cuenta solo se listan las filas con
+    error. Un CSV de 10 MB trae decenas de miles de filas, y listar las
+    buenas inflaría el jsonb sin decir nada.
+  - **Decisiones menores:**
+    - El monto no acepta `+`: el positivo va sin signo.
+    - No se recortan espacios: `" 100"` es monto no numérico.
+    - Un archivo con solo el encabezado → 400 ("no trae movimientos").
+  - **Tests:** el arranque de la app de cargas pasó a
+    `src/cargas/testing/app-de-cargas.ts`, compartido por los specs de
+    CFDI y de estado de cuenta.
+  - **Mutaciones** (código restaurado):
+    - Parsear sin comillas (el equivalente a split por comas): 4 rojos,
+      incluida la descripción con comas.
+    - Índice de fila en vez de línea física: 5 rojos.
+  - **Propuesta de continuidad:** insertar movimientos por lotes (un
+    INSERT multi-fila o COPY) en vez de uno por fila. Hoy un CSV de 10 MB
+    son decenas de miles de idas a la base dentro de un job.
 
 - **CU-08 terminado: procesamiento en segundo plano.**
   - **Verificación:** 120 tests en verde (110 + 10), estables en dos

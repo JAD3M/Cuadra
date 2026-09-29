@@ -1,6 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { createHash } from 'crypto';
 import type { EntityManager } from 'typeorm';
+import {
+  EstadoDeCuentaRechazado,
+  validarEstadoDeCuenta,
+} from '../bancos/formato-canonico';
+import type { TipoCarga } from '../common/entities/tipos';
 import { ContextoEmpresa } from '../database/contexto-empresa';
 import { ColaCargas } from './cola-cargas';
 import {
@@ -24,6 +33,19 @@ export interface RespuestaDeCarga extends EstadoDeCarga {
   yaExistia: boolean;
 }
 
+/** Lo que cada tipo de carga le entrega al camino común. */
+interface NuevaCarga {
+  tipo: TipoCarga;
+  /** Idempotencia: mismo hash en la empresa = misma carga. */
+  hash: string;
+  nombre: string;
+  /** CFDI: archivos. Estado de cuenta: filas de datos. */
+  total: number;
+  archivos: Array<{ nombre: string; hash: string; contenido: string | null }>;
+  banco: string | null;
+  cuenta: string | null;
+}
+
 /** Tope de la columna `cargas.nombre_archivo`. */
 const LARGO_NOMBRE = 512;
 
@@ -37,25 +59,83 @@ export class CargasService {
   ) {}
 
   /**
-   * CU-06, CU-07 y CU-08. La idempotencia del lote se resuelve aquí, en la
-   * petición. El procesamiento no: los archivos quedan en `carga_archivos`,
-   * la carga en 'pendiente', y el job se encola después del COMMIT.
+   * CU-06 a CU-08: un lote de CFDI. Cada XML se valida en el worker; un
+   * archivo inválido es error de ese archivo, no de la petición.
    */
   async cargarCfdi(
     companyId: string,
     userId: string,
     archivos: readonly ArchivoSubido[],
   ): Promise<RespuestaDeCarga> {
-    const manager = this.contexto.manager();
     const hashes = archivos.map((a) => sha256(a.buffer));
-    const hash = hashDelLote(hashes);
+    return this.registrar(companyId, userId, {
+      tipo: 'cfdi',
+      hash: hashDelLote(hashes),
+      nombre: nombreDelLote(archivos),
+      total: archivos.length,
+      archivos: archivos.map((archivo, i) => ({
+        nombre: archivo.originalname,
+        hash: hashes[i],
+        contenido: contenidoComoTexto(archivo.buffer),
+      })),
+      banco: null,
+      cuenta: null,
+    });
+  }
 
+  /**
+   * CU-09: un estado de cuenta en el formato canónico. El archivo completo
+   * se valida aquí, antes de guardar nada (400 si no sirve); las filas, en el
+   * worker. Mismo camino que los CFDI desde `registrar`.
+   */
+  async cargarEstadoCuenta(
+    companyId: string,
+    userId: string,
+    archivo: ArchivoSubido,
+    { banco, cuenta }: { banco?: string; cuenta?: string },
+  ): Promise<RespuestaDeCarga> {
+    let validado: { texto: string; filas: number };
+    try {
+      validado = validarEstadoDeCuenta(archivo.buffer);
+    } catch (error) {
+      if (error instanceof EstadoDeCuentaRechazado) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
+    const hash = sha256(archivo.buffer);
+    return this.registrar(companyId, userId, {
+      tipo: 'estado_cuenta',
+      hash,
+      nombre: archivo.originalname,
+      total: validado.filas,
+      archivos: [
+        { nombre: archivo.originalname, hash, contenido: validado.texto },
+      ],
+      banco: banco ?? null,
+      cuenta: cuenta ?? null,
+    });
+  }
+
+  /**
+   * El camino común de toda carga (CU-07, CU-08). La idempotencia se
+   * resuelve en la petición: mismo hash en la empresa → la carga original,
+   * reanudada si no terminó. Si es nueva, los archivos quedan en
+   * `carga_archivos`, la carga en 'pendiente', y el job se encola después
+   * del COMMIT.
+   */
+  private async registrar(
+    companyId: string,
+    userId: string,
+    nueva: NuevaCarga,
+  ): Promise<RespuestaDeCarga> {
+    const manager = this.contexto.manager();
     const carga =
-      (await buscarPorHash(manager, companyId, hash)) ??
-      (await crearCarga(manager, companyId, userId, hash, archivos));
+      (await buscarPorHash(manager, companyId, nueva.hash)) ??
+      (await crearCarga(manager, companyId, userId, nueva));
     if (carga.yaExistia) return this.reanudar(manager, companyId, carga);
 
-    for (const [orden, archivo] of archivos.entries()) {
+    for (const [orden, archivo] of nueva.archivos.entries()) {
       await manager.query(
         `INSERT INTO carga_archivos
            (company_id, carga_id, orden, nombre, hash, contenido)
@@ -64,9 +144,9 @@ export class CargasService {
           companyId,
           carga.id,
           orden,
-          archivo.originalname,
-          hashes[orden],
-          contenidoComoTexto(archivo.buffer),
+          archivo.nombre,
+          archivo.hash,
+          archivo.contenido,
         ],
       );
     }
@@ -171,8 +251,7 @@ async function crearCarga(
   manager: EntityManager,
   companyId: string,
   userId: string,
-  hash: string,
-  archivos: readonly ArchivoSubido[],
+  nueva: NuevaCarga,
 ): Promise<RespuestaDeCarga> {
   // Savepoint: sin él, el 23505 deja abortada la transacción y ya no se
   // podría consultar a la ganadora.
@@ -181,10 +260,19 @@ async function crearCarga(
     const [fila] = await manager.query<FilaCarga[]>(
       `INSERT INTO cargas
          (company_id, tipo, estado, nombre_archivo, hash_archivo,
-          total_registros, subido_por_id)
-       VALUES ($1, 'cfdi', 'pendiente', $2, $3, $4, $5)
+          total_registros, subido_por_id, banco, cuenta)
+       VALUES ($1, $2, 'pendiente', $3, $4, $5, $6, $7, $8)
        RETURNING ${SQL_ESTADO}`,
-      [companyId, nombreDelLote(archivos), hash, archivos.length, userId],
+      [
+        companyId,
+        nueva.tipo,
+        nueva.nombre,
+        nueva.hash,
+        nueva.total,
+        userId,
+        nueva.banco,
+        nueva.cuenta,
+      ],
     );
     await manager.query('RELEASE SAVEPOINT carga');
     return { ...aEstado(fila), yaExistia: false };
@@ -193,7 +281,7 @@ async function crearCarga(
     await manager.query('ROLLBACK TO SAVEPOINT carga');
     // Read committed: la sentencia nueva ya ve la fila que hizo saltar el
     // índice, porque la otra transacción tuvo que confirmar para eso.
-    const ganadora = await buscarPorHash(manager, companyId, hash);
+    const ganadora = await buscarPorHash(manager, companyId, nueva.hash);
     if (!ganadora) throw error;
     return ganadora;
   }

@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
@@ -13,7 +14,13 @@ import {
 import { ApiBearerAuth, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import type { UsuarioAutenticado } from '../auth/tipos';
 import { Roles, UsuarioActual } from '../common/decorators/decoradores';
-import { ArchivosXmlGuard, CAMPO_ARCHIVOS } from './archivos-xml.guard';
+import {
+  ArchivosXmlGuard,
+  CAMPO_ARCHIVOS,
+  CAMPO_ESTADO_CUENTA,
+  EstadoDeCuentaGuard,
+} from './archivos.guard';
+import { EstadoCuentaDto } from './dto/estado-cuenta.dto';
 import {
   type ArchivoSubido,
   CargasService,
@@ -58,6 +65,43 @@ export class CargasController {
     @UploadedFiles() archivos: ArchivoSubido[],
   ): Promise<RespuestaDeCarga> {
     return this.cargas.cargarCfdi(usuario.companyId, usuario.userId, archivos);
+  }
+
+  /**
+   * CU-09. Un CSV en el formato canónico (ver CUADRA.md, `movimientos`). El
+   * archivo se valida antes de guardar nada: 400 si no es UTF-8, está mal
+   * formado o sus encabezados no son los exactos. Las filas malformadas se
+   * reportan una por una y el resto se carga. Mismos códigos que CFDI: 202
+   * nueva, 200 `yaExistia`.
+   */
+  @Post('estado-cuenta')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Roles('admin', 'contador')
+  @UseGuards(EstadoDeCuentaGuard)
+  @UseInterceptors(YaExistiaInterceptor)
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: [CAMPO_ESTADO_CUENTA],
+      properties: {
+        [CAMPO_ESTADO_CUENTA]: { type: 'string', format: 'binary' },
+        banco: { type: 'string', maxLength: 128 },
+        cuenta: { type: 'string', maxLength: 32 },
+      },
+    },
+  })
+  cargarEstadoCuenta(
+    @UsuarioActual() usuario: Sesion,
+    @UploadedFiles() [archivo]: ArchivoSubido[],
+    @Body() cuerpo: EstadoCuentaDto,
+  ): Promise<RespuestaDeCarga> {
+    return this.cargas.cargarEstadoCuenta(
+      usuario.companyId,
+      usuario.userId,
+      archivo,
+      cuerpo,
+    );
   }
 
   /** La empresa sale del token; un `companyId` en la query no se lee. */

@@ -20,6 +20,19 @@ export type ResultadoDeArchivo =
   | { archivo: string; resultado: 'error'; motivo: string };
 
 /**
+ * Estado de cuenta (CU-09): solo las filas que no entraron. `fila` es la
+ * línea física del archivo (encabezado = 1), la que ve el contador al
+ * abrirlo. Las que entraron no se listan: un estado de cuenta trae miles.
+ */
+export interface ResultadoDeFila {
+  fila: number;
+  resultado: 'error';
+  motivo: string;
+}
+
+export type ResultadoDeCarga = ResultadoDeArchivo | ResultadoDeFila;
+
+/**
  * Una petición de carga: un lote de CFDI (uno o varios archivos) o un estado
  * de cuenta bancario.
  */
@@ -78,9 +91,20 @@ export class Carga extends EntidadBase {
   @Column({ type: 'text', nullable: true })
   errorMensaje: string | null;
 
-  /** Un elemento por archivo del lote, en el orden en que llegaron. */
+  /**
+   * CFDI: un elemento por archivo del lote, en el orden en que llegaron.
+   * Estado de cuenta: una por fila que no entró.
+   */
   @Column({ type: 'jsonb', default: () => "'[]'" })
-  resultados: ResultadoDeArchivo[];
+  resultados: ResultadoDeCarga[];
+
+  /** Estado de cuenta (CU-09): se copian a cada movimiento. */
+  @Column({ type: 'varchar', length: 128, nullable: true })
+  banco: string | null;
+
+  /** Cuenta enmascarada, como en `movimientos.cuenta`. */
+  @Column({ type: 'varchar', length: 32, nullable: true })
+  cuenta: string | null;
 
   @Column({ type: 'timestamptz', nullable: true })
   procesadaAt: Date | null;

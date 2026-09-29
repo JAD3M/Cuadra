@@ -1,39 +1,19 @@
 import { getQueueToken } from '@nestjs/bullmq';
-import { type INestApplication, ValidationPipe } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
-import { Test } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import type { Queue } from 'bullmq';
 import { createHash, randomUUID } from 'crypto';
-import { request as peticionHttp } from 'http';
 import { readFileSync } from 'fs';
+import { request as peticionHttp } from 'http';
 import { join } from 'path';
 import request from 'supertest';
-import type { App } from 'supertest/types';
-import { DataSource } from 'typeorm';
-import { AuthModule } from '../auth/auth.module';
-import type { JwtPayload } from '../auth/tipos';
-import { validateEnv } from '../config/env.validation';
-import { ColasModule } from '../colas/colas.module';
-import { ContextoEmpresaModule } from '../database/contexto-empresa.module';
-import { opcionesDataSource } from '../database/data-source';
-import { ENTIDADES } from '../database/entidades';
-import { SnakeNamingStrategy } from '../database/naming.strategy';
-import { sembrar } from '../database/seeds/seed';
-import {
-  crearBaseDePruebas,
-  filas,
-  una,
-  urlAppDePruebas,
-  urlDePruebas,
-} from '../database/testing/base-de-pruebas';
+import type { DataSource } from 'typeorm';
+import { filas, una } from '../database/testing/base-de-pruebas';
 import { TransaccionEmpresa } from '../database/transaccion-empresa';
-import { CargasModule } from './cargas.module';
 import {
   MAX_ARCHIVOS,
   MAX_BYTES_POR_ARCHIVO,
   MAX_BYTES_POR_PETICION,
-} from './archivos-xml.guard';
+} from './archivos.guard';
+import type { ResultadoDeArchivo } from './carga.entity';
 import {
   type EstadoDeCarga,
   hashDelLote,
@@ -41,7 +21,16 @@ import {
 } from './cargas.service';
 import { COLA_CARGAS, ColaCargas, type TrabajoDeCarga } from './cola-cargas';
 import { MENSAJE_FALLIDA, ProcesadorCargas } from './procesador-cargas';
-import type { Queue } from 'bullmq';
+import {
+  ANA,
+  type AppDeCargas,
+  CARMEN,
+  FERRETERIA,
+  JORGE,
+  levantarAppDeCargas,
+  LUIS,
+  TRANSPORTES,
+} from './testing/app-de-cargas';
 
 /**
  * CU-06, CU-07 y CU-08 de punta a punta: HTTP, guards globales, transacción
@@ -50,118 +39,24 @@ import type { Queue } from 'bullmq';
  * sintéticos de CU-05.
  */
 
-// Esperas cortas para que los reintentos no alarguen la corrida, y un
-// prefijo propio: si no, el worker de la api en Docker tomaría estos jobs y
-// los buscaría en la base de desarrollo. Jest da a cada archivo su copia de
-// process.env.
-process.env.COLA_INTENTOS = '5';
-process.env.COLA_ESPERA_MS = '20';
-process.env.COLA_PREFIJO = 'cuadra_test';
 jest.setTimeout(30_000);
 
-const ANA = 'ana.reyes@fdb.mx'; // admin en Ferretería
-const LUIS = 'luis.mendoza@fdb.mx'; // contador en Ferretería
-const CARMEN = 'carmen.olvera@cuautla.mx'; // admin en Transportes
-const JORGE = 'jorge.tapia@despacho.mx'; // revisor en Transportes
-const FERRETERIA = 'FDB190215QK4';
-const TRANSPORTES = 'TCU170830R52';
-
-let app: INestApplication<App>;
+let entorno: AppDeCargas;
+let app: AppDeCargas['app'];
 /** Dueño: limpia y verifica sin RLS. */
 let ds: DataSource;
-let jwt: JwtService;
-const empresas = new Map<string, string>();
-const personas = new Map<string, string>();
 
 beforeAll(async () => {
-  const url = urlDePruebas();
-  await crearBaseDePruebas(url);
-  ds = await new DataSource({
-    ...opcionesDataSource,
-    url,
-  } as typeof opcionesDataSource).initialize();
-  await ds.runMigrations();
-  await sembrar(ds);
-  // cuadra_test sobrevive entre corridas: sin esto, los UUID de la corrida
-  // anterior chocarían. Los otros specs recrean sus cargas en su beforeAll.
-  await ds.query('TRUNCATE cfdi, cargas CASCADE');
-
-  for (const rfc of [FERRETERIA, TRANSPORTES]) {
-    const { id } = await una<{ id: string }>(
-      ds,
-      'SELECT id FROM companies WHERE rfc = $1',
-      [rfc],
-    );
-    empresas.set(rfc, id);
-  }
-  for (const email of [ANA, LUIS, CARMEN, JORGE]) {
-    const { id } = await una<{ id: string }>(
-      ds,
-      'SELECT id FROM users WHERE email = $1',
-      [email],
-    );
-    personas.set(email, id);
-  }
-
-  const modulo = await Test.createTestingModule({
-    imports: [
-      ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
-      TypeOrmModule.forRoot({
-        type: 'postgres',
-        url: urlAppDePruebas(),
-        entities: ENTIDADES,
-        namingStrategy: new SnakeNamingStrategy(),
-      }),
-      ContextoEmpresaModule,
-      ColasModule,
-      AuthModule,
-      CargasModule,
-    ],
-  }).compile();
-
-  // Jobs de una corrida anterior apuntan a cargas que ya se truncaron.
-  await modulo
-    .get<Queue>(getQueueToken(COLA_CARGAS))
-    .obliterate({ force: true });
-
-  app = modulo.createNestApplication();
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
-  await app.listen(0);
-  jwt = new JwtService({
-    secret: app.get(ConfigService).getOrThrow<string>('JWT_SECRET'),
-  });
+  entorno = await levantarAppDeCargas();
+  ({ app, ds } = entorno);
 }, 60_000);
 
 afterAll(async () => {
-  await app?.close();
-  if (ds?.isInitialized) {
-    // También al salir: un CFDI en 'parcialidades' detiene el down de
-    // CargaDeArchivos, y esquema.spec revierte todas las migraciones.
-    await ds.query('TRUNCATE cfdi, cargas CASCADE');
-    await ds.destroy();
-  }
+  await entorno?.cerrar();
 });
 
-function de(mapa: Map<string, string>, llave: string): string {
-  const valor = mapa.get(llave);
-  if (valor === undefined) throw new Error(`Falta "${llave}" en el beforeAll`);
-  return valor;
-}
-
-function tokenSesion(email: string, rfc: string): Promise<string> {
-  const payload: JwtPayload = {
-    sub: de(personas, email),
-    scope: 'sesion',
-    companyId: de(empresas, rfc),
-  };
-  return jwt.signAsync(payload, { expiresIn: '15m' });
-}
+const tokenSesion = (email: string, rfc: string) => entorno.token(email, rfc);
+const esperarFin = (token: string, id: string) => entorno.esperarFin(token, id);
 
 /**
  * Fixture de CU-05 con UUID nuevo: cada test es independiente de los demás
@@ -242,29 +137,6 @@ async function subirChunked(
   });
 }
 
-const TERMINALES = new Set(['procesada', 'con_errores', 'fallida']);
-
-async function consultar(token: string, id: string): Promise<EstadoDeCarga> {
-  const res = await request(app.getHttpServer())
-    .get(`/cargas/${id}`)
-    .auth(token, { type: 'bearer' })
-    .expect(200);
-  return res.body as EstadoDeCarga;
-}
-
-/** Poll al GET hasta que la carga termine, o truena a los 20 s. */
-async function esperarFin(token: string, id: string): Promise<EstadoDeCarga> {
-  const limite = Date.now() + 20_000;
-  for (;;) {
-    const carga = await consultar(token, id);
-    if (TERMINALES.has(carga.estado)) return carga;
-    if (Date.now() > limite) {
-      throw new Error(`La carga ${id} sigue en '${carga.estado}'`);
-    }
-    await new Promise((r) => setTimeout(r, 50));
-  }
-}
-
 /** POST, comprueba el 202 en 'pendiente' y espera a que el worker termine. */
 async function cargarYEsperar(
   token: string,
@@ -312,8 +184,15 @@ async function conFalla<T>(
   }
 }
 
+/** Los resultados de un lote de CFDI son por archivo, no por fila. */
+function porArchivo(carga: EstadoDeCarga): ResultadoDeArchivo[] {
+  return carga.resultados.filter(
+    (r): r is ResultadoDeArchivo => 'archivo' in r,
+  );
+}
+
 function motivoDe(carga: EstadoDeCarga, archivo: string): string {
-  const resultado = carga.resultados.find((r) => r.archivo === archivo);
+  const resultado = porArchivo(carga).find((r) => r.archivo === archivo);
   if (resultado?.resultado !== 'error') {
     throw new Error(`"${archivo}" no terminó en error`);
   }
@@ -401,7 +280,7 @@ describe('POST /cargas/cfdi en segundo plano (CU-08)', () => {
       registrosExistentes: 0,
       registrosError: 1,
     });
-    expect(carga.resultados.map((r) => [r.archivo, r.resultado])).toEqual([
+    expect(porArchivo(carga).map((r) => [r.archivo, r.resultado])).toEqual([
       ['pue.xml', 'nuevo'],
       ['malo.xml', 'error'],
       ['descuento.xml', 'nuevo'],
@@ -509,13 +388,13 @@ describe('POST /cargas/cfdi en segundo plano (CU-08)', () => {
       const intruso = cfdi('pue-valido.xml');
 
       await expect(
-        transaccion.ejecutar(de(empresas, FERRETERIA), (manager) =>
+        transaccion.ejecutar(entorno.empresa(FERRETERIA), (manager) =>
           manager.query(
             `INSERT INTO cfdi (company_id, uuid_fiscal, rfc_emisor, rfc_receptor,
                fecha_emision, tipo_comprobante, subtotal, total, xml_raw)
              VALUES ($1, $2, 'FDB190215QK4', 'TCU170830R52',
                '2026-09-15T10:30:00', 'I', 1, 1, '{"_xml": ""}')`,
-            [de(empresas, TRANSPORTES), intruso.uuid],
+            [entorno.empresa(TRANSPORTES), intruso.uuid],
           ),
         ),
       ).rejects.toThrow(/row-level security/);
@@ -530,18 +409,18 @@ describe('POST /cargas/cfdi en segundo plano (CU-08)', () => {
         `INSERT INTO cargas (company_id, tipo, estado, nombre_archivo,
            hash_archivo, total_registros)
          VALUES ($1, 'cfdi', 'pendiente', 'a.xml', $2, 1) RETURNING id`,
-        [de(empresas, FERRETERIA), randomUUID().replace(/-/g, '').repeat(2)],
+        [entorno.empresa(FERRETERIA), randomUUID().replace(/-/g, '').repeat(2)],
       );
       const pue = cfdi('pue-valido.xml');
       await ds.query(
         `INSERT INTO carga_archivos (company_id, carga_id, orden, nombre, hash, contenido)
          VALUES ($1, $2, 0, 'a.xml', $3, $4)`,
-        [de(empresas, FERRETERIA), cargaId, 'a'.repeat(64), pue.xml],
+        [entorno.empresa(FERRETERIA), cargaId, 'a'.repeat(64), pue.xml],
       );
 
       await app
         .get(ProcesadorCargas)
-        .procesar({ cargaId, companyId: de(empresas, TRANSPORTES) });
+        .procesar({ cargaId, companyId: entorno.empresa(TRANSPORTES) });
 
       const [carga] = await filas<{ estado: string }>(
         ds,
@@ -609,7 +488,8 @@ describe('resubir un lote que no terminó lo reencola (CU-08)', () => {
       });
 
       const cola = app.get<Queue>(getQueueToken(COLA_CARGAS));
-      const enEspera = await cola.getJobs(['waiting', 'paused', 'delayed']);
+      // La pausa es del worker local: el job sigue en 'waiting'.
+      const enEspera = await cola.getJobs(['waiting', 'delayed']);
       expect(enEspera.map((j) => j.id)).toEqual([recibida.id]);
 
       await procesador.worker.resume();
@@ -636,12 +516,12 @@ describe('resubir un lote que no terminó lo reencola (CU-08)', () => {
       `INSERT INTO cargas (company_id, tipo, estado, nombre_archivo,
          hash_archivo, total_registros)
        VALUES ($1, 'cfdi', 'procesando', 'atorada.xml', $2, 1) RETURNING id`,
-      [de(empresas, FERRETERIA), hashDelLote([hash])],
+      [entorno.empresa(FERRETERIA), hashDelLote([hash])],
     );
     await ds.query(
       `INSERT INTO carga_archivos (company_id, carga_id, orden, nombre, hash, contenido)
        VALUES ($1, $2, 0, 'atorada.xml', $3, $4)`,
-      [de(empresas, FERRETERIA), cargaId, hash, pue.xml],
+      [entorno.empresa(FERRETERIA), cargaId, hash, pue.xml],
     );
 
     const token = await tokenSesion(ANA, FERRETERIA);
@@ -774,7 +654,7 @@ describe('POST /cargas/cfdi, idempotencia (CU-07)', () => {
         [mismo.uuid],
       );
       expect(guardados.map((g) => g.company_id).sort()).toEqual(
-        [de(empresas, FERRETERIA), de(empresas, TRANSPORTES)].sort(),
+        [entorno.empresa(FERRETERIA), entorno.empresa(TRANSPORTES)].sort(),
       );
     });
   });
@@ -896,7 +776,7 @@ describe('GET /cargas/:id (CU-06, CU-07, CU-08)', () => {
     const token = await tokenSesion(ANA, FERRETERIA);
     const ajena = await request(app.getHttpServer())
       .get(`/cargas/${cargaTransportes}`)
-      .query({ companyId: de(empresas, TRANSPORTES) })
+      .query({ companyId: entorno.empresa(TRANSPORTES) })
       .auth(token, { type: 'bearer' })
       .expect(404);
     const inexistente = await request(app.getHttpServer())

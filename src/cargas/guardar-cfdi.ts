@@ -2,6 +2,7 @@ import { type EntityManager, QueryFailedError } from 'typeorm';
 import { CfdiRechazado } from '../cfdi/cfdi-leido';
 import { leerCfdi } from '../cfdi/lector-cfdi';
 import type { ResultadoDeArchivo } from './carga.entity';
+import type { ResultadoDeProceso } from './resultado-de-proceso';
 
 export const INDICE_UUID = 'ux_cfdi_company_id_uuid_fiscal';
 
@@ -88,4 +89,30 @@ export function violaIndice(error: unknown, indice: string): boolean {
     constraint?: string;
   };
   return code === '23505' && constraint === indice;
+}
+
+/** CU-06 a CU-08: cada archivo del lote, en orden, dentro de la transacción (b). */
+export async function procesarLoteCfdi(
+  manager: EntityManager,
+  companyId: string,
+  cargaId: string,
+): Promise<ResultadoDeProceso> {
+  const archivos = await manager.query<ArchivoEnEspera[]>(
+    `SELECT nombre, contenido FROM carga_archivos
+      WHERE carga_id = $1 AND company_id = $2
+      ORDER BY orden`,
+    [cargaId, companyId],
+  );
+  const resultados: ResultadoDeArchivo[] = [];
+  for (const archivo of archivos) {
+    resultados.push(await guardarCfdi(manager, companyId, cargaId, archivo));
+  }
+  const cuenta = (r: ResultadoDeArchivo['resultado']) =>
+    resultados.filter((x) => x.resultado === r).length;
+  return {
+    resultados,
+    nuevos: cuenta('nuevo'),
+    existentes: cuenta('ya_existia'),
+    errores: cuenta('error'),
+  };
 }
