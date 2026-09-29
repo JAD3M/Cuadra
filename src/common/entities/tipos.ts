@@ -59,6 +59,10 @@ export type EstadoConciliacion = (typeof ESTADOS_CONCILIACION)[number];
 export const ORIGENES_CONCILIACION = ['regla', 'llm', 'manual'] as const;
 export type OrigenConciliacion = (typeof ORIGENES_CONCILIACION)[number];
 
+/**
+ * 'acceso_denegado' (CU-03.3): un 403 por rol o por membresía. `entidad` es
+ * 'companies' y `entidad_id` la empresa a la que se intentó entrar.
+ */
 export const ACCIONES_BITACORA = [
   'crear',
   'actualizar',
@@ -66,6 +70,7 @@ export const ACCIONES_BITACORA = [
   'cargar',
   'confirmar',
   'rechazar',
+  'acceso_denegado',
 ] as const;
 export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 

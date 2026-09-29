@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Rol } from '../../common/entities/tipos';
+import { AccesosDenegados } from '../../bitacora/accesos-denegados';
 import { AuthService } from '../auth.service';
 import {
   LLAVE_PUBLICO,
@@ -17,12 +18,15 @@ import {
  * Guard global, corre después de `JwtAuthGuard`. Los roles no viajan en el
  * token (D-09): se leen de `user_company_roles` en cada request, así que
  * revocar un rol o una membresía surte efecto de inmediato.
+ *
+ * Cada 403 queda en la bitácora de la empresa (CU-03.3).
  */
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(
     private readonly authService: AuthService,
     private readonly reflector: Reflector,
+    private readonly accesosDenegados: AccesosDenegados,
   ) {}
 
   async canActivate(contexto: ExecutionContext): Promise<boolean> {
@@ -30,7 +34,10 @@ export class RolesGuard implements CanActivate {
     if (this.reflector.getAllAndOverride<boolean>(LLAVE_PUBLICO, destinos)) {
       return true;
     }
-    const { user } = contexto.switchToHttp().getRequest<SolicitudAutenticada>();
+    const solicitud = contexto
+      .switchToHttp()
+      .getRequest<SolicitudAutenticada>();
+    const { user } = solicitud;
     // El token de selección no opera sobre ninguna empresa: no hay roles que revisar.
     if (user.scope !== 'sesion') return true;
 
@@ -39,17 +46,29 @@ export class RolesGuard implements CanActivate {
       user.userId,
       user.companyId,
     );
-    if (roles.length === 0) {
-      throw new ForbiddenException('Sin acceso a esta empresa');
-    }
+    const requeridos =
+      this.reflector.getAllAndOverride<Rol[] | undefined>(
+        LLAVE_ROLES,
+        destinos,
+      ) ?? [];
+    const denegar = async (mensaje: string): Promise<never> => {
+      await this.accesosDenegados.registrar({
+        companyId: user.companyId,
+        userId: user.userId,
+        metodo: solicitud.method,
+        ruta: solicitud.path,
+        rolesRequeridos: requeridos,
+        rolesDelUsuario: roles,
+        ip: solicitud.ip,
+        userAgent: solicitud.headers?.['user-agent'],
+      });
+      throw new ForbiddenException(mensaje);
+    };
 
-    const requeridos = this.reflector.getAllAndOverride<Rol[] | undefined>(
-      LLAVE_ROLES,
-      destinos,
-    );
-    if (!requeridos?.length) return true;
+    if (roles.length === 0) return denegar('Sin acceso a esta empresa');
+    if (!requeridos.length) return true;
     // D-08: basta con que uno de sus roles alcance.
     if (roles.some((rol) => requeridos.includes(rol))) return true;
-    throw new ForbiddenException('Rol insuficiente');
+    return denegar('Rol insuficiente');
   }
 }

@@ -27,7 +27,7 @@ stories already marked done in Jira (KAN-78, KAN-80, KAN-81).
 
 - [x] T1 CU-01: `/health` reports Redis; e2e/integration test for `/health`;
       test that `validateEnv` fails naming the missing variable. Route: delegated.
-- [ ] T2 CU-03.3: 403 by role writes an entry to `bitacora` (company_id,
+- [x] T2 CU-03.3: 403 by role writes an entry to `bitacora` (company_id,
       user_id, accion, datos). Test it. Route: delegated.
 - [ ] T3 CU-04.2: CI workflow running typecheck + tests with Postgres 18 and
       Redis services. Route: delegated.
@@ -40,7 +40,7 @@ Each criterion above has implementation + passing test; `npm test` and
 
 ## Progress / evidence
 
-- T1 (0594489): `/health` now reports `redis` via `RedisHealthIndicator`
+- T1 (ae199f3): `/health` now reports `redis` via `RedisHealthIndicator`
   (short-lived ioredis connection from `REDIS_URL`, 2 s timeouts, no retry);
   200 with both up, 503 with per-dependency detail. Tests:
   `src/health/health.integracion.spec.ts` (up / redis down),
@@ -51,3 +51,17 @@ Each criterion above has implementation + passing test; `npm test` and
   Verification: `npm run typecheck` ok; `npm test` 13 suites / 215 tests ok;
   eslint on touched files ok.
 
+- T2 (see `feat(auth): registrar en bitácora los accesos denegados por rol`):
+  `RolesGuard` calls `AccesosDenegados.registrar` before throwing 403 (role
+  insufficient, or no membership: `datos.motivo` tells them apart). Guards run
+  before `TransaccionEmpresaInterceptor`, so the service opens its own
+  `TransaccionEmpresa.ejecutar(companyId)` (sets `app.company_id`, RLS
+  `WITH CHECK` passes as `cuadra_app`). `company_id` comes from the signed
+  session token, never from the request. Insert failure is caught and logged;
+  403 is preserved. Migration `AccesoDenegadoEnBitacora` widens
+  `ck_bitacora_accion` with `acceso_denegado` (no new table: RLS/GRANTs already
+  exist). Row: entidad `companies`, entidad_id = company_id. Tests: guard unit
+  spec, service unit spec, 5 integration cases in `auth.integracion.spec.ts`
+  (one row, RLS isolation, no membership, allowed access writes nothing,
+  logging failure still 403). Verification: `npm run typecheck` ok;
+  `npm test` 14 suites / 224 tests ok; eslint on touched files ok.

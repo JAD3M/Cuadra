@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   type INestApplication,
+  Logger,
   ValidationPipe,
 } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -18,12 +19,14 @@ import { SnakeNamingStrategy } from '../database/naming.strategy';
 import { PASSWORD_SEMILLA, sembrar } from '../database/seeds/seed';
 import {
   crearBaseDePruebas,
+  filas,
   una,
   urlAppDePruebas,
   urlDePruebas,
 } from '../database/testing/base-de-pruebas';
 import { AuthModule } from './auth.module';
 import { Roles, Scope } from '../common/decorators/decoradores';
+import { TransaccionEmpresa } from '../database/transaccion-empresa';
 
 /**
  * CU-03 de punta a punta contra Postgres real y el seed: guards globales,
@@ -338,5 +341,123 @@ describe('RolesGuard', () => {
     } finally {
       await sembrar(ds);
     }
+  });
+});
+
+/** CU-03.3: el 403 por rol deja rastro en la bitácora de su empresa. */
+describe('Bitácora de accesos denegados', () => {
+  interface FilaBitacora {
+    company_id: string;
+    user_id: string;
+    entidad: string;
+    entidad_id: string;
+    accion: string;
+    datos: Record<string, unknown>;
+  }
+
+  const SELECT = `SELECT company_id, user_id, entidad, entidad_id, accion, datos
+                    FROM bitacora`;
+
+  // La base de pruebas se comparte: una fila 'acceso_denegado' haría fallar
+  // el `down` de la migración en los specs que la revierten.
+  afterAll(() => ds.query('TRUNCATE bitacora'));
+
+  beforeEach(async () => {
+    // Dueño de la tabla: la app no puede borrar bitácora.
+    await ds.query('TRUNCATE bitacora');
+  });
+
+  it('un 403 por rol crea exactamente una fila con empresa y usuario', async () => {
+    await http()
+      .get('/prueba/admin')
+      .auth(await tokenSesion(JORGE, FERRETERIA), { type: 'bearer' })
+      .expect(403);
+
+    const usuario = await una<{ id: string }>(
+      ds,
+      'SELECT id FROM users WHERE email = $1',
+      [JORGE],
+    );
+    const filas = await ds.query<FilaBitacora[]>(SELECT);
+    expect(filas).toHaveLength(1);
+    expect(filas[0]).toMatchObject({
+      company_id: empresas.get(FERRETERIA),
+      user_id: usuario.id,
+      entidad: 'companies',
+      entidad_id: empresas.get(FERRETERIA),
+      accion: 'acceso_denegado',
+      datos: {
+        metodo: 'GET',
+        ruta: '/prueba/admin',
+        motivo: 'rol_insuficiente',
+        rolesRequeridos: ['admin'],
+        rolesDelUsuario: ['contador'],
+      },
+    });
+  });
+
+  it('otra empresa no ve esa fila (RLS), la suya sí', async () => {
+    await http()
+      .get('/prueba/admin')
+      .auth(await tokenSesion(JORGE, FERRETERIA), { type: 'bearer' })
+      .expect(403);
+
+    const transaccion = app.get(TransaccionEmpresa);
+    const desde = (rfc: string) =>
+      transaccion.ejecutar(empresas.get(rfc) ?? rfc, (manager) =>
+        filas<FilaBitacora>(manager, SELECT),
+      );
+    expect(await desde(TRANSPORTES)).toHaveLength(0);
+    expect(await desde(FERRETERIA)).toHaveLength(1);
+  });
+
+  it('sin membresía vigente se registra en la empresa del token', async () => {
+    const token = await tokenSesion(ANA, FERRETERIA);
+    await ds.query(
+      `DELETE FROM user_company_roles
+        WHERE company_id = $1
+          AND user_id = (SELECT id FROM users WHERE email = $2)`,
+      [empresas.get(FERRETERIA), ANA],
+    );
+    try {
+      await http()
+        .get('/prueba/sesion')
+        .auth(token, { type: 'bearer' })
+        .expect(403);
+    } finally {
+      await sembrar(ds);
+    }
+
+    const filas = await ds.query<FilaBitacora[]>(SELECT);
+    expect(filas).toHaveLength(1);
+    expect(filas[0]).toMatchObject({
+      company_id: empresas.get(FERRETERIA),
+      datos: { motivo: 'sin_membresia', rolesDelUsuario: [] },
+    });
+  });
+
+  it('un acceso permitido no escribe nada', async () => {
+    await http()
+      .get('/prueba/contador-o-revisor')
+      .auth(await tokenSesion(JORGE, FERRETERIA), { type: 'bearer' })
+      .expect(200);
+    expect(await ds.query(SELECT)).toHaveLength(0);
+  });
+
+  it('si la bitácora falla, la respuesta sigue siendo 403', async () => {
+    const espia = jest
+      .spyOn(TransaccionEmpresa.prototype, 'ejecutar')
+      .mockRejectedValue(new Error('base caída'));
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    try {
+      await http()
+        .get('/prueba/admin')
+        .auth(await tokenSesion(JORGE, FERRETERIA), { type: 'bearer' })
+        .expect(403);
+      expect(espia).toHaveBeenCalled();
+    } finally {
+      jest.restoreAllMocks();
+    }
+    expect(await ds.query(SELECT)).toHaveLength(0);
   });
 });

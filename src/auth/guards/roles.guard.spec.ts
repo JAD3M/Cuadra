@@ -1,6 +1,7 @@
 import { ForbiddenException, type ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Rol } from '../../common/entities/tipos';
+import type { AccesosDenegados } from '../../bitacora/accesos-denegados';
 import type { AuthService } from '../auth.service';
 import { LLAVE_ROLES } from '../../common/decorators/decoradores';
 import { RolesGuard } from './roles.guard';
@@ -16,7 +17,15 @@ function contexto(user: UsuarioAutenticado): ExecutionContext {
   return {
     getHandler: () => () => undefined,
     getClass: () => class {},
-    switchToHttp: () => ({ getRequest: () => ({ user }) }),
+    switchToHttp: () => ({
+      getRequest: () => ({
+        user,
+        method: 'GET',
+        path: '/prueba/admin',
+        ip: '203.0.113.7',
+        headers: { 'user-agent': 'jest' },
+      }),
+    }),
   } as unknown as ExecutionContext;
 }
 
@@ -29,7 +38,13 @@ function guard(rolesDelUsuario: Rol[], requeridos?: Rol[]) {
     );
   const rolesEnEmpresa = jest.fn().mockResolvedValue(rolesDelUsuario);
   const authService = { rolesEnEmpresa } as unknown as AuthService;
-  return { guard: new RolesGuard(authService, reflector), rolesEnEmpresa };
+  const registrar = jest.fn().mockResolvedValue(undefined);
+  const accesos = { registrar } as unknown as AccesosDenegados;
+  return {
+    guard: new RolesGuard(authService, reflector, accesos),
+    rolesEnEmpresa,
+    registrar,
+  };
 }
 
 describe('RolesGuard', () => {
@@ -64,5 +79,39 @@ describe('RolesGuard', () => {
       g.canActivate(contexto({ userId: 'usuario-1', scope: 'seleccion' })),
     ).resolves.toBe(true);
     expect(rolesEnEmpresa).not.toHaveBeenCalled();
+  });
+
+  it('rol insuficiente: registra el acceso denegado y luego da 403', async () => {
+    const { guard: g, registrar } = guard(['contador'], ['admin']);
+    await expect(g.canActivate(contexto(SESION))).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(registrar).toHaveBeenCalledTimes(1);
+    expect(registrar).toHaveBeenCalledWith({
+      companyId: 'empresa-a',
+      userId: 'usuario-1',
+      metodo: 'GET',
+      ruta: '/prueba/admin',
+      rolesRequeridos: ['admin'],
+      rolesDelUsuario: ['contador'],
+      ip: '203.0.113.7',
+      userAgent: 'jest',
+    });
+  });
+
+  it('sin membresía también se registra, con roles vacíos', async () => {
+    const { guard: g, registrar } = guard([]);
+    await expect(g.canActivate(contexto(SESION))).rejects.toThrow(
+      ForbiddenException,
+    );
+    expect(registrar).toHaveBeenCalledWith(
+      expect.objectContaining({ rolesRequeridos: [], rolesDelUsuario: [] }),
+    );
+  });
+
+  it('un acceso autorizado no escribe en la bitácora', async () => {
+    const { guard: g, registrar } = guard(['admin'], ['admin']);
+    await g.canActivate(contexto(SESION));
+    expect(registrar).not.toHaveBeenCalled();
   });
 });
