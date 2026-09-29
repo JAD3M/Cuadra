@@ -5,11 +5,11 @@
 
 | | |
 |---|---|
-| **Estado** | Día 1 de 9 ✅ · CU-01, CU-02 · 8 / 69 pts |
+| **Estado** | Día 5 de 9 ✅ · CU-01 a CU-10, más CU-04b · 37 / 69 pts · Épicas A, B y C cerradas |
 | **Entrega** | 2 de octubre de 2026 |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 18 historias · 69 puntos · 9 días hábiles |
-| **Última actualización** | 22 sep 2026 |
+| **Última actualización** | 29 sep 2026 |
 
 Este archivo es la fuente de verdad del proyecto. Vive en la raíz del repo.
 Si usas un agente de código, apúntalo aquí desde `CLAUDE.md` o `AGENTS.md`
@@ -730,6 +730,44 @@ Jira (`cuadra-jira.csv`) y en las issues importadas.
 
 Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
+
+### 29 sep 2026
+
+- **Auditoría de criterios de aceptación de Jira contra el código.** Los 60
+  criterios de CU-01…CU-18 se cruzaron con implementación y tests. CU-05 a
+  CU-10 cumplen todos. Tres historias de la épica A tenían criterios sin
+  cumplir y se reabrieron (KAN-78, KAN-80, KAN-81). Rama
+  `fix/criterios-fundacion`; detalle en `odd/tasks/criterios-fundacion.md`.
+  - **CU-01.2 (`ae199f3`):** `/health` ahora reporta `redis` además de
+    `postgres`; 503 con el detalle por dependencia si una cae. Test de
+    integración con Redis arriba y caído, y test de que `validateEnv`
+    nombra la variable faltante (CU-01.3 no tenía test). Se borró el e2e
+    de ejemplo de Nest (`GET /` → "Hello World!"), que nunca corría.
+  - **CU-03.3 (`f7ddf77`):** un 403 por rol, o por no tener membresía en la
+    empresa, escribe `acceso_denegado` en `bitacora`. El guard corre antes
+    del interceptor de transacción, así que el registro abre su propia
+    `TransaccionEmpresa` con el `company_id` del token firmado. Si el
+    INSERT falla se loguea y la respuesta sigue siendo 403. Migración
+    `AccesoDenegadoEnBitacora` solo amplía `ck_bitacora_accion`; sin
+    tabla nueva, RLS y GRANTs ya existían.
+  - **CU-04.2 (`d4944c2`):** `.github/workflows/ci.yml` corre `typecheck` y
+    `npm test` con Postgres 18 y Redis en cada push y PR. Incluye
+    `aislamiento.spec.ts` y `rls.spec.ts`, así que romper el aislamiento
+    rompe el build. Verificado en local con entorno limpio; falta ver una
+    corrida real en GitHub (el repo no tiene remoto todavía).
+  - **Verificación:** 224 tests en verde (14 suites), `typecheck` limpio.
+    Revisión de 4 lentes aprobada sin bloqueos.
+  - **Pendientes no bloqueantes de la revisión:** un usuario puede inflar
+    `bitacora` repitiendo 403 (sin límite de tasa); el chequeo de Redis
+    abre una conexión por cada `/health`; el INSERT de auditoría agrega
+    latencia al 403.
+  - **Hallazgos fuera de alcance, sin tocar:** no hay test de que el
+    backoff de CU-08 crezca; la spec de tablas en este archivo omite
+    columnas reales (`movimientos.moneda`, `cfdi.serie`/`folio`/nombres,
+    estado `parcialidades`); la entrada del 22 sep dice Postgres 17 y el
+    compose usa 18; `companies` no tiene dónde guardar la tolerancia de
+    CU-12; Jira pide CFDI "pagado" en CU-15 y el esquema solo tiene
+    `conciliada`.
 
 ### 28 sep 2026
 

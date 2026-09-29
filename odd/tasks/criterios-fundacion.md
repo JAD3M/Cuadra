@@ -31,7 +31,7 @@ stories already marked done in Jira (KAN-78, KAN-80, KAN-81).
       user_id, accion, datos). Test it. Route: delegated.
 - [x] T3 CU-04.2: CI workflow running typecheck + tests with Postgres 18 and
       Redis services. Route: delegated.
-- [ ] T4 Update CUADRA.md bitácora; mark KAN-78/80/81 as Finalizado.
+- [x] T4 Update CUADRA.md bitácora; mark KAN-78/80/81 as Finalizado.
 
 ## Acceptance
 
@@ -77,3 +77,8 @@ Each criterion above has implementation + passing test; `npm test` and
   build. Verified locally: `@action-validator/cli` on the workflow ok; full
   suite with `.env` removed and a clean `env -i` environment against a fresh
   database: 14 suites / 224 tests ok. Not verified: an actual GitHub run.
+
+- T3 commit: d4944c2.
+- Review: lineage review-838e40f2c48416f3 (4 lenses) approved and acknowledged;
+  advisory-only findings recorded in CUADRA.md bitácora (29 sep).
+- T4: CUADRA.md bitácora 29 sep entry; Jira KAN-78/80/81 moved to Finalizado.
