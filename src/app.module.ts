@@ -11,6 +11,7 @@ import { BandejaModule } from './bandeja/bandeja.module';
 import { CargasModule } from './cargas/cargas.module';
 import { CompaniesModule } from './companies/companies.module';
 import { ColasModule } from './colas/colas.module';
+import { ResolucionModule } from './resolucion/resolucion.module';
 import { ContextoEmpresaModule } from './database/contexto-empresa.module';
 
 @Module({
@@ -38,6 +39,7 @@ import { ContextoEmpresaModule } from './database/contexto-empresa.module';
     BancosModule,
     CompaniesModule,
     BandejaModule,
+    ResolucionModule,
   ],
 })
 export class AppModule {}

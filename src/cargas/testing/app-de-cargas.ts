@@ -19,6 +19,7 @@ import { ContextoEmpresaModule } from '../../database/contexto-empresa.module';
 import { opcionesDataSource } from '../../database/data-source';
 import { ENTIDADES } from '../../database/entidades';
 import { SnakeNamingStrategy } from '../../database/naming.strategy';
+import { ResolucionModule } from '../../resolucion/resolucion.module';
 import { sembrar } from '../../database/seeds/seed';
 import {
   crearBaseDePruebas,
@@ -115,6 +116,7 @@ export async function levantarAppDeCargas(): Promise<AppDeCargas> {
       CargasModule,
       CompaniesModule,
       BandejaModule,
+      ResolucionModule,
     ],
   }).compile();
 

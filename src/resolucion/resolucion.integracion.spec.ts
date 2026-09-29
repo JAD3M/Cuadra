@@ -1,0 +1,437 @@
+import { randomUUID } from 'crypto';
+import request from 'supertest';
+import type { DataSource } from 'typeorm';
+import {
+  ANA,
+  type AppDeCargas,
+  FERRETERIA,
+  JORGE,
+  levantarAppDeCargas,
+  LUIS,
+  TRANSPORTES,
+} from '../cargas/testing/app-de-cargas';
+import { ConciliacionService } from '../conciliacion/conciliacion.service';
+import { filas, una } from '../database/testing/base-de-pruebas';
+
+/**
+ * CU-15 (rechazo) de punta a punta contra Postgres real con RLS:
+ * POST /conciliaciones/:id/rechazar. Los datos se preparan con la conexión
+ * del dueño; el endpoint escribe como cuadra_app.
+ */
+
+jest.setTimeout(30_000);
+
+const RFC_FERRETERIA = FERRETERIA;
+
+let entorno: AppDeCargas;
+let ds: DataSource;
+let A: string;
+let B: string;
+let tokenAna: string;
+let linea = 0;
+
+beforeAll(async () => {
+  entorno = await levantarAppDeCargas();
+  ({ ds } = entorno);
+  A = entorno.empresa(FERRETERIA);
+  B = entorno.empresa(TRANSPORTES);
+  tokenAna = await entorno.token(ANA, FERRETERIA);
+}, 60_000);
+
+afterAll(async () => {
+  await entorno?.cerrar();
+});
+
+beforeEach(async () => {
+  await ds.query(
+    'TRUNCATE cfdi, cargas, movimientos, conciliaciones, bitacora CASCADE',
+  );
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+async function movimiento(
+  empresa: string,
+  o: { monto?: string; estado?: string; cargaId?: string | null } = {},
+): Promise<string> {
+  const { id } = await una<{ id: string }>(
+    ds,
+    `INSERT INTO movimientos (company_id, carga_id, linea_numero, fecha, descripcion, monto, estado)
+     VALUES ($1,$2,$3,'2026-09-02','SPEI RECIBIDO',$4,$5)
+     RETURNING id`,
+    [
+      empresa,
+      o.cargaId ?? null,
+      linea++,
+      o.monto ?? '1160.00',
+      o.estado ?? 'abierto',
+    ],
+  );
+  return id;
+}
+
+/** El emisor es la empresa (Ferretería), como pide el motor. */
+async function factura(
+  empresa: string,
+  o: { total?: string; cargaId?: string | null } = {},
+): Promise<string> {
+  const total = o.total ?? '1160.00';
+  const { id } = await una<{ id: string }>(
+    ds,
+    `INSERT INTO cfdi (company_id, carga_id, uuid_fiscal, rfc_emisor, rfc_receptor, serie, folio,
+                       fecha_emision, tipo_comprobante, moneda, subtotal, total, estado,
+                       metodo_pago, xml_raw)
+     VALUES ($1,$2,$3,$4,'XAXX010101000','A','1001','2026-09-01T10:00:00','I','MXN',
+             $5,$5,'abierta','PUE','{"_xml":"<x/>"}'::jsonb)
+     RETURNING id`,
+    [empresa, o.cargaId ?? null, randomUUID(), RFC_FERRETERIA, total],
+  );
+  return id;
+}
+
+async function carga(
+  empresa: string,
+  subidoPor: string,
+  tipo: 'cfdi' | 'estado_cuenta',
+): Promise<string> {
+  const { id } = await una<{ id: string }>(
+    ds,
+    `INSERT INTO cargas (company_id, tipo, estado, nombre_archivo, hash_archivo, subido_por_id)
+     VALUES ($1,$2,'procesada','x',$3,$4) RETURNING id`,
+    [empresa, tipo, randomUUID().replace(/-/g, '').repeat(2), subidoPor],
+  );
+  return id;
+}
+
+async function conciliacion(
+  empresa: string,
+  cfdiId: string,
+  movimientoId: string,
+  estado: 'propuesta' | 'rechazada' | 'confirmada' = 'propuesta',
+  diferencia = '0.0000',
+): Promise<string> {
+  const persona = estado === 'confirmada' ? entorno.persona(ANA) : null;
+  const { id } = await una<{ id: string }>(
+    ds,
+    `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen, regla, score,
+                                 diferencia_monto, motivo, confirmada_por_id, confirmada_at)
+     VALUES ($1,$2,$3,$4::text,'regla','monto_unico','0.9000',$5,'Motivo de propuesta',$6,
+             CASE WHEN $6::uuid IS NULL THEN NULL ELSE now() END)
+     RETURNING id`,
+    [empresa, cfdiId, movimientoId, estado, diferencia, persona],
+  );
+  return id;
+}
+
+/** Una propuesta lista para resolver, con su CFDI y su movimiento. */
+async function propuesta(empresa = A, diferencia = '0.0000') {
+  const cfdiId = await factura(empresa);
+  const movimientoId = await movimiento(empresa);
+  const id = await conciliacion(
+    empresa,
+    cfdiId,
+    movimientoId,
+    'propuesta',
+    diferencia,
+  );
+  return { id, cfdiId, movimientoId };
+}
+
+const rechazar = (id: string, token = tokenAna, cuerpo: object = {}) =>
+  request(entorno.app.getHttpServer())
+    .post(`/conciliaciones/${id}/rechazar`)
+    .auth(token, { type: 'bearer' })
+    .send(cuerpo);
+
+const conciliacionEn = (id: string) =>
+  una<{ estado: string; motivo: string | null }>(
+    ds,
+    'SELECT estado, motivo FROM conciliaciones WHERE id = $1',
+    [id],
+  );
+
+const bitacoraDe = (id: string) =>
+  filas<{
+    accion: string;
+    entidad: string;
+    userId: string;
+    datos: Record<string, any>;
+  }>(
+    ds,
+    `SELECT accion, entidad, user_id AS "userId", datos
+       FROM bitacora WHERE entidad_id = $1`,
+    [id],
+  );
+
+describe('POST /conciliaciones/:id/rechazar (RS-R1, RS-R2)', () => {
+  it('rechaza la propuesta, guarda el motivo y deja abiertos al CFDI y al movimiento', async () => {
+    const { id, cfdiId, movimientoId } = await propuesta();
+    jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+
+    const res = await rechazar(id, tokenAna, {
+      motivo: '  El pago es de otro cliente  ',
+    }).expect(200);
+
+    expect(res.body).toEqual({
+      id,
+      estado: 'rechazada',
+      cfdiId,
+      movimientoId,
+      motivo: 'El pago es de otro cliente',
+      confirmadaAt: null,
+      rechazadasAutomaticamente: [],
+    });
+    expect(await conciliacionEn(id)).toEqual({
+      estado: 'rechazada',
+      motivo: 'El pago es de otro cliente',
+    });
+    expect(
+      (
+        await una<{ estado: string }>(
+          ds,
+          'SELECT estado FROM cfdi WHERE id=$1',
+          [cfdiId],
+        )
+      ).estado,
+    ).toBe('abierta');
+    expect(
+      (
+        await una<{ estado: string }>(
+          ds,
+          'SELECT estado FROM movimientos WHERE id=$1',
+          [movimientoId],
+        )
+      ).estado,
+    ).toBe('abierto');
+  });
+
+  it.each([{}, { motivo: '   ' }])(
+    'sin motivo (%j) conserva el de la propuesta',
+    async (cuerpo) => {
+      const { id } = await propuesta();
+      jest
+        .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+        .mockResolvedValue({ propuestas: 0 });
+
+      const res = await rechazar(id, tokenAna, cuerpo).expect(200);
+
+      expect(res.body).toMatchObject({ motivo: 'Motivo de propuesta' });
+      expect((await conciliacionEn(id)).motivo).toBe('Motivo de propuesta');
+    },
+  );
+
+  it('un motivo de más de 500 caracteres da 400 y no escribe nada', async () => {
+    const { id } = await propuesta();
+
+    await rechazar(id, tokenAna, { motivo: 'x'.repeat(501) }).expect(400);
+
+    expect((await conciliacionEn(id)).estado).toBe('propuesta');
+    expect(await bitacoraDe(id)).toHaveLength(0);
+  });
+
+  it('un id que no es uuid da 400', async () => {
+    await rechazar('no-es-uuid').expect(400);
+  });
+
+  it('sin sesión da 401', async () => {
+    const { id } = await propuesta();
+    await request(entorno.app.getHttpServer())
+      .post(`/conciliaciones/${id}/rechazar`)
+      .expect(401);
+  });
+
+  it.each([
+    ['contador', LUIS, FERRETERIA],
+    ['revisor', JORGE, TRANSPORTES],
+  ] as const)('un %s puede rechazar', async (_rol, persona, rfc) => {
+    const empresa = entorno.empresa(rfc);
+    const cfdiId = await factura(empresa);
+    const movimientoId = await movimiento(empresa);
+    const id = await conciliacion(empresa, cfdiId, movimientoId);
+    jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+
+    await rechazar(id, await entorno.token(persona, rfc)).expect(200);
+
+    expect((await conciliacionEn(id)).estado).toBe('rechazada');
+  });
+});
+
+describe('RS-R3: quien subió la carga sí puede rechazar', () => {
+  it('Ana subió el CFDI y el estado de cuenta y rechaza igual', async () => {
+    const ana = entorno.persona(ANA);
+    const cfdiId = await factura(A, {
+      cargaId: await carga(A, ana, 'cfdi'),
+    });
+    const movimientoId = await movimiento(A, {
+      cargaId: await carga(A, ana, 'estado_cuenta'),
+    });
+    const id = await conciliacion(A, cfdiId, movimientoId);
+    jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+
+    await rechazar(id).expect(200);
+
+    expect((await conciliacionEn(id)).estado).toBe('rechazada');
+  });
+});
+
+describe('RS-X2, RS-X3: 404 sin fuga y solo una propuesta transiciona', () => {
+  it('una conciliación de otra empresa y un uuid inexistente dan el mismo 404, sin cambios', async () => {
+    const ajena = await propuesta(B);
+
+    const deOtra = await rechazar(ajena.id).expect(404);
+    const inexistente = await rechazar(randomUUID()).expect(404);
+
+    expect(deOtra.body).toEqual(inexistente.body);
+    expect((await conciliacionEn(ajena.id)).estado).toBe('propuesta');
+    expect(await bitacoraDe(ajena.id)).toHaveLength(0);
+  });
+
+  it('rechazar dos veces da 409 la segunda y no escribe otra bitácora', async () => {
+    const { id } = await propuesta();
+    jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+    await rechazar(id).expect(200);
+
+    await rechazar(id, tokenAna, { motivo: 'otra vez' }).expect(409);
+
+    expect((await conciliacionEn(id)).motivo).toBe('Motivo de propuesta');
+    expect(await bitacoraDe(id)).toHaveLength(1);
+  });
+
+  it('una conciliación confirmada da 409 y no cambia', async () => {
+    const cfdiId = await factura(A);
+    const movimientoId = await movimiento(A, { estado: 'conciliado' });
+    const id = await conciliacion(A, cfdiId, movimientoId, 'confirmada');
+
+    await rechazar(id).expect(409);
+
+    expect((await conciliacionEn(id)).estado).toBe('confirmada');
+    expect(await bitacoraDe(id)).toHaveLength(0);
+  });
+});
+
+describe('RS-X6: bitácora', () => {
+  it('escribe una fila rechazar con antes, después y la diferencia como texto', async () => {
+    const { id, cfdiId, movimientoId } = await propuesta(A, '0.5000');
+    jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+
+    await rechazar(id, tokenAna, { motivo: 'No corresponde' }).expect(200);
+
+    const [fila, ...resto] = await bitacoraDe(id);
+    expect(resto).toHaveLength(0);
+    expect(fila).toMatchObject({
+      accion: 'rechazar',
+      entidad: 'conciliaciones',
+      userId: entorno.persona(ANA),
+    });
+    expect(fila.datos).toEqual({
+      antes: { estado: 'propuesta', motivo: 'Motivo de propuesta' },
+      despues: { estado: 'rechazada', motivo: 'No corresponde' },
+      cfdiId,
+      movimientoId,
+      diferenciaMonto: '0.5000',
+    });
+  });
+});
+
+describe('RS-X7: permisos de cuadra_app', () => {
+  it('no puede borrar conciliaciones ni tocar la bitácora salvo insertar', async () => {
+    const privilegio = async (tabla: string, permiso: string) =>
+      (
+        await una<{ ok: boolean }>(
+          ds,
+          `SELECT has_table_privilege('cuadra_app', $1, $2) AS ok`,
+          [tabla, permiso],
+        )
+      ).ok;
+
+    expect(await privilegio('conciliaciones', 'UPDATE')).toBe(true);
+    expect(await privilegio('conciliaciones', 'DELETE')).toBe(false);
+    expect(await privilegio('bitacora', 'INSERT')).toBe(true);
+    expect(await privilegio('bitacora', 'UPDATE')).toBe(false);
+    expect(await privilegio('bitacora', 'DELETE')).toBe(false);
+  });
+});
+
+describe('RS-R4, RS-R5: conciliar después del commit', () => {
+  it('corre una vez cuando el rechazo libera al movimiento', async () => {
+    const { id } = await propuesta();
+    const conciliar = jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+
+    await rechazar(id).expect(200);
+
+    expect(conciliar).toHaveBeenCalledTimes(1);
+    expect(conciliar).toHaveBeenCalledWith(A);
+  });
+
+  it('no corre si el movimiento y el CFDI conservan otra propuesta', async () => {
+    const c1 = await factura(A);
+    const c2 = await factura(A);
+    const m1 = await movimiento(A);
+    const m2 = await movimiento(A);
+    const id = await conciliacion(A, c1, m1);
+    await conciliacion(A, c2, m1);
+    await conciliacion(A, c1, m2);
+    const conciliar = jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+
+    await rechazar(id).expect(200);
+
+    expect(conciliar).not.toHaveBeenCalled();
+  });
+
+  it('si conciliar truena, el rechazo responde 200 y queda confirmado', async () => {
+    const { id } = await propuesta();
+    const conciliar = jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockRejectedValue(new Error('se cayó el motor'));
+
+    await rechazar(id).expect(200);
+
+    expect(conciliar).toHaveBeenCalledTimes(1);
+    expect((await conciliacionEn(id)).estado).toBe('rechazada');
+  });
+
+  it('el motor real no vuelve a proponer el par rechazado', async () => {
+    const { id, cfdiId, movimientoId } = await propuesta();
+
+    await rechazar(id).expect(200);
+
+    const vivas = await filas(
+      ds,
+      `SELECT id FROM conciliaciones
+        WHERE cfdi_id = $1 AND movimiento_id = $2 AND estado <> 'rechazada'`,
+      [cfdiId, movimientoId],
+    );
+    expect(vivas).toHaveLength(0);
+    expect((await conciliacionEn(id)).estado).toBe('rechazada');
+  });
+});
+
+describe('RS-K2: rechazos concurrentes', () => {
+  it('dos rechazos a la vez: uno da 200 y el otro 409', async () => {
+    const { id } = await propuesta();
+    jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+
+    const resultados = await Promise.all([rechazar(id), rechazar(id)]);
+
+    expect(resultados.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(await bitacoraDe(id)).toHaveLength(1);
+  });
+});
