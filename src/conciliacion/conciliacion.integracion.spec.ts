@@ -19,7 +19,7 @@ import {
 import { dinero } from '../common/dinero';
 import { filas, una } from '../database/testing/base-de-pruebas';
 import { ConciliacionService } from './conciliacion.service';
-import { ProveedorTolerancia } from './tolerancia';
+import { ProveedorTolerancia, ToleranciaPorEmpresa } from './tolerancia';
 
 /**
  * CU-11 de punta a punta contra Postgres real con RLS. Casi todo llama a
@@ -376,6 +376,81 @@ describe('conciliar (CU-11): aislamiento entre empresas', () => {
     await servicio.conciliar(A);
     expect(await conciliaciones()).toEqual([
       expect.objectContaining({ company_id: A, cfdi_id: propio }),
+    ]);
+  });
+});
+
+describe('tolerancia por empresa (CU-12)', () => {
+  const fijar = (empresa: string, valor: string) =>
+    ds.query('UPDATE companies SET tolerancia_monto = $2 WHERE id = $1', [
+      empresa,
+      valor,
+    ]);
+
+  afterEach(async () => {
+    await ds.query(`UPDATE companies SET tolerancia_monto = 0`);
+  });
+
+  it('el proveedor enlazado lee companies.tolerancia_monto', () => {
+    expect(entorno.app.get(ProveedorTolerancia)).toBeInstanceOf(
+      ToleranciaPorEmpresa,
+    );
+  });
+
+  it('estricta por omisión y con decimales exactos, sin pasar por number', async () => {
+    const proveedor = entorno.app.get(ProveedorTolerancia);
+    expect((await proveedor.obtener(A)).toFixed()).toBe('0');
+    await fijar(A, '0.1234');
+    expect((await proveedor.obtener(A)).toFixed()).toBe('0.1234');
+  });
+
+  it('cada empresa lee la suya: el valor de A nunca se usa para B', async () => {
+    const proveedor = entorno.app.get(ProveedorTolerancia);
+    await fijar(A, '50');
+    expect((await proveedor.obtener(A)).toFixed()).toBe('50');
+    expect((await proveedor.obtener(B)).toFixed()).toBe('0');
+
+    // Y en el motor: la misma diferencia de 40.00 entra en A y no en B.
+    for (const empresa of [A, B]) {
+      await movimiento(empresa, { referencia: 'A1001', monto: '1120.00' });
+      await factura(empresa);
+    }
+    await servicio.conciliar(A);
+    await servicio.conciliar(B);
+    expect(await propuestasNuevas(A)).toEqual([
+      expect.objectContaining({
+        regla: 'referencia_monto_exacto',
+        diferencia_monto: '-40.0000',
+      }),
+    ]);
+    expect(await propuestasNuevas(B)).toEqual([
+      expect.objectContaining({
+        regla: 'referencia_monto_diferente',
+        diferencia_monto: '-40.0000',
+      }),
+    ]);
+  });
+
+  it('una empresa inexistente cae a la más estricta: 0', async () => {
+    const proveedor = entorno.app.get(ProveedorTolerancia);
+    expect(
+      (
+        await proveedor.obtener('00000000-0000-7000-8000-000000000000')
+      ).toFixed(),
+    ).toBe('0');
+  });
+
+  it('en USD la tolerancia de la empresa no aplica', async () => {
+    await fijar(A, '50');
+    await movimiento(A, {
+      referencia: 'A1001',
+      monto: '1120.00',
+      moneda: 'USD',
+    });
+    await factura(A, { moneda: 'USD' });
+    await servicio.conciliar(A);
+    expect(await propuestasNuevas(A)).toEqual([
+      expect.objectContaining({ regla: 'referencia_monto_diferente' }),
     ]);
   });
 });

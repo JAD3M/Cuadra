@@ -385,3 +385,67 @@ describe('seleccionarPropuestas', () => {
     expect(r[0].motivo).toContain('A-0001001');
   });
 });
+
+describe('tolerancia solo en MXN (CU-12)', () => {
+  const tolerancia = dinero('5');
+
+  it('MXN: la diferencia dentro de la tolerancia es exacta, con la diferencia real', () => {
+    const p = evaluarPar(
+      mov({ id: 'm1', monto: '1156.00' }),
+      cfdi({ id: 'c1' }),
+      tolerancia,
+      { porReferencia: true },
+    );
+    expect(p).toMatchObject({
+      regla: 'referencia_monto_exacto',
+      score: 1.0,
+      diferenciaMonto: '-4.0000',
+    });
+  });
+
+  it('MXN: el borde inclusivo cuenta y un centavo más no', () => {
+    const en = (monto: string) =>
+      evaluarPar(mov({ id: 'm1', monto }), cfdi({ id: 'c1' }), tolerancia, {
+        porReferencia: true,
+      })?.regla;
+    expect(en('1155.00')).toBe('referencia_monto_exacto');
+    expect(en('1154.99')).toBe('referencia_monto_diferente');
+  });
+
+  it('otra moneda: la tolerancia no aplica y el monto sigue exacto', () => {
+    const p = evaluarPar(
+      mov({ id: 'm1', monto: '1156.00', moneda: 'USD' }),
+      cfdi({ id: 'c1', moneda: 'USD' }),
+      tolerancia,
+      { porReferencia: true },
+    );
+    expect(p?.regla).toBe('referencia_monto_diferente');
+    expect(p?.score).toBe(0.5);
+    expect(p?.diferenciaMonto).toBe('-4.0000');
+  });
+
+  it('otra moneda: sin referencia, una diferencia pequeña no da monto_unico', () => {
+    expect(
+      evaluarPar(
+        mov({ id: 'm1', monto: '1159.99', moneda: 'USD' }),
+        cfdi({ id: 'c1', moneda: 'USD' }),
+        tolerancia,
+        { porReferencia: false },
+      ),
+    ).toBeNull();
+  });
+
+  it('seleccionarPropuestas: monto_unico dentro de tolerancia en MXN, no en USD', () => {
+    const conMoneda = (moneda: string) =>
+      seleccionarPropuestas(
+        [mov({ id: 'm1', monto: '1156.00', moneda })],
+        [cfdi({ id: 'c1', moneda })],
+        tolerancia,
+        sinExistentes,
+      );
+    expect(conMoneda('MXN')).toEqual([
+      expect.objectContaining({ regla: 'monto_unico' }),
+    ]);
+    expect(conMoneda('USD')).toEqual([]);
+  });
+});

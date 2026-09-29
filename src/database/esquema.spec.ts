@@ -445,6 +445,68 @@ describe('conciliaciones', () => {
   });
 });
 
+describe('tolerancia de monto por empresa (CU-12)', () => {
+  it('nace estricta: toda empresa sembrada tiene 0', async () => {
+    const empresas = await filas<{ tolerancia: string }>(
+      ds,
+      `SELECT tolerancia_monto::text AS tolerancia FROM companies`,
+    );
+    expect(empresas.length).toBeGreaterThan(0);
+    for (const e of empresas) expect(e.tolerancia).toBe('0.0000');
+  });
+
+  it('guarda 4 decimales exactos y acepta los extremos 0 y 100', async () => {
+    await enTransaccion(async (qr) => {
+      const emp = await idEmpresa(qr, 'FDB190215QK4');
+      for (const [valor, texto] of [
+        ['12.5', '12.5000'],
+        ['0.1234', '0.1234'],
+        ['100', '100.0000'],
+        ['0', '0.0000'],
+      ]) {
+        await qr.query(
+          `UPDATE companies SET tolerancia_monto = $2 WHERE id = $1`,
+          [emp, valor],
+        );
+        const { t } = await una<{ t: string }>(
+          qr,
+          `SELECT tolerancia_monto::text AS t FROM companies WHERE id = $1`,
+          [emp],
+        );
+        expect(t).toBe(texto);
+      }
+    });
+  });
+
+  it.each(['-0.01', '100.0001', '1000'])(
+    'el CHECK rechaza %s',
+    async (valor) => {
+      await enTransaccion(async (qr) => {
+        const emp = await idEmpresa(qr, 'FDB190215QK4');
+        await expect(
+          qr.query(`UPDATE companies SET tolerancia_monto = $2 WHERE id = $1`, [
+            emp,
+            valor,
+          ]),
+        ).rejects.toThrow(/ck_companies_tolerancia_monto_rango/);
+      });
+    },
+  );
+
+  it('cuadra_app puede actualizar solo esa columna de companies', async () => {
+    const privilegio = (columna: string) =>
+      una<{ ok: boolean }>(
+        ds,
+        `SELECT has_column_privilege('cuadra_app', 'companies', $1, 'UPDATE') AS ok`,
+        [columna],
+      );
+    expect(await privilegio('tolerancia_monto')).toEqual({ ok: true });
+    for (const otra of ['rfc', 'razon_social', 'activa']) {
+      expect(await privilegio(otra)).toEqual({ ok: false });
+    }
+  });
+});
+
 describe('semilla', () => {
   it('deja dos empresas, cuatro usuarios y cinco asignaciones de rol', async () => {
     expect(await una<Conteos>(ds, SQL_CONTEOS)).toEqual({

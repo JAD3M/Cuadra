@@ -1,5 +1,5 @@
 // src/conciliacion/evaluar-par.ts
-import { aTexto, dinero, type Dinero } from '../common/dinero';
+import { aTexto, CERO, dinero, type Dinero } from '../common/dinero';
 import { clavesDeCfdi, esReferenciaUsable } from './referencia-normalizer';
 
 /**
@@ -62,6 +62,14 @@ function compatibles(mov: MovimientoAbierto, cfdi: CfdiAbierto): boolean {
   return mov.moneda === cfdi.moneda && mov.fecha >= cfdi.fechaEmision;
 }
 
+/**
+ * La tolerancia configurada es en MXN absolutos (CU-12): en otra moneda no
+ * significa nada, y ahí el monto sigue siendo exacto.
+ */
+function toleranciaEn(moneda: string, tolerancia: Dinero): Dinero {
+  return moneda === 'MXN' ? tolerancia : CERO;
+}
+
 function diferencia(mov: MovimientoAbierto, cfdi: CfdiAbierto): Dinero {
   return dinero(mov.monto).minus(dinero(cfdi.total));
 }
@@ -108,7 +116,7 @@ export function evaluarPar(
 ): Propuesta | null {
   if (!compatibles(mov, cfdi)) return null;
   const dif = diferencia(mov, cfdi);
-  const dentro = dif.abs().lte(tolerancia);
+  const dentro = dif.abs().lte(toleranciaEn(cfdi.moneda, tolerancia));
 
   let regla: ReglaConciliacion;
   let score: number;
@@ -166,7 +174,7 @@ export function seleccionarPropuestas(
   const porMonto = (m: MovimientoAbierto, c: CfdiAbierto): boolean =>
     permitido(m, c) &&
     compatibles(m, c) &&
-    diferencia(m, c).abs().lte(tolerancia);
+    diferencia(m, c).abs().lte(toleranciaEn(c.moneda, tolerancia));
 
   const llaves = new Map(cfdis.map((c) => [c.id, new Set(clavesDeCfdi(c))]));
   const propuestas: Propuesta[] = [];
