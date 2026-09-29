@@ -10,6 +10,7 @@ import {
   PerfilesBancarios,
 } from '../bancos/perfiles-bancarios';
 import type { TipoCarga } from '../common/entities/tipos';
+import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import { COLA_CARGAS, type TrabajoDeCarga } from './cola-cargas';
 import { procesarLoteCfdi } from './guardar-cfdi';
 
@@ -42,6 +43,7 @@ export class ProcesadorCargas extends WorkerHost {
   constructor(
     private readonly transaccion: TransaccionEmpresa,
     private readonly perfiles: PerfilesBancarios,
+    private readonly conciliacion: ConciliacionService,
   ) {
     super();
   }
@@ -70,6 +72,23 @@ export class ProcesadorCargas extends WorkerHost {
       );
       if (ultimo) await this.marcarFallida(job.data);
       throw error;
+    }
+    // Fuera del try: un fallo del motor nunca llega a marcarFallida ni hace
+    // que BullMQ reintente una carga que ya terminó. También corre cuando el
+    // job encuentra la carga ya procesada (recuperación tras un crash entre
+    // el commit y la conciliación).
+    await this.conciliarSinFallar(job.data.companyId);
+  }
+
+  /** CU-11. Solo loguea: la carga conserva el estado con que terminó. */
+  private async conciliarSinFallar(companyId: string): Promise<void> {
+    try {
+      await this.conciliacion.conciliar(companyId);
+    } catch (error) {
+      this.logger.error(
+        `Empresa ${companyId}: la conciliación automática falló`,
+        error instanceof Error ? error.stack : String(error),
+      );
     }
   }
 
