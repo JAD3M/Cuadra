@@ -5,7 +5,7 @@
 
 | | |
 |---|---|
-| **Estado** | Día 6 de 9 ✅ · CU-01 a CU-13, más CU-04b · 50 / 69 pts · Épicas A, B, C y D cerradas |
+| **Estado** | Día 6 de 9 ✅ · CU-01 a CU-14, más CU-04b · 55 / 69 pts · Épicas A, B, C y D cerradas |
 | **Entrega** | 2 de octubre de 2026 |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 18 historias · 69 puntos · 9 días hábiles |
@@ -746,6 +746,31 @@ Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
 
 ### 29 sep 2026
+
+- **CU-14 terminado: bandeja de revisión (`GET /bandeja`), solo lectura.**
+  Un PR único con `size:exception` aceptado (~490 líneas, casi la mitad
+  pruebas), en tres commits por unidad de trabajo. Sin migración.
+  - **Módulo `src/bandeja`:** controlador, servicio con SQL crudo por
+    `ContextoEmpresa.manager()` (RLS como `cuadra_app`) y DTOs. Cualquier
+    miembro lee (admin, contador, revisor); la empresa sale solo del token y
+    un `companyId` en la query es 400.
+  - **Una fila por movimiento** (abonos, `monto > 0`, sin descartados). Estado
+    derivado: `sugerencia` (abierto con propuesta vigente), `sin_match`
+    (abierto sin propuesta y con `regla_sin_match`; también solo-rechazadas) y
+    `conciliado` (vacío hasta CU-15). Lo nunca evaluado no se lista.
+  - **Filtro y paginación:** `estado` repetible (sin él, `sugerencia` y
+    `sin_match`); `pagina` y `limite` (50 por defecto, máximo 200), orden
+    `monto DESC, id`. `total` sale de un conteo aparte con el mismo filtro,
+    así una página fuera de rango conserva el total.
+  - **Mejor propuesta:** `LEFT JOIN LATERAL` por score descendente y id;
+    `propuestasCount` cuenta solo las vigentes. Para un conciliado toma la
+    fila `confirmada`. Todo NUMERIC sale como texto (`::text`).
+  - **Motivo por estado (la spec manda):** `motivo` y `regla` de la fila son
+    los de la mejor propuesta, los guardados en el movimiento (`sin_match`) o
+    los de la confirmada. Nunca se expone `evaluado_at` ni `cfdi.xml_raw`; el
+    join a `cfdi` también filtra por `company_id`.
+  - **Pruebas:** 40 nuevas de integración contra Postgres real; suite
+    completa 440 / 440.
 
 - **CU-13 terminado: cada resultado del motor lleva su motivo guardado.**
   Dos PR encadenados (`stacked-to-main`): motor puro con motivos, y
