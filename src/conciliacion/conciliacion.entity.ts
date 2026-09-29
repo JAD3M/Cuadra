@@ -34,6 +34,10 @@ import {
   unique: true,
 })
 @Index('ix_conciliaciones_company_id_estado', ['companyId', 'estado'])
+@Index('ix_conciliaciones_company_id_movimiento_id', [
+  'companyId',
+  'movimientoId',
+])
 @Check(
   'ck_conciliaciones_estado',
   `estado IN (${listaSql(ESTADOS_CONCILIACION)})`,

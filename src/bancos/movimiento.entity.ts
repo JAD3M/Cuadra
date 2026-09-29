@@ -6,7 +6,9 @@ import { Company } from '../companies/company.entity';
 import {
   ESTADOS_MOVIMIENTO,
   listaSql,
+  REGLAS_SIN_MATCH,
   type EstadoMovimiento,
+  type ReglaSinMatch,
 } from '../common/entities/tipos';
 
 /** Una línea del estado de cuenta bancario. */
@@ -31,6 +33,14 @@ import {
   'referenciaNorm',
 ])
 @Check('ck_movimientos_estado', `estado IN (${listaSql(ESTADOS_MOVIMIENTO)})`)
+@Check(
+  'ck_movimientos_regla_sin_match',
+  `regla_sin_match IS NULL OR regla_sin_match IN (${listaSql(REGLAS_SIN_MATCH)})`,
+)
+@Check(
+  'ck_movimientos_sin_match_par',
+  '(motivo_sin_match IS NULL) = (regla_sin_match IS NULL)',
+)
 @Check('ck_movimientos_monto_no_cero', 'monto <> 0')
 @Check('ck_movimientos_linea_numero', 'linea_numero >= 0')
 export class Movimiento extends EntidadBase {
@@ -93,6 +103,22 @@ export class Movimiento extends EntidadBase {
 
   @Column({ type: 'varchar', length: 32, default: 'abierto' })
   estado: EstadoMovimiento;
+
+  /**
+   * CU-13: por qué este movimiento abierto no recibió propuesta. Las tres
+   * columnas van juntas: NULL con propuesta vigente o sin evaluar. Las escribe
+   * `conciliar`; nunca la carga de estados de cuenta.
+   */
+  @Column({ type: 'text', nullable: true })
+  motivoSinMatch: string | null;
+
+  /** Código estable de `REGLAS_SIN_MATCH`; contrato para la bandeja (CU-14). */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  reglaSinMatch: ReglaSinMatch | null;
+
+  /** Cuándo se fijó (o cambió) el resultado guardado; no la última corrida. */
+  @Column({ type: 'timestamptz', nullable: true })
+  evaluadoAt: Date | null;
 
   @ManyToOne(() => Company, { onDelete: 'RESTRICT' })
   @JoinColumn({
