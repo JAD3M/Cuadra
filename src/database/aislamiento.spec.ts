@@ -80,7 +80,7 @@ beforeAll(async () => {
   const preparacion = await new DataSource({
     ...opcionesDataSource,
     url,
-  } as typeof opcionesDataSource).initialize();
+  }).initialize();
   try {
     await preparacion.runMigrations();
     await sembrar(preparacion);

@@ -40,7 +40,7 @@ beforeAll(async () => {
   duenio = await new DataSource({
     ...opcionesDataSource,
     url,
-  } as typeof opcionesDataSource).initialize();
+  }).initialize();
   await duenio.runMigrations();
   await sembrar(duenio);
 

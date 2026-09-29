@@ -7,7 +7,14 @@ import { SnakeNamingStrategy } from './naming.strategy';
 
 cargarEnv({ quiet: true });
 
-export const opcionesDataSource: DataSourceOptions = {
+/**
+ * La variante de Postgres, no la unión de todos los drivers: así
+ * `{ ...opcionesDataSource, url }` sigue siendo una opción válida sin cast
+ * (los tests la usan para apuntar a la base de pruebas).
+ */
+export type OpcionesPostgres = Extract<DataSourceOptions, { type: 'postgres' }>;
+
+export const opcionesDataSource: OpcionesPostgres = {
   type: 'postgres',
   url: process.env.DATABASE_URL,
   entities: ENTIDADES,

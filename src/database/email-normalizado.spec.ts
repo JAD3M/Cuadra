@@ -22,7 +22,7 @@ beforeAll(async () => {
   ds = await new DataSource({
     ...opcionesDataSource,
     url,
-  } as typeof opcionesDataSource).initialize();
+  }).initialize();
   await ds.runMigrations();
   await sembrar(ds);
 }, 60_000);

@@ -71,7 +71,7 @@ export async function levantarAppDeCargas(): Promise<AppDeCargas> {
   const ds = await new DataSource({
     ...opcionesDataSource,
     url,
-  } as typeof opcionesDataSource).initialize();
+  }).initialize();
   await ds.runMigrations();
   await sembrar(ds);
   // cuadra_test sobrevive entre corridas: sin esto, los UUID de la corrida

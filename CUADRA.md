@@ -684,6 +684,22 @@ arriba.
 
 ### 28 sep 2026
 
+- **`npm run typecheck` (`tsc --noEmit`).** Lint y build no revisaban los
+  tipos de los specs: build los excluye y Jest compila con
+  `isolatedModules`, sin revisar tipos. Un error de tipos en un test pasaba
+  desapercibido.
+  - Único error encontrado: `esquema.spec.ts:46`. `opcionesDataSource`
+    estaba tipado como la unión de todos los drivers, y
+    `{ ...opcionesDataSource, url }` no compilaba sin cast. Los otros 5
+    specs lo tapaban con `as typeof opcionesDataSource`.
+  - Arreglo en la raíz: `opcionesDataSource` es `OpcionesPostgres`
+    (`Extract<DataSourceOptions, { type: 'postgres' }>`). Los 5 casts
+    sobraron y `lint --fix` los quitó.
+  - Comprobado que revisa specs: un `.spec.ts` temporal con un error de
+    tipos lo hace fallar.
+  - `typecheck` entra a la lista de verificación junto a lint, build y
+    tests.
+
 - **CU-09, ajuste: un `\0` dentro del CSV rechaza el archivo completo, con
   la línea.** Un byte nulo en un CSV de banco es archivo corrupto, no fila
   malformada. 400 en el POST, antes de guardar nada, con "Línea N: el
