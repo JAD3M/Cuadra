@@ -58,7 +58,7 @@ to each company's configuration, strict by default, loosened only on purpose.
 
 - [x] T1 R1+R2+R3 migration, entity, provider, engine currency rule + tests. Route: delegated.
 - [x] T2 R4+R5 endpoints, DTO, bitacora + integration tests. Route: delegated.
-- [ ] T3 CUADRA.md bitácora; Jira KAN-89 Finalizado. Route: inline.
+- [x] T3 CUADRA.md bitácora; Jira KAN-89 Finalizado. Route: inline.
 
 ## Progress / evidence
 
@@ -100,3 +100,10 @@ to each company's configuration, strict by default, loosened only on purpose.
   PUT 403 (+ `acceso_denegado`), 400 matrix, boundaries, bitacora antes/despues,
   B-only change, and end to end referencia_monto_diferente (0.5, -60.0000) ->
   no re-run on PUT (D6) -> next run referencia_monto_exacto (1.0, -60.0000).
+
+### T3 (done)
+
+- T2 commit: a61627b. Review lineage review-774fa468d9a51139 (1 lens, reliability)
+  approved and acknowledged; advisory only (missing company -> 500 instead of 404).
+- CUADRA.md: bitácora 29 sep entry for CU-12; header Estado 47/69 pts.
+- Jira KAN-89 moved to Finalizado.

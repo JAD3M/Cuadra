@@ -5,7 +5,7 @@
 
 | | |
 |---|---|
-| **Estado** | Día 5 de 9 ✅ · CU-01 a CU-10, más CU-04b · 37 / 69 pts · Épicas A, B y C cerradas |
+| **Estado** | Día 6 de 9 ✅ · CU-01 a CU-12, más CU-04b · 47 / 69 pts · Épicas A, B y C cerradas |
 | **Entrega** | 2 de octubre de 2026 |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 18 historias · 69 puntos · 9 días hábiles |
@@ -746,6 +746,31 @@ Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
 
 ### 29 sep 2026
+
+- **CU-12 terminado: la tolerancia vive en la configuración de cada empresa.**
+  `companies.tolerancia_monto numeric(18,4) NOT NULL DEFAULT 0`: toda empresa
+  arranca estricta y se afloja a propósito, nunca al revés.
+  - **Decisiones:** monto absoluto en MXN, sin porcentaje. Rango 0–100.00 con
+    `CHECK` en la base. `GRANT UPDATE` a `cuadra_app` solo sobre esa columna.
+    La tolerancia aplica solo a pares en MXN; otras monedas siguen exactas.
+    Cambiarla no vuelve a correr `conciliar`: aplica desde la siguiente
+    corrida, porque el motor nunca retira propuestas.
+  - **Motor:** `ToleranciaPorEmpresa` reemplaza a `ToleranciaConstante` en
+    `conciliacion.module.ts`, con el mismo token y la misma firma
+    `obtener(companyId)`. Lee el valor como texto hacia `dinero()`, nunca como
+    `Number`.
+  - **Endpoints:** `GET /empresa/tolerancia` para cualquier miembro de la
+    empresa, y `PUT /empresa/tolerancia` solo para `admin` (primera ruta
+    exclusiva de admin). Recibe el monto como texto decimal validado. La
+    empresa sale del token, nunca del body. Cada cambio escribe `actualizar`
+    en `bitacora` con valor anterior y nuevo, en la misma transacción.
+  - **Verificación:** 373 tests en verde (19 suites), `typecheck` limpio.
+    Revisión aprobada, sin bloqueos. Commits `f3c3373` y `a61627b`.
+  - **Límites conocidos:**
+    - El `PUT` no actualiza `companies.updated_at`, porque el `GRANT` cubre
+      solo `tolerancia_monto`.
+    - La revisión sugiere responder 404 en lugar de 500 si la empresa del
+      token ya no existe.
 
 - **CU-11 terminado: el motor de reglas propone cruces CFDI–movimiento.**
   Tres PR encadenados (`stacked-to-main`): normalizador y columna
