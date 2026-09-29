@@ -12,6 +12,7 @@ import {
 } from '../cargas/testing/app-de-cargas';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import { filas, una } from '../database/testing/base-de-pruebas';
+import type { ResolucionRespuestaDto } from './dto/resolucion.dto';
 
 /**
  * CU-15 (rechazo) de punta a punta contra Postgres real con RLS:
@@ -75,7 +76,7 @@ async function movimiento(
 /** El emisor es la empresa (Ferretería), como pide el motor. */
 async function factura(
   empresa: string,
-  o: { total?: string; cargaId?: string | null } = {},
+  o: { total?: string; cargaId?: string | null; estado?: string } = {},
 ): Promise<string> {
   const total = o.total ?? '1160.00';
   const { id } = await una<{ id: string }>(
@@ -84,9 +85,16 @@ async function factura(
                        fecha_emision, tipo_comprobante, moneda, subtotal, total, estado,
                        metodo_pago, xml_raw)
      VALUES ($1,$2,$3,$4,'XAXX010101000','A','1001','2026-09-01T10:00:00','I','MXN',
-             $5,$5,'abierta','PUE','{"_xml":"<x/>"}'::jsonb)
+             $5,$5,$6,'PUE','{"_xml":"<x/>"}'::jsonb)
      RETURNING id`,
-    [empresa, o.cargaId ?? null, randomUUID(), RFC_FERRETERIA, total],
+    [
+      empresa,
+      o.cargaId ?? null,
+      randomUUID(),
+      RFC_FERRETERIA,
+      total,
+      o.estado ?? 'abierta',
+    ],
   );
   return id;
 }
@@ -144,6 +152,21 @@ const rechazar = (id: string, token = tokenAna, cuerpo: object = {}) =>
     .post(`/conciliaciones/${id}/rechazar`)
     .auth(token, { type: 'bearer' })
     .send(cuerpo);
+
+const confirmar = (id: string, token = tokenAna) =>
+  request(entorno.app.getHttpServer())
+    .post(`/conciliaciones/${id}/confirmar`)
+    .auth(token, { type: 'bearer' })
+    .send();
+
+const estadoDe = async (tabla: 'cfdi' | 'movimientos', id: string) =>
+  (
+    await una<{ estado: string }>(
+      ds,
+      `SELECT estado FROM ${tabla} WHERE id = $1`,
+      [id],
+    )
+  ).estado;
 
 const conciliacionEn = (id: string) =>
   una<{ estado: string; motivo: string | null }>(
@@ -433,5 +456,429 @@ describe('RS-K2: rechazos concurrentes', () => {
 
     expect(resultados.map((r) => r.status).sort()).toEqual([200, 409]);
     expect(await bitacoraDe(id)).toHaveLength(1);
+  });
+});
+
+/** La propuesta con un movimiento que trae su motivo de "sin match" guardado. */
+async function movimientoConMotivo(empresa: string): Promise<string> {
+  const { id } = await una<{ id: string }>(
+    ds,
+    `INSERT INTO movimientos (company_id, linea_numero, fecha, descripcion, monto, estado,
+                              motivo_sin_match, regla_sin_match, evaluado_at)
+     VALUES ($1,$2,'2026-09-02','SPEI RECIBIDO','1160.00','abierto','Sin candidato',
+             'sin_candidato_monto', now())
+     RETURNING id`,
+    [empresa, linea++],
+  );
+  return id;
+}
+
+describe('POST /conciliaciones/:id/confirmar (RS-C1..C3)', () => {
+  it('confirma, cierra al CFDI y al movimiento y limpia el motivo de sin match', async () => {
+    const cfdiId = await factura(A);
+    const movimientoId = await movimientoConMotivo(A);
+    const id = await conciliacion(A, cfdiId, movimientoId);
+
+    const res = await confirmar(id).expect(200);
+
+    expect(res.body).toMatchObject({
+      id,
+      estado: 'confirmada',
+      cfdiId,
+      movimientoId,
+      motivo: 'Motivo de propuesta',
+      rechazadasAutomaticamente: [],
+    });
+    expect(typeof (res.body as ResolucionRespuestaDto).confirmadaAt).toBe(
+      'string',
+    );
+    const fila = await una<{
+      estado: string;
+      porId: string;
+      at: Date | null;
+    }>(
+      ds,
+      `SELECT estado, confirmada_por_id AS "porId", confirmada_at AS at
+         FROM conciliaciones WHERE id = $1`,
+      [id],
+    );
+    expect(fila.estado).toBe('confirmada');
+    expect(fila.porId).toBe(entorno.persona(ANA));
+    expect(fila.at).toBeInstanceOf(Date);
+    expect(await estadoDe('cfdi', cfdiId)).toBe('conciliada');
+    expect(await estadoDe('movimientos', movimientoId)).toBe('conciliado');
+    expect(
+      await una(
+        ds,
+        `SELECT motivo_sin_match, regla_sin_match, evaluado_at FROM movimientos WHERE id = $1`,
+        [movimientoId],
+      ),
+    ).toEqual({
+      motivo_sin_match: null,
+      regla_sin_match: null,
+      evaluado_at: null,
+    });
+  });
+
+  it('una diferencia de monto distinta de cero se confirma y queda en la bitácora', async () => {
+    const { id } = await propuesta(A, '0.5000');
+
+    await confirmar(id).expect(200);
+
+    const [fila] = await bitacoraDe(id);
+    expect(fila.datos.diferenciaMonto).toBe('0.5000');
+  });
+
+  it.each([
+    ['contador', LUIS, FERRETERIA],
+    ['revisor', JORGE, TRANSPORTES],
+  ] as const)('un %s puede confirmar', async (_rol, persona, rfc) => {
+    const empresa = entorno.empresa(rfc);
+    const id = await conciliacion(
+      empresa,
+      await factura(empresa),
+      await movimiento(empresa),
+    );
+
+    await confirmar(id, await entorno.token(persona, rfc)).expect(200);
+
+    expect((await conciliacionEn(id)).estado).toBe('confirmada');
+  });
+
+  it('sin sesión da 401 y un id que no es uuid da 400', async () => {
+    const { id } = await propuesta();
+    await request(entorno.app.getHttpServer())
+      .post(`/conciliaciones/${id}/confirmar`)
+      .expect(401);
+    await confirmar('no-es-uuid').expect(400);
+  });
+});
+
+describe('RS-X2, RS-X3, RS-X4 al confirmar', () => {
+  it('una conciliación de otra empresa y un uuid inexistente dan el mismo 404', async () => {
+    const ajena = await propuesta(B);
+
+    const deOtra = await confirmar(ajena.id).expect(404);
+    const inexistente = await confirmar(randomUUID()).expect(404);
+
+    expect(deOtra.body).toEqual(inexistente.body);
+    expect((await conciliacionEn(ajena.id)).estado).toBe('propuesta');
+    expect(await estadoDe('cfdi', ajena.cfdiId)).toBe('abierta');
+    expect(await bitacoraDe(ajena.id)).toHaveLength(0);
+  });
+
+  it.each(['confirmada', 'rechazada'] as const)(
+    'una conciliación %s da 409 y no escribe',
+    async (estado) => {
+      const cfdiId = await factura(A);
+      const movimientoId = await movimiento(A);
+      const id = await conciliacion(A, cfdiId, movimientoId, estado);
+
+      await confirmar(id).expect(409);
+
+      expect((await conciliacionEn(id)).estado).toBe(estado);
+      expect(await estadoDe('cfdi', cfdiId)).toBe('abierta');
+      expect(await bitacoraDe(id)).toHaveLength(0);
+    },
+  );
+
+  it('confirmar dos veces da 409 la segunda', async () => {
+    const { id } = await propuesta();
+    await confirmar(id).expect(200);
+
+    await confirmar(id).expect(409);
+
+    expect(await bitacoraDe(id)).toHaveLength(1);
+  });
+
+  it('un CFDI que ya no está abierto da 409 y no escribe', async () => {
+    const cfdiId = await factura(A, { estado: 'conciliada' });
+    const movimientoId = await movimiento(A);
+    const id = await conciliacion(A, cfdiId, movimientoId);
+
+    await confirmar(id).expect(409);
+
+    expect((await conciliacionEn(id)).estado).toBe('propuesta');
+    expect(await estadoDe('movimientos', movimientoId)).toBe('abierto');
+    expect(await bitacoraDe(id)).toHaveLength(0);
+  });
+
+  it('un movimiento que ya no está abierto da 409 y no escribe', async () => {
+    const cfdiId = await factura(A);
+    const movimientoId = await movimiento(A, { estado: 'conciliado' });
+    const id = await conciliacion(A, cfdiId, movimientoId);
+
+    await confirmar(id).expect(409);
+
+    expect((await conciliacionEn(id)).estado).toBe('propuesta');
+    expect(await estadoDe('cfdi', cfdiId)).toBe('abierta');
+    expect(await bitacoraDe(id)).toHaveLength(0);
+  });
+});
+
+describe('RS-X5: violación de unicidad al confirmar', () => {
+  it('se traduce a 409 y revierte todo', async () => {
+    // Otra confirmada sobre el mismo movimiento que el CFDI/movimiento del
+    // par no reflejan: solo el índice único puede detectarla.
+    const cfdiId = await factura(A);
+    const movimientoId = await movimiento(A);
+    const id = await conciliacion(A, cfdiId, movimientoId);
+    await conciliacion(A, await factura(A), movimientoId, 'confirmada');
+
+    await confirmar(id).expect(409);
+
+    expect((await conciliacionEn(id)).estado).toBe('propuesta');
+    expect(await estadoDe('cfdi', cfdiId)).toBe('abierta');
+    expect(await bitacoraDe(id)).toHaveLength(0);
+  });
+});
+
+describe('RS-X6: bitácora al confirmar', () => {
+  it('escribe una fila confirmar con antes, después, CFDI, movimiento y diferencia', async () => {
+    const { id, cfdiId, movimientoId } = await propuesta(A, '0.5000');
+
+    await confirmar(id).expect(200);
+
+    const [fila, ...resto] = await bitacoraDe(id);
+    expect(resto).toHaveLength(0);
+    expect(fila).toMatchObject({
+      accion: 'confirmar',
+      entidad: 'conciliaciones',
+      userId: entorno.persona(ANA),
+    });
+    expect(fila.datos).toMatchObject({
+      antes: { estado: 'propuesta' },
+      despues: { estado: 'confirmada', confirmadaPorId: entorno.persona(ANA) },
+      cfdi: { id: cfdiId, antes: 'abierta', despues: 'conciliada' },
+      movimiento: { id: movimientoId, antes: 'abierto', despues: 'conciliado' },
+      diferenciaMonto: '0.5000',
+      regla: 'monto_unico',
+      score: '0.9000',
+    });
+    expect(
+      typeof (fila.datos.despues as { confirmadaAt: unknown }).confirmadaAt,
+    ).toBe('string');
+  });
+});
+
+describe('RS-S1..S3: hermanas al confirmar', () => {
+  it('rechaza las propuestas del mismo movimiento o del mismo CFDI y deja las ajenas', async () => {
+    const [c1, c2, c3] = [await factura(A), await factura(A), await factura(A)];
+    const [m1, m2, m3] = [
+      await movimiento(A),
+      await movimiento(A),
+      await movimiento(A),
+    ];
+    const p1 = await conciliacion(A, c1, m1);
+    const p2 = await conciliacion(A, c2, m1);
+    const p3 = await conciliacion(A, c1, m2);
+    const p4 = await conciliacion(A, c3, m3);
+    const vieja = await conciliacion(A, c2, m2, 'rechazada');
+
+    const res = await confirmar(p1).expect(200);
+
+    expect(
+      [
+        ...(res.body as ResolucionRespuestaDto).rechazadasAutomaticamente,
+      ].sort(),
+    ).toEqual([p2, p3].sort());
+    for (const hermana of [p2, p3]) {
+      expect(await conciliacionEn(hermana)).toEqual({
+        estado: 'rechazada',
+        motivo: 'cerrada al confirmar otra conciliación',
+      });
+      const [fila, ...resto] = await bitacoraDe(hermana);
+      expect(resto).toHaveLength(0);
+      expect(fila.accion).toBe('rechazar');
+      expect(fila.userId).toBe(entorno.persona(ANA));
+      expect(fila.datos).toMatchObject({
+        antes: { estado: 'propuesta' },
+        despues: {
+          estado: 'rechazada',
+          motivo: 'cerrada al confirmar otra conciliación',
+        },
+        causa: { conciliacionId: p1 },
+      });
+    }
+    expect((await conciliacionEn(p4)).estado).toBe('propuesta');
+    expect((await conciliacionEn(vieja)).motivo).toBe('Motivo de propuesta');
+    expect(await bitacoraDe(p4)).toHaveLength(0);
+    expect(await bitacoraDe(vieja)).toHaveLength(0);
+    expect(await estadoDe('cfdi', c2)).toBe('abierta');
+    expect(await estadoDe('movimientos', m2)).toBe('abierto');
+  });
+});
+
+describe('RS-D1..D4: segregación de funciones (D-08)', () => {
+  const ana = () => entorno.persona(ANA);
+  const luis = () => entorno.persona(LUIS);
+
+  const conCargas = async (
+    cfdiPor: string | null,
+    movimientoPor: string | null,
+  ) => {
+    const cfdiId = await factura(A, {
+      cargaId: cfdiPor ? await carga(A, cfdiPor, 'cfdi') : null,
+    });
+    const movimientoId = await movimiento(A, {
+      cargaId: movimientoPor
+        ? await carga(A, movimientoPor, 'estado_cuenta')
+        : null,
+    });
+    return {
+      cfdiId,
+      movimientoId,
+      id: await conciliacion(A, cfdiId, movimientoId),
+    };
+  };
+
+  const deniegos = () =>
+    filas<{ datos: Record<string, any>; userId: string; entidadId: string }>(
+      ds,
+      `SELECT datos, user_id AS "userId", entidad_id AS "entidadId"
+         FROM bitacora WHERE accion = 'acceso_denegado'`,
+    );
+
+  it.each([
+    ['el CFDI', () => [ana(), luis()]],
+    ['el estado de cuenta', () => [luis(), ana()]],
+    ['ambos', () => [ana(), ana()]],
+  ] as const)(
+    'quien subió %s recibe 403, sin escrituras y con acceso_denegado',
+    async (_lado, subieron) => {
+      const [porCfdi, porMovimiento] = subieron();
+      const { id, cfdiId, movimientoId } = await conCargas(
+        porCfdi,
+        porMovimiento,
+      );
+
+      await confirmar(id).expect(403);
+
+      expect((await conciliacionEn(id)).estado).toBe('propuesta');
+      expect(await estadoDe('cfdi', cfdiId)).toBe('abierta');
+      expect(await estadoDe('movimientos', movimientoId)).toBe('abierto');
+      expect(await bitacoraDe(id)).toHaveLength(0);
+      const [fila, ...resto] = await deniegos();
+      expect(resto).toHaveLength(0);
+      expect(fila.userId).toBe(ana());
+      expect(fila.entidadId).toBe(A);
+      expect(fila.datos).toMatchObject({
+        metodo: 'POST',
+        ruta: `/conciliaciones/${id}/confirmar`,
+        motivo: 'rol_insuficiente',
+        rolesDelUsuario: ['admin'],
+      });
+    },
+  );
+
+  it.each([
+    ['sin cargas en ninguno', () => [null, null]],
+    ['sin carga del CFDI', () => [null, luis()]],
+    ['sin carga del movimiento', () => [luis(), null]],
+    ['otra persona subió las cargas', () => [luis(), luis()]],
+  ] as const)('%s: Ana confirma', async (_caso, subieron) => {
+    const [porCfdi, porMovimiento] = subieron();
+    const { id } = await conCargas(porCfdi, porMovimiento);
+
+    await confirmar(id).expect(200);
+
+    expect((await conciliacionEn(id)).estado).toBe('confirmada');
+    expect(await deniegos()).toHaveLength(0);
+  });
+
+  it('el 409 va antes que el 403: una no propuesta de quien subió la carga da 409', async () => {
+    const cfdiId = await factura(A, { cargaId: await carga(A, ana(), 'cfdi') });
+    const movimientoId = await movimiento(A);
+    const id = await conciliacion(A, cfdiId, movimientoId, 'rechazada');
+
+    await confirmar(id).expect(409);
+
+    expect(await deniegos()).toHaveLength(0);
+  });
+
+  it('rechazar sigue permitido a quien subió la carga', async () => {
+    const { id } = await conCargas(ana(), ana());
+    jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+
+    await rechazar(id).expect(200);
+  });
+});
+
+describe('RS-K1..K3: concurrencia al confirmar', () => {
+  it('dos hermanas confirmadas a la vez: una da 200 y la otra 409', async () => {
+    const c1 = await factura(A);
+    const c2 = await factura(A);
+    const m1 = await movimiento(A);
+    const p1 = await conciliacion(A, c1, m1);
+    const p2 = await conciliacion(A, c2, m1);
+
+    const resultados = await Promise.all([confirmar(p1), confirmar(p2)]);
+
+    expect(resultados.map((r) => r.status).sort()).toEqual([200, 409]);
+    const estados = [
+      (await conciliacionEn(p1)).estado,
+      (await conciliacionEn(p2)).estado,
+    ].sort();
+    expect(estados).toEqual(['confirmada', 'rechazada']);
+    expect(await estadoDe('movimientos', m1)).toBe('conciliado');
+    const conciliadas = await filas(
+      ds,
+      `SELECT id FROM cfdi WHERE id = ANY($1) AND estado = 'conciliada'`,
+      [[c1, c2]],
+    );
+    expect(conciliadas).toHaveLength(1);
+  });
+
+  it('confirmar y rechazar la misma propuesta a la vez: gana una', async () => {
+    const { id } = await propuesta();
+    jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+
+    const resultados = await Promise.all([confirmar(id), rechazar(id)]);
+
+    expect(resultados.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(await bitacoraDe(id)).toHaveLength(1);
+  });
+
+  it('confirmar mientras corre conciliar deja un solo par vivo', async () => {
+    const { id, cfdiId, movimientoId } = await propuesta();
+    const otroCfdi = await factura(A, { total: '99.00' });
+    await movimiento(A, { monto: '5000.00' });
+
+    const [res] = await Promise.all([
+      confirmar(id),
+      entorno.app.get(ConciliacionService).conciliar(A),
+    ]);
+
+    expect(res.status).toBe(200);
+    const vivas = await filas(
+      ds,
+      `SELECT id, estado FROM conciliaciones
+        WHERE (cfdi_id = $1 OR movimiento_id = $2 OR cfdi_id = $3)
+          AND estado IN ('propuesta', 'confirmada')`,
+      [cfdiId, movimientoId, otroCfdi],
+    );
+    expect(vivas).toEqual([{ id, estado: 'confirmada' }]);
+  });
+
+  it('RS-C4: conciliar después no toca el par confirmado', async () => {
+    const { id, cfdiId, movimientoId } = await propuesta();
+    await confirmar(id).expect(200);
+    const antes = await conciliacionEn(id);
+
+    await entorno.app.get(ConciliacionService).conciliar(A);
+
+    expect(await conciliacionEn(id)).toEqual(antes);
+    expect(await estadoDe('cfdi', cfdiId)).toBe('conciliada');
+    expect(await estadoDe('movimientos', movimientoId)).toBe('conciliado');
+    const todas = await filas(
+      ds,
+      `SELECT id FROM conciliaciones WHERE cfdi_id = $1 OR movimiento_id = $2`,
+      [cfdiId, movimientoId],
+    );
+    expect(todas).toHaveLength(1);
   });
 });

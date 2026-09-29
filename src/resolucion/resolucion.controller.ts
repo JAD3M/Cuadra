@@ -11,6 +11,7 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiConflictResponse,
+  ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
 } from '@nestjs/swagger';
@@ -28,6 +29,34 @@ type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 @Controller('conciliaciones')
 export class ResolucionController {
   constructor(private readonly resolucion: ResolucionService) {}
+
+  @Post(':id/confirmar')
+  @HttpCode(200)
+  @Roles('admin', 'contador', 'revisor')
+  @ApiOkResponse({ type: ResolucionRespuestaDto })
+  @ApiBadRequestResponse({ description: 'Id inválido.' })
+  @ApiNotFoundResponse({ description: 'No existe en la empresa de la sesión.' })
+  @ApiConflictResponse({
+    description:
+      'Ya no es propuesta, o el CFDI o el movimiento ya no están abiertos.',
+  })
+  @ApiForbiddenResponse({
+    description:
+      'Quien subió el CFDI o el estado de cuenta no puede confirmar (D-08).',
+  })
+  confirmar(
+    @UsuarioActual() usuario: Sesion,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() solicitud: Request,
+  ): Promise<ResolucionRespuestaDto> {
+    return this.resolucion.confirmar(usuario.companyId, id, {
+      userId: usuario.userId,
+      ip: solicitud.ip,
+      userAgent: solicitud.headers['user-agent'],
+      metodo: solicitud.method,
+      ruta: solicitud.path,
+    });
+  }
 
   @Post(':id/rechazar')
   @HttpCode(200)

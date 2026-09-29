@@ -209,6 +209,31 @@ describe('BJ-1 derivación del estado', () => {
   });
 });
 
+describe('RS-C5 tras confirmar de verdad (CU-15)', () => {
+  it('el bucket conciliado lista el par y sugerencia ya no', async () => {
+    const m = await sugerido(A);
+    const { id } = await una<{ id: string }>(
+      ds,
+      `SELECT id FROM conciliaciones WHERE movimiento_id = $1`,
+      [m],
+    );
+
+    await request(entorno.app.getHttpServer())
+      .post(`/conciliaciones/${id}/confirmar`)
+      .auth(tokenA, { type: 'bearer' })
+      .expect(200);
+
+    expect(ids(await listar())).toEqual([]);
+    const r = await listar('?estado=conciliado');
+    expect(ids(r)).toEqual([m]);
+    expect(r.datos[0]).toMatchObject({
+      estado: 'conciliado',
+      propuestasCount: 0,
+    });
+    expect(r.datos[0].mejorPropuesta?.conciliacionId).toBe(id);
+  });
+});
+
 describe('BJ-2 filtro estado', () => {
   it('S7: sin estado, solo sugerencia y sin_match', async () => {
     const s = await sugerido(A, '300.00');
