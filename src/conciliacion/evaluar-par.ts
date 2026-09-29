@@ -1,5 +1,6 @@
 // src/conciliacion/evaluar-par.ts
 import { aTexto, CERO, dinero, type Dinero } from '../common/dinero';
+import type { ReglaSinMatch } from '../common/entities/tipos';
 import { clavesDeCfdi, esReferenciaUsable } from './referencia-normalizer';
 
 /**
@@ -47,6 +48,13 @@ export interface ParExistente {
   rechazada: boolean;
 }
 
+/** Un movimiento abierto sin propuesta, con el porqué en español (CU-13). */
+export interface SinMatch {
+  movimientoId: string;
+  regla: ReglaSinMatch;
+  motivo: string;
+}
+
 export interface Propuesta {
   cfdiId: string;
   movimientoId: string;
@@ -89,18 +97,71 @@ function motivoDe(
   const factura = etiquetaCfdi(cfdi);
   if (regla === REGLA_MONTO_UNICO) {
     return (
-      `Regla ${regla}: sin referencia utilizable; el monto fue la única coincidencia ` +
+      `Sin referencia utilizable; el monto fue la única coincidencia ` +
       `con el CFDI ${factura} (${montos}).`
     );
   }
   const base =
-    `Regla ${regla}: la referencia "${mov.referencia ?? ''}" del movimiento ` +
+    `La referencia "${mov.referencia ?? ''}" del movimiento ` +
     `coincide con el CFDI ${factura} (${montos})`;
-  if (regla === REGLA_REFERENCIA_MONTO_EXACTO) return `${base}.`;
+  if (regla === REGLA_REFERENCIA_MONTO_EXACTO) {
+    return dif.isZero()
+      ? `${base}.`
+      : `${base}, con una diferencia de ${aTexto(dif, 2)} dentro de la tolerancia.`;
+  }
   return (
     `${base}, pero los montos difieren en ${aTexto(dif, 2)}. ` +
     `Es una sugerencia que requiere revisión.`
   );
+}
+
+interface ContextoSinMatch {
+  mov: MovimientoAbierto;
+  cfdi?: CfdiAbierto;
+  cantidad?: number;
+}
+
+/** Texto en español de un movimiento sin propuesta; nunca dice que un cruce sea correcto o erróneo. */
+function motivoSinMatch(regla: ReglaSinMatch, ctx: ContextoSinMatch): string {
+  const { mov, cfdi, cantidad } = ctx;
+  const ref = `La referencia "${mov.referencia ?? ''}"`;
+  const factura = cfdi ? etiquetaCfdi(cfdi) : '';
+  switch (regla) {
+    case 'referencia_ambigua':
+      return (
+        `${ref} coincide con ${cantidad} CFDI abiertos; no se propone ninguno ` +
+        `ni se intenta por monto para evitar un cruce equivocado.`
+      );
+    case 'referencia_cfdi_ocupado':
+      return `${ref} coincide con el CFDI ${factura}, que ya está vinculado a otro movimiento.`;
+    case 'referencia_cfdi_no_compatible': {
+      const causa =
+        mov.moneda !== cfdi!.moneda
+          ? `la moneda del movimiento (${mov.moneda}) no es la del CFDI (${cfdi!.moneda})`
+          : `la fecha del movimiento (${mov.fecha}) es anterior a la emisión del CFDI (${cfdi!.fechaEmision})`;
+      return `${ref} coincide con el CFDI ${factura}, pero ${causa}.`;
+    }
+    case 'sin_candidato_monto':
+      return (
+        `Ningún CFDI abierto coincide por referencia ni por monto ` +
+        `(monto del movimiento ${mov.monto}).`
+      );
+    case 'monto_multiples_candidatos':
+      return (
+        `${cantidad} CFDI abiertos coinciden con el monto ${mov.monto} y no hay ` +
+        `referencia que desempate; no hay una coincidencia única.`
+      );
+    case 'monto_candidato_ocupado':
+      return (
+        `El CFDI ${factura}, único que coincide con el monto ${mov.monto}, ` +
+        `ya está vinculado a otro movimiento.`
+      );
+    case 'cfdi_multiples_movimientos':
+      return (
+        `El CFDI ${factura} coincide con el monto ${mov.monto}, pero otros ` +
+        `movimientos abiertos comparten ese monto; no se propone para evitar un cruce equivocado.`
+      );
+  }
 }
 
 /**
@@ -141,23 +202,32 @@ export function evaluarPar(
   };
 }
 
+export interface EvaluacionConMotivos {
+  propuestas: Propuesta[];
+  sinMatch: SinMatch[];
+}
+
 /**
- * Elige propuestas para el conjunto abierto de una empresa.
+ * Elige propuestas para el conjunto abierto de una empresa y explica cada
+ * movimiento que se quedó sin ninguna (CU-13).
  *
  * - Referencia utilizable que empata con un solo CFDI: se evalúa ese par. Si
  *   empata con dos o más, o el único falla moneda/fecha, no hay fila ni
  *   respaldo por monto (un falso positivo es peor que no conciliar).
  * - Sin referencia utilizable, o sin empate: monto único, y solo si movimiento
  *   y CFDI son el único candidato el uno del otro.
- * - Lo que ya tiene una conciliación vigente no recibe otra, pero sigue
+ * - Lo que ya tiene una conciliación vigente no recibe otra ni razón: sigue
  *   contando como candidato; un par rechazado sale del conjunto.
+ *
+ * Cada movimiento abierto queda en exactamente uno de: ocupado, propuesta o
+ * sinMatch.
  */
-export function seleccionarPropuestas(
+export function evaluarConMotivos(
   movimientos: readonly MovimientoAbierto[],
   cfdis: readonly CfdiAbierto[],
   tolerancia: Dinero,
   existentes: readonly ParExistente[],
-): Propuesta[] {
+): EvaluacionConMotivos {
   const rechazados = new Set(
     existentes
       .filter((e) => e.rechazada)
@@ -178,6 +248,18 @@ export function seleccionarPropuestas(
 
   const llaves = new Map(cfdis.map((c) => [c.id, new Set(clavesDeCfdi(c))]));
   const propuestas: Propuesta[] = [];
+  const sinMatch: SinMatch[] = [];
+  const sin = (
+    m: MovimientoAbierto,
+    regla: ReglaSinMatch,
+    ctx: Omit<ContextoSinMatch, 'mov'> = {},
+  ): void => {
+    sinMatch.push({
+      movimientoId: m.id,
+      regla,
+      motivo: motivoSinMatch(regla, { mov: m, ...ctx }),
+    });
+  };
 
   for (const m of movimientos) {
     if (movsOcupados.has(m.id)) continue;
@@ -188,22 +270,52 @@ export function seleccionarPropuestas(
       );
       if (porReferencia.length > 0) {
         const [unico] = porReferencia;
-        if (porReferencia.length === 1 && !cfdisOcupados.has(unico.id)) {
+        if (porReferencia.length > 1) {
+          sin(m, 'referencia_ambigua', { cantidad: porReferencia.length });
+        } else if (cfdisOcupados.has(unico.id)) {
+          sin(m, 'referencia_cfdi_ocupado', { cfdi: unico });
+        } else {
           const p = evaluarPar(m, unico, tolerancia, { porReferencia: true });
           if (p) propuestas.push(p);
+          else sin(m, 'referencia_cfdi_no_compatible', { cfdi: unico });
         }
         continue;
       }
     }
 
     const candidatos = cfdis.filter((c) => porMonto(m, c));
-    if (candidatos.length !== 1 || cfdisOcupados.has(candidatos[0].id))
+    if (candidatos.length === 0) {
+      sin(m, 'sin_candidato_monto');
       continue;
+    }
+    if (candidatos.length > 1) {
+      sin(m, 'monto_multiples_candidatos', { cantidad: candidatos.length });
+      continue;
+    }
     const [c] = candidatos;
+    if (cfdisOcupados.has(c.id)) {
+      sin(m, 'monto_candidato_ocupado', { cfdi: c });
+      continue;
+    }
     const movimientosDelCfdi = movimientos.filter((o) => porMonto(o, c));
-    if (movimientosDelCfdi.length !== 1) continue;
+    if (movimientosDelCfdi.length !== 1) {
+      sin(m, 'cfdi_multiples_movimientos', { cfdi: c });
+      continue;
+    }
     const p = evaluarPar(m, c, tolerancia, { porReferencia: false });
     if (p) propuestas.push(p);
+    else sin(m, 'sin_candidato_monto');
   }
-  return propuestas;
+  return { propuestas, sinMatch };
+}
+
+/** Solo las propuestas de `evaluarConMotivos` (contrato de CU-11). */
+export function seleccionarPropuestas(
+  movimientos: readonly MovimientoAbierto[],
+  cfdis: readonly CfdiAbierto[],
+  tolerancia: Dinero,
+  existentes: readonly ParExistente[],
+): Propuesta[] {
+  return evaluarConMotivos(movimientos, cfdis, tolerancia, existentes)
+    .propuestas;
 }

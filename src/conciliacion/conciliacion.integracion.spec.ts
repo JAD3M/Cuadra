@@ -281,6 +281,7 @@ describe('conciliar (CU-11): elegibilidad y reglas', () => {
         diferencia_monto: '-160.0000',
       }),
     ]);
+    expect((await conciliaciones())[0].motivo).toContain('160.00');
   });
 
   it('el motivo explica la regla en español y nunca menciona al LLM', async () => {
@@ -288,6 +289,7 @@ describe('conciliar (CU-11): elegibilidad y reglas', () => {
     await factura(A);
     await servicio.conciliar(A);
     const [fila] = await conciliaciones();
+    expect(fila.motivo).not.toMatch(/^Regla/);
     expect(fila.motivo).toContain('A-0001001');
     expect(fila.motivo).toContain('A-1001');
     expect(fila.motivo).toContain('1160.0000');

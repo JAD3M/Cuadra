@@ -1,6 +1,7 @@
 // src/conciliacion/evaluar-par.spec.ts
 import { CERO, dinero } from '../common/dinero';
 import {
+  evaluarConMotivos,
   evaluarPar,
   seleccionarPropuestas,
   type CfdiAbierto,
@@ -142,10 +143,25 @@ describe('evaluarPar', () => {
   describe('motivo (RM-7)', () => {
     it('referencia_monto_exacto cita referencia, serie-folio y montos', () => {
       const t = evaluarPar(m, c, CERO, { porReferencia: true })!.motivo;
-      expect(t).toContain('referencia_monto_exacto');
+      expect(t).not.toMatch(/^Regla/);
       expect(t).toContain('A-0001001');
-      expect(t).toContain('A-0001001'.replace('-', '-')); // referencia cruda
       expect(t).toContain('1160.00');
+    });
+
+    it('referencia_monto_exacto con diferencia dentro de tolerancia la incluye', () => {
+      const t = evaluarPar(
+        mov({ id: 'm1', monto: '1000.00', referencia: '1001' }),
+        c,
+        dinero('200'),
+        { porReferencia: true },
+      )!.motivo;
+      expect(t).toContain('-160.00');
+      expect(t).toMatch(/dentro de la tolerancia/);
+    });
+
+    it('referencia_monto_exacto con diferencia cero no menciona diferencia', () => {
+      const t = evaluarPar(m, c, CERO, { porReferencia: true })!.motivo;
+      expect(t).not.toMatch(/diferencia/i);
     });
 
     it('referencia_monto_diferente cita la diferencia y pide revisión', () => {
@@ -155,6 +171,7 @@ describe('evaluarPar', () => {
         CERO,
         { porReferencia: true },
       )!.motivo;
+      expect(t).not.toMatch(/^Regla/);
       expect(t).toContain('1001');
       expect(t).toContain('A-0001001');
       expect(t).toContain('1000.00');
@@ -168,6 +185,7 @@ describe('evaluarPar', () => {
       const t = evaluarPar(mov({ id: 'm1' }), c, CERO, {
         porReferencia: false,
       })!.motivo;
+      expect(t).not.toMatch(/^Regla/);
       expect(t).toMatch(/sin referencia/i);
       expect(t).toMatch(/única coincidencia/i);
       expect(t).toContain('1160.00');
@@ -375,7 +393,7 @@ describe('seleccionarPropuestas', () => {
     });
   });
 
-  it('el motivo de una fila de selección nombra la regla y el CFDI', () => {
+  it('el motivo de una fila de selección nombra el CFDI y no lleva prefijo de regla', () => {
     const r = seleccionarPropuestas(
       [mov({ id: 'm1', referencia: 'A-0001001' })],
       [cfdi({ id: 'c1' })],
@@ -383,6 +401,167 @@ describe('seleccionarPropuestas', () => {
       sinExistentes,
     );
     expect(r[0].motivo).toContain('A-0001001');
+    expect(r[0].motivo).not.toMatch(/^Regla/);
+  });
+});
+
+describe('evaluarConMotivos (CU-13)', () => {
+  const ev = (
+    movs: MovimientoAbierto[],
+    cfdis: CfdiAbierto[],
+    existentes: ParExistente[] = sinExistentes,
+  ) => evaluarConMotivos(movs, cfdis, CERO, existentes);
+
+  it('referencia_ambigua: cita referencia y cantidad, sin respaldo por monto', () => {
+    const r = ev(
+      [mov({ id: 'm1', referencia: '1001' })],
+      [cfdi({ id: 'c1' }), cfdi({ id: 'c2', serie: 'B' })],
+    );
+    expect(r.propuestas).toEqual([]);
+    expect(r.sinMatch).toEqual([
+      expect.objectContaining({
+        movimientoId: 'm1',
+        regla: 'referencia_ambigua',
+      }),
+    ]);
+    expect(r.sinMatch[0].motivo).toContain('"1001"');
+    expect(r.sinMatch[0].motivo).toContain('2 CFDI');
+    expect(r.sinMatch[0].motivo).toMatch(/ni se intenta por monto/);
+  });
+
+  it('referencia_cfdi_ocupado: cita referencia y serie-folio', () => {
+    const r = ev(
+      [mov({ id: 'm1', referencia: 'A-0001001' })],
+      [cfdi({ id: 'c1' })],
+      [{ cfdiId: 'c1', movimientoId: 'otro', rechazada: false }],
+    );
+    expect(r.sinMatch[0].regla).toBe('referencia_cfdi_ocupado');
+    expect(r.sinMatch[0].motivo).toContain('"A-0001001"');
+    expect(r.sinMatch[0].motivo).toContain('A-0001001');
+    expect(r.sinMatch[0].motivo).toMatch(/vinculado a otro movimiento/);
+  });
+
+  it('referencia_cfdi_no_compatible: dice que falló la moneda, con ambos valores', () => {
+    const r = ev(
+      [mov({ id: 'm1', referencia: 'A-0001001', moneda: 'USD' })],
+      [cfdi({ id: 'c1' })],
+    );
+    expect(r.sinMatch[0].regla).toBe('referencia_cfdi_no_compatible');
+    expect(r.sinMatch[0].motivo).toContain('USD');
+    expect(r.sinMatch[0].motivo).toContain('MXN');
+    expect(r.sinMatch[0].motivo).toMatch(/moneda/);
+  });
+
+  it('referencia_cfdi_no_compatible: dice que falló la fecha, con ambos valores', () => {
+    const r = ev(
+      [mov({ id: 'm1', referencia: 'A-0001001', fecha: '2026-02-01' })],
+      [cfdi({ id: 'c1', fechaEmision: '2026-03-01' })],
+    );
+    expect(r.sinMatch[0].regla).toBe('referencia_cfdi_no_compatible');
+    expect(r.sinMatch[0].motivo).toContain('2026-02-01');
+    expect(r.sinMatch[0].motivo).toContain('2026-03-01');
+    expect(r.sinMatch[0].motivo).toMatch(/fecha/);
+  });
+
+  it('sin_candidato_monto: cita el monto y no diagnostica tipos de CFDI', () => {
+    const r = ev([mov({ id: 'm1' })], [cfdi({ id: 'c1', total: '500.00' })]);
+    expect(r.sinMatch[0].regla).toBe('sin_candidato_monto');
+    expect(r.sinMatch[0].motivo).toContain('1160.00');
+    expect(r.sinMatch[0].motivo).not.toMatch(/PPD|cancelad/i);
+  });
+
+  it('sin_candidato_monto: un par rechazado sale del conjunto (S5)', () => {
+    const r = ev(
+      [mov({ id: 'm1' })],
+      [cfdi({ id: 'c1' })],
+      [{ cfdiId: 'c1', movimientoId: 'm1', rechazada: true }],
+    );
+    expect(r.propuestas).toEqual([]);
+    expect(r.sinMatch[0].regla).toBe('sin_candidato_monto');
+  });
+
+  it('monto_multiples_candidatos: referencia inutilizable cae al monto (S7)', () => {
+    const r = ev(
+      [mov({ id: 'm1', referencia: '12' })],
+      [cfdi({ id: 'c1' }), cfdi({ id: 'c2', folio: '9' })],
+    );
+    expect(r.sinMatch[0].regla).toBe('monto_multiples_candidatos');
+    expect(r.sinMatch[0].motivo).toContain('2 CFDI');
+    expect(r.sinMatch[0].motivo).toContain('1160.00');
+  });
+
+  it('referencia_ambigua por folio duplicado no cae al monto (S8)', () => {
+    const r = ev(
+      [mov({ id: 'm1', referencia: '1001' })],
+      [cfdi({ id: 'c1', folio: '1001' }), cfdi({ id: 'c2', folio: '1001' })],
+    );
+    expect(r.propuestas).toEqual([]);
+    expect(r.sinMatch.map((s) => s.regla)).toEqual(['referencia_ambigua']);
+  });
+
+  it('monto_candidato_ocupado: cita monto y serie-folio', () => {
+    const r = ev(
+      [mov({ id: 'm1' })],
+      [cfdi({ id: 'c1' })],
+      [{ cfdiId: 'c1', movimientoId: 'otro', rechazada: false }],
+    );
+    expect(r.sinMatch[0].regla).toBe('monto_candidato_ocupado');
+    expect(r.sinMatch[0].motivo).toContain('A-0001001');
+    expect(r.sinMatch[0].motivo).toContain('1160.00');
+  });
+
+  it('cfdi_multiples_movimientos: ambos movimientos quedan explicados', () => {
+    const r = ev([mov({ id: 'm1' }), mov({ id: 'm2' })], [cfdi({ id: 'c1' })]);
+    expect(r.propuestas).toEqual([]);
+    expect(r.sinMatch.map((s) => s.regla)).toEqual([
+      'cfdi_multiples_movimientos',
+      'cfdi_multiples_movimientos',
+    ]);
+    expect(r.sinMatch[0].motivo).toContain('A-0001001');
+    expect(r.sinMatch[0].motivo).toMatch(/otros\s+movimientos/);
+  });
+
+  describe('invariantes', () => {
+    const movs = [
+      mov({ id: 'ocupado' }),
+      mov({ id: 'con-propuesta', referencia: 'A-0001001', monto: '1160.00' }),
+      mov({ id: 'sin-nada', monto: '7.00' }),
+      mov({ id: 'ambiguo', referencia: '2002' }),
+    ];
+    const cfdis = [
+      cfdi({ id: 'c1' }),
+      cfdi({ id: 'c2', folio: '2002', total: '10.00' }),
+      cfdi({ id: 'c3', folio: '2002', total: '20.00' }),
+    ];
+    const existentes: ParExistente[] = [
+      { cfdiId: 'x', movimientoId: 'ocupado', rechazada: false },
+    ];
+
+    it('cada movimiento es exactamente uno de ocupado, propuesta o sinMatch', () => {
+      const r = evaluarConMotivos(movs, cfdis, CERO, existentes);
+      const conPropuesta = r.propuestas.map((p) => p.movimientoId);
+      const conRazon = r.sinMatch.map((s) => s.movimientoId);
+      expect(conPropuesta).toEqual(['con-propuesta']);
+      expect(conRazon.sort()).toEqual(['ambiguo', 'sin-nada']);
+      const todos = ['ocupado', ...conPropuesta, ...conRazon].sort();
+      expect(todos).toEqual(movs.map((x) => x.id).sort());
+      expect(new Set(todos).size).toBe(movs.length);
+    });
+
+    it('los motivos nunca llevan prefijo de regla ni mencionan al LLM', () => {
+      const { sinMatch } = evaluarConMotivos(movs, cfdis, CERO, existentes);
+      for (const s of sinMatch) {
+        expect(s.motivo.length).toBeGreaterThan(10);
+        expect(s.motivo).not.toContain('Regla ');
+        expect(s.motivo.toLowerCase()).not.toContain('llm');
+      }
+    });
+
+    it('seleccionarPropuestas devuelve lo mismo que .propuestas', () => {
+      expect(seleccionarPropuestas(movs, cfdis, CERO, existentes)).toEqual(
+        evaluarConMotivos(movs, cfdis, CERO, existentes).propuestas,
+      );
+    });
   });
 });
 

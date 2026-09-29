@@ -60,6 +60,22 @@ export const ORIGENES_CONCILIACION = ['regla', 'llm', 'manual'] as const;
 export type OrigenConciliacion = (typeof ORIGENES_CONCILIACION)[number];
 
 /**
+ * Por qué un movimiento abierto no recibió propuesta (CU-13). Son códigos
+ * estables: se guardan tal cual y nunca se renombran. Namespace aparte de
+ * `ReglaConciliacion`, que nombra la regla de una propuesta.
+ */
+export const REGLAS_SIN_MATCH = [
+  'referencia_ambigua',
+  'referencia_cfdi_ocupado',
+  'referencia_cfdi_no_compatible',
+  'sin_candidato_monto',
+  'monto_multiples_candidatos',
+  'monto_candidato_ocupado',
+  'cfdi_multiples_movimientos',
+] as const;
+export type ReglaSinMatch = (typeof REGLAS_SIN_MATCH)[number];
+
+/**
  * 'acceso_denegado' (CU-03.3): un 403 por rol o por membresía. `entidad` es
  * 'companies' y `entidad_id` la empresa a la que se intentó entrar.
  */
