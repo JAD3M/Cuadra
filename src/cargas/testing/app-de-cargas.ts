@@ -12,6 +12,7 @@ import { DataSource } from 'typeorm';
 import { AuthModule } from '../../auth/auth.module';
 import type { JwtPayload } from '../../auth/tipos';
 import { ColasModule } from '../../colas/colas.module';
+import { CompaniesModule } from '../../companies/companies.module';
 import { validateEnv } from '../../config/env.validation';
 import { ContextoEmpresaModule } from '../../database/contexto-empresa.module';
 import { opcionesDataSource } from '../../database/data-source';
@@ -111,6 +112,7 @@ export async function levantarAppDeCargas(): Promise<AppDeCargas> {
       ColasModule,
       AuthModule,
       CargasModule,
+      CompaniesModule,
     ],
   }).compile();
 

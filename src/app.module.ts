@@ -8,6 +8,7 @@ import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { BancosModule } from './bancos/bancos.module';
 import { CargasModule } from './cargas/cargas.module';
+import { CompaniesModule } from './companies/companies.module';
 import { ColasModule } from './colas/colas.module';
 import { ContextoEmpresaModule } from './database/contexto-empresa.module';
 
@@ -34,6 +35,7 @@ import { ContextoEmpresaModule } from './database/contexto-empresa.module';
     AuthModule,
     CargasModule,
     BancosModule,
+    CompaniesModule,
   ],
 })
 export class AppModule {}

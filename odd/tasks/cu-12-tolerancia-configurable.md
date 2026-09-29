@@ -57,12 +57,12 @@ to each company's configuration, strict by default, loosened only on purpose.
 ## Tasks
 
 - [x] T1 R1+R2+R3 migration, entity, provider, engine currency rule + tests. Route: delegated.
-- [ ] T2 R4+R5 endpoints, DTO, bitacora + integration tests. Route: delegated.
+- [x] T2 R4+R5 endpoints, DTO, bitacora + integration tests. Route: delegated.
 - [ ] T3 CUADRA.md bitácora; Jira KAN-89 Finalizado. Route: inline.
 
 ## Progress / evidence
 
-### T1 (done)
+### T1 (done, commit f3c3373)
 
 - Route: delegated (single writer).
 - Migration `1790708700000-ToleranciaPorEmpresa`: column numeric(18,4) NOT NULL
@@ -80,3 +80,23 @@ to each company's configuration, strict by default, loosened only on purpose.
 - Checks: typecheck clean; `npm test -- src/conciliacion src/database`: 8 suites,
   161 tests passed.
 
+
+### T2 (done; commit hash is in `git log`, a commit cannot cite itself)
+
+- Route: delegated (same writer).
+- Placement: `src/companies/` (`CompaniesModule`, `EmpresaController` at `/empresa`,
+  `ToleranciaService`, `dto/tolerancia.dto.ts`); registered in `AppModule` and in the
+  shared test app (`app-de-cargas.ts`).
+- `GET /empresa/tolerancia` any member; `PUT` `@Roles('admin')`. Body validated by
+  `ToleranciaValida` (`esDecimal`, `^\d+(\.\d{1,4})?$`, <= 100 via decimal.js).
+  Company always from `@UsuarioActual` (body `companyId` is rejected by the global
+  `forbidNonWhitelisted` pipe).
+- Write uses the request's `TransaccionEmpresa` manager (interceptor): a raw
+  `UPDATE ... FROM (SELECT ... FOR UPDATE)` touching only `tolerancia_monto` (the only
+  granted column, so `updated_at` is not bumped) plus the `bitacora` insert
+  (`actualizar`, `companies`, datos `{campo, antes, despues}`), atomic. `ck_bitacora_accion`
+  already allowed `actualizar`; RLS INSERT passes since `app.company_id` is set.
+- Tests: `src/companies/tolerancia.integracion.spec.ts` (26): GET roles/401/isolation,
+  PUT 403 (+ `acceso_denegado`), 400 matrix, boundaries, bitacora antes/despues,
+  B-only change, and end to end referencia_monto_diferente (0.5, -60.0000) ->
+  no re-run on PUT (D6) -> next run referencia_monto_exacto (1.0, -60.0000).
