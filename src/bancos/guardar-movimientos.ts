@@ -1,10 +1,12 @@
 import type { EntityManager } from 'typeorm';
 import type { ResultadoDeFila } from '../cargas/carga.entity';
 import type { ResultadoDeProceso } from '../cargas/resultado-de-proceso';
-import { leerFilas, leerMovimiento } from './formato-canonico';
+import { leerFilas, leerMovimiento } from './lector-estado-cuenta';
+import type { PerfilBancario } from './perfil';
 
 /**
- * CU-09, dentro de la transacción (b) del worker. Cada fila se valida antes
+ * CU-09 y CU-10, dentro de la transacción (b) del worker, con el perfil de
+ * banco de la carga. Cada fila se valida antes
  * de insertarla: una malformada es un resultado {fila, motivo} y el resto se
  * carga. La idempotencia de movimientos es por posición (company_id,
  * carga_id, linea_numero), no por contenido: dos filas idénticas son dos
@@ -19,7 +21,11 @@ export async function procesarEstadoDeCuenta(
   manager: EntityManager,
   companyId: string,
   cargaId: string,
-  { banco, cuenta }: { banco: string | null; cuenta: string | null },
+  {
+    banco,
+    cuenta,
+    perfil,
+  }: { banco: string | null; cuenta: string | null; perfil: PerfilBancario },
 ): Promise<ResultadoDeProceso> {
   const [archivo] = await manager.query<Array<{ contenido: string | null }>>(
     `SELECT contenido FROM carga_archivos
@@ -33,11 +39,11 @@ export async function procesarEstadoDeCuenta(
   }
 
   // La primera es el encabezado, ya validado en el POST.
-  const [, ...filas] = leerFilas(archivo.contenido);
+  const [, ...filas] = leerFilas(archivo.contenido, perfil);
   const errores: ResultadoDeFila[] = [];
   let nuevos = 0;
   for (const { linea, campos } of filas) {
-    const leido = leerMovimiento(campos);
+    const leido = leerMovimiento(campos, perfil);
     if ('motivo' in leido) {
       errores.push({ fila: linea, resultado: 'error', motivo: leido.motivo });
       continue;

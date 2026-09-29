@@ -1,0 +1,16 @@
+{
+  "id": "banco-sur",
+  "nombre": "Banco del Sur (sintético)",
+  "codificacion": "windows-1252",
+  "separador": ";",
+  "lineasPreambulo": 3,
+  "encabezados": ["Fecha operación", "Descripción", "Importe"],
+  "columnas": {
+    "fecha": "Fecha operación",
+    "concepto": "Descripción",
+    "monto": "Importe"
+  },
+  "formatoFecha": "DD-MM-AAAA",
+  "separadorMiles": ".",
+  "separadorDecimal": ","
+}

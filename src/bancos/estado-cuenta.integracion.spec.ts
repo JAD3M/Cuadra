@@ -42,17 +42,25 @@ function fixture(nombre: string): Buffer {
   return readFileSync(join(__dirname, 'fixtures', nombre));
 }
 
+/** Campos de texto del multipart. */
+interface Campos {
+  banco?: string;
+  cuenta?: string;
+  perfil?: string;
+}
+
 function subir(
   token: string,
   nombre: string,
   contenido: Buffer,
-  campos: { banco?: string; cuenta?: string } = {},
+  campos: Campos = {},
 ) {
   let req = request(entorno.app.getHttpServer())
     .post('/cargas/estado-cuenta')
     .auth(token, { type: 'bearer' });
-  for (const [campo, valor] of Object.entries(campos)) {
-    req = req.field(campo, valor);
+  for (const campo of ['banco', 'cuenta', 'perfil'] as const) {
+    const valor = campos[campo];
+    if (valor !== undefined) req = req.field(campo, valor);
   }
   return req.attach('archivo', contenido, nombre);
 }
@@ -60,7 +68,7 @@ function subir(
 async function cargarYEsperar(
   token: string,
   nombre: string,
-  campos: { banco?: string; cuenta?: string } = {},
+  campos: Campos = {},
 ) {
   const res = await subir(token, nombre, fixture(nombre), campos).expect(202);
   const recibida = res.body as RespuestaDeCarga;
@@ -304,5 +312,205 @@ describe('POST /cargas/estado-cuenta (CU-09)', () => {
       expect(JSON.stringify(res.body)).toMatch(esperado);
       expect(await conteos()).toEqual(antes);
     });
+  });
+});
+
+describe('perfiles de banco (CU-10)', () => {
+  /** Lo que queda de un movimiento al quitarle de dónde vino. */
+  const normalizados = async (cargaId: string) =>
+    (await movimientosDe(cargaId)).map(
+      ({ fecha, descripcion, referencia, monto }) => ({
+        fecha,
+        descripcion,
+        referencia,
+        monto,
+      }),
+    );
+
+  it('banco-norte: cargo negativo, abono positivo, montos exactos', async () => {
+    const carga = await cargarYEsperar(
+      await entorno.token(ANA, FERRETERIA),
+      'norte-valido.csv',
+      { perfil: 'banco-norte' },
+    );
+
+    expect(carga).toMatchObject({
+      estado: 'procesada',
+      totalRegistros: 4,
+      registrosOk: 4,
+    });
+    expect(await normalizados(carga.id)).toEqual([
+      {
+        fecha: '2026-09-01',
+        descripcion: 'DEPOSITO SPEI, CLIENTE NORTE',
+        referencia: 'N-100',
+        monto: '1234.5600',
+      },
+      expect.objectContaining({ fecha: '2026-09-02', monto: '-12.5000' }),
+      expect.objectContaining({ fecha: '2026-09-03', monto: '-10000.0000' }),
+      expect.objectContaining({ referencia: null, monto: '0.0100' }),
+    ]);
+    const { perfil } = await una<{ perfil: string }>(
+      ds,
+      'SELECT perfil FROM cargas WHERE id = $1',
+      [carga.id],
+    );
+    expect(perfil).toBe('banco-norte');
+  });
+
+  it('banco-sur: windows-1252 con acentos bien decodificados y montos exactos', async () => {
+    const carga = await cargarYEsperar(
+      await entorno.token(ANA, FERRETERIA),
+      'sur-valido.csv',
+      { perfil: 'banco-sur' },
+    );
+
+    expect(carga).toMatchObject({ estado: 'procesada', registrosOk: 3 });
+    const movimientos = await movimientosDe(carga.id);
+    // Las líneas cuentan las 3 de preámbulo y el encabezado.
+    expect(movimientos.map((m) => m.linea_numero)).toEqual([5, 6, 7]);
+    expect(movimientos.map((m) => [m.descripcion, m.monto])).toEqual([
+      ['Depósito en efectivo sucursal Mérida', '1234.5600'],
+      ['Comisión por manejo de cuenta', '-99.9000'],
+      ['Transferencia a Ñandú Logística', '-12000.0000'],
+    ]);
+  });
+
+  it('el mismo contenido en los tres perfiles da los mismos movimientos', async () => {
+    const token = await entorno.token(ANA, FERRETERIA);
+    const resultados: Array<Awaited<ReturnType<typeof normalizados>>> = [];
+    for (const [archivo, perfil] of [
+      ['logico-cuadra.csv', 'cuadra'],
+      ['logico-norte.csv', 'banco-norte'],
+      ['logico-sur.csv', 'banco-sur'],
+    ]) {
+      const carga = await cargarYEsperar(token, archivo, { perfil });
+      expect(carga.estado).toBe('procesada');
+      resultados.push(await normalizados(carga.id));
+    }
+
+    const [cuadra, norte, sur] = resultados;
+    expect(cuadra).toHaveLength(3);
+    expect(norte).toEqual(cuadra);
+    expect(sur).toEqual(cuadra);
+    expect(cuadra[0]).toEqual({
+      fecha: '2026-09-01',
+      descripcion: 'Depósito de cliente, factura A-1',
+      referencia: null,
+      monto: '1234.5600',
+    });
+  });
+
+  it('una fila con cargo y abono llenos es error de esa fila; el resto entra', async () => {
+    const carga = await cargarYEsperar(
+      await entorno.token(ANA, FERRETERIA),
+      'norte-cargo-y-abono.csv',
+      { perfil: 'banco-norte' },
+    );
+
+    expect(carga).toMatchObject({
+      estado: 'con_errores',
+      registrosOk: 2,
+      registrosError: 1,
+      resultados: [
+        {
+          fila: 3,
+          resultado: 'error',
+          motivo: 'La fila trae Cargo y Abono; debe traer solo uno',
+        },
+      ],
+    });
+    expect(
+      (await movimientosDe(carga.id)).map((m) => [m.linea_numero, m.monto]),
+    ).toEqual([
+      [2, '100.0000'],
+      [4, '-25.0000'],
+    ]);
+  });
+
+  it('un error en banco-sur reporta la línea física, contando el preámbulo', async () => {
+    const carga = await cargarYEsperar(
+      await entorno.token(ANA, FERRETERIA),
+      'sur-una-malformada.csv',
+      { perfil: 'banco-sur' },
+    );
+
+    expect(carga).toMatchObject({ estado: 'con_errores', registrosOk: 2 });
+    const [error] = carga.resultados as ResultadoDeFila[];
+    // 3 de preámbulo + encabezado en la 4 + primera fila en la 5.
+    expect(error).toMatchObject({ fila: 6, resultado: 'error' });
+    expect(error.motivo).toMatch(
+      /Fecha inválida: "31-09-2026"; se espera DD-MM-AAAA/,
+    );
+  });
+
+  it('un perfil que no existe: 400 y cero cargas', async () => {
+    const antes = await conteos();
+    const res = await subir(
+      await entorno.token(ANA, FERRETERIA),
+      'norte-valido.csv',
+      fixture('norte-valido.csv'),
+      { perfil: 'banco-que-no-existe' },
+    ).expect(400);
+
+    expect(mensaje(res)).toMatch(
+      /Perfil de banco desconocido: "banco-que-no-existe"\. Disponibles: .*banco-norte/,
+    );
+    expect(await conteos()).toEqual(antes);
+  });
+
+  it('encabezados que no coinciden con el perfil: 400 y cero cargas', async () => {
+    const antes = await conteos();
+    const res = await subir(
+      await entorno.token(ANA, FERRETERIA),
+      'norte-encabezados-mal.csv',
+      fixture('norte-encabezados-mal.csv'),
+      { perfil: 'banco-norte' },
+    ).expect(400);
+
+    expect(mensaje(res)).toMatch(
+      /Encabezados inválidos para el perfil "banco-norte": se esperan exactamente "Fecha,Concepto,Referencia,Cargo,Abono,Saldo"/,
+    );
+    expect(await conteos()).toEqual(antes);
+  });
+
+  it('banco-sur guardado en UTF-8: 400 en vez de acentos rotos, y cero cargas', async () => {
+    const antes = await conteos();
+    const res = await subir(
+      await entorno.token(ANA, FERRETERIA),
+      'sur-valido-utf8.csv',
+      fixture('sur-valido-utf8.csv'),
+      { perfil: 'banco-sur' },
+    ).expect(400);
+
+    expect(mensaje(res)).toBe(
+      'El archivo parece estar en UTF-8; el perfil banco-sur espera windows-1252',
+    );
+    expect(await conteos()).toEqual(antes);
+  });
+
+  it('un archivo de banco-sur subido sin perfil no pasa por el canónico', async () => {
+    // Sin `perfil` se usa 'cuadra', que exige UTF-8: el 1252 de banco-sur
+    // no se decodifica. Mejor 400 que acentos rotos.
+    const res = await subir(
+      await entorno.token(ANA, FERRETERIA),
+      'sur-valido.csv',
+      fixture('sur-valido.csv'),
+    ).expect(400);
+    expect(mensaje(res)).toMatch(/UTF-8/);
+  });
+
+  it('GET /bancos/perfiles: {id, nombre} de cada perfil, para cualquier rol', async () => {
+    // Jorge es revisor en Transportes: no sube, pero sí ve los perfiles.
+    const res = await request(entorno.app.getHttpServer())
+      .get('/bancos/perfiles')
+      .auth(await entorno.token(JORGE, TRANSPORTES), { type: 'bearer' })
+      .expect(200);
+
+    expect(res.body).toEqual([
+      { id: 'banco-norte', nombre: 'Banco del Norte (sintético)' },
+      { id: 'banco-sur', nombre: 'Banco del Sur (sintético)' },
+      { id: 'cuadra', nombre: 'Formato canónico de Cuadra' },
+    ]);
   });
 });

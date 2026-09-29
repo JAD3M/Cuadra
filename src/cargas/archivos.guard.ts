@@ -206,6 +206,6 @@ export const EstadoDeCuentaGuard = ArchivosGuard({
   maxArchivos: 1,
   maxBytesPorArchivo: MAX_BYTES_ESTADO_CUENTA,
   maxBytesPorPeticion: MAX_BYTES_ESTADO_CUENTA,
-  // banco y cuenta.
-  maxCamposDeTexto: 2,
+  // banco, cuenta y perfil.
+  maxCamposDeTexto: 3,
 });

@@ -30,4 +30,11 @@ export class EstadoCuentaDto {
   @MaxLength(32) // cargas.cuenta y movimientos.cuenta
   @Matches(SIN_NULOS, { message: 'cuenta no puede traer bytes nulos' })
   cuenta?: string;
+
+  /** CU-10: id del perfil de banco. Sin él, el formato canónico ('cuadra'). */
+  @ApiPropertyOptional({ example: 'banco-norte', default: 'cuadra' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64) // cargas.perfil
+  perfil?: string;
 }

@@ -1,0 +1,18 @@
+{
+  "id": "banco-norte",
+  "nombre": "Banco del Norte (sintético)",
+  "codificacion": "utf-8",
+  "separador": ",",
+  "lineasPreambulo": 0,
+  "encabezados": ["Fecha", "Concepto", "Referencia", "Cargo", "Abono", "Saldo"],
+  "columnas": {
+    "fecha": "Fecha",
+    "concepto": "Concepto",
+    "referencia": "Referencia",
+    "cargo": "Cargo",
+    "abono": "Abono"
+  },
+  "formatoFecha": "DD/MM/AAAA",
+  "separadorMiles": ",",
+  "separadorDecimal": "."
+}

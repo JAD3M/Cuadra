@@ -8,7 +8,11 @@ import type { EntityManager } from 'typeorm';
 import {
   EstadoDeCuentaRechazado,
   validarEstadoDeCuenta,
-} from '../bancos/formato-canonico';
+} from '../bancos/lector-estado-cuenta';
+import {
+  PERFIL_POR_DEFECTO,
+  PerfilesBancarios,
+} from '../bancos/perfiles-bancarios';
 import type { TipoCarga } from '../common/entities/tipos';
 import { ContextoEmpresa } from '../database/contexto-empresa';
 import { ColaCargas } from './cola-cargas';
@@ -44,6 +48,8 @@ interface NuevaCarga {
   archivos: Array<{ nombre: string; hash: string; contenido: string | null }>;
   banco: string | null;
   cuenta: string | null;
+  /** Estado de cuenta: el perfil de banco con el que se validó (CU-10). */
+  perfil: string | null;
 }
 
 /** Tope de la columna `cargas.nombre_archivo`. */
@@ -56,6 +62,7 @@ export class CargasService {
   constructor(
     private readonly contexto: ContextoEmpresa,
     private readonly cola: ColaCargas,
+    private readonly perfiles: PerfilesBancarios,
   ) {}
 
   /**
@@ -80,23 +87,39 @@ export class CargasService {
       })),
       banco: null,
       cuenta: null,
+      perfil: null,
     });
   }
 
   /**
-   * CU-09: un estado de cuenta en el formato canónico. El archivo completo
-   * se valida aquí, antes de guardar nada (400 si no sirve); las filas, en el
-   * worker. Mismo camino que los CFDI desde `registrar`.
+   * CU-09 y CU-10: un estado de cuenta, leído con el perfil de su banco
+   * ('cuadra' si no se dice). El archivo completo se valida aquí, antes de
+   * guardar nada (400 si no sirve); las filas, en el worker. Mismo camino que
+   * los CFDI desde `registrar`.
    */
   async cargarEstadoCuenta(
     companyId: string,
     userId: string,
     archivo: ArchivoSubido,
-    { banco, cuenta }: { banco?: string; cuenta?: string },
+    {
+      banco,
+      cuenta,
+      perfil: idPerfil = PERFIL_POR_DEFECTO,
+    }: { banco?: string; cuenta?: string; perfil?: string },
   ): Promise<RespuestaDeCarga> {
+    const perfil = this.perfiles.obtener(idPerfil);
+    if (!perfil) {
+      const disponibles = this.perfiles
+        .listar()
+        .map((p) => p.id)
+        .join(', ');
+      throw new BadRequestException(
+        `Perfil de banco desconocido: "${idPerfil}". Disponibles: ${disponibles}`,
+      );
+    }
     let validado: { texto: string; filas: number };
     try {
-      validado = validarEstadoDeCuenta(archivo.buffer);
+      validado = validarEstadoDeCuenta(archivo.buffer, perfil);
     } catch (error) {
       if (error instanceof EstadoDeCuentaRechazado) {
         throw new BadRequestException(error.message);
@@ -114,6 +137,7 @@ export class CargasService {
       ],
       banco: banco ?? null,
       cuenta: cuenta ?? null,
+      perfil: perfil.id,
     });
   }
 
@@ -260,8 +284,8 @@ async function crearCarga(
     const [fila] = await manager.query<FilaCarga[]>(
       `INSERT INTO cargas
          (company_id, tipo, estado, nombre_archivo, hash_archivo,
-          total_registros, subido_por_id, banco, cuenta)
-       VALUES ($1, $2, 'pendiente', $3, $4, $5, $6, $7, $8)
+          total_registros, subido_por_id, banco, cuenta, perfil)
+       VALUES ($1, $2, 'pendiente', $3, $4, $5, $6, $7, $8, $9)
        RETURNING ${SQL_ESTADO}`,
       [
         companyId,
@@ -272,6 +296,7 @@ async function crearCarga(
         userId,
         nueva.banco,
         nueva.cuenta,
+        nueva.perfil,
       ],
     );
     await manager.query('RELEASE SAVEPOINT carga');

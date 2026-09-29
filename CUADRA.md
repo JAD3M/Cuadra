@@ -317,8 +317,10 @@ generada `STORED` y su índice.
 
 `POST /cargas/estado-cuenta`, multipart: un archivo en el campo `archivo`
 (`.csv`, 10 MB máximo) y, opcionales, `banco` (≤ 128) y `cuenta` (≤ 32,
-enmascarada), que se copian a cada movimiento. Roles admin y contador. Los
-formatos de cada banco (CU-10) se traducen a este.
+enmascarada), que se copian a cada movimiento, y `perfil` (CU-10, por
+defecto `cuadra`). Roles admin y contador. El formato canónico es el perfil
+`cuadra` (`src/bancos/perfiles/cuadra.json`); el de cada banco se normaliza
+a estos mismos cuatro datos.
 
 ```csv
 fecha,descripcion,referencia,monto
@@ -348,6 +350,53 @@ fecha,descripcion,referencia,monto
 - Las líneas vacías se ignoran y no cuentan como filas.
 - Idempotencia: SHA-256 del archivo. El mismo archivo dos veces en la
   empresa → 200 `yaExistia`, sin movimientos nuevos.
+
+#### Cómo agregar un banco (CU-10)
+
+Agregar un banco es configuración, no código: un archivo
+`src/bancos/perfiles/<id>.json`, con el `id` igual al nombre del archivo, y
+reiniciar la api. El perfil dice cómo leer el CSV del banco:
+- codificación (`utf-8` o `windows-1252`) y separador (`,`, `;` o tabulador);
+- cuántas líneas de preámbulo saltar antes del encabezado;
+- la fila de encabezados **exacta y completa**, en orden, incluidas las
+  columnas que no se usan, como el saldo. Si el banco cambia su formato, el
+  archivo se rechaza en vez de leerse mal;
+- qué encabezado es la fecha, el concepto y la referencia (opcional), y el
+  monto: una columna con signo, o `cargo` + `abono` (monto = abono − cargo;
+  sin signo, exactamente uno por fila);
+- el formato de fecha y los separadores de miles y decimal.
+
+Solo datos: nada de funciones, regex ni código en el JSON. Se validan con
+Zod al arrancar (`src/bancos/perfil.ts`), y un perfil inválido impide que la
+api levante, con el archivo y el campo en el error. Las líneas que se
+reportan son las del archivo original, preámbulo incluido. `GET
+/bancos/perfiles` lista los disponibles.
+
+```json
+{
+  "id": "banco-norte",
+  "nombre": "Banco del Norte (sintético)",
+  "codificacion": "utf-8",
+  "separador": ",",
+  "lineasPreambulo": 0,
+  "encabezados": ["Fecha", "Concepto", "Referencia", "Cargo", "Abono", "Saldo"],
+  "columnas": {
+    "fecha": "Fecha",
+    "concepto": "Concepto",
+    "referencia": "Referencia",
+    "cargo": "Cargo",
+    "abono": "Abono"
+  },
+  "formatoFecha": "DD/MM/AAAA",
+  "separadorMiles": ",",
+  "separadorDecimal": "."
+}
+```
+
+`formatoFecha`: `AAAA-MM-DD`, `DD/MM/AAAA` o `DD-MM-AAAA`.
+`separadorMiles`: `","`, `"."` o `null`. `separadorDecimal`: `"."` o `","`.
+Con monto con signo, `"columnas"` lleva `"monto"` en lugar de `"cargo"` y
+`"abono"`.
 
 Historias: CU-09, CU-10.
 
@@ -683,6 +732,89 @@ Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
 
 ### 28 sep 2026
+
+- **CU-10 terminado: un formato por banco.** Perfiles declarativos en
+  `src/bancos/perfiles/*.json`, validados con Zod al arrancar. Cómo agregar
+  un banco: tabla `movimientos`, "Cómo agregar un banco".
+  - **Verificación:** 207 tests en verde (164 + 43), estables en dos
+    corridas. Lint, `typecheck` y build limpios; build copia los JSON a
+    `dist/` (assets en `nest-cli.json`). `migration:generate --check` sin
+    cambios. `docker compose up -d --build -V` + `/health` ok, `GET
+    /bancos/perfiles` y una carga real de `banco-sur` con la fila mala en
+    la línea 6.
+  - **Un solo camino.** El formato canónico de CU-09 es el perfil
+    `cuadra`. `formato-canonico.ts` pasó a `lector-estado-cuenta.ts`, que
+    recibe el perfil y normaliza toda fila a fecha, concepto, referencia y
+    monto con signo. POST y worker son los de CU-09: el POST valida con el
+    perfil elegido y guarda el texto ya decodificado, y el worker lee
+    `cargas.perfil`.
+  - **El JSON es solo datos:** enums para codificación, separadores y
+    formato de fecha, y `.strict()` para que una llave con typo no se
+    ignore en silencio. La expresión regular de los números se arma en el
+    código con los separadores del enum.
+    - Refinamientos: `monto` o `cargo` + `abono` (no ambos, no solo uno);
+      miles ≠ decimal; las columnas mapeadas existen en `encabezados`; sin
+      encabezados repetidos; `id` = nombre del archivo.
+    - Un perfil inválido lanza en la fábrica de `PerfilesBancarios`, y la
+      api no levanta. El error dice el archivo y el campo.
+  - **Agregado al esquema pedido: `encabezados`**, la fila completa y
+    exacta. Sin ella, un banco con columnas que no se usan (el saldo, casi
+    siempre) no se podía describir. Además `cuadra` conserva el
+    "encabezados exactos, en orden" de CU-09.
+  - **Preámbulo:** se corta antes de parsear, porque son líneas libres que
+    pueden traer comillas o separadores sueltos. Las líneas reportadas
+    suman lo cortado y siguen siendo físicas del archivo original.
+  - **Cargo/abono:** monto = abono − cargo, con exactamente uno lleno y sin
+    signo. Ambos o ninguno → error de esa fila.
+    - El cargo se niega anteponiendo `-` al decimal ya validado. Con
+      `dinero.ts` salía `-25000.5` en vez de `-25000.50`: mismo valor, pero
+      el texto cambiaba.
+  - **Números:** los miles, si el perfil los tiene, van cada tres dígitos
+    (`1,23.45` no es número). Con el perfil equivocado, `1.234,56` en
+    `banco-norte` se rechaza, no se lee como otra cifra.
+  - **Codificación:** UTF-8 con `fatal`. Por eso un archivo de
+    `banco-sur` subido sin perfil (cae en `cuadra`) es 400 y no acentos
+    rotos.
+  - **Un UTF-8 subido con un perfil windows-1252 → 400** ("El archivo
+    parece estar en UTF-8; el perfil <id> espera windows-1252").
+    windows-1252 decodifica cualquier byte, así que antes entraba con
+    acentos rotos ("DepÃ³sito") y sin error. Regla: perfil windows-1252 +
+    al menos un byte ≥ 0x80 + UTF-8 válido. No rechaza archivos buenos: un
+    windows-1252 real con acentos casi nunca es UTF-8 válido (una `é`
+    suelta, 0xE9, sin bytes de continuación, ya no lo es), y uno solo
+    ASCII se lee igual en las dos codificaciones.
+    - Tests: `banco-sur` guardado en UTF-8 → 400 y cero cargas; el
+      original en windows-1252 entra; un windows-1252 solo ASCII entra.
+      Este último va con una variante de `banco-sur` con encabezados
+      ASCII, porque los de `banco-sur` llevan acentos.
+    - **Mutación, con un matiz:** sin la detección, el `banco-sur` en UTF-8
+      se pone rojo, pero ya daba 400 por otra razón: su encabezado con
+      acentos se leía "operaciÃ³n" y no coincidía, con un motivo confuso.
+      El riesgo real es un perfil windows-1252 con encabezados ASCII: ahí
+      nada frenaba el archivo. Hay un test de ese caso, y sin la detección
+      el archivo **entra**.
+  - **`cargas.perfil`** (migración `PerfilDeBanco1790644740503`): los
+    estados de cuenta de CU-09 quedan con `'cuadra'`, así un reintento o
+    una reanudación los lee igual. Si el JSON de un perfil desaparece con
+    una carga en cola, el worker lanza (configuración, no culpa del
+    archivo) y termina en `fallida`; resubir la reanuda cuando el perfil
+    vuelva.
+  - **`GET /bancos/perfiles`:** `{id, nombre}`, cualquier rol con sesión.
+  - **Tests:**
+    - Unitarios: esquema con 10 formas de romperlo, cargador (JSON roto,
+      id ≠ archivo) y un **tercer banco desde un directorio temporal**,
+      solo con un JSON nuevo (tabulador, preámbulo, cargo/abono, decimal
+      con coma), que se lee sin tocar código.
+    - Integración: norte, sur con acentos, el mismo contenido en los tres
+      perfiles da los mismos movimientos, cargo y abono llenos, línea con
+      preámbulo, perfil inexistente, encabezados de otro banco, sur sin
+      perfil y el GET.
+  - **Mutaciones** (código restaurado):
+    - Sin sumar el preámbulo: 4 rojos.
+    - Sin quitar los miles: 5 rojos.
+  - **Pendiente, sin resolver:** la idempotencia es por el archivo. El
+    mismo CSV subido con otro perfil devuelve la carga original, leída con
+    el perfil de entonces.
 
 - **`npm run typecheck` (`tsc --noEmit`).** Lint y build no revisaban los
   tipos de los specs: build los excluye y Jest compila con

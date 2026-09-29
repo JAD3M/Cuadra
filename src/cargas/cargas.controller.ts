@@ -88,6 +88,7 @@ export class CargasController {
         [CAMPO_ESTADO_CUENTA]: { type: 'string', format: 'binary' },
         banco: { type: 'string', maxLength: 128 },
         cuenta: { type: 'string', maxLength: 32 },
+        perfil: { type: 'string', maxLength: 64, default: 'cuadra' },
       },
     },
   })

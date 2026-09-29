@@ -4,6 +4,11 @@ import type { Job } from 'bullmq';
 import type { EstadoCarga } from '../common/entities/tipos';
 import { TransaccionEmpresa } from '../database/transaccion-empresa';
 import { procesarEstadoDeCuenta } from '../bancos/guardar-movimientos';
+import type { PerfilBancario } from '../bancos/perfil';
+import {
+  PERFIL_POR_DEFECTO,
+  PerfilesBancarios,
+} from '../bancos/perfiles-bancarios';
 import type { TipoCarga } from '../common/entities/tipos';
 import { COLA_CARGAS, type TrabajoDeCarga } from './cola-cargas';
 import { procesarLoteCfdi } from './guardar-cfdi';
@@ -12,6 +17,7 @@ interface CargaTomada {
   tipo: TipoCarga;
   banco: string | null;
   cuenta: string | null;
+  perfil: string | null;
 }
 
 /** Lo que ve la persona. El error real va al log, no a la base ni al cliente. */
@@ -33,8 +39,23 @@ export const MENSAJE_FALLIDA =
 export class ProcesadorCargas extends WorkerHost {
   private readonly logger = new Logger(ProcesadorCargas.name);
 
-  constructor(private readonly transaccion: TransaccionEmpresa) {
+  constructor(
+    private readonly transaccion: TransaccionEmpresa,
+    private readonly perfiles: PerfilesBancarios,
+  ) {
     super();
+  }
+
+  /**
+   * Si alguien borró el JSON del perfil después de la carga, lanza: es
+   * configuración, no culpa del archivo. Tras los reintentos, 'fallida', y
+   * resubir la reanuda cuando el perfil vuelva.
+   */
+  private perfilDe({ perfil }: CargaTomada): PerfilBancario {
+    const id = perfil ?? PERFIL_POR_DEFECTO;
+    const encontrado = this.perfiles.obtener(id);
+    if (!encontrado) throw new Error(`No existe el perfil de banco "${id}"`);
+    return encontrado;
   }
 
   async process(job: Job<TrabajoDeCarga>): Promise<void> {
@@ -60,7 +81,7 @@ export class ProcesadorCargas extends WorkerHost {
         `UPDATE cargas SET estado = 'procesando', updated_at = now()
           WHERE id = $1 AND company_id = $2
             AND estado IN ('pendiente', 'procesando')
-          RETURNING tipo, banco, cuenta`,
+          RETURNING tipo, banco, cuenta, perfil`,
         [cargaId, companyId],
       ),
     );
@@ -78,7 +99,10 @@ export class ProcesadorCargas extends WorkerHost {
       const { resultados, nuevos, existentes, errores } =
         carga.tipo === 'cfdi'
           ? await procesarLoteCfdi(manager, companyId, cargaId)
-          : await procesarEstadoDeCuenta(manager, companyId, cargaId, carga);
+          : await procesarEstadoDeCuenta(manager, companyId, cargaId, {
+              ...carga,
+              perfil: this.perfilDe(carga),
+            });
       // 'fallida' es solo de infraestructura: aunque todo lo que venía sea
       // inválido, la carga terminó.
       const estado: EstadoCarga = errores > 0 ? 'con_errores' : 'procesada';

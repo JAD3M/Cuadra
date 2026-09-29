@@ -6,6 +6,7 @@ import { ENTIDADES } from './database/entidades';
 import { SnakeNamingStrategy } from './database/naming.strategy';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
+import { BancosModule } from './bancos/bancos.module';
 import { CargasModule } from './cargas/cargas.module';
 import { ColasModule } from './colas/colas.module';
 import { ContextoEmpresaModule } from './database/contexto-empresa.module';
@@ -32,6 +33,7 @@ import { ContextoEmpresaModule } from './database/contexto-empresa.module';
     HealthModule,
     AuthModule,
     CargasModule,
+    BancosModule,
   ],
 })
 export class AppModule {}

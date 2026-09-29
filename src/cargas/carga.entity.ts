@@ -106,6 +106,13 @@ export class Carga extends EntidadBase {
   @Column({ type: 'varchar', length: 32, nullable: true })
   cuenta: string | null;
 
+  /**
+   * Estado de cuenta (CU-10): el perfil de banco con el que se leyó. NULL en
+   * los CFDI.
+   */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  perfil: string | null;
+
   @Column({ type: 'timestamptz', nullable: true })
   procesadaAt: Date | null;
 

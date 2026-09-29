@@ -1,0 +1,17 @@
+{
+  "id": "cuadra",
+  "nombre": "Formato canónico de Cuadra",
+  "codificacion": "utf-8",
+  "separador": ",",
+  "lineasPreambulo": 0,
+  "encabezados": ["fecha", "descripcion", "referencia", "monto"],
+  "columnas": {
+    "fecha": "fecha",
+    "concepto": "descripcion",
+    "referencia": "referencia",
+    "monto": "monto"
+  },
+  "formatoFecha": "AAAA-MM-DD",
+  "separadorMiles": null,
+  "separadorDecimal": "."
+}
