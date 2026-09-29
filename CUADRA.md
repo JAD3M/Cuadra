@@ -5,7 +5,7 @@
 
 | | |
 |---|---|
-| **Estado** | Día 6 de 9 ✅ · CU-01 a CU-14, más CU-04b · 55 / 69 pts · Épicas A, B, C y D cerradas |
+| **Estado** | Día 6 de 9 ✅ · CU-01 a CU-15, más CU-04b · 58 / 69 pts · Épicas A, B, C y D cerradas |
 | **Entrega** | 2 de octubre de 2026 |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 18 historias · 69 puntos · 9 días hábiles |
@@ -746,6 +746,45 @@ Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
 
 ### 29 sep 2026
+
+- **CU-15 terminado: resolver un caso (`POST /conciliaciones/:id/confirmar` y
+  `/rechazar`).** Dos PR encadenados (`stacked-to-main`), con excepción de
+  tamaño aceptada: rechazo (con la infraestructura común) y luego confirmación.
+  Sin migración; módulo nuevo `src/resolucion` con SQL crudo en la transacción
+  de la petición (RLS como `cuadra_app`).
+  - **Común:** admin, contador y revisor. Todo corre bajo el mismo candado
+    consultivo que `conciliar()` (extraído a `conciliacion/candado.ts`) y
+    bloquea conciliación, CFDI y movimiento `FOR UPDATE` en ese orden. Solo una
+    `propuesta` transiciona. Orden de comprobaciones: 404 (igual para
+    inexistente y ajena) → 409 → 403. Una violación de unicidad (23505) es 409.
+  - **Rechazar:** la conciliación queda `rechazada` y el motivo opcional
+    (máx. 500) se guarda; sin motivo se conserva el de la propuesta. CFDI y
+    movimiento siguen abiertos. Si el rechazo libera un lado, `conciliar` corre
+    una vez tras el COMMIT; si falla se loguea y el rechazo sigue en pie.
+    Quien subió la carga sí puede rechazar.
+  - **Confirmar:** conciliación `confirmada` con `confirmada_por_id` y
+    `confirmada_at`; CFDI `conciliada` (el "pagado" de Jira); movimiento
+    `conciliado` con `motivo_sin_match`, `regla_sin_match` y `evaluado_at`
+    limpios. Exige CFDI `abierta` y movimiento `abierto`. Una diferencia de
+    monto distinta de cero se permite y queda en la bitácora.
+  - **Hermanas:** las otras propuestas del mismo movimiento o del mismo CFDI
+    pasan a `rechazada` con el motivo "cerrada al confirmar otra conciliación",
+    cada una con su fila `rechazar`. Devuelve sus ids en
+    `rechazadasAutomaticamente`.
+  - **D-08 (segregación):** quien subió la carga del CFDI o la del movimiento
+    no confirma (403); un `carga_id` nulo no restringe. Como el 403 revierte la
+    transacción, el rastro `acceso_denegado` se escribe en una transacción
+    propia con `AccesosDenegados` (se provee en `ResolucionModule`; `AuthModule`
+    no lo exporta).
+  - **Bitácora:** una fila `confirmar` o `rechazar` por transición, con antes y
+    después y `diferenciaMonto` como texto. Viven en la entidad `conciliaciones`
+    (las transiciones del CFDI y del movimiento van dentro de `datos`): CU-16
+    debe leer `datos->>'cfdiId'` y `datos->'movimiento'->>'id'`.
+  - **Pruebas:** integración contra Postgres real: 404/409/403, hermanas,
+    concurrencia (dos hermanas, confirmar contra rechazar, confirmar contra
+    `conciliar`), que el motor no toque lo confirmado y que la bandeja liste el
+    par en `conciliado`. No hay un rol distinto de los tres, así que "los demás
+    reciben 403" no se puede probar.
 
 - **Endurecimiento: llaves foráneas compuestas en `conciliaciones`.** Al
   construir CU-14 se vio que `cfdi_id` y `movimiento_id` no amarraban
