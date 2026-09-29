@@ -9,10 +9,15 @@ export type Rol = (typeof ROLES)[number];
 export const TIPOS_CARGA = ['cfdi', 'estado_cuenta'] as const;
 export type TipoCarga = (typeof TIPOS_CARGA)[number];
 
+/**
+ * CU-08. 'con_errores': terminó con al menos un XML inválido. 'fallida': el
+ * sistema agotó los reintentos (infraestructura), nunca por los XML.
+ */
 export const ESTADOS_CARGA = [
   'pendiente',
   'procesando',
   'procesada',
+  'con_errores',
   'fallida',
 ] as const;
 export type EstadoCarga = (typeof ESTADOS_CARGA)[number];

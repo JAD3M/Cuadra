@@ -4,6 +4,8 @@ import type { EntityManager } from 'typeorm';
 
 interface Almacen {
   manager: EntityManager;
+  /** Lo que corre solo si la transacción confirma (CU-08: encolar). */
+  alConfirmar: Array<() => Promise<void>>;
 }
 
 /**
@@ -16,8 +18,8 @@ interface Almacen {
 export class ContextoEmpresa {
   private readonly als = new AsyncLocalStorage<Almacen>();
 
-  ejecutar<T>(manager: EntityManager, cuerpo: () => T): T {
-    return this.als.run({ manager }, cuerpo);
+  ejecutar<T>(almacen: Almacen, cuerpo: () => T): T {
+    return this.als.run(almacen, cuerpo);
   }
 
   /**
@@ -25,12 +27,27 @@ export class ContextoEmpresa {
    * endpoint de dominio sin empresa es un bug, no un caso a tolerar.
    */
   manager(): EntityManager {
+    return this.almacen().manager;
+  }
+
+  /**
+   * Corre `accion` después del COMMIT, nunca antes ni si hay rollback. Para
+   * efectos fuera de la base que no deben adelantarse a los datos: un job
+   * encolado antes del commit podría tomarlo el worker y no ver la carga.
+   * Si `accion` falla, la petición responde 500 aunque los datos ya estén
+   * confirmados.
+   */
+  alConfirmar(accion: () => Promise<void>): void {
+    this.almacen().alConfirmar.push(accion);
+  }
+
+  private almacen(): Almacen {
     const almacen = this.als.getStore();
     if (!almacen) {
       throw new Error(
         'Sin transacción de empresa: este endpoint no pasó por TransaccionEmpresaInterceptor',
       );
     }
-    return almacen.manager;
+    return almacen;
   }
 }

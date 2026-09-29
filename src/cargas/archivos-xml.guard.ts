@@ -14,6 +14,7 @@ export const MAX_ARCHIVOS = 500;
 export const MAX_BYTES_POR_ARCHIVO = 2 * 1024 * 1024;
 /** Sin este tope, 500 × 2 MB = 1 GB en memoria por petición. */
 export const MAX_BYTES_POR_PETICION = 50 * 1024 * 1024;
+const LARGO_NOMBRE = 255;
 
 const DEMASIADO_GRANDE = `La petición pasa de ${MAX_BYTES_POR_PETICION / 1024 / 1024} MB`;
 
@@ -89,6 +90,15 @@ const recibir = multer({
       listo(
         new BadRequestException(
           `Solo se aceptan archivos .xml: "${archivo.originalname}"`,
+        ),
+      );
+      return;
+    }
+    // Tope de `carga_archivos.nombre` y de casi cualquier sistema de archivos.
+    if ([...archivo.originalname].length > LARGO_NOMBRE) {
+      listo(
+        new BadRequestException(
+          `Nombre de archivo de más de ${LARGO_NOMBRE} caracteres`,
         ),
       );
       return;

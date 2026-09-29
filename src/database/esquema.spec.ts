@@ -22,6 +22,7 @@ const TABLAS_DOMINIO = [
   'conciliaciones',
   'bitacora',
   'user_company_roles',
+  'carga_archivos',
 ] as const;
 
 const TODAS_LAS_TABLAS = ['companies', 'users', ...TABLAS_DOMINIO] as const;
@@ -76,7 +77,7 @@ async function idEmpresa(qr: QueryRunner, rfc: string): Promise<string> {
 }
 
 describe('migración inicial', () => {
-  it('crea las ocho tablas', async () => {
+  it('crea todas las tablas', async () => {
     const tablas = await filas<{ table_name: string }>(
       ds,
       `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`,

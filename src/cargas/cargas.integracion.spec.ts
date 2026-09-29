@@ -1,9 +1,10 @@
+import { getQueueToken } from '@nestjs/bullmq';
 import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { request as peticionHttp } from 'http';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -13,6 +14,7 @@ import { DataSource } from 'typeorm';
 import { AuthModule } from '../auth/auth.module';
 import type { JwtPayload } from '../auth/tipos';
 import { validateEnv } from '../config/env.validation';
+import { ColasModule } from '../colas/colas.module';
 import { ContextoEmpresaModule } from '../database/contexto-empresa.module';
 import { opcionesDataSource } from '../database/data-source';
 import { ENTIDADES } from '../database/entidades';
@@ -25,18 +27,37 @@ import {
   urlAppDePruebas,
   urlDePruebas,
 } from '../database/testing/base-de-pruebas';
+import { TransaccionEmpresa } from '../database/transaccion-empresa';
 import { CargasModule } from './cargas.module';
 import {
   MAX_ARCHIVOS,
   MAX_BYTES_POR_ARCHIVO,
   MAX_BYTES_POR_PETICION,
 } from './archivos-xml.guard';
-import type { EstadoDeCarga, RespuestaDeCarga } from './cargas.service';
+import {
+  type EstadoDeCarga,
+  hashDelLote,
+  type RespuestaDeCarga,
+} from './cargas.service';
+import { COLA_CARGAS, ColaCargas, type TrabajoDeCarga } from './cola-cargas';
+import { MENSAJE_FALLIDA, ProcesadorCargas } from './procesador-cargas';
+import type { Queue } from 'bullmq';
 
 /**
- * CU-06 de punta a punta: HTTP, guards globales, transacción de empresa como
- * cuadra_app (RLS activo) y Postgres real. XML sintéticos de CU-05.
+ * CU-06, CU-07 y CU-08 de punta a punta: HTTP, guards globales, transacción
+ * de empresa como cuadra_app (RLS activo), Postgres real y la cola en el
+ * Redis del compose, con el worker corriendo en el mismo proceso. XML
+ * sintéticos de CU-05.
  */
+
+// Esperas cortas para que los reintentos no alarguen la corrida, y un
+// prefijo propio: si no, el worker de la api en Docker tomaría estos jobs y
+// los buscaría en la base de desarrollo. Jest da a cada archivo su copia de
+// process.env.
+process.env.COLA_INTENTOS = '5';
+process.env.COLA_ESPERA_MS = '20';
+process.env.COLA_PREFIJO = 'cuadra_test';
+jest.setTimeout(30_000);
 
 const ANA = 'ana.reyes@fdb.mx'; // admin en Ferretería
 const LUIS = 'luis.mendoza@fdb.mx'; // contador en Ferretería
@@ -92,10 +113,16 @@ beforeAll(async () => {
         namingStrategy: new SnakeNamingStrategy(),
       }),
       ContextoEmpresaModule,
+      ColasModule,
       AuthModule,
       CargasModule,
     ],
   }).compile();
+
+  // Jobs de una corrida anterior apuntan a cargas que ya se truncaron.
+  await modulo
+    .get<Queue>(getQueueToken(COLA_CARGAS))
+    .obliterate({ force: true });
 
   app = modulo.createNestApplication();
   app.useGlobalPipes(
@@ -215,6 +242,76 @@ async function subirChunked(
   });
 }
 
+const TERMINALES = new Set(['procesada', 'con_errores', 'fallida']);
+
+async function consultar(token: string, id: string): Promise<EstadoDeCarga> {
+  const res = await request(app.getHttpServer())
+    .get(`/cargas/${id}`)
+    .auth(token, { type: 'bearer' })
+    .expect(200);
+  return res.body as EstadoDeCarga;
+}
+
+/** Poll al GET hasta que la carga termine, o truena a los 20 s. */
+async function esperarFin(token: string, id: string): Promise<EstadoDeCarga> {
+  const limite = Date.now() + 20_000;
+  for (;;) {
+    const carga = await consultar(token, id);
+    if (TERMINALES.has(carga.estado)) return carga;
+    if (Date.now() > limite) {
+      throw new Error(`La carga ${id} sigue en '${carga.estado}'`);
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
+/** POST, comprueba el 202 en 'pendiente' y espera a que el worker termine. */
+async function cargarYEsperar(
+  token: string,
+  archivos: Archivo[],
+): Promise<EstadoDeCarga> {
+  const res = await subir(token, archivos).expect(202);
+  const recibida = res.body as RespuestaDeCarga;
+  expect(recibida).toMatchObject({ estado: 'pendiente', yaExistia: false });
+  return esperarFin(token, recibida.id);
+}
+
+/**
+ * Falla de infraestructura real: un trigger que hace RAISE EXCEPTION al
+ * insertar el CFDI con ese UUID. Con `veces`, solo las primeras; la cuenta va
+ * en una secuencia porque nextval no se revierte con el rollback del intento.
+ */
+async function conFalla<T>(
+  uuid: string,
+  veces: number | 'siempre',
+  cuerpo: () => Promise<T>,
+): Promise<T> {
+  const condicion =
+    veces === 'siempre' ? 'true' : `nextval('falla_cu08') <= ${veces}`;
+  await ds.query('CREATE SEQUENCE falla_cu08');
+  await ds.query('GRANT USAGE ON SEQUENCE falla_cu08 TO cuadra_app');
+  await ds.query(`
+    CREATE FUNCTION falla_cu08() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN
+      IF ${condicion} THEN
+        RAISE EXCEPTION 'falla simulada de la base';
+      END IF;
+      RETURN NEW;
+    END $$`);
+  await ds.query(
+    `CREATE TRIGGER falla_cu08 BEFORE INSERT ON cfdi
+       FOR EACH ROW WHEN (NEW.uuid_fiscal = '${uuid}')
+       EXECUTE FUNCTION falla_cu08()`,
+  );
+  try {
+    return await cuerpo();
+  } finally {
+    await ds.query('DROP TRIGGER falla_cu08 ON cfdi');
+    await ds.query('DROP FUNCTION falla_cu08()');
+    await ds.query('DROP SEQUENCE falla_cu08');
+  }
+}
+
 function motivoDe(carga: EstadoDeCarga, archivo: string): string {
   const resultado = carga.resultados.find((r) => r.archivo === archivo);
   if (resultado?.resultado !== 'error') {
@@ -235,22 +332,70 @@ async function enCfdi(uuids: string[]) {
   );
 }
 
-describe('POST /cargas/cfdi (CU-06, CU-07)', () => {
-  it('lote de 3 con 1 inválido: 201, 2 entran y el fallo se reporta', async () => {
+describe('POST /cargas/cfdi en segundo plano (CU-08)', () => {
+  it('responde 202 en pendiente y el GET llega a procesada', async () => {
+    const token = await tokenSesion(LUIS, FERRETERIA);
+    const pue = cfdi('pue-valido.xml');
+
+    const carga = await cargarYEsperar(token, [
+      { nombre: 'pue.xml', contenido: pue.xml },
+    ]);
+
+    expect(carga).toMatchObject({
+      estado: 'procesada',
+      totalRegistros: 1,
+      registrosOk: 1,
+      resultados: [{ archivo: 'pue.xml', resultado: 'nuevo' }],
+      errorMensaje: null,
+    });
+    expect(await enCfdi([pue.uuid])).toEqual([
+      expect.objectContaining({ carga_id: carga.id }),
+    ]);
+  });
+
+  // Si se encolara antes del COMMIT, el worker podría tomar el job y no ver
+  // la carga. Esa carrera casi nunca se da en una corrida, así que se mira
+  // directo: cuando se llama a encolar(), la carga ya tiene que ser visible
+  // desde otra conexión.
+  it('encola después del COMMIT: la carga ya es visible desde otra conexión', async () => {
+    const cola = app.get(ColaCargas);
+    // Antes de espiar: después, cola.encolar ya es el espía. El tipo va
+    // explícito porque con strictBindCallApply apagado bind devuelve any.
+    const original: (trabajo: TrabajoDeCarga) => Promise<void> =
+      cola.encolar.bind(cola) as (trabajo: TrabajoDeCarga) => Promise<void>;
+    const visibles: boolean[] = [];
+    const espia = jest
+      .spyOn(cola, 'encolar')
+      .mockImplementation(async (trabajo: TrabajoDeCarga) => {
+        const [fila] = await filas(ds, 'SELECT 1 FROM cargas WHERE id = $1', [
+          trabajo.cargaId,
+        ]);
+        visibles.push(fila !== undefined);
+        return original(trabajo);
+      });
+    try {
+      await cargarYEsperar(await tokenSesion(ANA, FERRETERIA), [
+        { nombre: 'pue.xml', contenido: cfdi('pue-valido.xml').xml },
+      ]);
+    } finally {
+      espia.mockRestore();
+    }
+    expect(visibles).toEqual([true]);
+  });
+
+  it('lote de 3 con 1 inválido: termina en con_errores con su motivo, 2 entran', async () => {
     const pue = cfdi('pue-valido.xml');
     const descuento = cfdi('con-descuento.xml');
     const malo = cfdi('rechazo-total-no-cuadra.xml');
 
-    const res = await subir(await tokenSesion(LUIS, FERRETERIA), [
+    const carga = await cargarYEsperar(await tokenSesion(LUIS, FERRETERIA), [
       { nombre: 'pue.xml', contenido: pue.xml },
       { nombre: 'malo.xml', contenido: malo.xml },
       { nombre: 'descuento.xml', contenido: descuento.xml },
-    ]).expect(201);
+    ]);
 
-    const carga = res.body as RespuestaDeCarga;
     expect(carga).toMatchObject({
-      estado: 'procesada',
-      yaExistia: false,
+      estado: 'con_errores',
       totalRegistros: 3,
       registrosOk: 2,
       registrosExistentes: 0,
@@ -262,54 +407,278 @@ describe('POST /cargas/cfdi (CU-06, CU-07)', () => {
       ['descuento.xml', 'nuevo'],
     ]);
     expect(motivoDe(carga, 'malo.xml')).toMatch(/Total no cuadra/);
-
     const guardados = await enCfdi([pue.uuid, descuento.uuid, malo.uuid]);
     expect(guardados.map((c) => c.uuid_fiscal).sort()).toEqual(
       [pue.uuid, descuento.uuid].sort(),
     );
-    expect(guardados.every((c) => c.carga_id === carga.id)).toBe(true);
+  });
+
+  it('todos los XML inválidos: con_errores, no fallida', async () => {
+    const carga = await cargarYEsperar(await tokenSesion(ANA, FERRETERIA), [
+      { nombre: 'v33.xml', contenido: cfdi('rechazo-version-33.xml').xml },
+      { nombre: 'rfc.xml', contenido: cfdi('rechazo-rfc-invalido.xml').xml },
+    ]);
+
+    expect(carga).toMatchObject({
+      estado: 'con_errores',
+      registrosOk: 0,
+      registrosError: 2,
+      errorMensaje: null,
+    });
+  });
+
+  it('un archivo con bytes nulos es error del archivo, no tumba al lote', async () => {
+    const bueno = cfdi('pue-valido.xml');
+    const carga = await cargarYEsperar(await tokenSesion(ANA, FERRETERIA), [
+      { nombre: 'nulo.xml', contenido: Buffer.from('<x>\0</x>') },
+      { nombre: 'bueno.xml', contenido: bueno.xml },
+    ]);
+
+    expect(carga).toMatchObject({ estado: 'con_errores', registrosOk: 1 });
+    expect(motivoDe(carga, 'nulo.xml')).toMatch(/bytes nulos/);
   });
 
   it('un PPD queda en parcialidades', async () => {
     const ppd = cfdi('ppd-valido.xml');
-    await subir(await tokenSesion(ANA, FERRETERIA), [
+    await cargarYEsperar(await tokenSesion(ANA, FERRETERIA), [
       { nombre: 'ppd.xml', contenido: ppd.xml },
-    ]).expect(201);
+    ]);
 
     expect(await enCfdi([ppd.uuid])).toEqual([
       expect.objectContaining({ estado: 'parcialidades' }),
     ]);
   });
 
-  it('si fallan todos, la carga queda fallida', async () => {
-    const res = await subir(await tokenSesion(ANA, FERRETERIA), [
-      { nombre: 'v33.xml', contenido: cfdi('rechazo-version-33.xml').xml },
-      { nombre: 'rfc.xml', contenido: cfdi('rechazo-rfc-invalido.xml').xml },
-    ]).expect(201);
+  describe('reintentos', () => {
+    it('falla de infraestructura en los 2 primeros intentos y éxito en el tercero: procesada, sin duplicados', async () => {
+      const primero = cfdi('pue-valido.xml');
+      const segundo = cfdi('con-descuento.xml');
 
-    expect(res.body).toMatchObject({
-      estado: 'fallida',
-      registrosOk: 0,
-      registrosExistentes: 0,
-      registrosError: 2,
+      // Falla el segundo archivo: el primero ya había entrado en ese
+      // intento, así que un rollback incompleto lo dejaría duplicado.
+      const carga = await conFalla(segundo.uuid, 2, async () =>
+        cargarYEsperar(await tokenSesion(ANA, FERRETERIA), [
+          { nombre: 'primero.xml', contenido: primero.xml },
+          { nombre: 'segundo.xml', contenido: segundo.xml },
+        ]),
+      );
+
+      expect(carga).toMatchObject({
+        estado: 'procesada',
+        registrosOk: 2,
+        registrosError: 0,
+      });
+      const guardados = await enCfdi([primero.uuid, segundo.uuid]);
+      expect(guardados.map((c) => c.uuid_fiscal).sort()).toEqual(
+        [primero.uuid, segundo.uuid].sort(),
+      );
+    });
+
+    it('falla en todos los intentos: fallida con mensaje genérico y cero CFDI', async () => {
+      const primero = cfdi('pue-valido.xml');
+      const segundo = cfdi('con-descuento.xml');
+
+      const carga = await conFalla(segundo.uuid, 'siempre', async () =>
+        cargarYEsperar(await tokenSesion(ANA, FERRETERIA), [
+          { nombre: 'primero.xml', contenido: primero.xml },
+          { nombre: 'segundo.xml', contenido: segundo.xml },
+        ]),
+      );
+
+      expect(carga).toMatchObject({
+        estado: 'fallida',
+        totalRegistros: 2,
+        registrosOk: 0,
+        registrosError: 0,
+        resultados: [],
+        // Sin el detalle de la base: ese va al log.
+        errorMensaje: MENSAJE_FALLIDA,
+      });
+      const [{ n }] = await filas<{ n: number }>(
+        ds,
+        'SELECT count(*)::int AS n FROM cfdi WHERE carga_id = $1',
+        [carga.id],
+      );
+      expect(n).toBe(0);
     });
   });
 
-  describe('lote repetido (CU-07)', () => {
+  describe('el worker respeta RLS', () => {
+    it('con la empresa A fijada no puede escribir un CFDI de B', async () => {
+      const transaccion = app.get(TransaccionEmpresa);
+      const intruso = cfdi('pue-valido.xml');
+
+      await expect(
+        transaccion.ejecutar(de(empresas, FERRETERIA), (manager) =>
+          manager.query(
+            `INSERT INTO cfdi (company_id, uuid_fiscal, rfc_emisor, rfc_receptor,
+               fecha_emision, tipo_comprobante, subtotal, total, xml_raw)
+             VALUES ($1, $2, 'FDB190215QK4', 'TCU170830R52',
+               '2026-09-15T10:30:00', 'I', 1, 1, '{"_xml": ""}')`,
+            [de(empresas, TRANSPORTES), intruso.uuid],
+          ),
+        ),
+      ).rejects.toThrow(/row-level security/);
+      expect(await enCfdi([intruso.uuid])).toEqual([]);
+    });
+
+    it('un job con la empresa B no toca la carga de A', async () => {
+      // Carga de Ferretería en espera, creada por fuera para que ningún job
+      // de la cola la tome primero.
+      const [{ id: cargaId }] = await filas<{ id: string }>(
+        ds,
+        `INSERT INTO cargas (company_id, tipo, estado, nombre_archivo,
+           hash_archivo, total_registros)
+         VALUES ($1, 'cfdi', 'pendiente', 'a.xml', $2, 1) RETURNING id`,
+        [de(empresas, FERRETERIA), randomUUID().replace(/-/g, '').repeat(2)],
+      );
+      const pue = cfdi('pue-valido.xml');
+      await ds.query(
+        `INSERT INTO carga_archivos (company_id, carga_id, orden, nombre, hash, contenido)
+         VALUES ($1, $2, 0, 'a.xml', $3, $4)`,
+        [de(empresas, FERRETERIA), cargaId, 'a'.repeat(64), pue.xml],
+      );
+
+      await app
+        .get(ProcesadorCargas)
+        .procesar({ cargaId, companyId: de(empresas, TRANSPORTES) });
+
+      const [carga] = await filas<{ estado: string }>(
+        ds,
+        'SELECT estado FROM cargas WHERE id = $1',
+        [cargaId],
+      );
+      expect(carga.estado).toBe('pendiente');
+      expect(await enCfdi([pue.uuid])).toEqual([]);
+    });
+  });
+});
+
+describe('resubir un lote que no terminó lo reencola (CU-08)', () => {
+  it('fallida: vuelve a pendiente, termina procesada, mismo cargaId y sin duplicados', async () => {
+    const token = await tokenSesion(ANA, FERRETERIA);
+    const primero = cfdi('pue-valido.xml');
+    const segundo = cfdi('con-descuento.xml');
+    const lote = [
+      { nombre: 'primero.xml', contenido: primero.xml },
+      { nombre: 'segundo.xml', contenido: segundo.xml },
+    ];
+    const fallida = await conFalla(segundo.uuid, 'siempre', () =>
+      cargarYEsperar(token, lote),
+    );
+    expect(fallida.estado).toBe('fallida');
+
+    // Ya sin la falla: la base "se recuperó".
+    const resubida = (await subir(token, lote).expect(200))
+      .body as RespuestaDeCarga;
+    expect(resubida).toMatchObject({
+      id: fallida.id,
+      yaExistia: true,
+      estado: 'pendiente',
+      registrosOk: 0,
+      registrosError: 0,
+      registrosExistentes: 0,
+      resultados: [],
+      errorMensaje: null,
+    });
+
+    const final = await esperarFin(token, fallida.id);
+    expect(final).toMatchObject({ estado: 'procesada', registrosOk: 2 });
+    const guardados = await enCfdi([primero.uuid, segundo.uuid]);
+    expect(guardados.map((c) => c.uuid_fiscal).sort()).toEqual(
+      [primero.uuid, segundo.uuid].sort(),
+    );
+  });
+
+  it('en cola: un solo job, y se procesa una vez', async () => {
+    const token = await tokenSesion(ANA, FERRETERIA);
+    const lote = [{ nombre: 'a.xml', contenido: cfdi('pue-valido.xml').xml }];
+    const procesador = app.get(ProcesadorCargas);
+    const espia = jest.spyOn(procesador, 'procesar');
+    // Worker en pausa: el job se queda en espera mientras se resube.
+    await procesador.worker.pause();
+    try {
+      const recibida = (await subir(token, lote).expect(202))
+        .body as RespuestaDeCarga;
+      const resubida = (await subir(token, lote).expect(200))
+        .body as RespuestaDeCarga;
+      expect(resubida).toMatchObject({
+        id: recibida.id,
+        yaExistia: true,
+        estado: 'pendiente',
+      });
+
+      const cola = app.get<Queue>(getQueueToken(COLA_CARGAS));
+      const enEspera = await cola.getJobs(['waiting', 'paused', 'delayed']);
+      expect(enEspera.map((j) => j.id)).toEqual([recibida.id]);
+
+      await procesador.worker.resume();
+      await esperarFin(token, recibida.id);
+      // Si hubiera un segundo job, correría justo después del primero.
+      await new Promise((r) => setTimeout(r, 300));
+      const llamadas = espia.mock.calls.filter(
+        ([trabajo]) => trabajo.cargaId === recibida.id,
+      );
+      expect(llamadas).toHaveLength(1);
+    } finally {
+      await procesador.worker.resume();
+      espia.mockRestore();
+    }
+  });
+
+  it('atorada en procesando sin job: resubir la termina', async () => {
+    // Como si el worker hubiera muerto a media carga: 'procesando' en la
+    // base y ningún job en Redis.
+    const pue = cfdi('pue-valido.xml');
+    const hash = createHash('sha256').update(pue.xml).digest('hex');
+    const [{ id: cargaId }] = await filas<{ id: string }>(
+      ds,
+      `INSERT INTO cargas (company_id, tipo, estado, nombre_archivo,
+         hash_archivo, total_registros)
+       VALUES ($1, 'cfdi', 'procesando', 'atorada.xml', $2, 1) RETURNING id`,
+      [de(empresas, FERRETERIA), hashDelLote([hash])],
+    );
+    await ds.query(
+      `INSERT INTO carga_archivos (company_id, carga_id, orden, nombre, hash, contenido)
+       VALUES ($1, $2, 0, 'atorada.xml', $3, $4)`,
+      [de(empresas, FERRETERIA), cargaId, hash, pue.xml],
+    );
+
+    const token = await tokenSesion(ANA, FERRETERIA);
+    const resubida = (
+      await subir(token, [
+        { nombre: 'atorada.xml', contenido: pue.xml },
+      ]).expect(200)
+    ).body as RespuestaDeCarga;
+    expect(resubida).toMatchObject({
+      id: cargaId,
+      yaExistia: true,
+      estado: 'procesando',
+    });
+
+    expect(await esperarFin(token, cargaId)).toMatchObject({
+      estado: 'procesada',
+      registrosOk: 1,
+    });
+    expect(await enCfdi([pue.uuid])).toHaveLength(1);
+  });
+});
+
+describe('POST /cargas/cfdi, idempotencia (CU-07)', () => {
+  describe('lote repetido', () => {
     it('la segunda vez: 200, yaExistia, la carga original y nada crece', async () => {
       const token = await tokenSesion(ANA, FERRETERIA);
       const lote = [
         { nombre: 'a.xml', contenido: cfdi('pue-valido.xml').xml },
         { nombre: 'b.xml', contenido: cfdi('con-descuento.xml').xml },
       ];
-      const primera = (await subir(token, lote).expect(201))
-        .body as RespuestaDeCarga;
+      const original = await cargarYEsperar(token, lote);
       const antes = await conteos();
 
       const segunda = (await subir(token, lote).expect(200))
         .body as RespuestaDeCarga;
 
-      expect(segunda).toEqual({ ...primera, yaExistia: true });
+      expect(segunda).toEqual({ ...original, yaExistia: true });
       expect(await conteos()).toEqual(antes);
     });
 
@@ -317,41 +686,38 @@ describe('POST /cargas/cfdi (CU-06, CU-07)', () => {
       const token = await tokenSesion(ANA, FERRETERIA);
       const a = { nombre: 'a.xml', contenido: cfdi('pue-valido.xml').xml };
       const b = { nombre: 'b.xml', contenido: cfdi('con-descuento.xml').xml };
-      const primera = (await subir(token, [a, b]).expect(201))
-        .body as RespuestaDeCarga;
+      const original = await cargarYEsperar(token, [a, b]);
       const antes = await conteos();
 
       const segunda = (await subir(token, [b, a]).expect(200))
         .body as RespuestaDeCarga;
 
-      expect(segunda).toEqual({ ...primera, yaExistia: true });
+      expect(segunda).toEqual({ ...original, yaExistia: true });
       expect(await conteos()).toEqual(antes);
     });
   });
 
-  describe('CFDI que ya estaba en la empresa (CU-07)', () => {
+  describe('CFDI que ya estaba en la empresa', () => {
     // También prueba el savepoint: el ya cargado va primero, y sin ROLLBACK
     // TO SAVEPOINT su 23505 abortaría la transacción y el nuevo no entraría.
-    it('lote nuevo con 1 ya cargado + 1 nuevo: 201, 1 nuevo, 1 ya_existia, procesada', async () => {
+    it('lote nuevo con 1 ya cargado + 1 nuevo: 1 nuevo, 1 ya_existia, procesada', async () => {
       const token = await tokenSesion(ANA, FERRETERIA);
       const previo = cfdi('pue-valido.xml');
-      await subir(token, [
+      await cargarYEsperar(token, [
         { nombre: 'previo.xml', contenido: previo.xml },
-      ]).expect(201);
+      ]);
 
       // Mismo UUID, otro contenido (otro folio): otro lote, otro hash.
       const repetido = previo.xml.replace('Folio="1001"', 'Folio="2001"');
       const nuevo = cfdi('usd-tipo-cambio.xml');
 
-      const res = await subir(token, [
+      const carga = await cargarYEsperar(token, [
         { nombre: 'repetido.xml', contenido: repetido },
         { nombre: 'nuevo.xml', contenido: nuevo.xml },
-      ]).expect(201);
+      ]);
 
-      const carga = res.body as RespuestaDeCarga;
       expect(carga).toMatchObject({
         estado: 'procesada',
-        yaExistia: false,
         totalRegistros: 2,
         registrosOk: 1,
         registrosExistentes: 1,
@@ -369,21 +735,21 @@ describe('POST /cargas/cfdi (CU-06, CU-07)', () => {
       ]);
     });
 
-    it('si todos ya existían, la carga es procesada, no fallida', async () => {
+    it('si todos ya existían, la carga es procesada', async () => {
       const token = await tokenSesion(ANA, FERRETERIA);
       const previo = cfdi('pue-valido.xml');
-      await subir(token, [
+      await cargarYEsperar(token, [
         { nombre: 'previo.xml', contenido: previo.xml },
-      ]).expect(201);
+      ]);
 
-      const res = await subir(token, [
+      const carga = await cargarYEsperar(token, [
         {
           nombre: 'otra-vez.xml',
           contenido: previo.xml.replace('Folio="1001"', 'Folio="3001"'),
         },
-      ]).expect(201);
+      ]);
 
-      expect(res.body).toMatchObject({
+      expect(carga).toMatchObject({
         estado: 'procesada',
         registrosOk: 0,
         registrosExistentes: 1,
@@ -395,16 +761,16 @@ describe('POST /cargas/cfdi (CU-06, CU-07)', () => {
       const mismo = cfdi('pue-valido.xml');
       const archivo = [{ nombre: 'mismo.xml', contenido: mismo.xml }];
 
-      await subir(await tokenSesion(ANA, FERRETERIA), archivo).expect(201);
-      const res = await subir(
+      await cargarYEsperar(await tokenSesion(ANA, FERRETERIA), archivo);
+      const carga = await cargarYEsperar(
         await tokenSesion(CARMEN, TRANSPORTES),
         archivo,
-      ).expect(201);
+      );
 
-      expect(res.body).toMatchObject({ yaExistia: false, registrosOk: 1 });
+      expect(carga).toMatchObject({ estado: 'procesada', registrosOk: 1 });
       const guardados = await filas<{ company_id: string }>(
         ds,
-        'SELECT company_id FROM cfdi WHERE uuid_fiscal = $1 ORDER BY company_id',
+        'SELECT company_id FROM cfdi WHERE uuid_fiscal = $1',
         [mismo.uuid],
       );
       expect(guardados.map((g) => g.company_id).sort()).toEqual(
@@ -412,41 +778,9 @@ describe('POST /cargas/cfdi (CU-06, CU-07)', () => {
       );
     });
   });
+});
 
-  it('un error de base que no es del archivo aborta todo: 500 y cero filas', async () => {
-    const bueno = cfdi('pue-valido.xml');
-    const raro = cfdi('con-descuento.xml');
-    // Un error real de Postgres con un SQLSTATE que no es del archivo
-    // (P0001), solo para el segundo CFDI. Antes esto se provocaba con una
-    // Serie de 30, pero desde CU-07 el lector la rechaza con motivo.
-    await ds.query(`
-      CREATE FUNCTION falla_simulada_cu07() RETURNS trigger
-      LANGUAGE plpgsql AS $$
-      BEGIN
-        RAISE EXCEPTION 'falla simulada de la base';
-      END $$`);
-    await ds.query(
-      `CREATE TRIGGER falla_simulada_cu07 BEFORE INSERT ON cfdi
-         FOR EACH ROW WHEN (NEW.uuid_fiscal = '${raro.uuid}')
-         EXECUTE FUNCTION falla_simulada_cu07()`,
-    );
-    try {
-      const antes = await conteos();
-
-      await subir(await tokenSesion(ANA, FERRETERIA), [
-        { nombre: 'bueno.xml', contenido: bueno.xml },
-        { nombre: 'raro.xml', contenido: raro.xml },
-      ]).expect(500);
-
-      // Ni la fila de la carga ni el primer CFDI, que sí había entrado.
-      expect(await conteos()).toEqual(antes);
-      expect(await enCfdi([bueno.uuid, raro.uuid])).toEqual([]);
-    } finally {
-      await ds.query('DROP TRIGGER falla_simulada_cu07 ON cfdi');
-      await ds.query('DROP FUNCTION falla_simulada_cu07()');
-    }
-  });
-
+describe('POST /cargas/cfdi, acceso y límites (CU-06)', () => {
   it('un revisor no sube: 403', async () => {
     await subir(await tokenSesion(JORGE, TRANSPORTES), [
       { nombre: 'pue.xml', contenido: cfdi('pue-valido.xml').xml },
@@ -512,6 +846,13 @@ describe('POST /cargas/cfdi (CU-06, CU-07)', () => {
       expect(cuerpo).toMatch(/50 MB/);
     });
 
+    it('un nombre de archivo de más de 255 caracteres', async () => {
+      const res = await subir(await tokenSesion(ANA, FERRETERIA), [
+        { nombre: `${'n'.repeat(252)}.xml`, contenido: '<x/>' },
+      ]).expect(400);
+      expect(mensaje(res)).toMatch(/255 caracteres/);
+    });
+
     it('sin archivos', async () => {
       const res = await request(app.getHttpServer())
         .post('/cargas/cfdi')
@@ -522,14 +863,14 @@ describe('POST /cargas/cfdi (CU-06, CU-07)', () => {
   });
 });
 
-describe('GET /cargas/:id (CU-06, CU-07)', () => {
+describe('GET /cargas/:id (CU-06, CU-07, CU-08)', () => {
   let cargaTransportes: string;
 
   beforeAll(async () => {
-    const res = await subir(await tokenSesion(CARMEN, TRANSPORTES), [
+    const carga = await cargarYEsperar(await tokenSesion(CARMEN, TRANSPORTES), [
       { nombre: 'transportes.xml', contenido: cfdi('pue-valido.xml').xml },
-    ]).expect(201);
-    cargaTransportes = (res.body as EstadoDeCarga).id;
+    ]);
+    cargaTransportes = carga.id;
   });
 
   it('su empresa ve estado, contadores y resultado por archivo: 200', async () => {
@@ -546,6 +887,7 @@ describe('GET /cargas/:id (CU-06, CU-07)', () => {
       registrosExistentes: 0,
       registrosError: 0,
       resultados: [{ archivo: 'transportes.xml', resultado: 'nuevo' }],
+      errorMensaje: null,
     });
   });
 

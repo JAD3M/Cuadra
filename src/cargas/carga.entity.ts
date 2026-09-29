@@ -34,10 +34,12 @@ export type ResultadoDeArchivo =
   'ck_cargas_conteos_no_negativos',
   'total_registros >= 0 AND registros_ok >= 0 AND registros_error >= 0 AND registros_existentes >= 0',
 )
-// Cada archivo cae en exactamente un contador (CU-07).
+// Cada archivo cae en exactamente un contador (CU-07). Mientras la carga no
+// termina, o si terminó por falla de infraestructura, los contadores solo
+// pueden ir por debajo del total (CU-08).
 @Check(
   'ck_cargas_total_cuadra',
-  'total_registros = registros_ok + registros_error + registros_existentes',
+  `(estado IN ('procesada', 'con_errores') AND total_registros = registros_ok + registros_error + registros_existentes) OR (estado NOT IN ('procesada', 'con_errores') AND registros_ok + registros_error + registros_existentes <= total_registros)`,
 )
 export class Carga extends EntidadBase {
   @Column({ type: 'uuid' })

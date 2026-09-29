@@ -1,6 +1,8 @@
 import {
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Post,
@@ -29,11 +31,13 @@ export class CargasController {
   constructor(private readonly cargas: CargasService) {}
 
   /**
-   * CU-06 y CU-07. 201 con la carga nueva, aunque fallen archivos: cada uno
-   * trae su resultado. 200 con la carga original y `yaExistia` si el lote
-   * ya se había cargado.
+   * CU-06, CU-07 y CU-08. 202 con la carga nueva en 'pendiente': el
+   * resultado por archivo se consulta con GET cuando el worker termina. 200
+   * con la carga original, en el estado en que esté, y `yaExistia` si el
+   * lote ya se había cargado.
    */
   @Post('cfdi')
+  @HttpCode(HttpStatus.ACCEPTED)
   @Roles('admin', 'contador')
   @UseGuards(ArchivosXmlGuard)
   @UseInterceptors(YaExistiaInterceptor)

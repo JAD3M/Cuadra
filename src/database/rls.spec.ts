@@ -25,6 +25,7 @@ const TABLAS_CON_RLS = [
   'movimientos',
   'conciliaciones',
   'bitacora',
+  'carga_archivos',
 ] as const;
 
 /** Dueño del esquema: migra, siembra y cuenta sin RLS. */
@@ -116,7 +117,7 @@ describe('RLS (CU-04b)', () => {
     });
   });
 
-  it('activa y fuerza RLS en las cinco tablas de dominio', async () => {
+  it('activa y fuerza RLS en todas las tablas de dominio', async () => {
     const tablas = await filas<{
       relname: string;
       relrowsecurity: boolean;

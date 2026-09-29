@@ -646,6 +646,129 @@ arriba.
 
 ### 28 sep 2026
 
+- **CU-08 terminado: procesamiento en segundo plano.**
+  - **Verificación:** 120 tests en verde (110 + 10), estables en dos
+    corridas y sin handles abiertos. Lint sin errores (sigue el warning de
+    `main.ts:34`), build ok, `migration:generate --check` sin cambios.
+    `docker compose up -d --build -V` + `/health` ok, con una carga real por
+    la cola: 202 en `pendiente` y `con_errores` 2 s después.
+  - **Decisión 1: los archivos en espera viven en Postgres
+    (`carga_archivos`), no en Redis.** El job solo lleva `{cargaId,
+    companyId}`. Motivo: Redis no tiene persistencia; si reinicia, un job
+    con los archivos adentro se pierde y la carga queda en `pendiente` para
+    siempre, sin error.
+  - **Decisión 2: cinco estados.** `pendiente`, `procesando`, `procesada`,
+    `con_errores` y `fallida`.
+    - `con_errores` = terminó con al menos un XML inválido.
+    - `fallida` = se agotaron los reintentos: es de infraestructura, nunca
+      por los XML.
+    - Motivo: mezclar las dos cosas escondía una caída del sistema detrás
+      de "tus XML venían mal", y al revés. Cambia la regla de CU-07: un lote
+      con todos los XML inválidos queda `con_errores`.
+    - La migración pasa a `con_errores` las cargas previas con errores,
+      incluidas las `fallida` de CU-06/07, que lo eran por sus XML.
+  - **POST (sigue síncrono):** límites, roles, hashes e idempotencia de
+    lote.
+    - Guarda los archivos en `carga_archivos` y crea la carga en
+      `pendiente` con `total = N`, todo en la transacción de la petición.
+    - Responde **202**; un lote repetido sigue en 200 `yaExistia`, en el
+      estado en que esté la original.
+  - **Encolar después del COMMIT.** `ContextoEmpresa.alConfirmar()`
+    registra acciones que el interceptor corre solo tras el commit, nunca
+    si hay rollback.
+    - Encolar antes deja que el worker tome el job y no vea la carga.
+    - Esa carrera casi no se da en una corrida: la mutación "encolar antes"
+      falló solo 1 de ~15 veces. Por eso hay un test determinista que
+      espía `encolar()` y comprueba desde otra conexión que la carga ya es
+      visible.
+  - **Regla: resubir un lote que no terminó lo reencola.** Es la salida
+    única para todo lo que puede dejar una carga sin terminar: Redis perdió
+    el job, el encolado falló después del commit (la petición respondió 500
+    con los datos ya confirmados), el worker murió a media carga, o se
+    agotaron los reintentos.
+    - `procesada` / `con_errores`: 200 `yaExistia`, sin cambios.
+    - `pendiente` / `procesando`: se reencola.
+    - `fallida`: vuelve a `pendiente` con contadores, `resultados` y
+      `procesada_at` en cero o vacíos, `error_mensaje` en NULL, y se
+      reencola. Los XML siguen en `carga_archivos` y el intento fallido no
+      dejó CFDI.
+    - La respuesta sigue diciendo `yaExistia: true`, con el estado actual.
+  - **`jobId` = `cargaId`.** Mientras el job está en espera, en backoff o
+    corriendo, reencolar no crea otro, así que nunca se procesa dos veces en
+    paralelo.
+    - Un job terminado sí bloquearía el id: BullMQ ignora el `add` aunque
+      el viejo esté en `failed`. Los completados se borran solos
+      (`removeOnComplete`); los fallidos se guardan para diagnosticar
+      (`removeOnFail: { count: 1000 }`), así que `encolar()` los quita
+      antes de agregar.
+  - **Worker (`ProcesadorCargas`)**, en el mismo proceso (D-01). No pasa por
+    el interceptor: usa `TransaccionEmpresa`, extraída del interceptor y
+    compartida con él, que fija `app.company_id` con el companyId del job
+    como `cuadra_app`.
+    - (a) Transacción corta que pasa a `procesando`, para que el GET lo
+      vea.
+    - (b) Todo o nada: savepoints y clasificación de CU-06/07, estado final
+      y commit. Si (b) lanza, rollback completo y el reintento empieza
+      limpio.
+    - Errores por archivo no son fallos del job; todo lo demás sí.
+  - **Reintentos:** `COLA_INTENTOS` (5) con backoff exponencial desde
+    `COLA_ESPERA_MS` (1000), validados con Zod. En el último intento
+    fallido, la carga pasa a `fallida` con un `error_mensaje` genérico; el
+    detalle va al log.
+  - **`COLA_PREFIJO`**, agregado a lo pedido: los tests usan
+    `cuadra_test`. Sin él, el worker de la api en Docker tomaba los jobs de
+    los tests y los buscaba en la base de desarrollo.
+  - **Migración `ProcesamientoEnCola1790641338024`:**
+    - `carga_archivos` con RLS, FORCE, política y `GRANT SELECT, INSERT`,
+      sin UPDATE ni DELETE.
+    - `ck_cargas_estado` con los 5 estados.
+    - `ck_cargas_total_cuadra` exacto solo en `procesada` y `con_errores`;
+      en los demás estados, `ok + error + existentes <= total`.
+    - El `down` se detiene si hay cargas que no cumplirían la suma exacta
+      de CU-07.
+    - `carga_archivos` entró a las listas de `esquema.spec` y `rls.spec`,
+      que vigilan la regla de CLAUDE.md.
+  - **Archivos con byte 0:** `text` no admite NUL, así que `contenido`
+    queda NULL y el worker lo reporta como error del archivo, sin tumbar al
+    lote. Nombre de archivo de más de 255 caracteres → 400.
+  - **Tests** con el Redis del compose:
+    - 202 → `procesada`.
+    - `con_errores` con motivo, también cuando todos son inválidos.
+    - Bytes nulos.
+    - Falla de infraestructura en 2 intentos y éxito en el tercero, sin
+      duplicados. El trigger falla el **segundo** archivo, así que un
+      rollback incompleto dejaría el primero duplicado. La cuenta va en una
+      secuencia, porque `nextval` no se revierte.
+    - Falla siempre → `fallida` con cero CFDI.
+    - RLS en el worker: con A fijada no se escribe un CFDI de B, y un job
+      con la empresa B no toca la carga de A.
+    - CU-06/07 adaptados: esperan el resultado con poll al GET.
+  - **Mutaciones** (código restaurado):
+    - Encolar antes del commit → rojo el test del espía.
+    - Sin `marcarFallida` → rojo el de `fallida`.
+    - Un commit por archivo en vez de (b) todo o nada → rojos los dos de
+      reintentos.
+    - Sin quitar el job fallido antes de reencolar → rojo el de resubir
+      una `fallida`: el jobId viejo bloquea y se queda en `pendiente`.
+    - Sin `jobId` → rojo el de "en cola": dos jobs.
+    - Sin reencolar `procesando` → rojo el de la carga atorada.
+  - **Tests de resubir:**
+    - `fallida` → resubir → `procesada`, mismo cargaId, sin duplicados.
+    - En cola, con el worker en pausa: un solo job en espera y
+      `procesar()` llamado una vez.
+    - Atorada en `procesando` sin job, creada a mano → resubir → termina.
+  - **Dependencias:** `@nestjs/bullmq`, `bullmq` e `ioredis`. BullMQ 6 la
+    trae como peer opcional y sin ella no arranca.
+  - **Límite de la regla:** hace falta que alguien resubra. Una carga
+    atorada no se destraba sola. Un reconciliador automático tendría que
+    leer las cargas de todas las empresas, y RLS hoy no lo permite.
+  - **Propuesta de continuidad: limpiar `carga_archivos`.** El XML de cada
+    CFDI que entró ya vive en `cfdi.xml_raw`, y `cuadra_app` no tiene
+    DELETE, así que el contenido se queda para siempre. Hay que decidir
+    cuándo se limpia (al terminar, o tras N días) y con qué permiso, sin
+    perder lo que necesita la regla de resubir: mientras una carga no
+    termina, sus XML tienen que seguir ahí.
+
 - **CU-07 terminado: carga idempotente.**
   - **Verificación:** 110 tests en verde (101 + 9), estables en dos corridas
     seguidas. Lint sin errores (sigue el warning de `main.ts:34`), build

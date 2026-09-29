@@ -3,6 +3,7 @@
 // como 'src/**/*.entity.ts' no resuelve igual en ts-node que en dist/.
 import { Bitacora } from '../bitacora/bitacora.entity';
 import { Carga } from '../cargas/carga.entity';
+import { CargaArchivo } from '../cargas/carga-archivo.entity';
 import { Cfdi } from '../cfdi/cfdi.entity';
 import { Company } from '../companies/company.entity';
 import { Conciliacion } from '../conciliacion/conciliacion.entity';
@@ -15,6 +16,7 @@ export const ENTIDADES = [
   User,
   UserCompanyRole,
   Carga,
+  CargaArchivo,
   Cfdi,
   Movimiento,
   Conciliacion,

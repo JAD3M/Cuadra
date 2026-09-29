@@ -5,9 +5,9 @@ import {
   type NestInterceptor,
 } from '@nestjs/common';
 import { defer, lastValueFrom, type Observable } from 'rxjs';
-import { DataSource } from 'typeorm';
 import type { SolicitudAutenticada } from '../common/decorators/decoradores';
 import { ContextoEmpresa } from './contexto-empresa';
+import { TransaccionEmpresa } from './transaccion-empresa';
 
 /**
  * Global. Corre después de los guards, así que `request.user` ya está
@@ -17,7 +17,7 @@ import { ContextoEmpresa } from './contexto-empresa';
 @Injectable()
 export class TransaccionEmpresaInterceptor implements NestInterceptor {
   constructor(
-    private readonly ds: DataSource,
+    private readonly transaccion: TransaccionEmpresa,
     private readonly contexto: ContextoEmpresa,
   ) {}
 
@@ -38,29 +38,21 @@ export class TransaccionEmpresaInterceptor implements NestInterceptor {
     companyId: string,
     next: CallHandler,
   ): Promise<unknown> {
-    const qr = this.ds.createQueryRunner();
-    await qr.connect();
-    try {
-      await qr.startTransaction();
-      // Parametrizado y local a la transacción: al COMMIT o ROLLBACK se
-      // borra solo, y la conexión vuelve al pool sin empresa.
-      await qr.query(`SELECT set_config('app.company_id', $1, true)`, [
-        companyId,
-      ]);
-      // La suscripción (lastValueFrom) queda dentro del run, no solo la
-      // llamada a handle(). Nest 11.2 hoy enlaza el contexto ya en handle()
-      // (AsyncResource.bind), pero eso es un detalle interno: si cambia,
-      // el handler correría fuera del run y ContextoEmpresa daría 500.
-      const resultado: unknown = await this.contexto.ejecutar(qr.manager, () =>
-        lastValueFrom(next.handle(), { defaultValue: undefined }),
-      );
-      await qr.commitTransaction();
-      return resultado;
-    } catch (error) {
-      if (qr.isTransactionActive) await qr.rollbackTransaction();
-      throw error;
-    } finally {
-      await qr.release();
-    }
+    const alConfirmar: Array<() => Promise<void>> = [];
+    const resultado: unknown = await this.transaccion.ejecutar(
+      companyId,
+      (manager) =>
+        // La suscripción (lastValueFrom) queda dentro del run, no solo la
+        // llamada a handle(). Nest 11.2 hoy enlaza el contexto ya en
+        // handle() (AsyncResource.bind), pero eso es un detalle interno: si
+        // cambia, el handler correría fuera del run y ContextoEmpresa daría
+        // 500.
+        this.contexto.ejecutar({ manager, alConfirmar }, () =>
+          lastValueFrom(next.handle(), { defaultValue: undefined }),
+        ),
+    );
+    // Ya hubo COMMIT: ejecutar() lanza antes si algo falló.
+    for (const accion of alConfirmar) await accion();
+    return resultado;
   }
 }
