@@ -68,8 +68,16 @@ describe('formato canónico de estado de cuenta (CU-09)', () => {
       expect(rechazo(`${H}\n`)).toMatch(/no trae movimientos/);
     });
 
-    it('rechaza bytes nulos', () => {
-      expect(rechazo(`${H}\n2026-09-01,A\0,,1\n`)).toMatch(/bytes nulos/);
+    it('rechaza el archivo con bytes nulos y dice la primera línea que los trae', () => {
+      expect(rechazo(`${H}\n2026-09-01,A,,1\n2026-09-02,B\0,,2\n`)).toMatch(
+        /^Línea 3: el archivo trae bytes nulos/,
+      );
+    });
+
+    it('la línea del byte nulo cuenta CRLF como un salto', () => {
+      expect(
+        rechazo(`${H}\r\n2026-09-01,A,,1\r\n2026-09-02,B,\0,2\r\n`),
+      ).toMatch(/^Línea 3:/);
     });
   });
 

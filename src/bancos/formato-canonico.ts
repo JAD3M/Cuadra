@@ -56,10 +56,14 @@ export function validarEstadoDeCuenta(buffer: Buffer): {
       'El archivo no está en UTF-8. Guárdalo como "CSV UTF-8" y vuelve a subirlo.',
     );
   }
-  // `text` de Postgres no admite el byte 0, y un CSV con NUL es binario.
-  if (texto.includes('\0')) {
+  // Un \0 en un CSV de banco es archivo corrupto, no una fila malformada: se
+  // rechaza el archivo completo. Además `text` de Postgres no lo admite, y el
+  // contenido se guarda tal cual. La línea es para que el contador lo
+  // encuentre.
+  const nulo = texto.indexOf('\0');
+  if (nulo !== -1) {
     throw new EstadoDeCuentaRechazado(
-      'El archivo trae bytes nulos: no es un CSV de texto',
+      `Línea ${lineaDeCaracter(texto, nulo)}: el archivo trae bytes nulos; parece corrupto`,
     );
   }
 
@@ -79,6 +83,12 @@ export function validarEstadoDeCuenta(buffer: Buffer): {
     throw new EstadoDeCuentaRechazado('El archivo no trae movimientos');
   }
   return { texto, filas: datos.length };
+}
+
+/** Línea física (desde 1) del carácter en `posicion`; CRLF o CR cuentan uno. */
+function lineaDeCaracter(texto: string, posicion: number): number {
+  const antes = texto.slice(0, posicion).match(/\r\n|\r|\n/g);
+  return (antes?.length ?? 0) + 1;
 }
 
 /**

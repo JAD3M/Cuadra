@@ -684,6 +684,21 @@ arriba.
 
 ### 28 sep 2026
 
+- **CU-09, ajuste: un `\0` dentro del CSV rechaza el archivo completo, con
+  la línea.** Un byte nulo en un CSV de banco es archivo corrupto, no fila
+  malformada. 400 en el POST, antes de guardar nada, con "Línea N: el
+  archivo trae bytes nulos". N es la primera línea que lo trae; CRLF
+  cuenta como un salto. El contenido guardado no se modifica.
+  - Tests: unitarios (LF y CRLF) y de integración (CSV de 3 filas con
+    `\0` en la descripción de la línea 3 → 400 con "Línea 3" y cero
+    cargas).
+  - Mutación: sin la revisión, el POST da 500, porque el INSERT de
+    `carga_archivos.contenido` (text) revienta con el byte 0.
+  - **Propuesta de continuidad:** reportar el `\0` como error de esa fila,
+    con el resto del archivo cargado, requeriría
+    `carga_archivos.contenido` en `bytea`. `text` no puede guardar el
+    archivo tal cual.
+
 - **CU-09, ajuste: `banco` y `cuenta` se validan en el POST contra su
   columna.** El largo (128 y 32) ya lo validaba el DTO. Faltaba el byte 0,
   que Postgres rechaza en `varchar`: como los dos se guardan en la carga

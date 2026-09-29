@@ -185,6 +185,30 @@ describe('POST /cargas/estado-cuenta (CU-09)', () => {
     expect(await conteos()).toEqual(antes);
   });
 
+  // Un \0 en un CSV de banco es archivo corrupto, no fila malformada: se
+  // rechaza entero, antes de guardar nada, con la línea para encontrarlo.
+  it('un byte nulo en una descripción: 400 con su línea y cero cargas', async () => {
+    const antes = await conteos();
+    const csv = Buffer.from(
+      [
+        'fecha,descripcion,referencia,monto',
+        `2026-09-01,DEPOSITO UNO,${randomUUID()},100.00`,
+        '2026-09-02,DEPOSITO\u0000DOS,R2,200.00',
+        '2026-09-03,DEPOSITO TRES,R3,300.00',
+        '',
+      ].join('\n'),
+    );
+
+    const res = await subir(
+      await entorno.token(ANA, FERRETERIA),
+      'con-nulo.csv',
+      csv,
+    ).expect(400);
+
+    expect(mensaje(res)).toMatch(/^Línea 3: el archivo trae bytes nulos/);
+    expect(await conteos()).toEqual(antes);
+  });
+
   it('el mismo archivo dos veces: 200 yaExistia, sin movimientos duplicados', async () => {
     // Otra empresa que el primer test: el hash es por empresa.
     const token = await entorno.token(CARMEN, TRANSPORTES);
