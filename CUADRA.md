@@ -747,6 +747,21 @@ arriba.
 
 ### 29 sep 2026
 
+- **Endurecimiento: llaves foráneas compuestas en `conciliaciones`.** Al
+  construir CU-14 se vio que `cfdi_id` y `movimiento_id` no amarraban
+  `company_id`: el dueño de la tabla (que no pasa por RLS) podía cruzar un
+  CFDI o un movimiento de otra empresa. RLS y el motor lo impedían en la app;
+  ahora también lo impide el esquema.
+  - **Migración `1790708900000`:** `UNIQUE (company_id, id)` en `cfdi` y
+    `movimientos` (destino obligado de una FK compuesta) y FK
+    `(company_id, cfdi_id)` y `(company_id, movimiento_id)` con el mismo
+    `ON DELETE CASCADE`. Se sueltan las FK de un solo campo, que quedaban
+    redundantes; conservan nombre. `down()` las restaura.
+  - **Pendiente, sin tocar:** `movimientos.carga_id` y `cfdi.carga_id`
+    (`SET NULL` anularía también `company_id`, pide `SET NULL (carga_id)`),
+    `carga_archivos.carga_id` (mismo patrón, `CASCADE`) y las FK a `users`
+    (`confirmada_por_id`, `subido_por_id`), que no llevan empresa.
+
 - **CU-14 terminado: bandeja de revisión (`GET /bandeja`), solo lectura.**
   Dos PR encadenados (`stacked-to-main`), unas 830 líneas en total, más de
   la mitad pruebas: la consulta con estado derivado, filtro y orden (~450),

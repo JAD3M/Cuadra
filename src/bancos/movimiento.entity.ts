@@ -23,6 +23,8 @@ import {
     unique: true,
   },
 )
+// Destino de la FK compuesta de conciliaciones (company_id, movimiento_id).
+@Index('ux_movimientos_company_id_id', ['companyId', 'id'], { unique: true })
 @Index('ix_movimientos_company_id_fecha_abierto', ['companyId', 'fecha'], {
   where: `estado = 'abierto'`,
 })

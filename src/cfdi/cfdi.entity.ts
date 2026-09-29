@@ -19,6 +19,8 @@ import {
 })
 // Índice parcial: el motor de reglas solo busca candidatos entre las abiertas,
 // que son una fracción del histórico.
+// Destino de la FK compuesta de conciliaciones (company_id, cfdi_id).
+@Index('ux_cfdi_company_id_id', ['companyId', 'id'], { unique: true })
 @Index('ix_cfdi_company_id_rfc_emisor_abierta', ['companyId', 'rfcEmisor'], {
   where: `estado = 'abierta'`,
 })

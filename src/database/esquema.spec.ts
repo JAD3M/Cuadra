@@ -443,6 +443,83 @@ describe('conciliaciones', () => {
       ).rejects.toThrow(/ck_conciliaciones_score_rango/);
     });
   });
+
+  describe('llaves foráneas compuestas con company_id', () => {
+    const INSERTAR = `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, origen)
+                      VALUES ($1,$2,$3,'regla')`;
+
+    /** Un CFDI y un movimiento de la otra empresa (TCU170830R52). */
+    async function ajenos(qr: QueryRunner) {
+      const otra = await idEmpresa(qr, 'TCU170830R52');
+      const { id: cfdiId } = await una<{ id: string }>(
+        qr,
+        `INSERT INTO cfdi (company_id, uuid_fiscal, rfc_emisor, rfc_receptor,
+                           fecha_emision, tipo_comprobante, subtotal, total, xml_raw)
+         VALUES ($1,'77777777-7777-7777-8777-777777777777','AAA010101AAA',
+                 'TCU170830R52','2026-09-01T10:00:00','I',100,116,'{"_xml":"<x/>"}'::jsonb)
+         RETURNING id`,
+        [otra],
+      );
+      const { id: movimientoId } = await una<{ id: string }>(
+        qr,
+        `INSERT INTO movimientos (company_id, linea_numero, fecha, descripcion, monto)
+         VALUES ($1,0,'2026-09-02','SPEI RECIBIDO',116) RETURNING id`,
+        [otra],
+      );
+      return { otra, cfdiId, movimientoId };
+    }
+
+    it('acepta el cruce entre un CFDI y un movimiento de la misma empresa', async () => {
+      await enTransaccion(async (qr) => {
+        const { emp, cfdiId, movimientos } = await escenario(qr);
+        await qr.query(INSERTAR, [emp, cfdiId, movimientos[0]]);
+      });
+    });
+
+    it('rechaza, incluso al dueño, un CFDI de otra empresa', async () => {
+      await enTransaccion(async (qr) => {
+        const { emp, movimientos } = await escenario(qr);
+        const { cfdiId } = await ajenos(qr);
+        await expect(
+          qr.query(INSERTAR, [emp, cfdiId, movimientos[0]]),
+        ).rejects.toThrow(/fk_conciliaciones_cfdi/);
+      });
+    });
+
+    it('rechaza, incluso al dueño, un movimiento de otra empresa', async () => {
+      await enTransaccion(async (qr) => {
+        const { emp, cfdiId } = await escenario(qr);
+        const { movimientoId } = await ajenos(qr);
+        await expect(
+          qr.query(INSERTAR, [emp, cfdiId, movimientoId]),
+        ).rejects.toThrow(/fk_conciliaciones_movimiento/);
+      });
+    });
+
+    it('rechaza un cruce declarado con la empresa del CFDI ajeno pero movimiento propio', async () => {
+      await enTransaccion(async (qr) => {
+        const { movimientos } = await escenario(qr);
+        const { otra, cfdiId } = await ajenos(qr);
+        await expect(
+          qr.query(INSERTAR, [otra, cfdiId, movimientos[0]]),
+        ).rejects.toThrow(/fk_conciliaciones_movimiento/);
+      });
+    });
+
+    it('borra en cascada las conciliaciones al borrar el CFDI', async () => {
+      await enTransaccion(async (qr) => {
+        const { emp, cfdiId, movimientos } = await escenario(qr);
+        await qr.query(INSERTAR, [emp, cfdiId, movimientos[0]]);
+        await qr.query(`DELETE FROM cfdi WHERE id = $1`, [cfdiId]);
+        const { n } = await una<{ n: number }>(
+          qr,
+          `SELECT count(*)::int AS n FROM conciliaciones WHERE company_id = $1`,
+          [emp],
+        );
+        expect(n).toBe(0);
+      });
+    });
+  });
 });
 
 describe('tolerancia de monto por empresa (CU-12)', () => {

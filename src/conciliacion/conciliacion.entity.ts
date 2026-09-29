@@ -100,18 +100,27 @@ export class Conciliacion extends EntidadBase {
   })
   company: Company;
 
+  // FK compuestas: el CFDI y el movimiento tienen que ser de la misma empresa.
   @ManyToOne(() => Cfdi, { onDelete: 'CASCADE' })
-  @JoinColumn({
-    name: 'cfdi_id',
-    foreignKeyConstraintName: 'fk_conciliaciones_cfdi',
-  })
+  @JoinColumn([
+    {
+      name: 'company_id',
+      referencedColumnName: 'companyId',
+      foreignKeyConstraintName: 'fk_conciliaciones_cfdi',
+    },
+    { name: 'cfdi_id', referencedColumnName: 'id' },
+  ])
   cfdi: Cfdi;
 
   @ManyToOne(() => Movimiento, { onDelete: 'CASCADE' })
-  @JoinColumn({
-    name: 'movimiento_id',
-    foreignKeyConstraintName: 'fk_conciliaciones_movimiento',
-  })
+  @JoinColumn([
+    {
+      name: 'company_id',
+      referencedColumnName: 'companyId',
+      foreignKeyConstraintName: 'fk_conciliaciones_movimiento',
+    },
+    { name: 'movimiento_id', referencedColumnName: 'id' },
+  ])
   movimiento: Movimiento;
 
   @ManyToOne(() => User, { onDelete: 'RESTRICT', nullable: true })
