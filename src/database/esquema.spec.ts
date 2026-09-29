@@ -492,6 +492,11 @@ describe('semilla', () => {
   });
 });
 
+// Tablas propias de TypeORM, no del esquema. `typeorm_metadata` la recrea su
+// ejecutor en cada corrida en cuanto una entidad declara una columna generada
+// (`generatedType`), así que ninguna migración puede dejarla ausente.
+const TABLAS_DE_TYPEORM = `('migrations', 'typeorm_metadata')`;
+
 // Va al final: vacía la base y la vuelve a levantar.
 describe('reversibilidad', () => {
   it('revierte sin dejar rastro y se puede volver a aplicar', async () => {
@@ -504,14 +509,14 @@ describe('reversibilidad', () => {
     const tablas = await filas<{ table_name: string }>(
       ds,
       `SELECT table_name FROM information_schema.tables
-        WHERE table_schema = 'public' AND table_name <> 'migrations'`,
+        WHERE table_schema = 'public' AND table_name NOT IN ${TABLAS_DE_TYPEORM}`,
     );
     expect(tablas).toEqual([]);
 
     const indices = await filas<{ indexname: string }>(
       ds,
       `SELECT indexname FROM pg_indexes
-        WHERE schemaname = 'public' AND tablename <> 'migrations'`,
+        WHERE schemaname = 'public' AND tablename NOT IN ${TABLAS_DE_TYPEORM}`,
     );
     expect(indices).toEqual([]);
 

@@ -26,6 +26,10 @@ import {
 })
 @Index('ix_movimientos_company_id_monto', ['companyId', 'monto'])
 @Index('ix_movimientos_company_id_referencia', ['companyId', 'referencia'])
+@Index('ix_movimientos_company_id_referencia_norm', [
+  'companyId',
+  'referenciaNorm',
+])
 @Check('ck_movimientos_estado', `estado IN (${listaSql(ESTADOS_MOVIMIENTO)})`)
 @Check('ck_movimientos_monto_no_cero', 'monto <> 0')
 @Check('ck_movimientos_linea_numero', 'linea_numero >= 0')
@@ -53,6 +57,22 @@ export class Movimiento extends EntidadBase {
 
   @Column({ type: 'varchar', length: 128, nullable: true })
   referencia: string | null;
+
+  /**
+   * CU-11: la referencia normalizada (mayúsculas, sin signos, sin ceros a la
+   * izquierda del primer bloque de dígitos). La calcula la base con
+   * `normalizar_referencia`; nunca se escribe desde la app.
+   */
+  @Column({
+    type: 'varchar',
+    length: 128,
+    nullable: true,
+    asExpression: 'normalizar_referencia(referencia)',
+    generatedType: 'STORED',
+    insert: false,
+    update: false,
+  })
+  referenciaNorm: string | null;
 
   /**
    * Con signo: positivo es abono (entra dinero), negativo es cargo. Un solo

@@ -310,8 +310,22 @@ cliente son dos pagos. Identificar por posición en el archivo resuelve las
 dos cosas: reprocesar no duplica, y dos movimientos idénticos siguen siendo
 dos.
 
-**Hueco conocido:** falta `referencia_norm`. Se paga en CU-11 con una columna
-generada `STORED` y su índice.
+**`referencia_norm` (CU-11):** columna generada `STORED` con su índice
+`(company_id, referencia_norm)`, calculada por la función SQL
+`normalizar_referencia` para que ninguna vía de inserción la olvide. Quita
+todo lo que no sea `[A-Za-z0-9]`, pasa a mayúsculas y borra los ceros a la
+izquierda solo del primer bloque de dígitos tras las letras iniciales
+(`A-0001001` → `A1001`). El normalizador de TypeScript
+(`src/conciliacion/referencia-normalizer.ts`) implementa lo mismo y
+`referencia-normalizer.paridad.spec.ts` compara ambos contra Postgres.
+
+- **Decisión de diseño:** declarar una columna generada en la entidad hace
+  que el ejecutor de TypeORM cree `typeorm_metadata` en cada corrida, así
+  que ninguna migración puede dejar esa tabla ausente al revertir. La
+  migración solo inserta y borra su fila, y la prueba de reversibilidad de
+  `esquema.spec.ts` exime esa tabla igual que `migrations`.
+- **Hueco aceptado:** dígitos pegados a la serie sin separador (el banco
+  escribe `120034` para serie 12, folio 0034) no coinciden.
 
 #### Formato canónico del estado de cuenta (CU-09)
 
