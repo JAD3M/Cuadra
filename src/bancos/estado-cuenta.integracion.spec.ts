@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import request from 'supertest';
@@ -256,13 +257,28 @@ describe('POST /cargas/estado-cuenta (CU-09)', () => {
       expect(mensaje(res)).toMatch(/Máximo 1 archivo/);
     });
 
-    it('un banco de más de 128 caracteres', async () => {
-      await subir(
+    // banco y cuenta se guardan en la carga durante el POST: lo que no cabe
+    // en su columna tiene que ser 400 aquí, no un 500 de la base.
+    it.each([
+      ['banco', 'B'.repeat(129), /banco must be shorter than or equal to 128/],
+      ['cuenta', '9'.repeat(33), /cuenta must be shorter than or equal to 32/],
+      ['banco', 'BANCO\u0000X', /banco no puede traer bytes nulos/],
+      ['cuenta', '****\u00001234', /cuenta no puede traer bytes nulos/],
+    ])('%s = %j → 400 y cero cargas', async (campo, valor, esperado) => {
+      const antes = await conteos();
+      const res = await subir(
         await entorno.token(ANA, FERRETERIA),
-        'valido-5.csv',
-        fixture('valido-5.csv'),
-        { banco: 'B'.repeat(129) },
+        'unico.csv',
+        // Un CSV que nunca se ha subido: con uno repetido, la idempotencia
+        // respondería antes de guardar nada y el test no probaría el INSERT.
+        Buffer.from(
+          `fecha,descripcion,referencia,monto\n2026-09-01,DEPOSITO,${randomUUID()},1\n`,
+        ),
+        { [campo]: valor },
       ).expect(400);
+
+      expect(JSON.stringify(res.body)).toMatch(esperado);
+      expect(await conteos()).toEqual(antes);
     });
   });
 });

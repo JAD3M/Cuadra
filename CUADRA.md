@@ -684,6 +684,18 @@ arriba.
 
 ### 28 sep 2026
 
+- **CU-09, ajuste: `banco` y `cuenta` se validan en el POST contra su
+  columna.** El largo (128 y 32) ya lo validaba el DTO. Faltaba el byte 0,
+  que Postgres rechaza en `varchar`: como los dos se guardan en la carga
+  durante el POST, un `\0` daba 500. Ahora es 400 con motivo.
+  - Tests: los cuatro casos (largo y nulo, por campo) esperan 400, un
+    mensaje que nombra el campo, y cero cargas.
+  - Cada caso sube un CSV que nunca se había subido. Con uno repetido, la
+    idempotencia respondía `yaExistia` antes del INSERT, y el test pasaba
+    sin probar nada.
+  - Mutación: sin la validación del byte 0, los dos casos de nulo dan 500.
+  - 162 tests en verde; lint y build limpios.
+
 - **CU-09 terminado: carga del estado de cuenta.** `POST
   /cargas/estado-cuenta`, formato canónico documentado en la tabla
   `movimientos`.
