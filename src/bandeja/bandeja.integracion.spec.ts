@@ -440,14 +440,16 @@ describe('BJ-8 acceso y aislamiento', () => {
 
   it('S27: el CFDI de otra empresa nunca es candidato', async () => {
     const m = await movimiento(A);
-    // Una propuesta cruzada que solo el dueño puede insertar: el JOIN por
-    // empresa no debe traer el CFDI de B.
+    // Ni el dueño de la tabla puede cruzar un CFDI de B: la FK compuesta
+    // (company_id, cfdi_id) lo rechaza. Y la bandeja de A no lo trae.
     const ajeno = await factura(B);
-    await ds.query(
-      `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen)
-       VALUES ($1,$2,$3,'propuesta','regla')`,
-      [A, ajeno, m],
-    );
+    await expect(
+      ds.query(
+        `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen)
+         VALUES ($1,$2,$3,'propuesta','regla')`,
+        [A, ajeno, m],
+      ),
+    ).rejects.toThrow(/fk_conciliaciones_cfdi/);
     const r = await listar('?estado=sugerencia&estado=sin_match');
     expect(JSON.stringify(r)).not.toContain(ajeno);
   });
