@@ -747,6 +747,42 @@ arriba.
 
 ### 29 sep 2026
 
+- **CU-11 terminado: el motor de reglas propone cruces CFDI–movimiento.**
+  Tres PR encadenados (`stacked-to-main`): normalizador y columna
+  `referencia_norm`; motor puro `evaluarPar`/`seleccionarPropuestas`; y
+  `ConciliacionService.conciliar(companyId)` con su gancho en el worker.
+  - **Qué hace.** Tras el commit de cada carga (CFDI o estado de cuenta, y
+    también si el job encuentra la carga ya procesada) corre `conciliar`
+    en una sola `TransaccionEmpresa`: candado `pg_advisory_xact_lock` por
+    empresa, lee abonos abiertos y CFDI de ingreso abiertos emitidos por la
+    empresa, y escribe con un `INSERT ... ON CONFLICT DO NOTHING`. Solo
+    crea filas `propuesta`/`regla`; nunca confirma ni cambia estados de
+    movimientos o CFDI (CU-15 decide). Un fallo del motor se loguea y no
+    cambia el estado de la carga.
+  - **Reglas y scores** (criterios C1–C4 de KAN-88): `referencia_monto_exacto`
+    1.0, `referencia_monto_diferente` 0.5 (guarda la diferencia con signo y
+    dice que es sugerencia), `monto_unico` 0.4. Referencia de menos de 3
+    caracteres, o que coincide con 2+ CFDI, no sirve de llave. Cada fila
+    guarda su `motivo` en español (base para CU-13).
+  - **Tolerancia.** `ProveedorTolerancia` es el token que CU-12 cambia por
+    una fuente por empresa; hoy `ToleranciaConstante` devuelve 0 MXN.
+  - **Rulings.** La spec gana sobre el diseño: los ceros se quitan solo del
+    primer bloque de dígitos tras las letras iniciales. Columna generada
+    con la opción (a): `typeorm_metadata` se crea sola por TypeORM y la
+    migración solo inserta y borra su fila. SD4: ambigüedad por referencia
+    no cae a monto. SD5: `monto_unico` exige unicidad en ambos lados. Los
+    ocupados (con conciliación no rechazada) siguen contando como
+    candidatos. PR2a (motor puro, 588 líneas) fue `size:exception`
+    aceptada por el usuario.
+  - **Verificación.** `typecheck` limpio; suite completa en verde dos veces
+    seguidas (18 suites, 331 tests), con 27 casos de integración contra
+    Postgres y Redis reales (idempotencia, concurrencia, RLS, gancho por
+    worker).
+  - **Huecos conocidos.** Dígitos pegados a la serie sin separador no
+    coinciden. Una propuesta `monto_unico` vieja no se retira si después
+    llega un CFDI que la vuelve ambigua (el motor nunca modifica filas
+    existentes). La tolerancia es constante hasta CU-12.
+
 - **Auditoría de criterios de aceptación de Jira contra el código.** Los 60
   criterios de CU-01…CU-18 se cruzaron con implementación y tests. CU-05 a
   CU-10 cumplen todos. Tres historias de la épica A tenían criterios sin
