@@ -6,6 +6,7 @@ import {
   Post,
   UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import type { UsuarioAutenticado } from '../auth/tipos';
@@ -15,7 +16,9 @@ import {
   type ArchivoSubido,
   CargasService,
   type EstadoDeCarga,
+  type RespuestaDeCarga,
 } from './cargas.service';
+import { YaExistiaInterceptor } from './ya-existia.interceptor';
 
 /** La sesión ya la exige JwtAuthGuard; aquí solo se estrecha el tipo. */
 type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
@@ -25,10 +28,15 @@ type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 export class CargasController {
   constructor(private readonly cargas: CargasService) {}
 
-  /** CU-06. 201 aunque fallen archivos: el fallo va en `errores`. */
+  /**
+   * CU-06 y CU-07. 201 con la carga nueva, aunque fallen archivos: cada uno
+   * trae su resultado. 200 con la carga original y `yaExistia` si el lote
+   * ya se había cargado.
+   */
   @Post('cfdi')
   @Roles('admin', 'contador')
   @UseGuards(ArchivosXmlGuard)
+  @UseInterceptors(YaExistiaInterceptor)
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -44,7 +52,7 @@ export class CargasController {
   cargarCfdi(
     @UsuarioActual() usuario: Sesion,
     @UploadedFiles() archivos: ArchivoSubido[],
-  ): Promise<EstadoDeCarga> {
+  ): Promise<RespuestaDeCarga> {
     return this.cargas.cargarCfdi(usuario.companyId, usuario.userId, archivos);
   }
 

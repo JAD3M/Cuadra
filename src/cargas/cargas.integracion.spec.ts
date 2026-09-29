@@ -31,7 +31,7 @@ import {
   MAX_BYTES_POR_ARCHIVO,
   MAX_BYTES_POR_PETICION,
 } from './archivos-xml.guard';
-import type { EstadoDeCarga } from './cargas.service';
+import type { EstadoDeCarga, RespuestaDeCarga } from './cargas.service';
 
 /**
  * CU-06 de punta a punta: HTTP, guards globales, transacción de empresa como
@@ -215,6 +215,14 @@ async function subirChunked(
   });
 }
 
+function motivoDe(carga: EstadoDeCarga, archivo: string): string {
+  const resultado = carga.resultados.find((r) => r.archivo === archivo);
+  if (resultado?.resultado !== 'error') {
+    throw new Error(`"${archivo}" no terminó en error`);
+  }
+  return resultado.motivo;
+}
+
 function mensaje(res: { body: unknown }): string {
   return (res.body as { message: string }).message;
 }
@@ -227,7 +235,7 @@ async function enCfdi(uuids: string[]) {
   );
 }
 
-describe('POST /cargas/cfdi (CU-06)', () => {
+describe('POST /cargas/cfdi (CU-06, CU-07)', () => {
   it('lote de 3 con 1 inválido: 201, 2 entran y el fallo se reporta', async () => {
     const pue = cfdi('pue-valido.xml');
     const descuento = cfdi('con-descuento.xml');
@@ -239,51 +247,26 @@ describe('POST /cargas/cfdi (CU-06)', () => {
       { nombre: 'descuento.xml', contenido: descuento.xml },
     ]).expect(201);
 
-    const carga = res.body as EstadoDeCarga;
+    const carga = res.body as RespuestaDeCarga;
     expect(carga).toMatchObject({
       estado: 'procesada',
+      yaExistia: false,
       totalRegistros: 3,
       registrosOk: 2,
+      registrosExistentes: 0,
       registrosError: 1,
     });
-    expect(carga.errores).toHaveLength(1);
-    expect(carga.errores[0].archivo).toBe('malo.xml');
-    expect(carga.errores[0].motivo).toMatch(/Total no cuadra/);
+    expect(carga.resultados.map((r) => [r.archivo, r.resultado])).toEqual([
+      ['pue.xml', 'nuevo'],
+      ['malo.xml', 'error'],
+      ['descuento.xml', 'nuevo'],
+    ]);
+    expect(motivoDe(carga, 'malo.xml')).toMatch(/Total no cuadra/);
 
     const guardados = await enCfdi([pue.uuid, descuento.uuid, malo.uuid]);
     expect(guardados.map((c) => c.uuid_fiscal).sort()).toEqual(
       [pue.uuid, descuento.uuid].sort(),
     );
-    expect(guardados.every((c) => c.carga_id === carga.id)).toBe(true);
-  });
-
-  // El que prueba el savepoint: el choque es de la base, no del parser, y sin
-  // ROLLBACK TO SAVEPOINT aborta la transacción entera.
-  it('un UUID que ya existe en la empresa falla solo, los demás entran', async () => {
-    const token = await tokenSesion(ANA, FERRETERIA);
-    const previo = cfdi('pue-valido.xml');
-    await subir(token, [
-      { nombre: 'previo.xml', contenido: previo.xml },
-    ]).expect(201);
-
-    // Mismo UUID, otro contenido (otro folio): otro lote, otro hash.
-    const repetido = previo.xml.replace('Folio="1001"', 'Folio="2001"');
-    const usd = cfdi('usd-tipo-cambio.xml');
-    const seis = cfdi('importe-6-decimales.xml');
-
-    const res = await subir(token, [
-      { nombre: 'usd.xml', contenido: usd.xml },
-      { nombre: 'repetido.xml', contenido: repetido },
-      { nombre: 'seis.xml', contenido: seis.xml },
-    ]).expect(201);
-
-    const carga = res.body as EstadoDeCarga;
-    expect(carga).toMatchObject({ registrosOk: 2, registrosError: 1 });
-    expect(carga.errores).toHaveLength(1);
-    expect(carga.errores[0].archivo).toBe('repetido.xml');
-    expect(carga.errores[0].motivo).toMatch(/ya existe/);
-    const guardados = await enCfdi([usd.uuid, seis.uuid]);
-    expect(guardados).toHaveLength(2);
     expect(guardados.every((c) => c.carga_id === carga.id)).toBe(true);
   });
 
@@ -307,42 +290,161 @@ describe('POST /cargas/cfdi (CU-06)', () => {
     expect(res.body).toMatchObject({
       estado: 'fallida',
       registrosOk: 0,
+      registrosExistentes: 0,
       registrosError: 2,
     });
   });
 
-  it('el mismo lote dos veces, aun en otro orden: 409', async () => {
-    const token = await tokenSesion(ANA, FERRETERIA);
-    const a = cfdi('pue-valido.xml');
-    const b = cfdi('con-descuento.xml');
+  describe('lote repetido (CU-07)', () => {
+    it('la segunda vez: 200, yaExistia, la carga original y nada crece', async () => {
+      const token = await tokenSesion(ANA, FERRETERIA);
+      const lote = [
+        { nombre: 'a.xml', contenido: cfdi('pue-valido.xml').xml },
+        { nombre: 'b.xml', contenido: cfdi('con-descuento.xml').xml },
+      ];
+      const primera = (await subir(token, lote).expect(201))
+        .body as RespuestaDeCarga;
+      const antes = await conteos();
 
-    await subir(token, [
-      { nombre: 'a.xml', contenido: a.xml },
-      { nombre: 'b.xml', contenido: b.xml },
-    ]).expect(201);
-    await subir(token, [
-      { nombre: 'b.xml', contenido: b.xml },
-      { nombre: 'a.xml', contenido: a.xml },
-    ]).expect(409);
+      const segunda = (await subir(token, lote).expect(200))
+        .body as RespuestaDeCarga;
+
+      expect(segunda).toEqual({ ...primera, yaExistia: true });
+      expect(await conteos()).toEqual(antes);
+    });
+
+    it('en otro orden es el mismo lote: igual que el anterior', async () => {
+      const token = await tokenSesion(ANA, FERRETERIA);
+      const a = { nombre: 'a.xml', contenido: cfdi('pue-valido.xml').xml };
+      const b = { nombre: 'b.xml', contenido: cfdi('con-descuento.xml').xml };
+      const primera = (await subir(token, [a, b]).expect(201))
+        .body as RespuestaDeCarga;
+      const antes = await conteos();
+
+      const segunda = (await subir(token, [b, a]).expect(200))
+        .body as RespuestaDeCarga;
+
+      expect(segunda).toEqual({ ...primera, yaExistia: true });
+      expect(await conteos()).toEqual(antes);
+    });
+  });
+
+  describe('CFDI que ya estaba en la empresa (CU-07)', () => {
+    // También prueba el savepoint: el ya cargado va primero, y sin ROLLBACK
+    // TO SAVEPOINT su 23505 abortaría la transacción y el nuevo no entraría.
+    it('lote nuevo con 1 ya cargado + 1 nuevo: 201, 1 nuevo, 1 ya_existia, procesada', async () => {
+      const token = await tokenSesion(ANA, FERRETERIA);
+      const previo = cfdi('pue-valido.xml');
+      await subir(token, [
+        { nombre: 'previo.xml', contenido: previo.xml },
+      ]).expect(201);
+
+      // Mismo UUID, otro contenido (otro folio): otro lote, otro hash.
+      const repetido = previo.xml.replace('Folio="1001"', 'Folio="2001"');
+      const nuevo = cfdi('usd-tipo-cambio.xml');
+
+      const res = await subir(token, [
+        { nombre: 'repetido.xml', contenido: repetido },
+        { nombre: 'nuevo.xml', contenido: nuevo.xml },
+      ]).expect(201);
+
+      const carga = res.body as RespuestaDeCarga;
+      expect(carga).toMatchObject({
+        estado: 'procesada',
+        yaExistia: false,
+        totalRegistros: 2,
+        registrosOk: 1,
+        registrosExistentes: 1,
+        registrosError: 0,
+      });
+      expect(carga.resultados).toEqual([
+        { archivo: 'repetido.xml', resultado: 'ya_existia' },
+        { archivo: 'nuevo.xml', resultado: 'nuevo' },
+      ]);
+      // El CFDI previo sigue en su carga original; no se duplica.
+      const [guardadoPrevio] = await enCfdi([previo.uuid]);
+      expect(guardadoPrevio.carga_id).not.toBe(carga.id);
+      expect(await enCfdi([nuevo.uuid])).toEqual([
+        expect.objectContaining({ carga_id: carga.id }),
+      ]);
+    });
+
+    it('si todos ya existían, la carga es procesada, no fallida', async () => {
+      const token = await tokenSesion(ANA, FERRETERIA);
+      const previo = cfdi('pue-valido.xml');
+      await subir(token, [
+        { nombre: 'previo.xml', contenido: previo.xml },
+      ]).expect(201);
+
+      const res = await subir(token, [
+        {
+          nombre: 'otra-vez.xml',
+          contenido: previo.xml.replace('Folio="1001"', 'Folio="3001"'),
+        },
+      ]).expect(201);
+
+      expect(res.body).toMatchObject({
+        estado: 'procesada',
+        registrosOk: 0,
+        registrosExistentes: 1,
+        registrosError: 0,
+      });
+    });
+
+    it('el mismo CFDI en otra empresa sí entra: el UUID es único por empresa', async () => {
+      const mismo = cfdi('pue-valido.xml');
+      const archivo = [{ nombre: 'mismo.xml', contenido: mismo.xml }];
+
+      await subir(await tokenSesion(ANA, FERRETERIA), archivo).expect(201);
+      const res = await subir(
+        await tokenSesion(CARMEN, TRANSPORTES),
+        archivo,
+      ).expect(201);
+
+      expect(res.body).toMatchObject({ yaExistia: false, registrosOk: 1 });
+      const guardados = await filas<{ company_id: string }>(
+        ds,
+        'SELECT company_id FROM cfdi WHERE uuid_fiscal = $1 ORDER BY company_id',
+        [mismo.uuid],
+      );
+      expect(guardados.map((g) => g.company_id).sort()).toEqual(
+        [de(empresas, FERRETERIA), de(empresas, TRANSPORTES)].sort(),
+      );
+    });
   });
 
   it('un error de base que no es del archivo aborta todo: 500 y cero filas', async () => {
-    const antes = await conteos();
     const bueno = cfdi('pue-valido.xml');
-    // Serie más larga que su columna (varchar 25): el lector la acepta y la
-    // base la rechaza con 22001. No es un fallo del archivo que el cliente
-    // pueda corregir con un motivo claro: es un error nuestro.
     const raro = cfdi('con-descuento.xml');
-    raro.xml = raro.xml.replace('Serie="A"', `Serie="${'S'.repeat(30)}"`);
+    // Un error real de Postgres con un SQLSTATE que no es del archivo
+    // (P0001), solo para el segundo CFDI. Antes esto se provocaba con una
+    // Serie de 30, pero desde CU-07 el lector la rechaza con motivo.
+    await ds.query(`
+      CREATE FUNCTION falla_simulada_cu07() RETURNS trigger
+      LANGUAGE plpgsql AS $$
+      BEGIN
+        RAISE EXCEPTION 'falla simulada de la base';
+      END $$`);
+    await ds.query(
+      `CREATE TRIGGER falla_simulada_cu07 BEFORE INSERT ON cfdi
+         FOR EACH ROW WHEN (NEW.uuid_fiscal = '${raro.uuid}')
+         EXECUTE FUNCTION falla_simulada_cu07()`,
+    );
+    try {
+      const antes = await conteos();
 
-    await subir(await tokenSesion(ANA, FERRETERIA), [
-      { nombre: 'bueno.xml', contenido: bueno.xml },
-      { nombre: 'raro.xml', contenido: raro.xml },
-    ]).expect(500);
+      await subir(await tokenSesion(ANA, FERRETERIA), [
+        { nombre: 'bueno.xml', contenido: bueno.xml },
+        { nombre: 'raro.xml', contenido: raro.xml },
+      ]).expect(500);
 
-    // Ni la fila de la carga ni el primer CFDI, que sí había entrado.
-    expect(await conteos()).toEqual(antes);
-    expect(await enCfdi([bueno.uuid, raro.uuid])).toEqual([]);
+      // Ni la fila de la carga ni el primer CFDI, que sí había entrado.
+      expect(await conteos()).toEqual(antes);
+      expect(await enCfdi([bueno.uuid, raro.uuid])).toEqual([]);
+    } finally {
+      await ds.query('DROP TRIGGER falla_simulada_cu07 ON cfdi');
+      await ds.query('DROP FUNCTION falla_simulada_cu07()');
+    }
   });
 
   it('un revisor no sube: 403', async () => {
@@ -420,7 +522,7 @@ describe('POST /cargas/cfdi (CU-06)', () => {
   });
 });
 
-describe('GET /cargas/:id (CU-06)', () => {
+describe('GET /cargas/:id (CU-06, CU-07)', () => {
   let cargaTransportes: string;
 
   beforeAll(async () => {
@@ -430,7 +532,7 @@ describe('GET /cargas/:id (CU-06)', () => {
     cargaTransportes = (res.body as EstadoDeCarga).id;
   });
 
-  it('su empresa ve estado, contadores y errores: 200', async () => {
+  it('su empresa ve estado, contadores y resultado por archivo: 200', async () => {
     const res = await request(app.getHttpServer())
       .get(`/cargas/${cargaTransportes}`)
       .auth(await tokenSesion(JORGE, TRANSPORTES), { type: 'bearer' })
@@ -441,8 +543,9 @@ describe('GET /cargas/:id (CU-06)', () => {
       estado: 'procesada',
       totalRegistros: 1,
       registrosOk: 1,
+      registrosExistentes: 0,
       registrosError: 0,
-      errores: [],
+      resultados: [{ archivo: 'transportes.xml', resultado: 'nuevo' }],
     });
   });
 

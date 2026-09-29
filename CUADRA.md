@@ -646,6 +646,86 @@ arriba.
 
 ### 28 sep 2026
 
+- **CU-07 terminado: carga idempotente.**
+  - **Verificación:** 110 tests en verde (101 + 9), estables en dos corridas
+    seguidas. Lint sin errores (sigue el warning de `main.ts:34`), build
+    ok, `migration:generate --check` sin cambios, `/health` ok.
+  - **Lote repetido → 200, no 409.** Mismo hash en la empresa: se devuelve
+    la carga **original** (id, estado, contadores, resultados) con
+    `yaExistia: true`, y no se crea nada.
+    - Se detecta con un `SELECT` antes del `INSERT`, sobre las mismas
+      columnas del índice único.
+    - Si el índice salta por carrera, la respuesta es la misma. El
+      `INSERT` va en su propio SAVEPOINT, porque sin él el 23505 aborta
+      la transacción y ya no se podría leer la carga ganadora. En read
+      committed la sentencia nueva ya la ve.
+  - **El 200 lo pone `YaExistiaInterceptor`**, no `@Res()` en el handler,
+    que apagaría los interceptores.
+    - Funciona porque Nest 11.2.5 fija el 201 del POST al entrar la
+      petición y no lo vuelve a poner al responder. Es un detalle interno;
+      el test del 200 lo vigila.
+  - **CFDI cuyo UUID ya está en la empresa: `ya_existia`, no error.**
+    - Solo el 23505 sobre `ux_cfdi_company_id_uuid_fiscal` cuenta así; el
+      resto de las reglas de CU-06 no cambia.
+    - Se cuenta en `registros_existentes`.
+  - **Estado:** `procesada` si al menos uno quedó en la base, nuevo o de
+    antes. `fallida` solo si hubo errores y ninguno entró ni ya existía.
+    - Un lote mixto (errores y nuevos) queda `procesada`, como en CU-06.
+  - **Resultado por archivo** en la respuesta y en `GET /cargas/:id`:
+    `resultados = [{archivo, resultado: 'nuevo' | 'ya_existia' | 'error',
+    motivo?}]`, en el orden en que llegaron. Se persiste para que el GET
+    lo refleje.
+  - **Migración `CargaIdempotente1790640205218`**, con los CHECK a mano:
+    - `registros_existentes int NOT NULL DEFAULT 0`, incluido en
+      `ck_cargas_conteos_no_negativos`.
+    - `ck_cargas_total_cuadra`: `total = ok + error + existentes`.
+    - `errores` → `resultados`. Los errores previos se conservan con
+      `resultado: 'error'`; de los archivos que entraron antes no quedó
+      registro y no se inventan.
+    - El `down` devuelve cada `ya_existia` como error con el motivo de
+      CU-06 y lo suma a `registros_error`, para que lista y contador
+      cuadren. Un `down` + `up` deja esos casos como `error`.
+    - Las dos conversiones jsonb se verificaron a mano en una transacción
+      revertida: ningún test las ejerce con datos.
+    - Sin GRANTs nuevos.
+  - **Pendiente para CU-08:** `ck_cargas_total_cuadra` obliga a crear la
+    carga con `total_registros = 0` y fijarlo al final junto con los
+    contadores. Con la cola, un GET a una carga `procesando` va a mostrar
+    total 0, y ese es el caso de "consultar el avance". Para mostrar
+    avance real, el CHECK tendría que aplicar solo a `procesada` y
+    `fallida`, o `total_registros` tendría que crecer con cada archivo
+    procesado.
+- **Lector (CU-05): validación de largos.** Todo texto que se persiste en
+  una columna con límite se valida contra el menor entre el Anexo 20 y su
+  columna, y si no cabe es `CfdiRechazado` con motivo
+  `campo_fuera_de_limite`.
+  - Textos: Serie 25, Folio 40, Moneda 3, MetodoPago 3, FormaPago 2.
+    Cuenta caracteres, no bytes: 25 `Ñ` entran, igual que en `varchar(25)`.
+  - Montos: `numeric(18,4)` deja 14 enteros y 4 decimales, y el quinto
+    decimal Postgres lo **redondea callado**, sin error. TipoCambio
+    `numeric(18,6)` deja 12 enteros. Sin signo.
+  - Un test cruza estos límites contra las columnas de la entidad Cfdi
+    (`getMetadataArgsStorage`): si alguien achica una columna sin tocar
+    el lector, se pone rojo.
+- **El test del 500 de CU-06 cambió de disparador.** La Serie de 30 ahora
+  la rechaza el lector.
+  - Nuevo disparador: un trigger temporal `BEFORE INSERT ON cfdi` que hace
+    `RAISE EXCEPTION` (P0001) solo para el UUID del segundo archivo. Se
+    crea con el dueño y se borra en `finally`.
+  - Es un error real de Postgres con un SQLSTATE que no es del archivo, y
+    solo toca a ese archivo, así que el primero sí entra antes del
+    rollback.
+  - Se descartó revocar el INSERT a `cuadra_app`, porque fallaría también
+    el primer archivo, y matar la conexión, porque es frágil.
+- **Pruebas de mutación de CU-07** (código restaurado):
+  - Sin el `SELECT` previo: 18 verdes, porque la red de seguridad responde
+    igual.
+  - Sin `SELECT` y sin el SAVEPOINT de la carga: rojos los 2 de lote
+    repetido (500).
+  - Sin el interceptor: rojos los mismos 2 (201 en vez de 200).
+  - Sin `ROLLBACK TO SAVEPOINT` en `ya_existia`: rojos los 2 de "ya estaba
+    en la empresa".
+
 - **CU-06 terminado: carga de archivos.**
   - **Endpoints:** `POST /cargas/cfdi` (multipart, campo `archivos`, roles
     admin y contador) y `GET /cargas/:id`.

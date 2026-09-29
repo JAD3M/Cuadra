@@ -54,6 +54,7 @@ export type MotivoRechazoCfdi =
   | 'no_es_cfdi'
   | 'version'
   | 'campo_invalido'
+  | 'campo_fuera_de_limite'
   | 'rfc_emisor'
   | 'rfc_receptor'
   | 'uuid_ausente'

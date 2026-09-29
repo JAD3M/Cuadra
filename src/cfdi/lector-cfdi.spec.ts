@@ -1,7 +1,9 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { getMetadataArgsStorage } from 'typeorm';
+import { Cfdi } from './cfdi.entity';
 import { CfdiRechazado, type MotivoRechazoCfdi } from './cfdi-leido';
-import { leerCfdi } from './lector-cfdi';
+import { DIGITOS_CFDI, LARGOS_CFDI, leerCfdi } from './lector-cfdi';
 
 /**
  * CU-05. Todos los XML son sintéticos (src/cfdi/fixtures): RFCs del seed,
@@ -190,6 +192,87 @@ describe('lector de CFDI 4.0 (CU-05)', () => {
         'Total="4.46658e3"',
       );
       expect(rechazo(xml).motivo).toBe('campo_invalido');
+    });
+  });
+
+  describe('límites de largo (Anexo 20 y columnas de cfdi)', () => {
+    const pue = () => fixture('pue-valido.xml');
+
+    it('Serie de 25 entra; de 26 se rechaza con motivo', () => {
+      expect(
+        leerCfdi(pue().replace('Serie="A"', `Serie="${'S'.repeat(25)}"`)).serie,
+      ).toHaveLength(25);
+
+      const error = rechazo(
+        pue().replace('Serie="A"', `Serie="${'S'.repeat(26)}"`),
+      );
+      expect(error.motivo).toBe('campo_fuera_de_limite');
+      expect(error.message).toMatch(
+        /serie tiene 26 caracteres; el máximo es 25/,
+      );
+    });
+
+    it('cuenta caracteres, no bytes: 25 Ñ entran', () => {
+      // 25 caracteres, 50 bytes en UTF-8. varchar(25) cuenta caracteres.
+      expect(
+        leerCfdi(pue().replace('Serie="A"', `Serie="${'Ñ'.repeat(25)}"`)).serie,
+      ).toBe('Ñ'.repeat(25));
+    });
+
+    it('Folio de 41 se rechaza', () => {
+      const error = rechazo(
+        pue().replace('Folio="1001"', `Folio="${'9'.repeat(41)}"`),
+      );
+      expect(error.motivo).toBe('campo_fuera_de_limite');
+      expect(error.message).toMatch(/folio/);
+    });
+
+    it('un Total con 5 decimales no se deja redondear callado por NUMERIC(18,4)', () => {
+      // Cuadra al redondear a centavos, pero la columna perdería el quinto decimal.
+      const error = rechazo(
+        pue().replace('Total="4466.58"', 'Total="4466.58001"'),
+      );
+      expect(error.motivo).toBe('campo_fuera_de_limite');
+      expect(error.message).toMatch(/total = 4466\.58001/);
+    });
+
+    it('un tipo de cambio con 13 enteros no cabe en NUMERIC(18,6)', () => {
+      const error = rechazo(
+        fixture('usd-tipo-cambio.xml').replace(
+          'TipoCambio="17.234567"',
+          `TipoCambio="${'1'.repeat(13)}.5"`,
+        ),
+      );
+      expect(error.motivo).toBe('campo_fuera_de_limite');
+      expect(error.message).toMatch(/tipoCambio/);
+    });
+
+    // Si alguien achica una columna sin tocar el lector, esto se pone rojo
+    // antes de que llegue un 22001 a producción.
+    it('ningún límite del lector pasa del de su columna en la entidad', () => {
+      const columnas = new Map(
+        getMetadataArgsStorage()
+          .columns.filter((c) => c.target === Cfdi)
+          .map((c) => [c.propertyName, c.options]),
+      );
+
+      for (const [campo, largo] of Object.entries(LARGOS_CFDI)) {
+        const columna = columnas.get(campo);
+        // Sin columna, Number(undefined) es NaN y el <= fallaría igual, pero
+        // con un mensaje que no dice qué campo.
+        expect([campo, columna?.length]).not.toEqual([campo, undefined]);
+        expect(largo).toBeLessThanOrEqual(Number(columna?.length));
+      }
+      for (const [campo, { enteros, decimales }] of Object.entries(
+        DIGITOS_CFDI,
+      )) {
+        const columna = columnas.get(campo);
+        expect([campo, columna?.scale]).not.toEqual([campo, undefined]);
+        const escala = Number(columna?.scale);
+        const precision = Number(columna?.precision);
+        expect(decimales).toBeLessThanOrEqual(escala);
+        expect(enteros).toBeLessThanOrEqual(precision - escala);
+      }
     });
   });
 });

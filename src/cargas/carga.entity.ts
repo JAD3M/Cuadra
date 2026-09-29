@@ -11,10 +11,13 @@ import {
   type TipoCarga,
 } from '../common/entities/tipos';
 
-export interface ErrorDeArchivo {
-  archivo: string;
-  motivo: string;
-}
+/**
+ * Qué pasó con cada archivo del lote (CU-06, CU-07). `motivo` solo en
+ * 'error'.
+ */
+export type ResultadoDeArchivo =
+  | { archivo: string; resultado: 'nuevo' | 'ya_existia' }
+  | { archivo: string; resultado: 'error'; motivo: string };
 
 /**
  * Una petición de carga: un lote de CFDI (uno o varios archivos) o un estado
@@ -29,7 +32,12 @@ export interface ErrorDeArchivo {
 @Check('ck_cargas_estado', `estado IN (${listaSql(ESTADOS_CARGA)})`)
 @Check(
   'ck_cargas_conteos_no_negativos',
-  'total_registros >= 0 AND registros_ok >= 0 AND registros_error >= 0',
+  'total_registros >= 0 AND registros_ok >= 0 AND registros_error >= 0 AND registros_existentes >= 0',
+)
+// Cada archivo cae en exactamente un contador (CU-07).
+@Check(
+  'ck_cargas_total_cuadra',
+  'total_registros = registros_ok + registros_error + registros_existentes',
 )
 export class Carga extends EntidadBase {
   @Column({ type: 'uuid' })
@@ -61,12 +69,16 @@ export class Carga extends EntidadBase {
   @Column({ type: 'integer', default: 0 })
   registrosError: number;
 
+  /** CFDI cuyo UUID ya estaba en la empresa: no es error ni se duplica (CU-07). */
+  @Column({ type: 'integer', default: 0 })
+  registrosExistentes: number;
+
   @Column({ type: 'text', nullable: true })
   errorMensaje: string | null;
 
-  /** Un elemento por archivo que no entró (CU-06). Vacío si todos entraron. */
+  /** Un elemento por archivo del lote, en el orden en que llegaron. */
   @Column({ type: 'jsonb', default: () => "'[]'" })
-  errores: ErrorDeArchivo[];
+  resultados: ResultadoDeArchivo[];
 
   @Column({ type: 'timestamptz', nullable: true })
   procesadaAt: Date | null;

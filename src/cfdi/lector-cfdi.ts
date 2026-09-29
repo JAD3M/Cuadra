@@ -68,6 +68,34 @@ const UUID = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 /** `Fecha` del CFDI: sin zona ni milisegundos, por definición del Anexo 20. */
 const FECHA = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
 
+/**
+ * Largo máximo de cada texto que se guarda en una columna con límite: el
+ * menor entre el Anexo 20 y la columna de `cfdi`. Lo que no cabe se rechaza
+ * aquí con motivo; si llegara a la base sería un 22001 y la petición entera
+ * daría 500 por culpa de un archivo. `lector-cfdi.spec` compara esta tabla
+ * contra las columnas de la entidad.
+ */
+export const LARGOS_CFDI = {
+  serie: 25, // Anexo 20: 1 a 25; columna varchar(25)
+  folio: 40, // Anexo 20: 1 a 40; columna varchar(40)
+  moneda: 3, // c_Moneda; columna char(3)
+  metodoPago: 3, // c_MetodoPago; columna varchar(3)
+  formaPago: 2, // c_FormaPago; columna varchar(2)
+} as const;
+
+/**
+ * Dígitos de cada monto que se guarda. Anexo 20 (t_Importe, TipoCambio): hasta
+ * 18 enteros y 6 decimales, sin signo. La columna manda cuando es más chica:
+ * NUMERIC(18,4) deja 14 enteros y 4 decimales, y un quinto decimal no da
+ * error: Postgres lo redondea callado.
+ */
+export const DIGITOS_CFDI = {
+  subtotal: { enteros: 14, decimales: 4 }, // numeric(18,4)
+  descuento: { enteros: 14, decimales: 4 }, // numeric(18,4)
+  total: { enteros: 14, decimales: 4 }, // numeric(18,4)
+  tipoCambio: { enteros: 12, decimales: 6 }, // numeric(18,6)
+} as const;
+
 type Nodo = Record<string, unknown>;
 
 export function leerCfdi(xml: string): CfdiLeido {
@@ -144,6 +172,15 @@ export function leerCfdi(xml: string): CfdiLeido {
   const descuento = montoOpcional(comprobante, 'Descuento') ?? '0';
   const total = monto(comprobante, 'Total');
   const impuestos = leerImpuestos(comprobante);
+  const metodoPago = atributo(comprobante, 'MetodoPago') ?? null;
+  const formaPago = atributo(comprobante, 'FormaPago') ?? null;
+  const serie = atributo(comprobante, 'Serie') ?? null;
+  const folio = atributo(comprobante, 'Folio') ?? null;
+
+  // Antes de las sumas: un monto que no cabe se reporta como tal, no como
+  // "no cuadra".
+  validarLargos({ serie, folio, moneda, metodoPago, formaPago });
+  validarDigitos({ subtotal, descuento, total, tipoCambio });
 
   validarSumas(comprobante, decimales, {
     subtotal,
@@ -152,7 +189,6 @@ export function leerCfdi(xml: string): CfdiLeido {
     impuestos,
   });
 
-  const metodoPago = atributo(comprobante, 'MetodoPago') ?? null;
   return {
     uuidFiscal: uuid.toUpperCase(),
     rfcEmisor,
@@ -165,13 +201,56 @@ export function leerCfdi(xml: string): CfdiLeido {
     descuento,
     total,
     metodoPago,
-    formaPago: atributo(comprobante, 'FormaPago') ?? null,
-    serie: atributo(comprobante, 'Serie') ?? null,
-    folio: atributo(comprobante, 'Folio') ?? null,
+    formaPago,
+    serie,
+    folio,
     impuestos,
     estadoInicial: metodoPago === 'PPD' ? 'parcialidades' : 'abierta',
     xmlRaw: { ...arbol, _xml: xml },
   };
+}
+
+function validarLargos(
+  valores: Record<keyof typeof LARGOS_CFDI, string | null>,
+): void {
+  for (const campo of Object.keys(LARGOS_CFDI) as Array<
+    keyof typeof LARGOS_CFDI
+  >) {
+    const valor = valores[campo];
+    // Postgres cuenta caracteres (code points), no unidades UTF-16.
+    const largo = valor === null ? 0 : [...valor].length;
+    if (largo > LARGOS_CFDI[campo]) {
+      throw new CfdiRechazado(
+        'campo_fuera_de_limite',
+        `${campo} tiene ${largo} caracteres; el máximo es ${LARGOS_CFDI[campo]}`,
+      );
+    }
+  }
+}
+
+function validarDigitos(
+  valores: Record<keyof typeof DIGITOS_CFDI, string | null>,
+): void {
+  for (const campo of Object.keys(DIGITOS_CFDI) as Array<
+    keyof typeof DIGITOS_CFDI
+  >) {
+    const valor = valores[campo];
+    if (valor === null) continue;
+    const { enteros, decimales } = DIGITOS_CFDI[campo];
+    const [parteEntera, parteDecimal = ''] = valor.split('.');
+    // Sin signo: el Anexo 20 no admite montos negativos, y la base tampoco
+    // (ck_cfdi_total_no_negativo).
+    if (
+      parteEntera.startsWith('-') ||
+      parteEntera.replace(/^0+(?=\d)/, '').length > enteros ||
+      parteDecimal.length > decimales
+    ) {
+      throw new CfdiRechazado(
+        'campo_fuera_de_limite',
+        `${campo} = ${valor} no cabe: máximo ${enteros} enteros y ${decimales} decimales, sin signo`,
+      );
+    }
+  }
 }
 
 function leerImpuestos(comprobante: Nodo): ImpuestosCfdi {
