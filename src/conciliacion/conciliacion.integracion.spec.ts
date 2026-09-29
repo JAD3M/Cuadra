@@ -382,6 +382,312 @@ describe('conciliar (CU-11): aislamiento entre empresas', () => {
   });
 });
 
+interface FilaMotivo {
+  id: string;
+  estado: string;
+  motivo_sin_match: string | null;
+  regla_sin_match: string | null;
+  evaluado_at: Date | null;
+  version: string;
+}
+
+const estadoDe = (empresa?: string) =>
+  filas<FilaMotivo>(
+    ds,
+    `SELECT id, estado, motivo_sin_match, regla_sin_match, evaluado_at, xmin::text AS version
+       FROM movimientos
+      WHERE $1::uuid IS NULL OR company_id = $1 ORDER BY linea_numero`,
+    [empresa ?? null],
+  );
+
+const de = (todas: FilaMotivo[], id: string): FilaMotivo => {
+  const fila = todas.find((f) => f.id === id);
+  if (!fila) throw new Error(`movimiento ${id} no existe`);
+  return fila;
+};
+
+const fijarMotivo = (id: string, regla = 'sin_candidato_monto') =>
+  ds.query(
+    `UPDATE movimientos SET regla_sin_match = $2, motivo_sin_match = 'previo',
+                            evaluado_at = '2026-01-01T00:00:00Z' WHERE id = $1`,
+    [id, regla],
+  );
+
+describe('conciliar (CU-13): resultado explicado', () => {
+  it('guarda el código y un motivo legible por cada rama sin propuesta', async () => {
+    const casos: [string, () => Promise<string>, string[]][] = [
+      [
+        'referencia_ambigua',
+        async () => {
+          const m = await movimiento(A, { referencia: '1001' });
+          await factura(A, { serie: 'A' });
+          await factura(A, { serie: 'B' });
+          return m;
+        },
+        ['1001', '2'],
+      ],
+      [
+        'referencia_cfdi_ocupado',
+        async () => {
+          const m = await movimiento(A, {
+            referencia: 'A1001',
+            monto: '10.00',
+          });
+          const otro = await movimiento(A, { monto: '20.00' });
+          const c = await factura(A);
+          await conciliacionPrevia(A, c, otro, 'propuesta');
+          return m;
+        },
+        ['A1001', 'A-1001'],
+      ],
+      [
+        'referencia_cfdi_no_compatible',
+        async () => {
+          const m = await movimiento(A, { referencia: 'A1001', moneda: 'USD' });
+          await factura(A, { moneda: 'MXN' });
+          return m;
+        },
+        ['A1001', 'USD', 'MXN'],
+      ],
+      [
+        'sin_candidato_monto',
+        () => movimiento(A, { monto: '777.00' }),
+        ['777.00'],
+      ],
+      [
+        'monto_multiples_candidatos',
+        async () => {
+          const m = await movimiento(A, { monto: '500.00' });
+          await factura(A, { folio: '7001', total: '500.00' });
+          await factura(A, { folio: '7002', total: '500.00' });
+          return m;
+        },
+        ['500.00', '2'],
+      ],
+      [
+        'monto_candidato_ocupado',
+        async () => {
+          const m = await movimiento(A, { monto: '500.00' });
+          const otro = await movimiento(A, { monto: '20.00' });
+          const c = await factura(A, { folio: '7001', total: '500.00' });
+          await conciliacionPrevia(A, c, otro, 'propuesta');
+          return m;
+        },
+        ['500.00', 'A-7001'],
+      ],
+      [
+        'cfdi_multiples_movimientos',
+        async () => {
+          const m = await movimiento(A, { monto: '500.00' });
+          await movimiento(A, { monto: '500.00' });
+          await factura(A, { folio: '7001', total: '500.00' });
+          return m;
+        },
+        ['500.00', 'A-7001'],
+      ],
+    ];
+    for (const [regla, preparar, contenido] of casos) {
+      await ds.query('TRUNCATE cfdi, movimientos, conciliaciones CASCADE');
+      const id = await preparar();
+      await servicio.conciliar(A);
+      const fila = de(await estadoDe(A), id);
+      expect(fila.regla_sin_match).toBe(regla);
+      expect(fila.evaluado_at).toBeInstanceOf(Date);
+      const motivo = fila.motivo_sin_match ?? '';
+      expect(motivo).not.toBe('');
+      for (const dato of contenido) expect(motivo).toContain(dato);
+      expect(motivo).not.toMatch(/^Regla/);
+      expect(motivo).not.toMatch(/llm/i);
+      expect(
+        (await propuestasNuevas(A)).filter((f) => f.movimiento_id === id),
+      ).toEqual([]);
+    }
+  });
+
+  it('con propuesta las tres columnas quedan en NULL y cada movimiento tiene un solo resultado', async () => {
+    const conMatch = await movimiento(A, { referencia: 'A1001' });
+    const sinMatch = await movimiento(A, { monto: '777.00' });
+    await factura(A);
+    await servicio.conciliar(A);
+    const todas = await estadoDe(A);
+    expect(de(todas, conMatch)).toMatchObject({
+      motivo_sin_match: null,
+      regla_sin_match: null,
+      evaluado_at: null,
+    });
+    expect(de(todas, sinMatch).regla_sin_match).toBe('sin_candidato_monto');
+    const propuestos = new Set(
+      (await propuestasNuevas(A)).map((f) => f.movimiento_id),
+    );
+    const conMotivo = todas.filter((f) => f.regla_sin_match !== null);
+    expect(propuestos.size + conMotivo.length).toBe(todas.length);
+    expect(conMotivo.some((f) => propuestos.has(f.id))).toBe(false);
+  });
+
+  it('un CFDI que llega después genera la propuesta y limpia el motivo', async () => {
+    const m = await movimiento(A, { referencia: 'A1001' });
+    await servicio.conciliar(A);
+    expect(de(await estadoDe(A), m).regla_sin_match).toBe(
+      'sin_candidato_monto',
+    );
+    await factura(A);
+    await servicio.conciliar(A);
+    expect(de(await estadoDe(A), m)).toMatchObject({
+      motivo_sin_match: null,
+      regla_sin_match: null,
+      evaluado_at: null,
+    });
+    expect(await propuestasNuevas(A)).toHaveLength(1);
+  });
+
+  it('una propuesta vigente de una corrida anterior limpia un motivo viejo', async () => {
+    const m = await movimiento(A, { monto: '500.00' });
+    const c = await factura(A, { total: '500.00' });
+    await conciliacionPrevia(A, c, m, 'propuesta');
+    await fijarMotivo(m);
+    await servicio.conciliar(A);
+    expect(de(await estadoDe(A), m)).toMatchObject({
+      motivo_sin_match: null,
+      regla_sin_match: null,
+      evaluado_at: null,
+    });
+  });
+
+  it('idempotente: la segunda corrida no reescribe filas ni mueve evaluado_at', async () => {
+    const sin = await movimiento(A, { monto: '777.00' });
+    const con = await movimiento(A, { referencia: 'A1001' });
+    await factura(A);
+    await servicio.conciliar(A);
+    const antes = await estadoDe(A);
+    await servicio.conciliar(A);
+    const despues = await estadoDe(A);
+    expect(despues).toEqual(antes); // incluye xmin: ninguna fila se reescribió
+    expect(de(despues, sin).evaluado_at).toEqual(de(antes, sin).evaluado_at);
+    expect(de(despues, con).version).toBe(de(antes, con).version);
+    expect(await conciliaciones()).toHaveLength(1);
+  });
+
+  it('si los datos cambian la rama, actualiza código y motivo y avanza evaluado_at', async () => {
+    const m = await movimiento(A, { monto: '500.00' });
+    await servicio.conciliar(A);
+    const antes = de(await estadoDe(A), m);
+    expect(antes.regla_sin_match).toBe('sin_candidato_monto');
+    await factura(A, { folio: '7001', total: '500.00' });
+    await factura(A, { folio: '7002', total: '500.00' });
+    await servicio.conciliar(A);
+    const despues = de(await estadoDe(A), m);
+    expect(despues.regla_sin_match).toBe('monto_multiples_candidatos');
+    expect(despues.motivo_sin_match).not.toBe(antes.motivo_sin_match);
+    expect(despues.evaluado_at!.getTime()).toBeGreaterThan(
+      antes.evaluado_at!.getTime(),
+    );
+  });
+
+  it('cambiar la tolerancia no toca los motivos hasta la siguiente corrida', async () => {
+    const m = await movimiento(A, { monto: '1100.00' });
+    await factura(A); // 1160.00
+    await servicio.conciliar(A);
+    const antes = de(await estadoDe(A), m);
+    expect(antes.regla_sin_match).toBe('sin_candidato_monto');
+    await ds.query(
+      `UPDATE companies SET tolerancia_monto = 100 WHERE id = $1`,
+      [A],
+    );
+    try {
+      expect(de(await estadoDe(A), m)).toEqual(antes);
+      await servicio.conciliar(A);
+      expect(de(await estadoDe(A), m).regla_sin_match).toBeNull();
+    } finally {
+      await ds.query(`UPDATE companies SET tolerancia_monto = 0`);
+    }
+  });
+
+  it('movimientos sin evaluar (previos a la migración) se llenan en la siguiente corrida', async () => {
+    const m = await movimiento(A, { monto: '777.00' });
+    expect(de(await estadoDe(A), m).evaluado_at).toBeNull();
+    await servicio.conciliar(A);
+    expect(de(await estadoDe(A), m).evaluado_at).toBeInstanceOf(Date);
+  });
+
+  it('cargos y movimientos conciliados o descartados no se tocan; ningún estado cambia', async () => {
+    const cargo = await movimiento(A, { monto: '-50.00' });
+    const conciliado = await movimiento(A, { monto: '10.00' });
+    const descartado = await movimiento(A, { monto: '20.00' });
+    const abierto = await movimiento(A, { monto: '777.00' });
+    await ds.query(
+      `UPDATE movimientos SET estado = 'conciliado' WHERE id = $1`,
+      [conciliado],
+    );
+    await ds.query(
+      `UPDATE movimientos SET estado = 'descartado' WHERE id = $1`,
+      [descartado],
+    );
+    await fijarMotivo(conciliado);
+    await fijarMotivo(descartado);
+    const cfdiAntes = await filas(
+      ds,
+      `SELECT id, estado FROM cfdi ORDER BY id`,
+    );
+    const antes = await estadoDe(A);
+    await servicio.conciliar(A);
+    const despues = await estadoDe(A);
+    for (const id of [cargo, conciliado, descartado]) {
+      expect(de(despues, id)).toEqual(de(antes, id));
+    }
+    expect(de(despues, cargo).regla_sin_match).toBeNull();
+    expect(de(despues, abierto).regla_sin_match).toBe('sin_candidato_monto');
+    expect(despues.map((f) => f.estado)).toEqual(antes.map((f) => f.estado));
+    expect(await filas(ds, `SELECT id, estado FROM cfdi ORDER BY id`)).toEqual(
+      cfdiAntes,
+    );
+  });
+
+  it('aislamiento: conciliar(A) no escribe en B y los datos de B no explican a A', async () => {
+    const deA = await movimiento(A, { referencia: 'A1001' });
+    const deB = await movimiento(B, { referencia: 'A1001' });
+    await factura(B);
+    await servicio.conciliar(A);
+    const todas = await estadoDe();
+    expect(de(todas, deA).regla_sin_match).toBe('sin_candidato_monto');
+    expect(de(todas, deB)).toMatchObject({
+      motivo_sin_match: null,
+      regla_sin_match: null,
+      evaluado_at: null,
+    });
+    await servicio.conciliar(B);
+    expect(de(await estadoDe(), deA)).toEqual(de(todas, deA));
+    expect(await propuestasNuevas(B)).toHaveLength(1);
+  });
+
+  it('dos corridas en paralelo dejan un solo resultado por movimiento', async () => {
+    for (let i = 0; i < 5; i++) await movimiento(A, { monto: `${100 + i}.00` });
+    await Promise.all([servicio.conciliar(A), servicio.conciliar(A)]);
+    const todas = await estadoDe(A);
+    expect(todas.every((f) => f.regla_sin_match !== null)).toBe(true);
+  });
+
+  it('los CHECK rechazan un código desconocido y un par a medias', async () => {
+    const m = await movimiento(A);
+    const escribir = (motivo: string | null, regla: string | null) =>
+      ds.query(
+        `UPDATE movimientos SET motivo_sin_match = $2, regla_sin_match = $3 WHERE id = $1`,
+        [m, motivo, regla],
+      );
+    await expect(escribir('texto', 'inventada')).rejects.toThrow(
+      /ck_movimientos_regla_sin_match/,
+    );
+    await expect(escribir('texto', null)).rejects.toThrow(
+      /ck_movimientos_sin_match_par/,
+    );
+    await expect(escribir(null, 'sin_candidato_monto')).rejects.toThrow(
+      /ck_movimientos_sin_match_par/,
+    );
+    await expect(
+      escribir('texto', 'sin_candidato_monto'),
+    ).resolves.toBeDefined();
+  });
+});
+
 describe('tolerancia por empresa (CU-12)', () => {
   const fijar = (empresa: string, valor: string) =>
     ds.query('UPDATE companies SET tolerancia_monto = $2 WHERE id = $1', [
