@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TransaccionEmpresa } from '../database/transaccion-empresa';
+import { tomarCandadoDeConciliacion } from './candado';
 import {
   type CfdiAbierto,
   evaluarConMotivos,
@@ -44,10 +45,7 @@ export class ConciliacionService {
     const { propuestas, sinMatch } = await this.transaccion.ejecutar(
       companyId,
       async (manager) => {
-        await manager.query(
-          `SELECT pg_advisory_xact_lock(hashtextextended('conciliar:' || $1::text, 0))`,
-          [companyId],
-        );
+        await tomarCandadoDeConciliacion(manager, companyId);
 
         const empresas = await manager.query<{ rfc: string }[]>(
           `SELECT rfc FROM companies WHERE id = $1`,
