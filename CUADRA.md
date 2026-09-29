@@ -748,8 +748,10 @@ arriba.
 ### 29 sep 2026
 
 - **CU-14 terminado: bandeja de revisión (`GET /bandeja`), solo lectura.**
-  Un PR único con `size:exception` aceptado (~490 líneas, casi la mitad
-  pruebas), en tres commits por unidad de trabajo. Sin migración.
+  Dos PR encadenados (`stacked-to-main`), unas 830 líneas en total, más de
+  la mitad pruebas: la consulta con estado derivado, filtro y orden (~450),
+  y luego la paginación, la mejor propuesta, el motivo por estado y el
+  aislamiento (~400). Sin migración.
   - **Módulo `src/bandeja`:** controlador, servicio con SQL crudo por
     `ContextoEmpresa.manager()` (RLS como `cuadra_app`) y DTOs. Cualquier
     miembro lee (admin, contador, revisor); la empresa sale solo del token y
