@@ -29,7 +29,7 @@ stories already marked done in Jira (KAN-78, KAN-80, KAN-81).
       test that `validateEnv` fails naming the missing variable. Route: delegated.
 - [x] T2 CU-03.3: 403 by role writes an entry to `bitacora` (company_id,
       user_id, accion, datos). Test it. Route: delegated.
-- [ ] T3 CU-04.2: CI workflow running typecheck + tests with Postgres 18 and
+- [x] T3 CU-04.2: CI workflow running typecheck + tests with Postgres 18 and
       Redis services. Route: delegated.
 - [ ] T4 Update CUADRA.md bitácora; mark KAN-78/80/81 as Finalizado.
 
@@ -51,7 +51,7 @@ Each criterion above has implementation + passing test; `npm test` and
   Verification: `npm run typecheck` ok; `npm test` 13 suites / 215 tests ok;
   eslint on touched files ok.
 
-- T2 (see `feat(auth): registrar en bitácora los accesos denegados por rol`):
+- T2 (f7ddf77):
   `RolesGuard` calls `AccesosDenegados.registrar` before throwing 403 (role
   insufficient, or no membership: `datos.motivo` tells them apart). Guards run
   before `TransaccionEmpresaInterceptor`, so the service opens its own
@@ -65,3 +65,15 @@ Each criterion above has implementation + passing test; `npm test` and
   (one row, RLS isolation, no membership, allowed access writes nothing,
   logging failure still 403). Verification: `npm run typecheck` ok;
   `npm test` 14 suites / 224 tests ok; eslint on touched files ok.
+
+- T3 (commit `ci: typecheck y tests con Postgres y Redis en cada push`):
+  `.github/workflows/ci.yml` on push and pull_request: Node 24 (matches local
+  v24.19.0; repo has no engines/.nvmrc), `npm ci`, `npm run typecheck`,
+  `npm test`. Services `postgres:18-alpine` and `redis:7-alpine` as in
+  docker-compose.yml; env vars from `validateEnv`. No separate migration step:
+  the DB specs create `<base>_test`, migrate and seed it themselves (the
+  `cuadra_app` role comes from the AislamientoRls migration). `npm test` runs
+  `aislamiento.spec.ts` and `rls.spec.ts`, so an isolation failure fails the
+  build. Verified locally: `@action-validator/cli` on the workflow ok; full
+  suite with `.env` removed and a clean `env -i` environment against a fresh
+  database: 14 suites / 224 tests ok. Not verified: an actual GitHub run.

@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Mismas imágenes que docker-compose.yml.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: cuadra
+          POSTGRES_PASSWORD: cuadra
+          POSTGRES_DB: cuadra
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U cuadra"
+          --health-interval 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-retries 10
+
+    # Lo que exige validateEnv (src/config/env.validation.ts). Las pruebas de
+    # base migran y siembran solas <base>_test; el rol cuadra_app lo crea la
+    # migración AislamientoRls con la contraseña de DATABASE_APP_URL.
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://cuadra:cuadra@localhost:5432/cuadra
+      DATABASE_APP_URL: postgresql://cuadra_app:cuadra_app@localhost:5432/cuadra
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: secreto-solo-para-ci-no-usar-en-produccion
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      # Incluye aislamiento.spec.ts y rls.spec.ts (CU-04): si el aislamiento
+      # entre empresas falla, falla el build.
+      - run: npm test
