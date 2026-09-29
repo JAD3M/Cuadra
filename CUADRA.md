@@ -5,7 +5,7 @@
 
 | | |
 |---|---|
-| **Estado** | Día 6 de 9 ✅ · CU-01 a CU-12, más CU-04b · 47 / 69 pts · Épicas A, B y C cerradas |
+| **Estado** | Día 6 de 9 ✅ · CU-01 a CU-13, más CU-04b · 50 / 69 pts · Épicas A, B, C y D cerradas |
 | **Entrega** | 2 de octubre de 2026 |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 18 historias · 69 puntos · 9 días hábiles |
@@ -746,6 +746,46 @@ Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
 
 ### 29 sep 2026
+
+- **CU-13 terminado: cada resultado del motor lleva su motivo guardado.**
+  Dos PR encadenados (`stacked-to-main`): motor puro con motivos, y
+  persistencia. Las propuestas ya guardaban `motivo`; el hueco eran los
+  movimientos sin propuesta, que la bandeja de CU-14 necesita explicar.
+  - **Enfoque:** tres columnas nulas en `movimientos`: `motivo_sin_match`
+    (texto en español), `regla_sin_match` (código estable) y `evaluado_at`.
+    Van juntas o no van (`ck_movimientos_sin_match_par`), y el código solo
+    puede ser uno de siete (`ck_movimientos_regla_sin_match`):
+    `referencia_ambigua`, `referencia_cfdi_ocupado`,
+    `referencia_cfdi_no_compatible`, `sin_candidato_monto`,
+    `monto_multiples_candidatos`, `monto_candidato_ocupado`,
+    `cfdi_multiples_movimientos`. Un código nuevo es una migración nueva.
+  - **Motor:** `evaluarConMotivos` devuelve `{propuestas, sinMatch}` y
+    `seleccionarPropuestas` quedó como envoltorio. Cada abono abierto termina
+    en exactamente una de tres: ocupado, propuesta o motivo. Los motivos de
+    propuesta ya no llevan el prefijo "Regla <id>:" y el exacto agrega la
+    diferencia cuando no es cero.
+  - **Persistencia (dentro del candado y la transacción de `conciliar`):**
+    el UPDATE por lote con `jsonb_to_recordset` solo escribe si el código o el
+    texto cambian (`IS DISTINCT FROM`), así que re-correr no reescribe filas.
+    Un segundo UPDATE limpia las tres columnas de todo abono abierto con
+    conciliación vigente: un motivo nunca convive con una propuesta. Nunca
+    toca `estado`, cargos (monto <= 0) ni movimientos conciliados o
+    descartados; todas las sentencias filtran por `company_id`.
+  - **`evaluado_at`:** momento en que se fijó o cambió el resultado guardado,
+    no la última corrida (spec RE-4). NULL con propuesta o sin evaluar.
+    Movimientos anteriores a la migración se llenan en la siguiente corrida.
+  - **EXPLAIN:** el `NOT EXISTS` sobre `conciliaciones` por `movimiento_id`
+    no tenía índice: `ux_conciliaciones_par` empieza por `cfdi_id`, y el plan
+    recorría todas las filas de la empresa por búsqueda (30k movimientos, 15k
+    conciliaciones, 500 búsquedas: 510 ms). Con
+    `ix_conciliaciones_company_id_movimiento_id` bajó a 13 ms; el índice va en
+    la misma migración.
+  - **Límites conocidos:** un motivo guardado no se limpia si el movimiento
+    sale de `abierto` por otra vía (CU-15 puede limpiarlo al confirmar); CU-14
+    debe filtrar `estado = 'abierto'`. Cambiar la tolerancia (CU-12) no corre
+    `conciliar`: los motivos quedan como estaban hasta la siguiente corrida.
+  - **Verificación:** 400 tests en verde (19 suites), `typecheck` y eslint
+    limpios.
 
 - **CU-12 terminado: la tolerancia vive en la configuración de cada empresa.**
   `companies.tolerancia_monto numeric(18,4) NOT NULL DEFAULT 0`: toda empresa
