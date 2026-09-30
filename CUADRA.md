@@ -5,7 +5,7 @@
 
 | | |
 |---|---|
-| **Estado** | Día 7 de 9 ✅ · CU-01 a CU-16, más CU-04b · 61 / 69 pts · Épicas A, B, C y D cerradas |
+| **Estado** | Día 7 de 9 ✅ · CU-01 a CU-17, más CU-04b · 66 / 69 pts · Épicas A, B, C y D cerradas |
 | **Entrega** | 2 de octubre de 2026 |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 18 historias · 69 puntos · 9 días hábiles |
@@ -97,8 +97,8 @@ flowchart LR
   api -->|"HTTPS · solo ambiguos"| llm["Proveedor LLM"]
 ```
 
-Tres contenedores y un comando. El módulo `conciliacion` es el único que
-habla con el LLM, detrás de una interfaz propia — cambiar de proveedor, o
+Tres contenedores y un comando. El módulo `sugerencias` es el único que
+habla con el LLM, detrás de una interfaz propia (`ProveedorSugerencia`) — cambiar de proveedor, o
 pasar a un modelo local, es reemplazar un adaptador sin tocar el motor de
 reglas.
 
@@ -657,6 +657,53 @@ ruidosa en vez de silenciosa.
 decodifique el `exp` y verifique la duración — no opcional, es lo que
 sostiene el punto anterior.
 
+### D-10 · Proveedor de LLM: Anthropic detrás de un adaptador
+
+CU-17 usa **Anthropic, modelo `claude-sonnet-5-5`**, con el SDK oficial
+`@anthropic-ai/sdk`. El servicio no conoce al proveedor: habla con el puerto
+`ProveedorSugerencia`; `AdaptadorAnthropic` es una implementación, y hay un
+`ProveedorFalso` (pruebas) y un `ProveedorDesactivado` (función apagada).
+
+- **Llamada:** `messages.create` con salida estructurada
+  (`output_config.format` = esquema JSON) y `effort: 'low'`: elegir entre
+  pocos candidatos no pide razonamiento largo. Sin `thinking`, sin
+  `tool_choice`, sin betas. La respuesta se valida con zod; si el modelo
+  rompe el contrato, es un fallo del proveedor, no un "no sé".
+- **Sin respaldo del lado del servidor** (`fallbacks`): la documentación no
+  confirma que combine con salida estructurada. Un rechazo (`refusal`) o un
+  corte por `max_tokens` es simplemente "sin sugerencia".
+- **Qué sale de la casa:** del movimiento, `fecha`, `monto`, `moneda`,
+  `descripcion` y `referencia`; de cada CFDI, una etiqueta opaca (`C1..CN`),
+  serie-folio, total, fecha y `nombre_receptor`. **Nunca** RFC, UUID, XML ni
+  ids. La etiqueta solo la traduce el servidor.
+- **Texto no confiable:** descripción, referencia y receptor vienen de
+  bancos y terceros. Viajan como datos JSON y el prompt de sistema lo dice;
+  aun si el modelo obedeciera una instrucción inyectada, la etiqueta se
+  valida contra el conjunto que se le mostró.
+- **Solo propone:** crea una conciliación `origen 'llm'`, `estado
+  'propuesta'`, `regla 'llm_sugerencia'`, sin score, que una persona confirma
+  o rechaza (CU-15). Se aceptan confianza `alta` y `media`; `baja` se
+  descarta. Un falso positivo es peor que no conciliar.
+- **Apagado por omisión (opt-in):** activa solo con `LLM_HABILITADO=true` **y**
+  `ANTHROPIC_API_KEY`. Habilitado sin llave queda inerte con un aviso, no
+  truena el arranque: el CI no necesita secretos.
+- **Asíncrono:** cola `sugerencias` (BullMQ, un intento, un job por empresa),
+  encolada después de conciliar una carga. Un fallo de la cola o del
+  proveedor nunca falla ni altera una carga.
+
+| Variable | Por omisión | Qué hace |
+|---|---|---|
+| `LLM_HABILITADO` | `false` | Interruptor. Solo `true`/`false`. |
+| `ANTHROPIC_API_KEY` | (vacía) | Llave. Vacía = ausente. |
+| `LLM_MODEL` | `claude-sonnet-5-5` | Modelo. Entra en la huella de la entrada. |
+| `LLM_TIMEOUT_MS` | `15000` | Espera máxima por llamada (≥ 1000). |
+| `LLM_MAX_LLAMADAS_POR_CORRIDA` | `20` | Tope de llamadas por corrida. |
+| `LLM_CANDIDATOS_MAX` | `10` | Más candidatos que esto y se omite el movimiento. |
+
+**Qué cuesta:** cada pregunta es una llamada de pago y sale texto bancario
+al proveedor (por eso el opt-in y la lista cerrada de campos). Ollama sigue
+fuera de alcance: el puerto lo permite cuando haga falta.
+
 ---
 
 ## 7. Historias
@@ -732,7 +779,8 @@ Jira (`cuadra-jira.csv`) y en las issues importadas.
 
 | Nivel | Riesgo | Mitigación |
 |---|---|---|
-| Abierto | ¿Qué proveedor de LLM? | No bloquea hasta CU-17, el penúltimo día, porque el adaptador aísla la elección. Conviene confirmarlo antes por credenciales. |
+| Cerrado | ¿Qué proveedor de LLM? | Anthropic, `claude-sonnet-5-5`, con `@anthropic-ai/sdk` detrás de `ProveedorSugerencia` (D-10). El adaptador aísla la elección: cambiar de proveedor no toca el motor. |
+| Abierto | La sugerencia por IA no se ha probado contra la API real | Los tests usan un cliente doble y nunca llaman a la red. Antes de activarla en un entorno real hay que correr la prueba de humo manual (ver bitácora de CU-17). |
 | Alto | El motor de match se puede ir de las manos | Cada regla nueva atrapa más casos y genera más falsos positivos. La tolerancia empieza estricta y se afloja con datos reales, nunca al revés. |
 | Alto | Nueve días son nueve días | El alcance es entrega final, no hay "lo termino en la fase 2". Si algo se atrasa se corta una historia completa, nunca se entrega media. |
 | Medio | CFDI 4.0 tiene más reglas del SAT de las que caben en un día | Parsear solo los campos que el motor necesita y dejar el XML íntegro en `JSONB` para extraer más después. |
@@ -746,6 +794,66 @@ Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
 
 ### 30 sep 2026
+
+- **CU-17 terminado: sugerencia asistida por IA.** Dos PR encadenados
+  (`stacked-to-main`) con excepción de tamaño aceptada en ambos: primero el
+  dominio (puerto, candidatos, validador, persistencia y migración
+  `SugerenciasIa1790709000000`), luego el adaptador de Anthropic, la cola y
+  esta documentación. Decisión del proveedor en D-10; el riesgo "¿qué
+  proveedor de LLM?" queda cerrado.
+  - **Qué hace:** para los movimientos abiertos que el motor dejó con
+    `referencia_ambigua`, `monto_multiples_candidatos` o
+    `cfdi_multiples_movimientos`, pregunta al modelo cuál de los CFDI que el
+    propio motor ya considera compatibles corresponde. El conjunto de
+    candidatos sale de `candidatosAmbiguos` (mismas reglas del motor), no de
+    una heurística nueva; sin candidatos, o con más de `LLM_CANDIDATOS_MAX`,
+    no se pregunta (truncar podría esconder el CFDI correcto).
+  - **Nunca cierra un caso:** inserta una conciliación `origen 'llm'`,
+    `estado 'propuesta'`, `regla 'llm_sugerencia'`, sin score, con el motivo
+    `Sugerencia de IA: ...` (sin caracteres de control, máx. 500), más la fila
+    `crear` de la bitácora (CU-16, `user_id` nulo, con modelo y huella) y la
+    limpieza del motivo del movimiento, todo en una transacción. La
+    confirmación sigue siendo de una persona (CU-15); no se agregó ningún
+    CHECK nuevo sobre `origen` porque bloquearía esa confirmación, y una
+    prueba demuestra que la IA no produce `confirmada`.
+  - **La llamada va fuera de candado y de transacción.** Después se vuelve a
+    leer todo bajo el candado de conciliación (estado, regla y motivo del
+    movimiento, CFDI libre, sin conciliación viva); si algo cambió, no se
+    escribe nada y la siguiente corrida reevalúa.
+  - **Idempotencia:** `sugerencias_ia` (append-only, RLS con FORCE, solo
+    `SELECT, INSERT` para `cuadra_app`) guarda la huella de cada pregunta
+    (sha256 de movimiento + candidatos + modelo + versión del prompt). Misma
+    huella, no se vuelve a preguntar. Un "ninguno", un rechazo del modelo o
+    una confianza baja también quedan registrados; un fallo del proveedor no.
+    Un par que una persona rechazó sale del conjunto de candidatos.
+  - **Fallos y límites:** el primer error del proveedor corta la corrida
+    (el job termina bien, se reintenta en la siguiente) y hay un tope de
+    `LLM_MAX_LLAMADAS_POR_CORRIDA` llamadas. Cola `sugerencias`: un intento,
+    `jobId` `sugerencias-<companyId>`, encolada después de `conciliar` en su
+    propio `try/catch`; apagada, ni se toca Redis.
+  - **SDK verificado contra los tipos instalados** (`@anthropic-ai/sdk`
+    0.129.0): `timeout` (ms) y `maxRetries` son opciones del constructor
+    (`maxRetries: 0`), `output_config` admite `effort` y `format`, y
+    `StopReason` incluye `refusal` y `max_tokens`. `stop_reason` se revisa
+    antes de leer el contenido.
+  - **Pruebas:** 695 en total, sin `ANTHROPIC_API_KEY`: el adaptador se
+    prueba con un cliente doble (forma de la petición: sin `thinking`,
+    `tool_choice`, betas ni `fallbacks`; `refusal` y `max_tokens`; JSON
+    roto; errores de la API), el entorno tiene sus casos y la cola se prueba
+    de punta a punta con `ProveedorFalso` contra Postgres con RLS y Redis.
+    **Ninguna prueba llama a la API real.**
+  - **Pendiente: prueba de humo contra la API real.** Quien tenga la llave
+    debe correrla una vez antes de activar la función en un entorno real
+    (`LLM_HABILITADO=true` y `ANTHROPIC_API_KEY` en `.env`, con un
+    movimiento ambiguo cargado; debe aparecer una propuesta `llm` en la
+    bandeja y una fila en `sugerencias_ia`). No se confirmó que el modelo
+    acepte exactamente este esquema hasta hacerla.
+  - **Límites conocidos:** (1) si una carga termina mientras corre el job de
+    la empresa, el `add` se ignora por el `jobId` y esa carga espera al
+    siguiente disparo: latencia, no pérdida. (2) Una propuesta `llm`
+    equivocada bloquea el par para el motor hasta que alguien la rechaza.
+    (3) El umbral de confianza (`alta` y `media`, no `baja`) es una
+    decisión de producto revisable (`MIN_CONFIANZA`).
 
 - **CU-16 terminado: bitácora de auditoría.** Dos PR encadenados
   (`stacked-to-main`), con excepción de tamaño aceptada en ambos: primero la
