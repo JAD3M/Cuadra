@@ -1,6 +1,7 @@
 // src/conciliacion/evaluar-par.spec.ts
 import { CERO, dinero } from '../common/dinero';
 import {
+  candidatosAmbiguos,
   evaluarConMotivos,
   evaluarPar,
   seleccionarPropuestas,
@@ -626,5 +627,133 @@ describe('tolerancia solo en MXN (CU-12)', () => {
       expect.objectContaining({ regla: 'monto_unico' }),
     ]);
     expect(conMoneda('USD')).toEqual([]);
+  });
+});
+
+describe('candidatosAmbiguos (CU-17)', () => {
+  const ids = (cs: readonly CfdiAbierto[]) => cs.map((c) => c.id);
+
+  it('referencia_ambigua: los CFDI que empatan con la referencia, y solo esos', () => {
+    const m = mov({ id: 'm1', referencia: 'A-0001001' });
+    const cfdis = [
+      cfdi({ id: 'c1' }),
+      cfdi({ id: 'c2', serie: 'A', folio: '1001' }),
+      cfdi({ id: 'c3', folio: '0002002' }),
+    ];
+    expect(
+      ids(
+        candidatosAmbiguos(m, 'referencia_ambigua', cfdis, CERO, sinExistentes),
+      ),
+    ).toEqual(['c1', 'c2']);
+  });
+
+  it('referencia_ambigua: un par rechazado sale del conjunto', () => {
+    const m = mov({ id: 'm1', referencia: 'A-0001001' });
+    const cfdis = [
+      cfdi({ id: 'c1' }),
+      cfdi({ id: 'c2', serie: 'A', folio: '1001' }),
+    ];
+    const existentes: ParExistente[] = [
+      { cfdiId: 'c1', movimientoId: 'm1', rechazada: true },
+    ];
+    expect(
+      ids(candidatosAmbiguos(m, 'referencia_ambigua', cfdis, CERO, existentes)),
+    ).toEqual(['c2']);
+  });
+
+  it('referencia_ambigua sin referencia utilizable: conjunto vacío', () => {
+    const m = mov({ id: 'm1', referencia: null });
+    expect(
+      candidatosAmbiguos(
+        m,
+        'referencia_ambigua',
+        [cfdi({ id: 'c1' })],
+        CERO,
+        sinExistentes,
+      ),
+    ).toEqual([]);
+  });
+
+  it('monto_multiples_candidatos: los que coinciden por monto, moneda y fecha', () => {
+    const m = mov({ id: 'm1' });
+    const cfdis = [
+      cfdi({ id: 'c1', folio: '1' }),
+      cfdi({ id: 'c2', folio: '2' }),
+      cfdi({ id: 'c3', folio: '3', total: '999.00' }),
+      cfdi({ id: 'c4', folio: '4', moneda: 'USD' }),
+      cfdi({ id: 'c5', folio: '5', fechaEmision: '2026-03-11' }),
+    ];
+    expect(
+      ids(
+        candidatosAmbiguos(
+          m,
+          'monto_multiples_candidatos',
+          cfdis,
+          CERO,
+          sinExistentes,
+        ),
+      ),
+    ).toEqual(['c1', 'c2']);
+  });
+
+  it('cfdi_multiples_movimientos: el único CFDI que coincide por monto', () => {
+    const m = mov({ id: 'm1' });
+    const cfdis = [cfdi({ id: 'c1' }), cfdi({ id: 'c2', total: '5.00' })];
+    expect(
+      ids(
+        candidatosAmbiguos(
+          m,
+          'cfdi_multiples_movimientos',
+          cfdis,
+          CERO,
+          sinExistentes,
+        ),
+      ),
+    ).toEqual(['c1']);
+  });
+
+  it('por monto respeta la tolerancia y los pares rechazados', () => {
+    const m = mov({ id: 'm1', monto: '1158.00' });
+    const cfdis = [
+      cfdi({ id: 'c1', folio: '1' }),
+      cfdi({ id: 'c2', folio: '2' }),
+    ];
+    expect(
+      ids(
+        candidatosAmbiguos(
+          m,
+          'monto_multiples_candidatos',
+          cfdis,
+          dinero('5'),
+          [{ cfdiId: 'c2', movimientoId: 'm1', rechazada: true }],
+        ),
+      ),
+    ).toEqual(['c1']);
+    expect(
+      candidatosAmbiguos(
+        m,
+        'monto_multiples_candidatos',
+        cfdis,
+        CERO,
+        sinExistentes,
+      ),
+    ).toEqual([]);
+  });
+
+  it('coincide con lo que evaluarConMotivos dejó sin propuesta (mismo conjunto)', () => {
+    const m = mov({ id: 'm1', referencia: 'A-0001001' });
+    const cfdis = [
+      cfdi({ id: 'c1' }),
+      cfdi({ id: 'c2', serie: 'A', folio: '1001' }),
+    ];
+    const { sinMatch } = evaluarConMotivos([m], cfdis, CERO, sinExistentes);
+    expect(sinMatch).toEqual([
+      expect.objectContaining({ regla: 'referencia_ambigua' }),
+    ]);
+    expect(
+      ids(
+        candidatosAmbiguos(m, 'referencia_ambigua', cfdis, CERO, sinExistentes),
+      ),
+    ).toEqual(['c1', 'c2']);
   });
 });

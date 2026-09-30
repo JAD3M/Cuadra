@@ -66,7 +66,10 @@ export interface Propuesta {
 }
 
 /** Moneda igual y el movimiento no es anterior a la emisión (solo fecha). */
-function compatibles(mov: MovimientoAbierto, cfdi: CfdiAbierto): boolean {
+export function compatibles(
+  mov: MovimientoAbierto,
+  cfdi: CfdiAbierto,
+): boolean {
   return mov.moneda === cfdi.moneda && mov.fecha >= cfdi.fechaEmision;
 }
 
@@ -82,7 +85,7 @@ function diferencia(mov: MovimientoAbierto, cfdi: CfdiAbierto): Dinero {
   return dinero(mov.monto).minus(dinero(cfdi.total));
 }
 
-function etiquetaCfdi(cfdi: CfdiAbierto): string {
+export function etiquetaCfdi(cfdi: CfdiAbierto): string {
   const folio = cfdi.folio ?? '';
   return cfdi.serie ? `${cfdi.serie}-${folio}` : folio;
 }
@@ -208,6 +211,74 @@ export interface EvaluacionConMotivos {
 }
 
 /**
+ * Los predicados que el motor usa para decidir quién puede cruzarse con quién,
+ * dados los cruces que ya existen: un par rechazado nunca se vuelve a
+ * proponer, y lo que tiene conciliación vigente sigue contando como candidato
+ * pero ya no recibe otra.
+ */
+function predicadosDelMotor(
+  tolerancia: Dinero,
+  existentes: readonly ParExistente[],
+) {
+  const rechazados = new Set(
+    existentes
+      .filter((e) => e.rechazada)
+      .map((e) => `${e.movimientoId}|${e.cfdiId}`),
+  );
+  const movsOcupados = new Set(
+    existentes.filter((e) => !e.rechazada).map((e) => e.movimientoId),
+  );
+  const cfdisOcupados = new Set(
+    existentes.filter((e) => !e.rechazada).map((e) => e.cfdiId),
+  );
+  const permitido = (m: MovimientoAbierto, c: CfdiAbierto): boolean =>
+    !rechazados.has(`${m.id}|${c.id}`);
+  const porMonto = (m: MovimientoAbierto, c: CfdiAbierto): boolean =>
+    permitido(m, c) &&
+    compatibles(m, c) &&
+    diferencia(m, c).abs().lte(toleranciaEn(c.moneda, tolerancia));
+  return { movsOcupados, cfdisOcupados, permitido, porMonto };
+}
+
+/** Las reglas de "sin propuesta" en las que dos o más CFDI quedaron en juego (CU-17). */
+export type ReglaAmbigua = Extract<
+  ReglaSinMatch,
+  | 'referencia_ambigua'
+  | 'monto_multiples_candidatos'
+  | 'cfdi_multiples_movimientos'
+>;
+
+/**
+ * CU-17. Los CFDI que el motor tuvo en la mano cuando dejó el movimiento sin
+ * propuesta por ambigüedad, con el mismo criterio que `evaluarConMotivos`:
+ * el conjunto que se le muestra al modelo es el del motor, no otra heurística.
+ *
+ * - `referencia_ambigua`: los CFDI que empatan con la referencia.
+ * - `monto_multiples_candidatos` y `cfdi_multiples_movimientos`: los que
+ *   coinciden por monto (en el segundo, el único CFDI de ese movimiento).
+ *
+ * Los pares rechazados ya están fuera. No quita lo ocupado ni revisa
+ * moneda/fecha en la vía por referencia: eso lo decide quien arma la
+ * pregunta al modelo. Pura: no cambia el comportamiento del motor.
+ */
+export function candidatosAmbiguos(
+  mov: MovimientoAbierto,
+  regla: ReglaAmbigua,
+  cfdis: readonly CfdiAbierto[],
+  tolerancia: Dinero,
+  existentes: readonly ParExistente[],
+): CfdiAbierto[] {
+  const { permitido, porMonto } = predicadosDelMotor(tolerancia, existentes);
+  if (regla === 'referencia_ambigua') {
+    if (!esReferenciaUsable(mov.referenciaNorm)) return [];
+    return cfdis.filter(
+      (c) => permitido(mov, c) && clavesDeCfdi(c).includes(mov.referenciaNorm!),
+    );
+  }
+  return cfdis.filter((c) => porMonto(mov, c));
+}
+
+/**
  * Elige propuestas para el conjunto abierto de una empresa y explica cada
  * movimiento que se quedó sin ninguna (CU-13).
  *
@@ -228,23 +299,8 @@ export function evaluarConMotivos(
   tolerancia: Dinero,
   existentes: readonly ParExistente[],
 ): EvaluacionConMotivos {
-  const rechazados = new Set(
-    existentes
-      .filter((e) => e.rechazada)
-      .map((e) => `${e.movimientoId}|${e.cfdiId}`),
-  );
-  const movsOcupados = new Set(
-    existentes.filter((e) => !e.rechazada).map((e) => e.movimientoId),
-  );
-  const cfdisOcupados = new Set(
-    existentes.filter((e) => !e.rechazada).map((e) => e.cfdiId),
-  );
-  const permitido = (m: MovimientoAbierto, c: CfdiAbierto): boolean =>
-    !rechazados.has(`${m.id}|${c.id}`);
-  const porMonto = (m: MovimientoAbierto, c: CfdiAbierto): boolean =>
-    permitido(m, c) &&
-    compatibles(m, c) &&
-    diferencia(m, c).abs().lte(toleranciaEn(c.moneda, tolerancia));
+  const { movsOcupados, cfdisOcupados, permitido, porMonto } =
+    predicadosDelMotor(tolerancia, existentes);
 
   const llaves = new Map(cfdis.map((c) => [c.id, new Set(clavesDeCfdi(c))]));
   const propuestas: Propuesta[] = [];
