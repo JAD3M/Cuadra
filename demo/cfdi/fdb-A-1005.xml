@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SINTETICO: datos inventados por scripts/demo/generar.ts; nunca datos reales. -->
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigitalv11" Version="4.0" Serie="A" Folio="1005" Fecha="2026-08-08T10:30:00" FormaPago="03" SubTotal="25032.75" Moneda="MXN" Total="29037.99" TipoDeComprobante="I" Exportacion="01" MetodoPago="PUE" LugarExpedicion="62740" Sello="SINTETICO" NoCertificado="SINTETICO" Certificado="SINTETICO">
+  <cfdi:Emisor Rfc="FDB190215QK4" Nombre="Ferretería del Bajío SA de CV (sintético)" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="CGA030303CD3" Nombre="Cliente Gama (sintético)" DomicilioFiscalReceptor="62740" RegimenFiscalReceptor="601" UsoCFDI="G03"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="01010101" Cantidad="1" ClaveUnidad="E48" Descripcion="Material de ferretería" ValorUnitario="9818.50" Importe="9818.50" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados><cfdi:Traslado Base="9818.50" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="1570.96"/></cfdi:Traslados></cfdi:Impuestos>
+    </cfdi:Concepto>
+    <cfdi:Concepto ClaveProdServ="01010101" Cantidad="1" ClaveUnidad="E48" Descripcion="Herramienta menor" ValorUnitario="15214.25" Importe="15214.25" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados><cfdi:Traslado Base="15214.25" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="2434.28"/></cfdi:Traslados></cfdi:Impuestos>
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="4005.24"/>
+  <cfdi:Complemento><tfd:TimbreFiscalDigital Version="1.1" UUID="CA833085-96AC-4A1D-93CB-9B43997E8FCB" FechaTimbrado="2026-08-08T10:30:00" RfcProvCertif="AAA010101AAA" SelloCFD="SINTETICO" NoCertificadoSAT="SINTETICO" SelloSAT="SINTETICO"/></cfdi:Complemento>
+</cfdi:Comprobante>
