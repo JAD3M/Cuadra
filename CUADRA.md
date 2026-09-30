@@ -5,7 +5,7 @@
 
 | | |
 |---|---|
-| **Estado** | Día 7 de 9 ✅ · CU-01 a CU-17, más CU-04b · 66 / 69 pts · Épicas A, B, C y D cerradas |
+| **Estado** | Día 7 de 9 ✅ · CU-01 a CU-18, más CU-04b · 69 / 69 pts · Las cinco épicas cerradas |
 | **Entrega** | 2 de octubre de 2026 |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 18 historias · 69 puntos · 9 días hábiles |
@@ -794,6 +794,76 @@ Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
 
 ### 30 sep 2026
+
+- **CU-18 terminado: demo y datos sintéticos.** Tres PR encadenados
+  (`stacked-to-main`) con excepción de tamaño aceptada en los tres: (1) el
+  proveedor de IA simulado y su selección por entorno, (2) el generador
+  determinista, los datos y sus pruebas guarda, (3) el runner HTTP, el
+  README y esta bitácora. Con esto las 18 historias están hechas: 69 / 69
+  puntos.
+  - **Una demo de cero en menos de 5 minutos:** `cp .env.example .env`,
+    `docker compose up -d --build`, `migration:run`, `seed` y
+    `docker compose exec api npm run demo` (el README los lista). Son 40
+    facturas y 50 movimientos de Ferretería más un conjunto chico de
+    Transportes (4 y 5), todos inventados: RFC de prueba, nombres terminados
+    en "(sintético)", sellos `SINTETICO`.
+  - **Datos reproducibles:** `scripts/demo/escenarios.ts` es la única fuente
+    de verdad (tabla explícita de casos difíciles más relleno con `mulberry32`
+    de semilla fija, fechas fijas de agosto y septiembre de 2026, UUID
+    derivados por sha256). `npm run demo:generar` escribe `demo/`; una prueba
+    de deriva falla si lo commiteado difiere de lo generado, y otras vigilan
+    privacidad (lista de RFC permitidos, sin correos ni teléfonos), formato
+    (cada archivo pasa por los lectores reales) y motor (el motor real más la
+    IA simulada reproducen lo esperado, sin base de datos).
+  - **Decisión: el diseño gana sobre la spec en los conteos.** La spec
+    (escrita antes de leer el motor) esperaba 23 conciliados tras cargar;
+    pero el motor **nunca concilia**, solo propone, así que tras las cargas
+    hay 0 conciliados. Lo esperado es Ferretería 26 sugerencias (4 de IA) /
+    13 sin match / 0 conciliados tras el estado de cuenta 1; 27 / 15 / 0
+    tras subir la tolerancia de 5.00 y el estado de cuenta 2; y 25 / 16 / 1
+    al final, tras confirmar una propuesta y rechazar otra. Transportes
+    3 / 1 / 0. Los conteos se derivan de la tabla (`esperado()`), no están
+    escritos a mano, y si los datos no los producen se corrige el dato,
+    nunca el motor. Los datos coincidieron a la primera, sin ajustes.
+  - **IA simulada, explícita y acotada:** `ProveedorSimulado` (modelo
+    `simulado-demo`) es puro y determinista: cita la factura en la
+    descripción o, con varios candidatos, la única de monto exacto; con un
+    solo candidato sin cita se abstiene (un falso positivo es peor que no
+    conciliar). La etiqueta `[SIMULADA — no es un modelo real]` va en el
+    texto de la explicación (sin cambio de esquema). `LLM_PROVEEDOR`
+    (`anthropic` por omisión, o `simulado`) se **rechaza con
+    `NODE_ENV=production`**, tanto en la validación del entorno como en la
+    fábrica, y el arranque avisa una vez en el log. `.env.example` trae la
+    demo lista (`LLM_HABILITADO=true`, `LLM_PROVEEDOR=simulado`).
+  - **El runner se autoverifica:** cliente HTTP con `fetch` y `FormData`
+    nativos, solo a loopback salvo `DEMO_PERMITIR_REMOTO=1` (usa la
+    contraseña pública del seed). Sube CFDI y luego el CSV (nunca al
+    revés, por la cola de conciliación), espera al motor y a la IA con
+    tiempo límite y una ventana de calma, sube la tolerancia, demuestra D-08
+    (quien subió recibe 403, otra persona confirma), rechaza con motivo,
+    revisa el historial y el aislamiento entre empresas (404 y 403). Repetir
+    la demo responde `yaExistia` y termina con código 0, con la pista de
+    `docker compose down -v`. El mismo runner lo ejecuta una prueba de
+    integración contra la app real (Postgres con RLS, Redis y worker) con
+    aserciones sobre la base: conciliaciones por estado y origen, 7
+    consultas de IA, 4 propuestas `llm` auditadas con modelo `simulado-demo`
+    y ninguna `llm` confirmada.
+  - **Build aislado:** `tsconfig.build.json` excluye `scripts` y `demo`;
+    sin eso `nest build` movería la salida a `dist/src/main.js` y
+    `start:prod` se rompería. Se verifica `dist/main.js`.
+  - **Pruebas:** 761 en total, sin `ANTHROPIC_API_KEY`. Ninguna llama a una
+    API de IA real. Además se corrió la demo completa contra el stack local
+    de Docker (12 segundos, código 0).
+  - **Pendientes y límites conocidos:** (1) la prueba de humo contra la API
+    real de Anthropic sigue pendiente (ver CU-17): la demo no la sustituye.
+    (2) `guardarCfdi` no persiste `nombre_emisor` ni `nombre_receptor`: la
+    bandeja muestra `nombreReceptor` nulo y el payload de la IA lleva el
+    receptor vacío; los nombres "(sintético)" viven solo en el XML. Fuera de
+    alcance; queda como seguimiento. (3) `esquema.spec` falla de forma
+    intermitente en algunas corridas; sin causa confirmada y sin tocar
+    en esta historia. (4) La pila de ramas
+    (`feat/cu-17-anthropic` → `feat/cu-18-demo` → `feat/cu-18-datos` →
+    `feat/cu-18-runner`) debe rebasarse sobre `main` cuando se fusione CU-17.
 
 - **CU-17 terminado: sugerencia asistida por IA.** Dos PR encadenados
   (`stacked-to-main`) con excepción de tamaño aceptada en ambos: primero el
