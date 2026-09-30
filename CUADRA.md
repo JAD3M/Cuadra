@@ -936,6 +936,34 @@ arriba.
 
 ### 30 sep 2026
 
+- **Verificación final antes de la entrega.** Todo lo de CU-11 a CU-18 está
+  fusionado en `master`, y las cinco épicas y las 18 historias están en
+  Finalizado en Jira.
+  - **De cero a demo, medido: 56 segundos.** Se siguieron los pasos del
+    README en un clon limpio de `master` (`92c7bb5`), con un proyecto de
+    Docker aparte, volúmenes nuevos y la imagen `api` construida sin caché:
+    build 26 s, `up -d` 11 s, `migration:run` 3 s (las 14 migraciones),
+    `seed` 3 s y `demo` 13 s, que termina con "todo coincide con lo
+    esperado". Las imágenes base (`node:22-alpine`, `postgres:18-alpine`,
+    `redis:7-alpine`) ya estaban descargadas; en una máquina sin ellas se
+    suma su descarga. El criterio de CU-18 (menos de 5 minutos) se cumple.
+  - **Resuelto el `esquema.spec` intermitente** (pendiente 3 de CU-18,
+    commit `92c7bb5`). La prueba del índice parcial afirmaba la elección del
+    planificador sobre `cfdi`, una tabla que otras suites dejan con filas en
+    la base de pruebas compartida. Con estadísticas de una tabla chica y casi
+    toda coincidente, Postgres elige con razón un Seq Scan (reproducido en
+    transacciones revertidas). Ahora la prueba fija `SET LOCAL
+    enable_seqscan = off` dentro de su transacción y comprueba que el índice
+    sirve para la consulta, sin depender de lo que dejaron otras suites.
+    Queda un riesgo parecido, sin fallas observadas: tres pruebas de
+    `esquema.spec` esperan exactamente 2 empresas y 4 usuarios.
+  - **Resuelto el pendiente 4 de CU-18:** la pila de ramas se fusionó por
+    fast-forward, sin rebase.
+  - **Sigue abierto:** la prueba de humo contra la API real de Anthropic
+    (sin presupuesto por ahora; la función viene apagada por omisión) y la
+    persistencia de `nombre_emisor` y `nombre_receptor`. El workflow de CI
+    nunca corrió en GitHub porque el repositorio no tiene remoto.
+
 - **CU-18 terminado: demo y datos sintéticos.** Tres PR encadenados
   (`stacked-to-main`) con excepción de tamaño aceptada en los tres: (1) el
   proveedor de IA simulado y su selección por entorno, (2) el generador
