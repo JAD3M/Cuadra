@@ -96,6 +96,64 @@ describe('validateEnv (CU-01.3)', () => {
       );
     });
 
+    describe('LLM_PROVEEDOR (CU-18)', () => {
+      it('por defecto es anthropic y la cadena vacía cuenta como ausente', () => {
+        expect(validateEnv(VALIDO).LLM_PROVEEDOR).toBe('anthropic');
+        expect(
+          validateEnv({ ...VALIDO, LLM_PROVEEDOR: '' }).LLM_PROVEEDOR,
+        ).toBe('anthropic');
+      });
+
+      it('simulado es válido en desarrollo y test, sin llave', () => {
+        for (const NODE_ENV of ['development', 'test']) {
+          const env = validateEnv({
+            ...VALIDO,
+            NODE_ENV,
+            LLM_PROVEEDOR: 'simulado',
+            LLM_HABILITADO: 'true',
+          });
+          expect(env.LLM_PROVEEDOR).toBe('simulado');
+          expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+        }
+      });
+
+      it.each(['true', 'false'])(
+        'production + simulado se rechaza nombrando LLM_PROVEEDOR (LLM_HABILITADO=%s)',
+        (habilitado) => {
+          expect(() =>
+            validateEnv({
+              ...VALIDO,
+              NODE_ENV: 'production',
+              LLM_PROVEEDOR: 'simulado',
+              LLM_HABILITADO: habilitado,
+            }),
+          ).toThrow(/LLM_PROVEEDOR: 'simulado' no esta permitido/);
+        },
+      );
+
+      it('un valor desconocido se rechaza nombrándola', () => {
+        expect(() =>
+          validateEnv({ ...VALIDO, LLM_PROVEEDOR: 'openai' }),
+        ).toThrow(/LLM_PROVEEDOR/);
+      });
+
+      it('anthropic habilitado sin llave conserva el comportamiento de CU-17', () => {
+        const env = validateEnv({
+          ...VALIDO,
+          LLM_PROVEEDOR: 'anthropic',
+          LLM_HABILITADO: 'true',
+        });
+        expect(env.LLM_HABILITADO).toBe(true);
+        expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+      });
+
+      it('anthropic en production sigue permitido', () => {
+        expect(
+          validateEnv({ ...VALIDO, NODE_ENV: 'production' }).LLM_PROVEEDOR,
+        ).toBe('anthropic');
+      });
+    });
+
     it('no existe LLM_FALLBACK_SERVIDOR: no hay respaldo del lado del servidor', () => {
       const env = validateEnv({ ...VALIDO, LLM_FALLBACK_SERVIDOR: 'true' });
       expect(env).not.toHaveProperty('LLM_FALLBACK_SERVIDOR');

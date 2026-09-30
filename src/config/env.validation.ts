@@ -38,6 +38,14 @@ const schema = z
       .enum(['true', 'false'])
       .default('false')
       .transform((v) => v === 'true'),
+    /**
+     * CU-18: 'simulado' es un proveedor determinista para demos, sin modelo
+     * ni llave. Se rechaza con NODE_ENV=production (ver el refine).
+     */
+    LLM_PROVEEDOR: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      z.enum(['anthropic', 'simulado']).default('anthropic'),
+    ),
     LLM_MODEL: z.string().min(1).default('claude-sonnet-5-5'),
     /** Milisegundos que espera la API antes de dar la llamada por fallida. */
     LLM_TIMEOUT_MS: z.coerce.number().int().min(1000).default(15000),
@@ -55,6 +63,16 @@ const schema = z
     {
       path: ['DATABASE_APP_URL'],
       message: 'debe usar un rol distinto al de DATABASE_URL',
+    },
+  )
+  // Una sugerencia simulada en producción parecería real: se rechaza aunque
+  // LLM_HABILITADO sea false, porque es la intención de la configuración.
+  .refine(
+    (env) =>
+      !(env.NODE_ENV === 'production' && env.LLM_PROVEEDOR === 'simulado'),
+    {
+      path: ['LLM_PROVEEDOR'],
+      message: "'simulado' no esta permitido con NODE_ENV=production",
     },
   );
 

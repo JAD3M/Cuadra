@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AdaptadorAnthropic } from './adaptador-anthropic';
+import { ProveedorSimulado } from './proveedor-simulado';
 import {
   ProveedorDesactivado,
   type ProveedorSugerencia,
@@ -55,5 +56,51 @@ describe('crearProveedor (CU-17)', () => {
     expect(p).toBeInstanceOf(AdaptadorAnthropic);
     expect(p.activo).toBe(true);
     expect(p.modelo).toBe('otro-modelo');
+  });
+
+  describe('proveedor simulado (CU-18)', () => {
+    it('simulado y habilitado: ProveedorSimulado, sin llave y con un solo aviso', () => {
+      const p = crearProveedor(
+        config({ LLM_HABILITADO: true, LLM_PROVEEDOR: 'simulado' }),
+      );
+      expect(p).toBeInstanceOf(ProveedorSimulado);
+      expect(p.activo).toBe(true);
+      expect(aviso).toHaveBeenCalledTimes(1);
+      expect(String((aviso.mock.calls as unknown[][])[0][0])).toMatch(
+        /PROVEEDOR SIMULADO ACTIVO/,
+      );
+    });
+
+    it('en production la fábrica lanza aunque el esquema se haya saltado', () => {
+      expect(() =>
+        crearProveedor(
+          config({
+            NODE_ENV: 'production',
+            LLM_HABILITADO: true,
+            LLM_PROVEEDOR: 'simulado',
+          }),
+        ),
+      ).toThrow(/production/);
+    });
+
+    it('simulado pero deshabilitado: desactivado y sin aviso', () => {
+      const p = crearProveedor(
+        config({ LLM_HABILITADO: false, LLM_PROVEEDOR: 'simulado' }),
+      );
+      expect(p).toBeInstanceOf(ProveedorDesactivado);
+      expect(aviso).not.toHaveBeenCalled();
+    });
+
+    it('anthropic: sin aviso de simulación y sin cambios', () => {
+      const p = crearProveedor(
+        config({
+          LLM_HABILITADO: true,
+          LLM_PROVEEDOR: 'anthropic',
+          ANTHROPIC_API_KEY: 'sk-x',
+        }),
+      );
+      expect(p).toBeInstanceOf(AdaptadorAnthropic);
+      expect(aviso).not.toHaveBeenCalled();
+    });
   });
 });
