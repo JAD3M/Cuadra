@@ -25,7 +25,8 @@
     "migration:generate": "typeorm-ts-node-commonjs -d src/database/data-source.ts migration:generate",
     "schema:log": "npm run typeorm -- schema:log",
     "seed": "ts-node src/database/seeds/seed.ts",
-    "demo:generar": "ts-node scripts/demo/generar.ts"
+    "demo:generar": "ts-node scripts/demo/generar.ts",
+    "demo": "ts-node scripts/demo/ejecutar.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",
