@@ -7,6 +7,6 @@ import { ProveedorTolerancia, ToleranciaPorEmpresa } from './tolerancia';
     ConciliacionService,
     { provide: ProveedorTolerancia, useClass: ToleranciaPorEmpresa },
   ],
-  exports: [ConciliacionService],
+  exports: [ConciliacionService, ProveedorTolerancia],
 })
 export class ConciliacionModule {}
