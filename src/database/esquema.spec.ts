@@ -294,6 +294,10 @@ describe('integridad del CFDI', () => {
   it('usa el índice parcial al buscar CFDI abiertas por emisor', async () => {
     await enTransaccion(async (qr) => {
       const emp = await idEmpresa(qr, 'FDB190215QK4');
+      // Sin esto el plan depende de las filas que dejan otras suites en la
+      // base compartida: con estadísticas de una tabla chica y casi toda
+      // coincidente, Postgres elige Seq Scan. Se prueba que el índice sirve.
+      await qr.query('SET LOCAL enable_seqscan = off');
       const plan = await filas<Record<string, string>>(
         qr,
         `EXPLAIN (COSTS OFF) SELECT id FROM cfdi
