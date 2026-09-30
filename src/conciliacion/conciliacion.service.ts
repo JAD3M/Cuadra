@@ -165,6 +165,13 @@ export class ConciliacionService {
     );
   }
 
+  /**
+   * Escribe las propuestas nuevas y su fila `crear` en la bitácora en UNA sola
+   * sentencia (CTE con INSERT): o quedan las dos cosas o ninguna, y los pares
+   * que ON CONFLICT descarta no salen de RETURNING, así que re-correr no
+   * audita nada. Corre dentro del candado advisory y de la transacción de la
+   * corrida. El autor es el sistema (`user_id` NULL).
+   */
   private async insertar(
     manager: Manager,
     companyId: string,
@@ -179,19 +186,33 @@ export class ConciliacionService {
       diferencia_monto: p.diferenciaMonto,
       motivo: p.motivo,
     }));
-    const creadas = await manager.query<{ id: string }[]>(
-      `INSERT INTO conciliaciones
-              (company_id, cfdi_id, movimiento_id, estado, origen, regla,
-               score, diferencia_monto, motivo)
-       SELECT $1, x.cfdi_id, x.movimiento_id, 'propuesta', 'regla', x.regla,
-              x.score, x.diferencia_monto, x.motivo
-         FROM jsonb_to_recordset($2::jsonb)
-           AS x(cfdi_id uuid, movimiento_id uuid, regla text, score numeric,
-                diferencia_monto numeric, motivo text)
-       ON CONFLICT (company_id, cfdi_id, movimiento_id) DO NOTHING
+    const auditadas = await manager.query<{ id: string }[]>(
+      `WITH creadas AS (
+         INSERT INTO conciliaciones
+                (company_id, cfdi_id, movimiento_id, estado, origen, regla,
+                 score, diferencia_monto, motivo)
+         SELECT $1, x.cfdi_id, x.movimiento_id, 'propuesta', 'regla', x.regla,
+                x.score, x.diferencia_monto, x.motivo
+           FROM jsonb_to_recordset($2::jsonb)
+             AS x(cfdi_id uuid, movimiento_id uuid, regla text, score numeric,
+                  diferencia_monto numeric, motivo text)
+         ON CONFLICT (company_id, cfdi_id, movimiento_id) DO NOTHING
+         RETURNING id, cfdi_id, movimiento_id, regla, score, diferencia_monto
+       )
+       INSERT INTO bitacora (company_id, user_id, entidad, entidad_id, accion, datos)
+       SELECT $1, NULL, 'conciliaciones', c.id, 'crear',
+              jsonb_build_object(
+                'despues', jsonb_build_object('estado', 'propuesta'),
+                'origen', 'regla',
+                'regla', c.regla,
+                'score', c.score::text,
+                'diferenciaMonto', c.diferencia_monto::text,
+                'cfdiId', c.cfdi_id,
+                'movimientoId', c.movimiento_id)
+         FROM creadas c
        RETURNING id`,
       [companyId, JSON.stringify(filas)],
     );
-    return creadas.length;
+    return auditadas.length;
   }
 }

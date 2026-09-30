@@ -49,7 +49,9 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await ds.query('TRUNCATE cfdi, cargas, movimientos, conciliaciones CASCADE');
+  await ds.query(
+    'TRUNCATE cfdi, cargas, movimientos, conciliaciones, bitacora CASCADE',
+  );
 });
 
 afterEach(() => jest.restoreAllMocks());
@@ -897,5 +899,163 @@ describe('conciliar (CU-11): gancho del worker', () => {
 
     await expect(procesador.process(job)).rejects.toThrow('boom');
     expect(espia).not.toHaveBeenCalled();
+  });
+});
+
+interface FilaCrear {
+  id: string;
+  company_id: string;
+  user_id: string | null;
+  entidad: string;
+  entidad_id: string;
+  ip: string | null;
+  user_agent: string | null;
+  datos: {
+    despues: { estado: string };
+    origen: string;
+    regla: string;
+    score: string;
+    diferenciaMonto: string;
+    cfdiId: string;
+    movimientoId: string;
+  };
+}
+
+const bitacoraCrear = (empresa?: string) =>
+  filas<FilaCrear>(
+    ds,
+    `SELECT id, company_id, user_id, entidad, entidad_id, ip::text AS ip,
+            user_agent, datos
+       FROM bitacora
+      WHERE accion = 'crear' AND ($1::uuid IS NULL OR company_id = $1)
+      ORDER BY created_at, id`,
+    [empresa ?? null],
+  );
+
+describe('CU-16 crear: auditoría de propuestas del motor', () => {
+  it('cada propuesta nueva deja una fila crear con el detalle de la propuesta', async () => {
+    await movimiento(A, { referencia: 'A-0001001' });
+    await factura(A);
+    await movimiento(A, { monto: '500.00' });
+    await factura(A, { folio: '7001', total: '500.00' });
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 2 });
+
+    const propuestas = await filas<FilaConciliacion & { id: string }>(
+      ds,
+      `SELECT id, company_id, cfdi_id, movimiento_id, regla,
+              score::text AS score, diferencia_monto::text AS diferencia_monto
+         FROM conciliaciones WHERE company_id = $1`,
+      [A],
+    );
+    const auditoria = await bitacoraCrear(A);
+    expect(propuestas).toHaveLength(2);
+    expect(auditoria).toHaveLength(2);
+    for (const p of propuestas) {
+      const fila = auditoria.find((f) => f.entidad_id === p.id);
+      expect(fila).toEqual(
+        expect.objectContaining({
+          company_id: A,
+          user_id: null,
+          entidad: 'conciliaciones',
+          ip: null,
+          user_agent: null,
+          datos: {
+            despues: { estado: 'propuesta' },
+            origen: 'regla',
+            regla: p.regla,
+            score: p.score,
+            diferenciaMonto: p.diferencia_monto,
+            cfdiId: p.cfdi_id,
+            movimientoId: p.movimiento_id,
+          },
+        }),
+      );
+    }
+    // Montos como texto, nunca como número JSON.
+    expect(typeof auditoria[0].datos.score).toBe('string');
+    expect(typeof auditoria[0].datos.diferenciaMonto).toBe('string');
+  });
+
+  it('re-correr sin propuestas nuevas no agrega filas crear', async () => {
+    await movimiento(A, { referencia: 'A-0001001' });
+    await factura(A);
+    await servicio.conciliar(A);
+    expect(await bitacoraCrear(A)).toHaveLength(1);
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+    expect(await bitacoraCrear(A)).toHaveLength(1);
+  });
+
+  it('un lote mixto solo audita las propuestas nuevas', async () => {
+    await movimiento(A, { referencia: 'A-0001001' });
+    await factura(A);
+    await servicio.conciliar(A);
+    const [primera] = await bitacoraCrear(A);
+
+    await movimiento(A, { monto: '500.00' });
+    await factura(A, { folio: '7001', total: '500.00' });
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 1 });
+
+    const auditoria = await bitacoraCrear(A);
+    expect(auditoria).toHaveLength(2);
+    expect(
+      auditoria.filter((f) => f.entidad_id === primera.entidad_id),
+    ).toHaveLength(1);
+  });
+
+  it('la corrida de una empresa no audita en otra', async () => {
+    await movimiento(A, { referencia: 'A-0001001' });
+    await factura(A);
+    await servicio.conciliar(A);
+
+    expect(await bitacoraCrear(B)).toEqual([]);
+    expect(await bitacoraCrear(A)).toHaveLength(1);
+  });
+
+  it('tras rechazar una propuesta, solo la nueva del mismo par se audita', async () => {
+    await movimiento(A, { referencia: 'A-0001001' });
+    await factura(A);
+    await servicio.conciliar(A);
+    const [vieja] = await bitacoraCrear(A);
+    await ds.query(
+      `UPDATE conciliaciones SET estado = 'rechazada' WHERE id = $1`,
+      [vieja.entidad_id],
+    );
+
+    await servicio.conciliar(A);
+
+    const auditoria = await bitacoraCrear(A);
+    const vigentes = await filas<{ id: string }>(
+      ds,
+      `SELECT id FROM conciliaciones WHERE company_id = $1 AND estado = 'propuesta'`,
+      [A],
+    );
+    // Si el par rechazado no se vuelve a proponer, no hay fila nueva; si se
+    // propone, la fila crear apunta a la propuesta nueva y no a la rechazada.
+    expect(
+      auditoria.filter((f) => f.entidad_id === vieja.entidad_id),
+    ).toHaveLength(1);
+    for (const v of vigentes) {
+      expect(auditoria.some((f) => f.entidad_id === v.id)).toBe(true);
+    }
+  });
+
+  it('si falla la auditoría, tampoco quedan propuestas (una sola sentencia)', async () => {
+    await movimiento(A, { referencia: 'A-0001001' });
+    await factura(A);
+    // Se fuerza el fallo con un CHECK temporal que rechaza cualquier 'crear'.
+    await ds.query(
+      `ALTER TABLE bitacora ADD CONSTRAINT ck_prueba_sin_crear CHECK (accion <> 'crear') NOT VALID`,
+    );
+    try {
+      await expect(servicio.conciliar(A)).rejects.toThrow();
+    } finally {
+      await ds.query(
+        `ALTER TABLE bitacora DROP CONSTRAINT ck_prueba_sin_crear`,
+      );
+    }
+    expect(await conciliaciones(A)).toEqual([]);
+    expect(await bitacoraCrear(A)).toEqual([]);
   });
 });
