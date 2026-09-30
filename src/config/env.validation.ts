@@ -24,6 +24,27 @@ const schema = z
       .string()
       .regex(/^[a-z0-9_]+$/)
       .default('cuadra'),
+    /**
+     * CU-17: sugerencia por IA. Todo opcional para que la app y el CI no
+     * necesiten un secreto. Solo está activa con LLM_HABILITADO='true' y una
+     * llave; sin llave, el módulo la deja inerte y avisa.
+     */
+    ANTHROPIC_API_KEY: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      z.string().min(1).optional(),
+    ),
+    // No z.coerce.boolean: 'false' es un string no vacío y daría true.
+    LLM_HABILITADO: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    LLM_MODEL: z.string().min(1).default('claude-sonnet-5-5'),
+    /** Milisegundos que espera la API antes de dar la llamada por fallida. */
+    LLM_TIMEOUT_MS: z.coerce.number().int().min(1000).default(15000),
+    /** Tope de llamadas al modelo por corrida del worker. */
+    LLM_MAX_LLAMADAS_POR_CORRIDA: z.coerce.number().int().min(1).default(20),
+    /** Más candidatos que esto y el movimiento se omite (no se trunca). */
+    LLM_CANDIDATOS_MAX: z.coerce.number().int().min(1).default(10),
   })
   // Con el mismo usuario, la app correría como dueño (superusuario en Docker)
   // y RLS no aplicaría, sin que nada falle.

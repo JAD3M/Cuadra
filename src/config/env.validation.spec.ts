@@ -31,4 +31,74 @@ describe('validateEnv (CU-01.3)', () => {
       validateEnv({ ...VALIDO, DATABASE_APP_URL: VALIDO.DATABASE_URL }),
     ).toThrow(/DATABASE_APP_URL/);
   });
+
+  describe('sugerencia por IA (CU-17)', () => {
+    it('arranca sin ninguna variable de LLM y con todo apagado', () => {
+      const env = validateEnv(VALIDO);
+      expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+      expect(env.LLM_HABILITADO).toBe(false);
+      expect(env.LLM_MODEL).toBe('claude-sonnet-5-5');
+      expect(env.LLM_TIMEOUT_MS).toBe(15000);
+      expect(env.LLM_MAX_LLAMADAS_POR_CORRIDA).toBe(20);
+      expect(env.LLM_CANDIDATOS_MAX).toBe(10);
+    });
+
+    it('una ANTHROPIC_API_KEY vacía cuenta como ausente', () => {
+      expect(
+        validateEnv({ ...VALIDO, ANTHROPIC_API_KEY: '' }).ANTHROPIC_API_KEY,
+      ).toBeUndefined();
+      expect(
+        validateEnv({ ...VALIDO, ANTHROPIC_API_KEY: 'sk-x' }).ANTHROPIC_API_KEY,
+      ).toBe('sk-x');
+    });
+
+    it("LLM_HABILITADO: 'true' es true y 'false' es false (no coerce.boolean)", () => {
+      expect(
+        validateEnv({ ...VALIDO, LLM_HABILITADO: 'true' }).LLM_HABILITADO,
+      ).toBe(true);
+      expect(
+        validateEnv({ ...VALIDO, LLM_HABILITADO: 'false' }).LLM_HABILITADO,
+      ).toBe(false);
+    });
+
+    it.each(['1', 'si', 'TRUE', ''])(
+      'LLM_HABILITADO=%p se rechaza nombrándola',
+      (valor) => {
+        expect(() => validateEnv({ ...VALIDO, LLM_HABILITADO: valor })).toThrow(
+          /LLM_HABILITADO/,
+        );
+      },
+    );
+
+    it('convierte y acota los números', () => {
+      const env = validateEnv({
+        ...VALIDO,
+        LLM_TIMEOUT_MS: '2500',
+        LLM_MAX_LLAMADAS_POR_CORRIDA: '3',
+        LLM_CANDIDATOS_MAX: '5',
+        LLM_MODEL: 'otro-modelo',
+      });
+      expect(env.LLM_TIMEOUT_MS).toBe(2500);
+      expect(env.LLM_MAX_LLAMADAS_POR_CORRIDA).toBe(3);
+      expect(env.LLM_CANDIDATOS_MAX).toBe(5);
+      expect(env.LLM_MODEL).toBe('otro-modelo');
+    });
+
+    it.each([
+      ['LLM_TIMEOUT_MS', '999'],
+      ['LLM_TIMEOUT_MS', 'abc'],
+      ['LLM_MAX_LLAMADAS_POR_CORRIDA', '0'],
+      ['LLM_CANDIDATOS_MAX', '0'],
+      ['LLM_CANDIDATOS_MAX', '2.5'],
+    ])('%s=%p se rechaza', (variable, valor) => {
+      expect(() => validateEnv({ ...VALIDO, [variable]: valor })).toThrow(
+        new RegExp(variable),
+      );
+    });
+
+    it('no existe LLM_FALLBACK_SERVIDOR: no hay respaldo del lado del servidor', () => {
+      const env = validateEnv({ ...VALIDO, LLM_FALLBACK_SERVIDOR: 'true' });
+      expect(env).not.toHaveProperty('LLM_FALLBACK_SERVIDOR');
+    });
+  });
 });
