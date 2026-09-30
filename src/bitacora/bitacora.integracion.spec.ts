@@ -271,3 +271,284 @@ describe('GET /conciliaciones/:id/historial (AU-10 a AU-14)', () => {
       .expect(401);
   });
 });
+
+interface EventoGeneral extends Evento {
+  ip: string | null;
+  userAgent: string | null;
+}
+
+interface Pagina {
+  datos: EventoGeneral[];
+  pagina: number;
+  limite: number;
+  total: number;
+}
+
+const bitacora = (consulta = '', token = tokenAna) =>
+  request(entorno.app.getHttpServer())
+    .get(`/bitacora${consulta}`)
+    .auth(token, { type: 'bearer' });
+
+const paginaDe = (res: request.Response) => res.body as Pagina;
+
+/** Una fila de bitácora directa, con la conexión del dueño. */
+async function evento(
+  o: {
+    empresa?: string;
+    userId?: string | null;
+    entidad?: string;
+    entidadId?: string;
+    accion?: string;
+    creadoEn?: string;
+    ip?: string | null;
+    userAgent?: string | null;
+  } = {},
+): Promise<string> {
+  const { id } = await una<{ id: string }>(
+    ds,
+    `INSERT INTO bitacora (company_id, user_id, entidad, entidad_id, accion, datos, ip, user_agent, created_at)
+     VALUES ($1,$2,$3,$4,$5,'{"k":1}'::jsonb,$6,$7,COALESCE($8::timestamptz, now()))
+     RETURNING id`,
+    [
+      o.empresa ?? A,
+      o.userId ?? null,
+      o.entidad ?? 'cfdi',
+      o.entidadId ?? randomUUID(),
+      o.accion ?? 'crear',
+      o.ip ?? null,
+      o.userAgent ?? null,
+      o.creadoEn ?? null,
+    ],
+  );
+  return id;
+}
+
+describe('GET /bitacora (AU-20 a AU-26)', () => {
+  it('AU-20: forma y valores por defecto', async () => {
+    const id = await evento();
+    const res = await bitacora().expect(200);
+    expect(paginaDe(res)).toMatchObject({ pagina: 1, limite: 50, total: 1 });
+    expect(eventosDe(res).map((e) => e.id)).toEqual([id]);
+  });
+
+  it.each([
+    'limite=201',
+    'limite=0',
+    'limite=-1',
+    'limite=abc',
+    'limite=1.5',
+    'pagina=0',
+    'pagina=1.5',
+    'pagina=x',
+    'desconocido=1',
+  ])('AU-20: %s es 400', async (consulta) => {
+    await bitacora(`?${consulta}`).expect(400);
+  });
+
+  it('AU-20: limite 200 es válido', async () => {
+    await bitacora('?limite=200').expect(200);
+  });
+
+  it('AU-21: orden created_at DESC, id DESC, estable entre páginas', async () => {
+    const mismoInstante = '2026-09-10T10:00:00Z';
+    for (let i = 0; i < 4; i++) await evento({ creadoEn: mismoInstante });
+    const masNuevo = await evento({ creadoEn: '2026-09-11T10:00:00Z' });
+    const masViejo = await evento({ creadoEn: '2026-09-09T10:00:00Z' });
+
+    const todo = eventosDe(await bitacora().expect(200)).map((e) => e.id);
+    expect(todo[0]).toBe(masNuevo);
+    expect(todo[5]).toBe(masViejo);
+    const empatados = todo.slice(1, 5);
+    expect(empatados).toEqual([...empatados].sort().reverse());
+
+    const paginas: string[] = [];
+    for (const p of [1, 2, 3]) {
+      const res = await bitacora(`?limite=2&pagina=${p}`).expect(200);
+      expect(paginaDe(res)).toMatchObject({ pagina: p, limite: 2, total: 6 });
+      paginas.push(...eventosDe(res).map((e) => e.id));
+    }
+    expect(paginas).toEqual(todo);
+    const mas = await bitacora('?limite=2&pagina=4').expect(200);
+    expect(paginaDe(mas)).toMatchObject({ datos: [], total: 6 });
+  });
+
+  it('AU-22: cada filtro y sus combinaciones', async () => {
+    const ana = entorno.persona(ANA);
+    const luis = entorno.persona(LUIS);
+    const e1 = randomUUID();
+    const e2 = randomUUID();
+    const a = await evento({
+      entidad: 'cfdi',
+      entidadId: e1,
+      accion: 'cargar',
+      userId: ana,
+    });
+    const b = await evento({
+      entidad: 'movimientos',
+      entidadId: e2,
+      accion: 'cargar',
+      userId: luis,
+    });
+    const c = await evento({
+      entidad: 'cfdi',
+      entidadId: e2,
+      accion: 'crear',
+      userId: ana,
+    });
+    const ids = async (q: string) =>
+      eventosDe(await bitacora(q).expect(200))
+        .map((e) => e.id)
+        .sort();
+
+    expect(await ids('?entidad=cfdi')).toEqual([a, c].sort());
+    expect(await ids(`?entidadId=${e2}`)).toEqual([b, c].sort());
+    expect(await ids('?accion=cargar')).toEqual([a, b].sort());
+    expect(await ids(`?userId=${ana}`)).toEqual([a, c].sort());
+    expect(await ids(`?entidad=cfdi&accion=cargar&userId=${ana}`)).toEqual([a]);
+    expect(await ids(`?entidad=cfdi&entidadId=${e2}&accion=crear`)).toEqual([
+      c,
+    ]);
+    expect(await ids(`?entidad=cfdi&userId=${luis}`)).toEqual([]);
+  });
+
+  it('AU-22: desde inclusivo y hasta exclusivo', async () => {
+    const t10 = await evento({ creadoEn: '2026-09-10T10:00:00Z' });
+    const t11 = await evento({ creadoEn: '2026-09-10T11:00:00Z' });
+    const t12 = await evento({ creadoEn: '2026-09-10T12:00:00Z' });
+    const ids = async (q: string) =>
+      eventosDe(await bitacora(q).expect(200)).map((e) => e.id);
+
+    expect(
+      await ids('?desde=2026-09-10T10:00:00Z&hasta=2026-09-10T12:00:00Z'),
+    ).toEqual([t11, t10]);
+    expect(await ids('?desde=2026-09-10T11:00:00Z')).toEqual([t12, t11]);
+    expect(await ids('?hasta=2026-09-10T11:00:00Z')).toEqual([t10]);
+    expect(
+      await ids('?desde=2026-09-10T11:00:00Z&hasta=2026-09-10T11:00:00Z'),
+    ).toEqual([]);
+    // Un hasta de solo fecha es medianoche UTC: excluye ese día.
+    expect(await ids('?desde=2026-09-10&hasta=2026-09-11')).toEqual([
+      t12,
+      t11,
+      t10,
+    ]);
+    expect(await ids('?hasta=2026-09-10')).toEqual([]);
+  });
+
+  it.each([
+    'entidadId=no-uuid',
+    'userId=no-uuid',
+    'accion=inventada',
+    'desde=ayer',
+    'hasta=2026-13-45',
+    `entidad=${'x'.repeat(65)}`,
+    'desde=2026-09-11T00:00:00Z&hasta=2026-09-10T00:00:00Z',
+  ])('AU-22: %s es 400', async (consulta) => {
+    await evento();
+    await bitacora(`?${consulta}`).expect(400);
+  });
+
+  it('AU-22: un valor válido sin coincidencias es 200 vacío', async () => {
+    await evento();
+    const res = await bitacora(
+      `?entidad=nada&entidadId=${randomUUID()}&userId=${randomUUID()}`,
+    ).expect(200);
+    expect(paginaDe(res)).toMatchObject({ datos: [], total: 0 });
+  });
+
+  it('AU-22: total no depende de la página', async () => {
+    for (let i = 0; i < 3; i++) await evento({ accion: 'cargar' });
+    await evento({ accion: 'crear' });
+    const res = await bitacora('?accion=cargar&limite=1&pagina=2').expect(200);
+    expect(paginaDe(res)).toMatchObject({ total: 3, limite: 1, pagina: 2 });
+    expect(eventosDe(res)).toHaveLength(1);
+  });
+
+  it('AU-23: ip como host, userAgent y usuario', async () => {
+    const ana = entorno.persona(ANA);
+    await evento({
+      userId: ana,
+      accion: 'confirmar',
+      ip: '203.0.113.7',
+      userAgent: 'jest/1',
+    });
+    await evento({ accion: 'crear' });
+    const datos = eventosDe(await bitacora().expect(200));
+    const humano = datos.find((e) => e.accion === 'confirmar');
+    const sistema = datos.find((e) => e.accion === 'crear');
+    expect(humano).toMatchObject({
+      entidad: 'cfdi',
+      datos: { k: 1 },
+      ip: '203.0.113.7',
+      userAgent: 'jest/1',
+      usuario: { email: ANA },
+    });
+    expect(humano?.usuario?.nombre).toEqual(expect.any(String));
+    expect(sistema).toMatchObject({ usuario: null, ip: null, userAgent: null });
+  });
+
+  it('AU-24: las filas de otra empresa no aparecen ni cuentan', async () => {
+    const compartido = randomUUID();
+    const deB = entorno.persona(JORGE);
+    const propia = await evento({ entidadId: compartido });
+    await evento({ empresa: B, entidadId: compartido, userId: deB });
+    await evento({ empresa: B });
+
+    const todo = await bitacora().expect(200);
+    expect(paginaDe(todo).total).toBe(1);
+    expect(eventosDe(todo).map((e) => e.id)).toEqual([propia]);
+    for (const q of [`?entidadId=${compartido}`, `?userId=${deB}`]) {
+      const res = await bitacora(q).expect(200);
+      expect(paginaDe(res).total).toBe(q.startsWith('?userId') ? 0 : 1);
+    }
+  });
+
+  it('AU-26: la historia de un CFDI y de un movimiento pasa por conciliaciones', async () => {
+    const confirmada = await propuesta();
+    const rechazada = await propuesta();
+    await confirmar(confirmada.id).expect(200);
+    await rechazar(rechazada.id).expect(200);
+    await evento({
+      entidad: 'cfdi',
+      entidadId: confirmada.cfdiId,
+      accion: 'actualizar',
+    });
+    const acciones = async (q: string) =>
+      eventosDe(await bitacora(q).expect(200))
+        .map((e) => `${e.entidad}:${e.accion}`)
+        .sort();
+
+    expect(
+      await acciones(`?entidad=cfdi&entidadId=${confirmada.cfdiId}`),
+    ).toEqual([
+      'cfdi:actualizar',
+      'conciliaciones:confirmar',
+      'conciliaciones:crear',
+    ]);
+    expect(
+      await acciones(
+        `?entidad=movimientos&entidadId=${confirmada.movimientoId}`,
+      ),
+    ).toEqual(['conciliaciones:confirmar', 'conciliaciones:crear']);
+    // Forma del rechazo (cfdiId/movimientoId planos).
+    expect(
+      await acciones(`?entidad=cfdi&entidadId=${rechazada.cfdiId}`),
+    ).toEqual(['conciliaciones:crear', 'conciliaciones:rechazar']);
+    expect(
+      await acciones(
+        `?entidad=movimientos&entidadId=${rechazada.movimientoId}`,
+      ),
+    ).toEqual(['conciliaciones:crear', 'conciliaciones:rechazar']);
+    // El id de un CFDI no arrastra la historia de un movimiento y viceversa.
+    expect(
+      await acciones(`?entidad=movimientos&entidadId=${confirmada.cfdiId}`),
+    ).toEqual([]);
+  });
+
+  it('AU-25: admin, contador y revisor leen; sin token 401; otra empresa 403', async () => {
+    await bitacora('', await entorno.token(LUIS, FERRETERIA)).expect(200);
+    await bitacora('', await entorno.token(JORGE, TRANSPORTES)).expect(200);
+    await request(entorno.app.getHttpServer()).get('/bitacora').expect(401);
+    await bitacora('', await entorno.token(ANA, TRANSPORTES)).expect(403);
+  });
+});
