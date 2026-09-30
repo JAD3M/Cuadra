@@ -5,11 +5,11 @@
 
 | | |
 |---|---|
-| **Estado** | Día 6 de 9 ✅ · CU-01 a CU-15, más CU-04b · 58 / 69 pts · Épicas A, B, C y D cerradas |
+| **Estado** | Día 7 de 9 ✅ · CU-01 a CU-16, más CU-04b · 61 / 69 pts · Épicas A, B, C y D cerradas |
 | **Entrega** | 2 de octubre de 2026 |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 18 historias · 69 puntos · 9 días hábiles |
-| **Última actualización** | 29 sep 2026 |
+| **Última actualización** | 30 sep 2026 |
 
 Este archivo es la fuente de verdad del proyecto. Vive en la raíz del repo.
 Si usas un agente de código, apúntalo aquí desde `CLAUDE.md` o `AGENTS.md`
@@ -744,6 +744,53 @@ Jira (`cuadra-jira.csv`) y en las issues importadas.
 
 Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
+
+### 30 sep 2026
+
+- **CU-16 terminado: bitácora de auditoría.** Dos PR encadenados
+  (`stacked-to-main`), con excepción de tamaño aceptada en ambos: primero la
+  escritura y la prueba de solo lectura, luego la consulta. Sin migración:
+  `'crear'` ya estaba en `ck_bitacora_accion`.
+  - **El motor audita:** `ConciliacionService.insertar` es ahora una sola
+    sentencia (CTE que inserta las propuestas y, con `RETURNING`, una fila
+    `crear` por cada propuesta **nueva**). Van juntas por construcción, dentro
+    del mismo candado y la misma transacción: no hay propuesta sin rastro ni
+    rastro sin propuesta. Lo que `ON CONFLICT DO NOTHING` omite no genera fila,
+    así que volver a conciliar no duplica nada. `user_id` es `NULL` (lo hizo el
+    sistema); `datos` lleva `despues.estado`, `origen`, `regla`, `score` y
+    `diferenciaMonto` como texto, `cfdiId` y `movimientoId`.
+  - **Solo lectura, probada:** como `cuadra_app`, `UPDATE`, `DELETE` y
+    `TRUNCATE` sobre `bitacora` fallan con `42501`, y `has_table_privilege`
+    confirma `SELECT`/`INSERT` sí y el resto no. Sin trigger (D3): los GRANTs
+    bastan y un trigger rompería la limpieza de las pruebas. El dueño de la
+    tabla no pasa por esto; queda fuera de alcance.
+  - **`GET /conciliaciones/:id/historial`:** los eventos de una conciliación de
+    más antiguo a más nuevo, sin paginar, `{ datos }`. Cada uno lleva `id`,
+    `entidad`, `entidadId`, `accion`, `datos` (tal como se guardó),
+    `createdAt` y `usuario` `{ nombre, email }` o `null` cuando fue el motor.
+    No expone `ip` ni `userAgent`. 400 si el id no es UUID; 404 idéntico para
+    inexistente y ajena. Una propuesta anterior a CU-16 no tiene fila `crear`:
+    devuelve solo lo posterior (sin backfill).
+  - **`GET /bitacora`:** filtros `entidad` (texto, máx. 64), `entidadId`,
+    `userId`, `accion` (una de `ACCIONES_BITACORA`) y `desde`/`hasta` ISO 8601
+    estricto, **semiabierto** `[desde, hasta)`; `desde > hasta` es 400. Un
+    `hasta` de solo fecha es medianoche UTC y excluye ese día. `pagina` y
+    `limite` como la bandeja (50 por defecto, máx. 200). Orden `created_at DESC,
+    id DESC`; devuelve `{ datos, pagina, limite, total }` con `ip` (`host(ip)`)
+    y `userAgent`.
+  - **Historia de un CFDI o de un movimiento:** con `entidad=cfdi` o
+    `entidad=movimientos` y `entidadId`, el filtro también trae las filas de
+    sus conciliaciones, por un join con `conciliaciones` (`cfdi_id` o
+    `movimiento_id`). Así funciona con las dos formas de `datos` de CU-15
+    (`confirmar` anida `cfdi.id` y `movimiento.id`; `rechazar` guarda `cfdiId`
+    y `movimientoId` planos) sin leer el jsonb ni indexarlo.
+  - **Módulo:** `src/bitacora/bitacora.module.ts`, SQL crudo en la transacción
+    de la petición (RLS como `cuadra_app`), `company_id` en cada consulta y
+    join. admin, contador y revisor; sin token, 401.
+  - **Pendiente, sin tocar:** `esquema.spec` falló una vez en una primera
+    corrida completa, en CU-13 y en el PR 1 de CU-16, y al repetirla pasó
+    (sola y en corridas completas). Sin causa identificada; conviene
+    vigilarla.
 
 ### 29 sep 2026
 
