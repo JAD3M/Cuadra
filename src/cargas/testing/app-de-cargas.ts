@@ -21,6 +21,8 @@ import { opcionesDataSource } from '../../database/data-source';
 import { ENTIDADES } from '../../database/entidades';
 import { SnakeNamingStrategy } from '../../database/naming.strategy';
 import { ResolucionModule } from '../../resolucion/resolucion.module';
+import { COLA_SUGERENCIAS } from '../../sugerencias/cola-sugerencias';
+import { ProveedorSugerencia } from '../../sugerencias/proveedor-sugerencia';
 import { sembrar } from '../../database/seeds/seed';
 import {
   crearBaseDePruebas,
@@ -61,7 +63,17 @@ export interface AppDeCargas {
   cerrar(): Promise<void>;
 }
 
-export async function levantarAppDeCargas(): Promise<AppDeCargas> {
+export interface OpcionesDeApp {
+  /**
+   * CU-17: reemplaza al proveedor de sugerencias (por omisión la app corre
+   * con el desactivado, como en CI sin secretos). Nunca una llamada real.
+   */
+  proveedorSugerencia?: ProveedorSugerencia;
+}
+
+export async function levantarAppDeCargas(
+  opciones: OpcionesDeApp = {},
+): Promise<AppDeCargas> {
   // Esperas cortas para que los reintentos no alarguen la corrida, y un
   // prefijo propio: si no, el worker de la api en Docker tomaría estos jobs
   // y los buscaría en la base de desarrollo. Jest da a cada archivo su copia
@@ -102,7 +114,12 @@ export async function levantarAppDeCargas(): Promise<AppDeCargas> {
     personas.set(email, id);
   }
 
-  const modulo = await Test.createTestingModule({
+  // Este entorno no hereda la llave de quien corre los tests: los specs que
+  // quieren proveedor lo piden con `opciones.proveedorSugerencia`.
+  delete process.env.ANTHROPIC_API_KEY;
+  process.env.LLM_HABILITADO = 'false';
+
+  const constructor = Test.createTestingModule({
     imports: [
       ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
       TypeOrmModule.forRoot({
@@ -120,11 +137,20 @@ export async function levantarAppDeCargas(): Promise<AppDeCargas> {
       BitacoraModule,
       ResolucionModule,
     ],
-  }).compile();
+  });
+  if (opciones.proveedorSugerencia) {
+    constructor
+      .overrideProvider(ProveedorSugerencia)
+      .useValue(opciones.proveedorSugerencia);
+  }
+  const modulo = await constructor.compile();
 
   // Jobs de una corrida anterior apuntan a cargas que ya se truncaron.
   await modulo
     .get<Queue>(getQueueToken(COLA_CARGAS))
+    .obliterate({ force: true });
+  await modulo
+    .get<Queue>(getQueueToken(COLA_SUGERENCIAS))
     .obliterate({ force: true });
 
   const app = modulo.createNestApplication<INestApplication<App>>();

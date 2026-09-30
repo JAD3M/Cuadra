@@ -11,6 +11,7 @@ import {
 } from '../bancos/perfiles-bancarios';
 import type { TipoCarga } from '../common/entities/tipos';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
+import { ColaSugerencias } from '../sugerencias/cola-sugerencias';
 import { COLA_CARGAS, type TrabajoDeCarga } from './cola-cargas';
 import { procesarLoteCfdi } from './guardar-cfdi';
 
@@ -44,6 +45,7 @@ export class ProcesadorCargas extends WorkerHost {
     private readonly transaccion: TransaccionEmpresa,
     private readonly perfiles: PerfilesBancarios,
     private readonly conciliacion: ConciliacionService,
+    private readonly sugerencias: ColaSugerencias,
   ) {
     super();
   }
@@ -78,6 +80,7 @@ export class ProcesadorCargas extends WorkerHost {
     // job encuentra la carga ya procesada (recuperación tras un crash entre
     // el commit y la conciliación).
     await this.conciliarSinFallar(job.data.companyId);
+    await this.encolarSugerenciasSinFallar(job.data.companyId);
   }
 
   /** CU-11. Solo loguea: la carga conserva el estado con que terminó. */
@@ -87,6 +90,23 @@ export class ProcesadorCargas extends WorkerHost {
     } catch (error) {
       this.logger.error(
         `Empresa ${companyId}: la conciliación automática falló`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
+  }
+
+  /**
+   * CU-17. Después de que el motor decidió, lo ambiguo que quedó en revisión
+   * va a la cola de sugerencias. Su propio try/catch: Redis caído o la cola
+   * rota nunca fallan ni alteran una carga ya conciliada. Apagada, ni se toca.
+   */
+  private async encolarSugerenciasSinFallar(companyId: string): Promise<void> {
+    if (!this.sugerencias.activa) return;
+    try {
+      await this.sugerencias.encolar(companyId);
+    } catch (error) {
+      this.logger.error(
+        `Empresa ${companyId}: no se pudo encolar la sugerencia por IA`,
         error instanceof Error ? error.stack : String(error),
       );
     }

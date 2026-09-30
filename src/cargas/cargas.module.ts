@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BancosModule } from '../bancos/bancos.module';
 import { ConciliacionModule } from '../conciliacion/conciliacion.module';
+import { SugerenciasModule } from '../sugerencias/sugerencias.module';
 import { CargasController } from './cargas.controller';
 import { CargasService } from './cargas.service';
 import { COLA_CARGAS, ColaCargas } from './cola-cargas';
@@ -12,6 +13,7 @@ import { ProcesadorCargas } from './procesador-cargas';
   imports: [
     BancosModule,
     ConciliacionModule,
+    SugerenciasModule,
     BullModule.registerQueueAsync({
       name: COLA_CARGAS,
       inject: [ConfigService],
