@@ -26,6 +26,7 @@ const TABLAS_CON_RLS = [
   'conciliaciones',
   'bitacora',
   'carga_archivos',
+  'sugerencias_ia',
 ] as const;
 
 /** Dueño del esquema: migra, siembra y cuenta sin RLS. */
@@ -193,5 +194,91 @@ describe('RLS (CU-04b)', () => {
     } finally {
       await qr.release();
     }
+  });
+});
+
+describe('RLS de sugerencias_ia (CU-17)', () => {
+  const movimientos = new Map<string, string>();
+  const HASH = 'a'.repeat(64);
+
+  beforeAll(async () => {
+    for (const rfc of [FERRETERIA, TRANSPORTES]) {
+      const { id } = await una<{ id: string }>(
+        duenio,
+        `INSERT INTO movimientos (company_id, linea_numero, fecha, descripcion, monto)
+         VALUES ($1, 9000, '2026-09-02', 'RLS SUGERENCIAS', 100) RETURNING id`,
+        [de(rfc)],
+      );
+      movimientos.set(rfc, id);
+      await duenio.query(
+        `INSERT INTO sugerencias_ia (company_id, movimiento_id, input_hash, resultado)
+         VALUES ($1, $2, $3, 'sin_sugerencia')`,
+        [de(rfc), id, HASH],
+      );
+    }
+  });
+
+  afterAll(async () => {
+    // El dueño borra: cuadra_app no puede, y eso es justo lo que se prueba.
+    await duenio.query(`DELETE FROM sugerencias_ia WHERE input_hash = $1`, [
+      HASH,
+    ]);
+    await duenio.query(`DELETE FROM movimientos WHERE linea_numero = 9000`);
+  });
+
+  it('sin empresa fijada, cuadra_app ve cero filas aunque existan', async () => {
+    const { n } = await una<{ n: number }>(
+      duenio,
+      'SELECT count(*)::int AS n FROM sugerencias_ia',
+    );
+    expect(n).toBeGreaterThanOrEqual(2);
+    expect(await filas(app, 'SELECT * FROM sugerencias_ia')).toEqual([]);
+  });
+
+  it('con Ferretería fijada ve solo sus filas', async () => {
+    const companias = await comoEmpresa(de(FERRETERIA), (qr) =>
+      filas<{ company_id: string }>(
+        qr,
+        'SELECT DISTINCT company_id FROM sugerencias_ia',
+      ),
+    );
+    expect(companias).toEqual([{ company_id: de(FERRETERIA) }]);
+  });
+
+  it('con Ferretería fijada no puede insertar una fila de Transportes', async () => {
+    await expect(
+      comoEmpresa(de(FERRETERIA), (qr) =>
+        qr.query(
+          `INSERT INTO sugerencias_ia (company_id, movimiento_id, input_hash, resultado)
+           VALUES ($1, $2, $3, 'sin_sugerencia')`,
+          [de(TRANSPORTES), movimientos.get(TRANSPORTES), 'b'.repeat(64)],
+        ),
+      ),
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it('con Ferretería fijada inserta una fila propia', async () => {
+    await comoEmpresa(de(FERRETERIA), async (qr) => {
+      await qr.query(
+        `INSERT INTO sugerencias_ia (company_id, movimiento_id, input_hash, resultado)
+         VALUES ($1, $2, $3, 'propuesta')`,
+        [de(FERRETERIA), movimientos.get(FERRETERIA), 'c'.repeat(64)],
+      );
+      const { n } = await una<{ n: number }>(
+        qr,
+        'SELECT count(*)::int AS n FROM sugerencias_ia',
+      );
+      expect(n).toBe(2);
+    });
+  });
+
+  it.each([
+    ['UPDATE', `UPDATE sugerencias_ia SET resultado = 'propuesta'`],
+    ['DELETE', 'DELETE FROM sugerencias_ia'],
+    ['TRUNCATE', 'TRUNCATE sugerencias_ia'],
+  ])('cuadra_app no puede hacer %s (solo agrega)', async (_op, sql) => {
+    await expect(
+      comoEmpresa(de(FERRETERIA), (qr) => qr.query(sql)),
+    ).rejects.toMatchObject({ code: '42501' });
   });
 });

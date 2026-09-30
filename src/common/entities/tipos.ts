@@ -75,6 +75,13 @@ export const REGLAS_SIN_MATCH = [
 ] as const;
 export type ReglaSinMatch = (typeof REGLAS_SIN_MATCH)[number];
 
+/** CU-17. `regla` de la conciliación que propone el modelo. */
+export const REGLA_LLM_SUGERENCIA = 'llm_sugerencia';
+
+/** CU-17. Qué salió de preguntarle al modelo por un movimiento. */
+export const RESULTADOS_SUGERENCIA = ['propuesta', 'sin_sugerencia'] as const;
+export type ResultadoSugerencia = (typeof RESULTADOS_SUGERENCIA)[number];
+
 /**
  * 'acceso_denegado' (CU-03.3): un 403 por rol o por membresía. `entidad` es
  * 'companies' y `entidad_id` la empresa a la que se intentó entrar.

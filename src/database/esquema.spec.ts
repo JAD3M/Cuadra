@@ -23,6 +23,7 @@ const TABLAS_DOMINIO = [
   'bitacora',
   'user_company_roles',
   'carga_archivos',
+  'sugerencias_ia',
 ] as const;
 
 const TODAS_LAS_TABLAS = ['companies', 'users', ...TABLAS_DOMINIO] as const;
