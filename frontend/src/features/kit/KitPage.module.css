@@ -1,0 +1,74 @@
+/* Galería de componentes: solo tokens de rol. */
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-40);
+  min-inline-size: 0;
+  padding: var(--space-28) var(--space-40) var(--space-48);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-title);
+  letter-spacing: var(--tracking-tight);
+}
+
+.seccion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-inline-size: 0;
+}
+
+.subtitulo {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+}
+
+.encabezadoTarjeta {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.nota {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.control {
+  max-inline-size: 320px;
+}
+
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-16);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Marco de la muestra del shell: barra lateral fija y contenido flexible. */
+.marco {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-block-size: 560px;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-ground);
+}
