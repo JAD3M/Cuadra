@@ -1,0 +1,54 @@
+/* Scroll horizontal cuando la tabla no cabe; el foco se ve sobre el borde. */
+.envoltorio {
+  overflow-x: auto;
+}
+
+.tabla {
+  inline-size: 100%;
+  border-collapse: collapse;
+}
+
+.th {
+  padding: var(--space-12) var(--space-16);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  text-align: start;
+  text-transform: uppercase;
+}
+
+.td {
+  padding: var(--space-14) var(--space-16);
+  border-bottom: 1px solid var(--color-row-divider);
+  vertical-align: middle;
+}
+
+.tabla tbody tr:hover .td {
+  background: var(--color-hover);
+}
+
+/*
+ * Columna numérica: alineada al final, sin partir el monto y del tamaño de su
+ * contenido (inline-size: 1% la reduce al mínimo que permite el monto, que
+ * ya trae min-inline-size: max-content). Sin overflow ni text-overflow: la
+ * columna crece con el número en vez de recortarlo.
+ */
+.numerica {
+  inline-size: 1%;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.ocultoVisual {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
