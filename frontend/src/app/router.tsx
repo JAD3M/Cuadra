@@ -7,8 +7,9 @@ import { CargasPage } from '@/features/cargas/CargasPage';
 import { CasoPage } from '@/features/caso/CasoPage';
 import { NoEncontradaPage } from '@/features/NoEncontradaPage';
 import { TolerPage } from '@/features/tolerancia/TolerPage';
-import { LayoutStub } from './LayoutStub';
-import { RutaRaiz, type ManejadorRuta } from './RutaRaiz';
+import { ShellLayout } from './shell/ShellLayout';
+import type { ManejadorRuta } from './manejadorRuta';
+import { RutaRaiz } from './RutaRaiz';
 
 function titulo(titulo: string): ManejadorRuta {
   return { titulo };
@@ -33,7 +34,7 @@ const rutasDeDesarrollo: RouteObject[] = import.meta.env.DEV
 
 /**
  * Tabla de rutas. `/login` y `/empresa` van fuera del shell; el resto vive
- * bajo un layout sin ruta propia (`LayoutStub` hasta que llegue `ShellLayout`).
+ * bajo `ShellLayout`, un layout sin ruta propia.
  */
 export const rutas: RouteObject[] = [
   {
@@ -51,7 +52,7 @@ export const rutas: RouteObject[] = [
         handle: titulo('Elegir empresa'),
       },
       {
-        element: <LayoutStub />,
+        element: <ShellLayout />,
         children: [
           {
             path: '/bandeja',

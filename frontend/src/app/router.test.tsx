@@ -5,11 +5,27 @@ import {
   type RouteObject,
 } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
+import { ThemeProvider } from '@/shared/tema';
+import { PlaceholderSessionProvider } from './session';
 import { rutas } from './router';
+
+function Entorno({
+  router,
+}: {
+  router: ReturnType<typeof createMemoryRouter>;
+}) {
+  return (
+    <ThemeProvider>
+      <PlaceholderSessionProvider>
+        <RouterProvider router={router} />
+      </PlaceholderSessionProvider>
+    </ThemeProvider>
+  );
+}
 
 function renderizar(ruta: string, tabla: RouteObject[] = rutas) {
   const router = createMemoryRouter(tabla, { initialEntries: [ruta] });
-  render(<RouterProvider router={router} />);
+  render(<Entorno router={router} />);
   return router;
 }
 
@@ -26,8 +42,28 @@ describe('tabla de rutas', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Pantalla en construcción/)).toBeInTheDocument();
     expect(screen.getByRole('main')).toContainElement(
-      screen.getByRole('heading', { name: nombre }),
+      screen.getByRole('heading', { level: 2, name: nombre }),
     );
+  });
+
+  it.each(['/bandeja', '/casos/abc', '/cargas', '/tolerancia', '/bitacora'])(
+    '%s dentro del shell tiene un banner, una navegación y un main',
+    (ruta) => {
+      renderizar(ruta);
+      expect(screen.getAllByRole('banner')).toHaveLength(1);
+      expect(screen.getAllByRole('navigation')).toHaveLength(1);
+      expect(screen.getAllByRole('main')).toHaveLength(1);
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    },
+  );
+
+  it('el h1 del encabezado precede al h2 del marcador', () => {
+    renderizar('/cargas');
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Cargas' });
+    const h2 = screen.getByRole('heading', { level: 2, name: 'Cargas' });
+    expect(
+      h1.compareDocumentPosition(h2) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it.each([
@@ -47,7 +83,7 @@ describe('tabla de rutas', () => {
   it('/casos/abc muestra el id de la ruta dentro del layout', () => {
     renderizar('/casos/abc');
     expect(
-      screen.getByRole('heading', { name: 'Detalle del caso' }),
+      screen.getByRole('heading', { level: 2, name: 'Detalle del caso' }),
     ).toBeInTheDocument();
     expect(screen.getByText('abc')).toBeInTheDocument();
     expect(screen.getByRole('main')).toContainElement(screen.getByText('abc'));
@@ -63,7 +99,7 @@ describe('tabla de rutas', () => {
     const router = renderizar('/');
     expect(router.state.location.pathname).toBe('/bandeja');
     expect(
-      screen.getByRole('heading', { name: 'Bandeja' }),
+      screen.getByRole('heading', { level: 2, name: 'Bandeja' }),
     ).toBeInTheDocument();
   });
 
@@ -78,7 +114,7 @@ describe('tabla de rutas', () => {
   it('cada ruta aporta un solo main', () => {
     for (const ruta of ['/login', '/bandeja', '/casos/1', '/nada']) {
       const { unmount } = render(
-        <RouterProvider
+        <Entorno
           router={createMemoryRouter(rutas, { initialEntries: [ruta] })}
         />,
       );

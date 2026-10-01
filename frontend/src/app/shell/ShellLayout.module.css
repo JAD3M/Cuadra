@@ -1,0 +1,56 @@
+/* Layout del shell (maquetas Bandeja y BandejaClaro). */
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  min-block-size: 100vh;
+  background: var(--color-ground);
+  color: var(--color-text);
+}
+
+.columna {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-28);
+  min-inline-size: 0;
+  padding: var(--space-28) var(--space-40) var(--space-48);
+}
+
+/* El foco llega aquí por programa (enlace de salto); no es un control. */
+.contenido {
+  min-inline-size: 0;
+}
+
+.contenido:focus {
+  outline: none;
+}
+
+.estado {
+  display: grid;
+  min-block-size: 100vh;
+  place-items: center;
+  background: var(--color-ground);
+  color: var(--color-text-secondary);
+}
+
+/* Enlace de salto: fuera de pantalla hasta que recibe el foco. */
+.saltar {
+  position: absolute;
+  inset-block-start: var(--space-8);
+  inset-inline-start: var(--space-8);
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--touch-min);
+  padding: 0 var(--space-16);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-weight: var(--weight-medium);
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.saltar:focus-visible {
+  transform: translateY(0);
+}

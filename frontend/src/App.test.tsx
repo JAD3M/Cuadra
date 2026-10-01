@@ -29,7 +29,7 @@ describe('App', () => {
   it('smoke: App renders (raíz redirige a /bandeja)', () => {
     montar('/');
     expect(
-      screen.getByRole('heading', { name: 'Bandeja' }),
+      screen.getByRole('heading', { level: 1, name: 'Bandeja' }),
     ).toBeInTheDocument();
   });
 

@@ -1,16 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useMatches } from 'react-router';
-
-/** Dato que cada ruta publica en `handle` para el título de la página. */
-export interface ManejadorRuta {
-  titulo: string;
-}
-
-function tituloDeRuta(manejador: unknown): string | undefined {
-  if (typeof manejador !== 'object' || manejador === null) return undefined;
-  const { titulo } = manejador as Partial<ManejadorRuta>;
-  return typeof titulo === 'string' ? titulo : undefined;
-}
+import { tituloDeRuta } from './manejadorRuta';
 
 /**
  * Raíz del árbol de rutas. En cada cambio de ruta pone el título del
