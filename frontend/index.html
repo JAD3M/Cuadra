@@ -3,8 +3,39 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Cuadra</title>
+    <!--
+      Aplica el tema antes del primer pintado para evitar el parpadeo. Debe
+      coincidir con resolverTema (lo comprueba tests/tema/script-inicial.test.ts).
+      Solo escribe data-theme. Una CSP futura necesitará un hash o nonce para
+      este script.
+    -->
+    <script id="tema-inicial">
+      (function () {
+        try {
+          var pref = null;
+          try {
+            pref = localStorage.getItem('cuadra.tema');
+          } catch (e) {}
+          if (pref !== 'light' && pref !== 'dark') pref = 'system';
+          var tema = pref;
+          if (pref === 'system') {
+            tema = 'dark';
+            try {
+              if (
+                typeof window.matchMedia === 'function' &&
+                !window.matchMedia('(prefers-color-scheme: dark)').matches
+              ) {
+                tema = 'light';
+              }
+            } catch (e) {}
+          }
+          document.documentElement.setAttribute('data-theme', tema);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
