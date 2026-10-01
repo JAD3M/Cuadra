@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
@@ -169,6 +169,94 @@ describe('enlace de salto', () => {
     await usuario.keyboard('{Enter}');
     expect(screen.getByRole('main')).toHaveFocus();
     expect(screen.getByRole('main')).toHaveAttribute('id', 'contenido');
+  });
+});
+
+describe('menú responsive (menos de 900 px)', () => {
+  const boton = () => screen.getByRole('button', { name: 'Menú' });
+
+  it('el botón controla la barra lateral y arranca cerrado', () => {
+    renderizar(LISTO);
+    expect(boton()).toHaveAttribute('aria-expanded', 'false');
+    expect(boton()).toHaveAttribute('aria-controls', 'barra-lateral');
+    expect(document.getElementById('barra-lateral')).toContainElement(
+      screen.getByRole('navigation'),
+    );
+    expect(document.getElementById('barra-lateral')).toHaveAttribute(
+      'data-abierto',
+      'false',
+    );
+  });
+
+  it('el botón abre y cierra el panel', async () => {
+    const usuario = userEvent.setup();
+    renderizar(LISTO);
+    await usuario.click(boton());
+    expect(boton()).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById('barra-lateral')).toHaveAttribute(
+      'data-abierto',
+      'true',
+    );
+    await usuario.click(boton());
+    expect(boton()).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('Escape cierra el panel y devuelve el foco al botón', async () => {
+    const usuario = userEvent.setup();
+    renderizar(LISTO);
+    await usuario.click(boton());
+    within(screen.getByRole('navigation')).getAllByRole('link')[0]?.focus();
+    await usuario.keyboard('{Escape}');
+    expect(boton()).toHaveAttribute('aria-expanded', 'false');
+    expect(boton()).toHaveFocus();
+  });
+
+  it('Escape con el panel cerrado no mueve el foco', async () => {
+    const usuario = userEvent.setup();
+    renderizar(LISTO);
+    screen.getByRole('link', { name: 'Saltar al contenido' }).focus();
+    await usuario.keyboard('{Escape}');
+    expect(
+      screen.getByRole('link', { name: 'Saltar al contenido' }),
+    ).toHaveFocus();
+  });
+
+  it('un cambio de ruta cierra el panel', async () => {
+    const usuario = userEvent.setup();
+    const router = renderizar(LISTO);
+    await usuario.click(boton());
+    await act(() => router.navigate('/bandeja'));
+    expect(boton()).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('elegir un enlace cierra el panel, incluso el de la ruta actual', async () => {
+    const usuario = userEvent.setup();
+    renderizar(LISTO, '/cargas');
+    await usuario.click(boton());
+    await usuario.click(
+      within(screen.getByRole('navigation')).getByRole('link', {
+        name: /Cargas/,
+      }),
+    );
+    expect(boton()).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('con el menú presente sigue habiendo un banner, una navegación y un main', async () => {
+    const usuario = userEvent.setup();
+    renderizar(LISTO);
+    await usuario.click(boton());
+    expect(screen.getAllByRole('banner')).toHaveLength(1);
+    expect(screen.getAllByRole('navigation')).toHaveLength(1);
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+  });
+
+  it('el enlace de salto sigue siendo el primer enfocable', async () => {
+    const usuario = userEvent.setup();
+    renderizar(LISTO);
+    await usuario.tab();
+    expect(
+      screen.getByRole('link', { name: 'Saltar al contenido' }),
+    ).toHaveFocus();
   });
 });
 

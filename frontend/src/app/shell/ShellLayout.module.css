@@ -54,3 +54,73 @@
 .saltar:focus-visible {
   transform: translateY(0);
 }
+
+/* En pantallas anchas el contenedor de la barra no existe para la rejilla. */
+.lateral {
+  display: contents;
+}
+
+.barraMovil,
+.botonMenu {
+  display: none;
+}
+
+/*
+ * Menos de 900 px: una sola columna, barra superior con el botón de menú y
+ * barra lateral como panel bajo ella. Cerrado, `display: none` la saca del
+ * orden de tabulación y del árbol de accesibilidad.
+ */
+@media (width < 900px) {
+  .shell {
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .columna {
+    padding: var(--space-20) var(--space-20) var(--space-48);
+  }
+
+  .barraMovil {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-16);
+  }
+
+  .marcaMovil {
+    font-size: var(--text-2xl);
+    font-weight: var(--weight-bold);
+  }
+
+  .botonMenu {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-block-size: var(--touch-min);
+    min-inline-size: var(--touch-min);
+    padding: 0 var(--space-16);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-raised);
+    color: var(--color-text);
+    font-weight: var(--weight-medium);
+    cursor: pointer;
+  }
+
+  .lateral {
+    display: none;
+  }
+
+  .lateral[data-abierto='true'] {
+    position: absolute;
+    inset-block-start: calc(
+      var(--space-20) + var(--touch-min) + var(--space-8)
+    );
+    inset-inline: 0;
+    z-index: 2;
+    display: block;
+    max-block-size: calc(100vh - var(--touch-min) - var(--space-28));
+    overflow-y: auto;
+    border-block-end: 1px solid var(--color-border);
+  }
+}

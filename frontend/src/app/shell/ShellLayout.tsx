@@ -1,4 +1,4 @@
-import { useRef, type MouseEvent } from 'react';
+import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { Outlet, useLocation, useMatches } from 'react-router';
 import { useSessionContext } from '@/app/session';
 import { ControlTema } from '@/shared/tema';
@@ -17,6 +17,10 @@ import estilos from './ShellLayout.module.css';
  * - `ended`: aviso neutro de sesión terminada. Es el punto de enganche de
  *   CU-21 (redirección a `/login`); aquí no se implementa ninguna.
  *
+ * Por debajo de 900 px la barra lateral pasa a ser un panel que se abre con
+ * el botón «Menú» (divulgación: `aria-expanded` y `aria-controls`). Se cierra
+ * con Escape, al cambiar de ruta y al elegir un enlace.
+ *
  * El título del documento lo pone `RutaRaiz`; aquí solo se muestra en el `h1`.
  */
 export function ShellLayout() {
@@ -24,6 +28,11 @@ export function ShellLayout() {
   const { pathname } = useLocation();
   const coincidencias = useMatches();
   const contenido = useRef<HTMLElement>(null);
+  const botonMenu = useRef<HTMLButtonElement>(null);
+  // Se guarda la ruta en la que se abrió el menú: al cambiar de ruta deja de
+  // coincidir y el menú se cierra solo, sin efectos.
+  const [abiertoEn, setAbiertoEn] = useState<string | null>(null);
+  const menuAbierto = abiertoEn === pathname;
 
   if (sesion.status === 'loading') {
     return (
@@ -51,6 +60,17 @@ export function ShellLayout() {
     contenido.current?.focus();
   }
 
+  function alTeclear(evento: KeyboardEvent<HTMLDivElement>) {
+    if (evento.key !== 'Escape' || !menuAbierto) return;
+    setAbiertoEn(null);
+    botonMenu.current?.focus();
+  }
+
+  // Elegir un enlace cierra el menú aunque sea la ruta actual.
+  function alPulsarLateral(evento: MouseEvent<HTMLDivElement>) {
+    if ((evento.target as Element).closest('a')) setAbiertoEn(null);
+  }
+
   return (
     <>
       <a
@@ -60,16 +80,41 @@ export function ShellLayout() {
       >
         Saltar al contenido
       </a>
-      <div className={estilos.shell}>
-        <Sidebar
-          rutaActual={pathname}
-          pendientes={PENDIENTES_PLACEHOLDER}
-          usuario={usuario}
-          roles={roles}
-          controlTema={<ControlTema />}
-        />
+      <div className={estilos.shell} onKeyDown={alTeclear}>
+        <div
+          id="barra-lateral"
+          className={estilos.lateral}
+          data-abierto={menuAbierto}
+          onClick={alPulsarLateral}
+        >
+          <Sidebar
+            rutaActual={pathname}
+            pendientes={PENDIENTES_PLACEHOLDER}
+            usuario={usuario}
+            roles={roles}
+            controlTema={<ControlTema />}
+          />
+        </div>
         <div className={estilos.columna}>
-          <Header titulo={titulo} empresa={empresa} />
+          <Header
+            titulo={titulo}
+            empresa={empresa}
+            barraMovil={
+              <div className={estilos.barraMovil}>
+                <span className={estilos.marcaMovil}>Cuadra</span>
+                <button
+                  ref={botonMenu}
+                  type="button"
+                  className={estilos.botonMenu}
+                  aria-expanded={menuAbierto}
+                  aria-controls="barra-lateral"
+                  onClick={() => setAbiertoEn(menuAbierto ? null : pathname)}
+                >
+                  Menú
+                </button>
+              </div>
+            }
+          />
           <main
             id="contenido"
             tabIndex={-1}

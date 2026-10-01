@@ -28,6 +28,25 @@ describe('contrato CSS del layout del shell', () => {
     );
   });
 
+  it('el cambio al menú ocurre en el umbral literal de 900px', () => {
+    expect(layout).toMatch(/@media\s*\(width\s*<\s*900px\)/);
+  });
+
+  it('el botón y la barra del menú no se muestran en pantallas anchas', () => {
+    expect(layout).toMatch(
+      /\.barraMovil,\s*\.botonMenu\s*\{[^}]*display:\s*none/,
+    );
+  });
+
+  it('en pantallas anchas la barra lateral no altera la rejilla', () => {
+    expect(bloqueCss(layout, '.lateral')).toMatch(/display:\s*contents/);
+  });
+
+  it('el panel cerrado sale del orden de tabulación con display none', () => {
+    const [, estrecho] = layout.split('@media (width < 900px)');
+    expect(estrecho).toMatch(/\.lateral\s*\{\s*display:\s*none/);
+  });
+
   it('solo usa tokens: sin literales de color', () => {
     expect(layout).not.toMatch(LITERAL_DE_COLOR);
   });
