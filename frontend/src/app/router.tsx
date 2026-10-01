@@ -1,0 +1,78 @@
+import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
+import { EmpresaPage } from '@/features/auth/EmpresaPage';
+import { LoginPage } from '@/features/auth/LoginPage';
+import { BandejaPage } from '@/features/bandeja/BandejaPage';
+import { BitacoraPage } from '@/features/bitacora/BitacoraPage';
+import { CargasPage } from '@/features/cargas/CargasPage';
+import { CasoPage } from '@/features/caso/CasoPage';
+import { NoEncontradaPage } from '@/features/NoEncontradaPage';
+import { TolerPage } from '@/features/tolerancia/TolerPage';
+import { LayoutStub } from './LayoutStub';
+import { RutaRaiz, type ManejadorRuta } from './RutaRaiz';
+
+function titulo(titulo: string): ManejadorRuta {
+  return { titulo };
+}
+
+/**
+ * Tabla de rutas. `/login` y `/empresa` van fuera del shell; el resto vive
+ * bajo un layout sin ruta propia (`LayoutStub` hasta que llegue `ShellLayout`).
+ */
+export const rutas: RouteObject[] = [
+  {
+    element: <RutaRaiz />,
+    children: [
+      { path: '/', element: <Navigate to="/bandeja" replace /> },
+      {
+        path: '/login',
+        element: <LoginPage />,
+        handle: titulo('Iniciar sesión'),
+      },
+      {
+        path: '/empresa',
+        element: <EmpresaPage />,
+        handle: titulo('Elegir empresa'),
+      },
+      {
+        element: <LayoutStub />,
+        children: [
+          {
+            path: '/bandeja',
+            element: <BandejaPage />,
+            handle: titulo('Bandeja'),
+          },
+          {
+            path: '/casos/:id',
+            element: <CasoPage />,
+            handle: titulo('Detalle del caso'),
+          },
+          {
+            path: '/cargas',
+            element: <CargasPage />,
+            handle: titulo('Cargas'),
+          },
+          {
+            path: '/tolerancia',
+            element: <TolerPage />,
+            handle: titulo('Tolerancia'),
+          },
+          {
+            path: '/bitacora',
+            element: <BitacoraPage />,
+            handle: titulo('Bitácora'),
+          },
+        ],
+      },
+      {
+        path: '*',
+        element: <NoEncontradaPage />,
+        handle: titulo('Página no encontrada'),
+      },
+    ],
+  },
+];
+
+/** Router del navegador para `main.tsx`. Las pruebas usan `createMemoryRouter(rutas)`. */
+export function crearRouter() {
+  return createBrowserRouter(rutas);
+}
