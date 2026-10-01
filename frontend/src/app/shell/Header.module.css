@@ -1,0 +1,31 @@
+/* Encabezado de página (maqueta Bandeja). */
+.encabezado {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+}
+
+.titulos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-title);
+  letter-spacing: var(--tracking-tight);
+}
+
+.subtitulo {
+  color: var(--color-text-secondary);
+}
