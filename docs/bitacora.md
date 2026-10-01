@@ -5,6 +5,60 @@
 
 ### 1 oct 2026
 
+- **CU-20 terminado: base del frontend con tema claro y oscuro (KAN-98).**
+  Pendiente de integrar a `master`. Lo entregado:
+  - El frontend vive en `frontend/` (Vite 8, React 19, TypeScript 6,
+    Vitest 5, React Router 8, TanStack Query 5, zod 4 y decimal.js), aislado
+    de las herramientas del backend: `frontend` queda excluido en
+    `tsconfig.json` y `tsconfig.build.json`, el ESLint de la raíz lo ignora
+    y hay un `.dockerignore` nuevo. El servidor de desarrollo reenvía `/api`
+    a `API_TARGET` (sin CORS) y el CI tiene un job `frontend` en paralelo.
+  - Tokens por rol para un tema oscuro y uno claro, con una prueba de
+    contraste que cumple todos los pares a 4.5:1. Fuentes IBM Plex Sans e
+    IBM Plex Mono autoalojadas.
+  - La preferencia de tema (`light | dark | system`) se guarda en
+    `cuadra.tema`, por defecto `system`, y se aplica antes del primer
+    pintado. El control tiene tres opciones: Claro, Sistema y Oscuro.
+  - Los montos viajan como cadenas y se formatean con decimal.js: dos
+    decimales con redondeo half-up (decisión del usuario; es la misma regla
+    del backend). Una regla de lint prohíbe flotantes en el código de dinero.
+  - Espejo de los enums del backend con una prueba que detecta la deriva, y
+    contratos zod de los endpoints de autenticación.
+  - Cliente de API: solo un 403 en `GET /auth/contexto` termina la sesión.
+    La sesión entra por una costura con un proveedor provisional, que CU-21
+    reemplaza.
+  - Siete rutas provisionales y el shell: barra lateral, bloque de usuario
+    con los roles como Administrador, Contador y Revisor, y encabezado con
+    la empresa. Enlace de salto al contenido y un solo `banner`,
+    `navigation` y `main` por página. Bajo 900 px la barra lateral pasa a un
+    menú desplegable (enmienda SHL-6 a la especificación). Galería de
+    componentes solo en desarrollo, en `/__kit`; `npm run verificar:dist`
+    comprueba que no llegue al build ni haya URLs de fuentes externas, y el
+    CI lo ejecuta.
+  - Decisiones del mismo día: sin bloqueo de cuenta (D-11); tema claro y
+    tipografía IBM Plex aprobados por el usuario; control de tema con tres
+    opciones.
+- **Entrega de CU-20.** Ramas locales apiladas `feat/cu-20-01…` a
+  `feat/cu-20-11-shell-layout-kit` (39 commits de código: 36 hasta
+  `c4f6070` y 3 del último corte, `4ab5053`, `44b33b7` y `aaa097c`). Cada
+  corte se partió en límites de commit. El usuario aprobó la excepción de
+  tamaño para los cortes que pasan de 400 líneas por sus pruebas. En total,
+  unas 8,300 líneas añadidas sin el lockfile ni las fuentes, cerca del 60 %
+  pruebas.
+- **Verificación de CU-20:** en `frontend/`, typecheck, lint, formato y
+  build limpios; 768 pruebas en 47 archivos; `verificar:dist` limpio. En la
+  raíz, typecheck limpio y 785 pruebas en verde.
+- **Pendiente de CU-20:**
+  - Las ramas no están integradas a `master`.
+  - Nadie ha visto las páginas renderizadas en un navegador: no se ha
+    comprobado que el tema no parpadee al recargar ni que los montos no se
+    partan ni se recorten, y los objetivos de 44 px y los anillos de foco
+    solo los cubren pruebas del CSS y de la lógica.
+  - Playwright y el servicio `web` de docker quedan diferidos.
+  - El plugin de accesibilidad de lint se omitió porque aún no es
+    compatible con ESLint 10.
+  - Las pantallas de login y de empresa son de CU-21.
+
 - **CU-19 terminado: contexto de sesión para el cliente.** Es la primera
   historia del frontend y solo toca el API. Cambios en las respuestas, sin
   migración:
