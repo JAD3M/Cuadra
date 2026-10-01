@@ -16,5 +16,5 @@
     "types": ["node"],
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["vite.config.ts", "config", "tests", "eslint"]
+  "include": ["vite.config.ts", "config", "tests", "eslint", "scripts"]
 }

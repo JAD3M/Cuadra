@@ -74,3 +74,5 @@ jobs:
       - run: npm run format:check
       - run: npm test
       - run: npm run build
+      # La galería /__kit es solo de desarrollo: no puede llegar al build.
+      - run: npm run verificar:dist
