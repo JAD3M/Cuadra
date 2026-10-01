@@ -1,0 +1,41 @@
+/* Barra lateral (maqueta Bandeja: .side). El ancho lo fija el layout. */
+.barra {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-28);
+  min-inline-size: 0;
+  padding: var(--space-24) var(--space-16);
+  border-inline-end: 1px solid var(--color-border-subtle);
+  background: var(--color-sidebar);
+  color: var(--color-text);
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  padding: 0 var(--space-8);
+}
+
+.logo {
+  stroke: var(--estado-conciliado-accent);
+}
+
+.nombreMarca {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* El control de tema y el usuario quedan al fondo, en ese orden. */
+.pie {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  margin-block-start: auto;
+}

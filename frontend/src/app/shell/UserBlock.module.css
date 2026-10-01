@@ -1,0 +1,20 @@
+/* Bloque de usuario al pie de la barra lateral (maqueta Bandeja). */
+.bloque {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-inline-size: 0;
+  padding: var(--space-14);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.nombre {
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.roles {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
