@@ -1,0 +1,2 @@
+# El frontend se ejecuta desde el host; no debe entrar a la imagen del API.
+frontend/
