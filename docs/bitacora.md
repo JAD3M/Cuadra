@@ -47,8 +47,11 @@
   el historial: `CUADRA.md` baja de unas 2,180 líneas a unas 900. Rama
   `docs/bitacora-aparte`, que también lleva las reglas del frontend en
   `CLAUDE.md`.
-- **Pendiente:** las ramas aún no se integran a `master`. Falta CU-20 a
-  CU-26 (el frontend).
+- **Integrado a `master` el mismo día** (avance directo, sin commit de
+  merge). Sobre `master`: `npm run typecheck` limpio y 785 pruebas en verde.
+- **Pendiente:** CU-20 a CU-26 (el frontend). En las pruebas de
+  `/auth/contexto` falta comprobar el texto del 403 y la fila de bitácora
+  cuando se desactiva el usuario o la empresa.
 
 ### 30 sep 2026
 
