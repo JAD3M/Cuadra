@@ -5,11 +5,11 @@
 
 | | |
 |---|---|
-| **Estado** | Día 7 de 9 ✅ · CU-01 a CU-18, más CU-04b · 69 / 69 pts · Las cinco épicas cerradas |
-| **Entrega** | 2 de octubre de 2026 |
+| **Estado** | Día 8 de 9 · CU-01 a CU-19, más CU-04b · 71 / 99 pts · Épicas A–E cerradas, F en curso, G y H pendientes |
+| **Entrega** | 2 de octubre de 2026 (backend, CU-01 a CU-18); el frontend (CU-19 a CU-26) no tiene fecha |
 | **Contexto** | Estancia profesional en michelada.io |
-| **Alcance** | 18 historias · 69 puntos · 9 días hábiles |
-| **Última actualización** | 30 sep 2026 |
+| **Alcance** | 26 historias · 99 puntos (69 del backend y 30 de la interfaz) · 9 días hábiles para el backend |
+| **Última actualización** | 1 oct 2026 |
 
 Este archivo es la fuente de verdad del proyecto. Vive en la raíz del repo.
 Si usas un agente de código, apúntalo aquí desde `CLAUDE.md` o `AGENTS.md`
@@ -509,7 +509,8 @@ TypeORM no le importa la convención de UUIDv7 para su tabla interna.
 
 - Microservicios y RabbitMQ
 - Extracción de PDF bancario con LLM
-- MinIO, Prometheus, Grafana, webhooks, rate limiting
+- MinIO, Prometheus, Grafana, webhooks, rate limiting (por eso tampoco hay
+  bloqueo de cuenta por intentos fallidos: ver D-11)
 - Adaptador Ollama para modelo local
 - Complemento de pago, chat de consultas, reportes
 
@@ -704,6 +705,31 @@ CU-17 usa **Anthropic, modelo `claude-sonnet-5-5`**, con el SDK oficial
 al proveedor (por eso el opt-in y la lista cerrada de campos). Ollama sigue
 fuera de alcance: el puerto lo permite cuando haga falta.
 
+### D-11 · Sin bloqueo de cuenta por intentos fallidos
+
+El login **no bloquea cuentas** ni cuenta intentos fallidos. Una contraseña
+incorrecta devuelve siempre el mismo 401 "Credenciales inválidas" (CU-03),
+sin importar cuántas veces se repita.
+
+- **Por qué no:** cualquiera que conozca el correo de un usuario podría
+  bloquearlo con cinco contraseñas erróneas. Sería una negación de servicio
+  gratuita contra una persona legítima.
+- **Por qué tampoco una respuesta "cuenta bloqueada":** distinguiría los
+  correos que existen de los que no, y rompería el 401 único de CU-03 y el
+  hash señuelo que iguala los tiempos de respuesta.
+
+**Qué cuesta:** la aplicación no frena la fuerza bruta contra una contraseña.
+Esa mitigación queda en el borde (limitación de tasa en el proxy), que es
+parte de lo que sigue fuera de alcance (sección 5).
+
+**Cuándo revisarla:** si la limitación de tasa pasa a la aplicación o si hay
+evidencia de ataques de fuerza bruta. Entonces el freno debe ser por origen
+o por tiempo, sin un estado de "cuenta bloqueada" visible por correo.
+
+**Fuera de CU-19:** el token de refresco, un endpoint de cierre de sesión
+(logout), los cambios de CORS y los cambios en la duración de los tokens
+(D-09) no forman parte de esta historia.
+
 ---
 
 ## 7. Historias
@@ -753,6 +779,37 @@ Puntos = tamaño relativo entre historias, no horas.
 | CU-17 | Sugerencia asistida por IA | 5 | 2 oct |
 | CU-18 | Demo y datos sintéticos | 3 | 2 oct |
 
+### Frontend (épicas F, G y H · 30 pts)
+
+El frontend vive en `frontend/`, dentro de este repositorio. Se construye
+con SDD, una historia a la vez; cada pantalla sigue los mockups aprobados
+(referencia: la sección `## Frontend` de `CLAUDE.md`) y admite tema claro y
+oscuro. Estas épicas no tienen fecha, salvo CU-19. Los criterios de
+CU-20 a CU-26 están en Jira; solo CU-19 los lleva en este archivo.
+
+### Épica F · Base de la interfaz — KAN-96 · 10 pts
+
+| ID | Historia | Pts | Día | Jira | Qué entrega |
+|---|---|---|---|---|---|
+| CU-19 | Contexto de sesión para el cliente | 2 | 1 oct | KAN-97 | El API expone usuario, roles y RFC en el login y `GET /auth/contexto` |
+| CU-20 | Base del frontend con tema claro y oscuro | 5 | sin fecha | KAN-98 | Proyecto en `frontend/`, estructura y tema claro y oscuro |
+| CU-21 | Inicio de sesión y elección de empresa | 3 | sin fecha | KAN-99 | Pantallas de login y de elección de empresa |
+
+### Épica G · Revisión en pantalla — KAN-105 · 10 pts
+
+| ID | Historia | Pts | Día | Jira | Qué entrega |
+|---|---|---|---|---|---|
+| CU-22 | Bandeja de revisión en pantalla | 5 | sin fecha | KAN-100 | La bandeja de revisión (CU-14) en la interfaz |
+| CU-23 | Detalle y resolución de un caso en pantalla | 5 | sin fecha | KAN-101 | El detalle del caso y su resolución (CU-15) en la interfaz |
+
+### Épica H · Cargas y control — KAN-106 · 10 pts
+
+| ID | Historia | Pts | Día | Jira | Qué entrega |
+|---|---|---|---|---|---|
+| CU-24 | Cargas desde la interfaz | 5 | sin fecha | KAN-102 | Subida de CFDI y estados de cuenta y su seguimiento |
+| CU-25 | Tolerancia desde la interfaz | 2 | sin fecha | KAN-103 | Consulta y cambio de la tolerancia (CU-12) |
+| CU-26 | Bitácora en pantalla | 3 | sin fecha | KAN-104 | Consulta de la bitácora de auditoría (CU-16) |
+
 ### Carga por día
 
 | Día | Fecha | Pts |
@@ -764,14 +821,56 @@ Puntos = tamaño relativo entre historias, no horas.
 | 5 | 28 sep | 5 |
 | 6 | 29 sep | 8 |
 | 7 | 30 sep | 10 |
-| 8 | 1 oct | 6 |
+| 8 | 1 oct | 8 |
 | 9 | 2 oct | 8 |
 
-Los días 5 y 8 quedan ligeros a propósito: el 5 es lunes después de fin de
+Los días 5 y 8 quedaron ligeros a propósito: el 5 es lunes después de fin de
 semana y CU-10 suele traer sorpresas; el 8 es el colchón antes de entregar.
+El 1 oct sumó CU-19 (2 pts) a los 6 del plan original; CU-20 a CU-26 no
+tienen fecha y no entran en esta tabla.
 
 Los criterios de aceptación completos de cada historia están en el CSV de
-Jira (`cuadra-jira.csv`) y en las issues importadas.
+Jira (`cuadra-jira.csv`) y en las issues importadas. La excepción es CU-19,
+cuyos criterios se registran aquí abajo.
+
+### Criterios de aceptación de CU-19 (EARS)
+
+- **CU-19.1** Cuando una persona envía credenciales válidas, el sistema
+  devolverá `usuario {id, nombre, email}` y, por cada empresa, `id`,
+  `razonSocial`, `rfc` y `roles`.
+- **CU-19.2** El sistema devolverá `roles` como un arreglo en orden fijo
+  (admin, contador, revisor), con una entrada por cada rol que la persona
+  tenga en esa empresa (D-08).
+- **CU-19.3** Cuando un token de selección pida `GET /auth/empresas`, el
+  sistema devolverá la misma lista que el login, como arreglo simple, con
+  `rfc` y `roles`.
+- **CU-19.4** Cuando un token de sesión pida `GET /auth/contexto`, el
+  sistema devolverá `usuario`, `empresa {id, razonSocial, rfc}` y los `roles`
+  de la empresa del token.
+- **CU-19.5** El sistema tomará el id de la empresa solo del token de sesión
+  firmado y no aceptará ningún parámetro de empresa en `GET /auth/contexto`.
+- **CU-19.6** El sistema leerá usuario, empresa y roles de la base de datos
+  en cada llamada, de modo que un cambio o una revocación se reflejen en la
+  siguiente.
+- **CU-19.7** Si el token falta, expiró o no es de scope `sesion`, el sistema
+  responderá 401 "No autorizado".
+- **CU-19.8** Si la membresía, el usuario o la empresa ya no están activos,
+  el sistema responderá 403 "Sin acceso a esta empresa" y registrará el
+  rechazo en la bitácora (CU-03.3).
+- **CU-19.9** Una lectura exitosa no escribirá en la bitácora y el sistema
+  no registrará en logs el correo ni el nombre.
+- **CU-19.10** Los errores 400 y 403 del login seguirán igual y no incluirán
+  `usuario`.
+- **CU-19.11** Si las credenciales son inválidas, el sistema responderá el
+  mismo 401 exista o no el correo, sin campos nuevos.
+- **CU-19.12** El sistema no incluirá roles en ningún JWT (D-09) ni expondrá
+  `passwordHash`.
+- **CU-19.13** El sistema no bloqueará cuentas por intentos fallidos (D-11).
+
+Nota para el cliente: cada llamada rechazada escribe una fila
+`acceso_denegado` en la bitácora. Un 403 de `GET /auth/contexto` debe
+tratarse como el fin de la sesión: el cliente deja de consultar y vuelve a
+la elección de empresa o al login.
 
 ---
 
@@ -792,6 +891,48 @@ Jira (`cuadra-jira.csv`) y en las issues importadas.
 
 Cada cambio de decisión, alcance o plan se agrega aquí. Lo más reciente
 arriba.
+
+### 1 oct 2026
+
+- **CU-19 terminado: contexto de sesión para el cliente.** Es la primera
+  historia del frontend y solo toca el API. Cambios en las respuestas, sin
+  migración:
+  - `POST /auth/login` devuelve ahora `usuario {id, nombre, email}` y, por
+    empresa, `rfc` y `roles`. El `usuario` sale de la entidad que ya cargó
+    la validación de credenciales, sin consulta extra.
+  - `GET /auth/empresas` sigue siendo un arreglo simple y repite la misma
+    lista, con `rfc` y `roles`.
+  - Nuevo `GET /auth/contexto` (token de sesión): `usuario`,
+    `empresa {id, razonSocial, rfc}` y `roles`, en una sola consulta con el
+    mismo predicado que usa el guard de roles. No incluye `passwordHash` y
+    el id de empresa viene solo del token.
+  - Los roles siguen fuera del JWT (D-09) y salen en orden fijo.
+  - Un 403 de `/auth/contexto` escribe una fila `acceso_denegado`; el
+    cliente debe tratarlo como el fin de la sesión.
+- **Decisión D-11: sin bloqueo de cuenta por intentos fallidos.** Bloquear
+  daría a cualquiera una negación de servicio gratuita contra un usuario
+  cuyo correo conozca, y una respuesta "cuenta bloqueada" revelaría qué
+  correos existen. Quedan fuera de CU-19 el token de refresco, el logout,
+  CORS y la duración de los tokens.
+- **Alcance del frontend registrado.** Tres épicas nuevas: F · Base de la
+  interfaz (KAN-96: CU-19 a CU-21), G · Revisión en pantalla (KAN-105:
+  CU-22 y CU-23) y H · Cargas y control (KAN-106: CU-24 a CU-26). El
+  proyecto pasa a 26 historias y 99 puntos (69 + 30); con CU-19 hay 19
+  historias y 71 puntos hechos, y CU-20 a CU-26 (28 puntos) quedan
+  pendientes y sin fecha.
+- **Entrega en dos cortes apilados** (`stacked-to-main`, sin remoto: se
+  integran a mano en `master`): `feat/cu-19-usuario-roles` (6d6c0f6, login y
+  `/auth/empresas`) y `feat/cu-19-auth-contexto` (9d4b24d, `/auth/contexto`),
+  de unas 323 y 367 líneas cambiadas. En total, 6 archivos de `src/auth`,
+  672 inserciones y 18 borrados, casi todo pruebas. Este archivo va en una
+  tercera rama, `docs/cu-19-cuadra`.
+- **Verificación:** `npm run typecheck` limpio y la suite completa en verde:
+  785 pruebas (761 antes y 24 nuevas). El runner de la demo y la colección
+  de Postman siguen compatibles: los campos nuevos son aditivos.
+- **Arreglo de pruebas del mismo día** (0551bca): las suites que revierten
+  migraciones ahora vacían la bitácora antes de revertir.
+- **Pendiente:** las ramas aún no se integran a `master`. Falta CU-20 a
+  CU-26 (el frontend).
 
 ### 30 sep 2026
 
