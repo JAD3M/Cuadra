@@ -1,0 +1,40 @@
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-10);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.sugerencia {
+  background: var(--estado-sugerencia-tint);
+  color: var(--estado-sugerencia-text);
+}
+
+.sin_match {
+  background: var(--estado-sin-match-tint);
+  color: var(--estado-sin-match-text);
+}
+
+.conciliado {
+  background: var(--estado-conciliado-tint);
+  color: var(--estado-conciliado-text);
+}
+
+.neutral {
+  background: var(--color-chip-neutral);
+  color: var(--color-text-secondary);
+}
+
+.ia {
+  background: var(--color-ia-tint);
+  color: var(--color-ia);
+}
+
+.peligro {
+  background: var(--color-danger-tint);
+  color: var(--color-danger-text);
+}
