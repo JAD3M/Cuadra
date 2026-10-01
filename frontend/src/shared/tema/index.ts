@@ -13,3 +13,9 @@ export {
   type Preferencia,
   type TemaResuelto,
 } from './tipos';
+export { OPCIONES_TEMA } from './opcionesTema';
+export {
+  SelectorTema,
+  type OpcionSelector,
+  type SelectorTemaProps,
+} from './SelectorTema';

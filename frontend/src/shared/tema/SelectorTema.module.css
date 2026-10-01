@@ -1,0 +1,79 @@
+/*
+ * Control segmentado de la maqueta (Bandeja / BandejaClaro): borde de 1 px,
+ * relleno de 4 px, radio de 10 px y segmentos iguales de 36 px con radio de
+ * 7 px. La zona de clic de cada opción llega a --touch-min (44 px). Solo
+ * tokens de rol.
+ */
+.grupo {
+  display: flex;
+  gap: var(--space-4);
+  min-inline-size: 0;
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-ground);
+}
+
+/* Leyenda visible solo para tecnologías de apoyo. */
+.leyenda {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.opcion {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-block-size: var(--touch-min);
+  cursor: pointer;
+}
+
+/* El radio nativo cubre toda la opción: recibe el clic y el foco. */
+.entrada {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segmento {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  min-block-size: 36px;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.entrada:hover + .segmento {
+  background: var(--color-hover-2);
+}
+
+.entrada:checked + .segmento {
+  background: var(--color-selected);
+  color: var(--color-text);
+}
+
+.entrada:focus-visible + .segmento {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
