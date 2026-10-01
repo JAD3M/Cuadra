@@ -12,7 +12,7 @@ import { randomBytes } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { UserCompanyRole } from '../companies/user-company-role.entity';
 import { EmpresaDisponible, JwtPayload } from './tipos';
-import type { Rol } from '../common/entities/tipos';
+import { ROLES, type Rol } from '../common/entities/tipos';
 import { normalizarEmail } from '../users/email';
 import { RespuestaLoginDto, RespuestaTokenDto } from './dto/respuestas.dto';
 
@@ -65,18 +65,31 @@ export class AuthService implements OnModuleInit {
       relations: {
         company: true,
       },
+      // El id desempata razones sociales iguales para que el orden no varíe.
       order: {
-        company: { razonSocial: 'ASC' },
+        company: { razonSocial: 'ASC', id: 'ASC' },
       },
     });
     const empresasMap = new Map<string, EmpresaDisponible>();
     filas.forEach((fila) => {
-      empresasMap.set(fila.company.id, {
+      const empresa = empresasMap.get(fila.company.id) ?? {
         id: fila.company.id,
         razonSocial: fila.company.razonSocial,
-      });
+        rfc: fila.company.rfc,
+        roles: [],
+      };
+      empresa.roles.push(fila.rol);
+      empresasMap.set(fila.company.id, empresa);
     });
-    return Array.from(empresasMap.values());
+    return Array.from(empresasMap.values()).map((empresa) => ({
+      ...empresa,
+      roles: this.ordenarRoles(empresa.roles),
+    }));
+  }
+
+  /** Orden fijo de ROLES (admin, contador, revisor), sin repetidos. */
+  private ordenarRoles(roles: Rol[]): Rol[] {
+    return ROLES.filter((rol) => roles.includes(rol));
   }
 
   /** Paso 1 de D-09: credenciales → token de selección + empresas para elegir. */
@@ -91,7 +104,11 @@ export class AuthService implements OnModuleInit {
       { sub: user.id, scope: 'seleccion' },
       DURACION_SELECCION,
     );
-    return { token, empresas };
+    return {
+      token,
+      usuario: { id: user.id, nombre: user.nombre, email: user.email },
+      empresas,
+    };
   }
 
   /**

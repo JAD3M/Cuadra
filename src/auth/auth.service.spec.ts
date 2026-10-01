@@ -1,8 +1,13 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Repository } from 'typeorm';
 import type { User } from '../users/user.entity';
 import type { UserCompanyRole } from '../companies/user-company-role.entity';
+import type { Rol } from '../common/entities/tipos';
 import { AuthService } from './auth.service';
 import { PasswordHasher } from './password';
 
@@ -13,8 +18,16 @@ import { PasswordHasher } from './password';
  */
 
 const PASSWORD = 'correcta-123';
-const EMPRESA_A = { id: 'empresa-a', razonSocial: 'Alfa SA de CV' };
-const EMPRESA_B = { id: 'empresa-b', razonSocial: 'Beta SA de CV' };
+const EMPRESA_A = {
+  id: 'empresa-a',
+  razonSocial: 'Alfa SA de CV',
+  rfc: 'ALF190101AB1',
+};
+const EMPRESA_B = {
+  id: 'empresa-b',
+  razonSocial: 'Beta SA de CV',
+  rfc: 'BET190101CD2',
+};
 
 let service: AuthService;
 let jwt: JwtService;
@@ -48,7 +61,7 @@ beforeEach(async () => {
   await service.onModuleInit();
 });
 
-function filaRol(empresa: typeof EMPRESA_A, rol: string) {
+function filaRol(empresa: typeof EMPRESA_A, rol: Rol) {
   return { companyId: empresa.id, rol, company: empresa };
 }
 
@@ -95,7 +108,71 @@ describe('AuthService.login', () => {
 
     const { empresas } = await service.login(usuario.email, PASSWORD);
 
-    expect(empresas).toEqual([EMPRESA_A, EMPRESA_B]);
+    expect(empresas).toEqual([
+      { ...EMPRESA_A, roles: ['contador', 'revisor'] },
+      { ...EMPRESA_B, roles: ['admin'] },
+    ]);
+  });
+
+  it('ordena los roles admin, contador, revisor aunque la base los dé al revés', async () => {
+    buscarUsuario.mockResolvedValueOnce(usuario);
+    buscarRoles.mockResolvedValueOnce([
+      filaRol(EMPRESA_A, 'revisor'),
+      filaRol(EMPRESA_A, 'contador'),
+      filaRol(EMPRESA_A, 'admin'),
+    ]);
+
+    const { empresas } = await service.login(usuario.email, PASSWORD);
+
+    expect(empresas).toEqual([
+      { ...EMPRESA_A, roles: ['admin', 'contador', 'revisor'] },
+    ]);
+  });
+
+  it('devuelve usuario con solo id, nombre y email, sin passwordHash', async () => {
+    buscarUsuario.mockResolvedValueOnce(usuario);
+    buscarRoles.mockResolvedValueOnce([filaRol(EMPRESA_A, 'admin')]);
+
+    const respuesta = await service.login(usuario.email, PASSWORD);
+
+    expect(respuesta.usuario).toEqual({
+      id: usuario.id,
+      nombre: usuario.nombre,
+      email: usuario.email,
+    });
+    expect(respuesta.usuario).not.toHaveProperty('passwordHash');
+    expect(JSON.stringify(respuesta)).not.toContain(usuario.passwordHash);
+  });
+
+  it('con credenciales malas no consulta membresías', async () => {
+    buscarUsuario.mockResolvedValueOnce(usuario);
+
+    await expect(service.login(usuario.email, 'incorrecta')).rejects.toThrow(
+      'Credenciales inválidas',
+    );
+
+    expect(buscarRoles).not.toHaveBeenCalled();
+  });
+
+  it('no registra el email ni el nombre en logs', async () => {
+    const espias = [
+      jest.spyOn(Logger.prototype, 'log'),
+      jest.spyOn(Logger.prototype, 'warn'),
+      jest.spyOn(Logger.prototype, 'error'),
+      jest.spyOn(Logger.prototype, 'debug'),
+      jest.spyOn(console, 'log'),
+    ];
+    try {
+      buscarUsuario.mockResolvedValueOnce(usuario);
+      buscarRoles.mockResolvedValueOnce([filaRol(EMPRESA_A, 'admin')]);
+      await service.login(usuario.email, PASSWORD);
+
+      const registrado = JSON.stringify(espias.flatMap((e) => e.mock.calls));
+      expect(registrado).not.toContain(usuario.email);
+      expect(registrado).not.toContain(usuario.nombre);
+    } finally {
+      jest.restoreAllMocks();
+    }
   });
 
   it('firma un token de selección de 300 s con solo sub y scope', async () => {

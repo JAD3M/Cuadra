@@ -65,6 +65,15 @@ const JORGE = 'jorge.tapia@despacho.mx'; // contador en Ferretería, revisor en 
 const FERRETERIA = 'FDB190215QK4';
 const TRANSPORTES = 'TCU170830R52';
 
+interface EmpresaRespuesta {
+  id: string;
+  razonSocial: string;
+  rfc: string;
+  roles: string[];
+}
+
+const USUARIO_POR_EMAIL = 'SELECT id FROM users WHERE email = $1';
+
 let app: INestApplication<App>;
 /**
  * Dueño del esquema, para preparar datos (revocar un rol). La app corre como
@@ -149,7 +158,7 @@ async function tokenSesion(email: string, rfc: string): Promise<string> {
 }
 
 describe('POST /auth/login', () => {
-  it('devuelve token de selección y empresas sin duplicar, ordenadas', async () => {
+  it('devuelve token de selección, usuario y empresas con rfc y roles, ordenadas', async () => {
     const res = await http()
       .post('/auth/login')
       .send({ email: JORGE, password: PASSWORD_SEMILLA })
@@ -158,26 +167,108 @@ describe('POST /auth/login', () => {
     const { token, ...resto } = res.body as { token: unknown };
     expect(typeof token).toBe('string');
     expect(resto).toEqual({
+      usuario: {
+        id: (await una<{ id: string }>(ds, USUARIO_POR_EMAIL, [JORGE])).id,
+        nombre: 'Jorge Tapia',
+        email: JORGE,
+      },
       empresas: [
         {
           id: empresas.get(FERRETERIA),
           razonSocial: 'Ferreteria del Bajio SA de CV',
+          rfc: FERRETERIA,
+          roles: ['contador'],
         },
         {
           id: empresas.get(TRANSPORTES),
           razonSocial: 'Transportes Cuautla SA de CV',
+          rfc: TRANSPORTES,
+          roles: ['revisor'],
         },
       ],
     });
+    expect(JSON.stringify(res.body)).not.toContain('passwordHash');
+    expect(JSON.stringify(res.body)).not.toContain('password_hash');
   });
 
-  it('acepta el email en mayúsculas y con espacios alrededor', async () => {
+  it('acepta el email en mayúsculas y con espacios, y lo devuelve normalizado', async () => {
     const res = await http()
       .post('/auth/login')
       .send({ email: '  ANA.REYES@FDB.MX  ', password: PASSWORD_SEMILLA })
       .expect(200);
 
-    expect((res.body as { empresas: unknown[] }).empresas).toHaveLength(1);
+    const cuerpo = res.body as {
+      usuario: { email: string };
+      empresas: unknown[];
+    };
+    expect(cuerpo.empresas).toHaveLength(1);
+    expect(cuerpo.usuario.email).toBe(ANA);
+  });
+
+  it('con dos roles en la misma empresa los devuelve ambos en orden fijo', async () => {
+    await ds.query(
+      `INSERT INTO user_company_roles (user_id, company_id, rol)
+       VALUES ((SELECT id FROM users WHERE email = $1), $2, 'revisor')`,
+      [JORGE, empresas.get(FERRETERIA)],
+    );
+    try {
+      const res = await http()
+        .post('/auth/login')
+        .send({ email: JORGE, password: PASSWORD_SEMILLA })
+        .expect(200);
+
+      const lista = (res.body as { empresas: EmpresaRespuesta[] }).empresas;
+      expect(lista.map((e) => e.rfc)).toEqual([FERRETERIA, TRANSPORTES]);
+      expect(lista[0].roles).toEqual(['contador', 'revisor']);
+    } finally {
+      // `sembrar` no borra: el rol extra se quita a mano.
+      await ds.query(
+        `DELETE FROM user_company_roles
+          WHERE company_id = $1 AND rol = 'revisor'
+            AND user_id = (SELECT id FROM users WHERE email = $2)`,
+        [empresas.get(FERRETERIA), JORGE],
+      );
+    }
+  });
+
+  it('una empresa desactivada no aparece en la lista', async () => {
+    await ds.query('UPDATE companies SET activa = false WHERE rfc = $1', [
+      TRANSPORTES,
+    ]);
+    try {
+      const res = await http()
+        .post('/auth/login')
+        .send({ email: JORGE, password: PASSWORD_SEMILLA })
+        .expect(200);
+
+      const lista = (res.body as { empresas: EmpresaRespuesta[] }).empresas;
+      expect(lista.map((e) => e.rfc)).toEqual([FERRETERIA]);
+    } finally {
+      await ds.query('UPDATE companies SET activa = true WHERE rfc = $1', [
+        TRANSPORTES,
+      ]);
+    }
+  });
+
+  it('sin empresas vigentes da 403 y sin usuario', async () => {
+    await ds.query('UPDATE companies SET activa = false WHERE rfc = $1', [
+      FERRETERIA,
+    ]);
+    try {
+      const res = await http()
+        .post('/auth/login')
+        .send({ email: ANA, password: PASSWORD_SEMILLA })
+        .expect(403);
+
+      expect(res.body).not.toHaveProperty('usuario');
+      expect((res.body as { message: string }).message).toBe(
+        'El usuario no tiene empresas asignadas',
+      );
+    } finally {
+      await ds.query('UPDATE companies SET activa = true WHERE rfc = $1', [
+        FERRETERIA,
+      ]);
+    }
   });
 
   it('contraseña mala y email inexistente responden igual', async () => {
@@ -191,18 +282,43 @@ describe('POST /auth/login', () => {
       .expect(401);
 
     expect(mala.body).toEqual(inexistente.body);
+    expect(Object.keys(inexistente.body as object).sort()).toEqual(
+      Object.keys(mala.body as object).sort(),
+    );
+    expect(mala.body).not.toHaveProperty('usuario');
+    expect(mala.body).not.toHaveProperty('empresas');
+  });
+
+  it('un usuario inactivo con la contraseña correcta recibe el mismo 401', async () => {
+    const mala = await http()
+      .post('/auth/login')
+      .send({ email: JORGE, password: 'incorrecta' })
+      .expect(401);
+    await ds.query('UPDATE users SET activo = false WHERE email = $1', [JORGE]);
+    try {
+      const inactivo = await http()
+        .post('/auth/login')
+        .send({ email: JORGE, password: PASSWORD_SEMILLA })
+        .expect(401);
+
+      expect(inactivo.body).toEqual(mala.body);
+    } finally {
+      await ds.query('UPDATE users SET activo = true WHERE email = $1', [
+        JORGE,
+      ]);
+    }
   });
 });
 
 describe('GET /auth/empresas', () => {
-  it('devuelve la misma lista que el login', async () => {
+  it('devuelve la misma lista que el login, arreglo plano con rfc y roles', async () => {
     const login = await http()
       .post('/auth/login')
       .send({ email: JORGE, password: PASSWORD_SEMILLA })
       .expect(200);
     const { token, empresas: delLogin } = login.body as {
       token: string;
-      empresas: unknown[];
+      empresas: EmpresaRespuesta[];
     };
 
     const res = await http()
@@ -210,7 +326,44 @@ describe('GET /auth/empresas', () => {
       .auth(token, { type: 'bearer' })
       .expect(200);
 
+    expect(Array.isArray(res.body)).toBe(true);
     expect(res.body).toEqual(delLogin);
+    expect(delLogin.map((e) => [e.rfc, e.roles])).toEqual([
+      [FERRETERIA, ['contador']],
+      [TRANSPORTES, ['revisor']],
+    ]);
+  });
+
+  it('un rol revocado deja de aparecer en la lista', async () => {
+    const token = await tokenSeleccion(JORGE);
+    await ds.query(
+      `DELETE FROM user_company_roles
+        WHERE company_id = $1
+          AND user_id = (SELECT id FROM users WHERE email = $2)`,
+      [empresas.get(FERRETERIA), JORGE],
+    );
+    try {
+      const res = await http()
+        .get('/auth/empresas')
+        .auth(token, { type: 'bearer' })
+        .expect(200);
+
+      expect((res.body as EmpresaRespuesta[]).map((e) => e.rfc)).toEqual([
+        TRANSPORTES,
+      ]);
+    } finally {
+      await sembrar(ds);
+    }
+  });
+
+  it('una lectura correcta no escribe en la bitácora', async () => {
+    await ds.query('TRUNCATE bitacora');
+    await http()
+      .get('/auth/empresas')
+      .auth(await tokenSeleccion(JORGE), { type: 'bearer' })
+      .expect(200);
+
+    expect(await ds.query('SELECT 1 FROM bitacora')).toHaveLength(0);
   });
 
   it('rechaza un token de sesión', async () => {
