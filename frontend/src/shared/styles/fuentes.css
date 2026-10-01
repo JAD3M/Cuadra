@@ -1,0 +1,14 @@
+/*
+ * Fuentes autoalojadas (IBM Plex). Solo el subconjunto latino, que cubre
+ * acentos y signos del español, y los cuatro pesos de las maquetas. Los
+ * archivos salen del paquete @fontsource y los empaqueta Vite: ninguna
+ * petición a hosts de terceros.
+ */
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+@import '@fontsource/ibm-plex-sans/latin-700.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
+@import '@fontsource/ibm-plex-mono/latin-700.css';
