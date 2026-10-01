@@ -1,6 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ROLES, type Rol } from '../../common/entities/tipos';
-import type { EmpresaDisponible, UsuarioPublico } from '../tipos';
+import type {
+  ContextoSesion,
+  EmpresaContexto,
+  EmpresaDisponible,
+  UsuarioPublico,
+} from '../tipos';
 
 export class UsuarioPublicoDto implements UsuarioPublico {
   @ApiProperty({ format: 'uuid' })
@@ -32,6 +37,34 @@ export class EmpresaDisponibleDto implements EmpresaDisponible {
     isArray: true,
     description:
       'Roles del usuario en la empresa. Orden fijo: admin, contador, revisor.',
+  })
+  roles!: Rol[];
+}
+
+export class EmpresaContextoDto implements EmpresaContexto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'Ferreteria del Bajio SA de CV' })
+  razonSocial!: string;
+
+  @ApiProperty({ example: 'FDB190215QK4' })
+  rfc!: string;
+}
+
+export class ContextoSesionDto implements ContextoSesion {
+  @ApiProperty({ type: UsuarioPublicoDto })
+  usuario!: UsuarioPublicoDto;
+
+  @ApiProperty({ type: EmpresaContextoDto })
+  empresa!: EmpresaContextoDto;
+
+  @ApiProperty({
+    enum: ROLES,
+    enumName: 'Rol',
+    isArray: true,
+    description:
+      'Roles vigentes en la empresa. Orden fijo: admin, contador, revisor.',
   })
   roles!: Rol[];
 }

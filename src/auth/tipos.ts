@@ -42,3 +42,16 @@ export interface EmpresaDisponible {
   /** En orden fijo: admin, contador, revisor. */
   roles: Rol[];
 }
+
+export interface EmpresaContexto {
+  id: string;
+  razonSocial: string;
+  rfc: string;
+}
+
+/** Quién es, en qué empresa y con qué roles (token de sesión). */
+export interface ContextoSesion {
+  usuario: UsuarioPublico;
+  empresa: EmpresaContexto;
+  roles: Rol[];
+}

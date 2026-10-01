@@ -11,7 +11,7 @@ import {
 import { randomBytes } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import { UserCompanyRole } from '../companies/user-company-role.entity';
-import { EmpresaDisponible, JwtPayload } from './tipos';
+import { ContextoSesion, EmpresaDisponible, JwtPayload } from './tipos';
 import { ROLES, type Rol } from '../common/entities/tipos';
 import { normalizarEmail } from '../users/email';
 import { RespuestaLoginDto, RespuestaTokenDto } from './dto/respuestas.dto';
@@ -147,6 +147,42 @@ export class AuthService implements OnModuleInit {
       },
     });
     return filas.map((fila) => fila.rol);
+  }
+
+  /**
+   * Quién es el usuario del token de sesión, en qué empresa y con qué roles.
+   * Todo se lee de la base en cada llamada (D-09); el `companyId` viene solo
+   * del token firmado y el predicado es el mismo de `rolesEnEmpresa`.
+   */
+  async contexto(userId: string, companyId: string): Promise<ContextoSesion> {
+    // `select` anidado: el hash de la contraseña ni siquiera se hidrata.
+    const filas = await this.userCompanyRoleRepository.find({
+      select: {
+        rol: true,
+        user: { id: true, nombre: true, email: true },
+        company: { id: true, razonSocial: true, rfc: true },
+      },
+      relations: { user: true, company: true },
+      where: {
+        userId,
+        companyId,
+        company: { activa: true },
+        user: { activo: true },
+      },
+    });
+    if (filas.length === 0) {
+      throw new ForbiddenException('Sin acceso a esta empresa');
+    }
+    const { user, company } = filas[0];
+    return {
+      usuario: { id: user.id, nombre: user.nombre, email: user.email },
+      empresa: {
+        id: company.id,
+        razonSocial: company.razonSocial,
+        rfc: company.rfc,
+      },
+      roles: this.ordenarRoles(filas.map((fila) => fila.rol)),
+    };
   }
 
   /** Único punto de firma: la duración es obligatoria, nunca se omite. */

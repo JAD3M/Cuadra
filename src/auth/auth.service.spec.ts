@@ -233,3 +233,71 @@ describe('AuthService.seleccionarEmpresa', () => {
     );
   });
 });
+
+describe('AuthService.contexto', () => {
+  const user = {
+    id: 'usuario-1',
+    nombre: 'Persona',
+    email: 'persona@ejemplo.mx',
+  };
+  const fila = (rol: Rol) => ({ rol, user, company: EMPRESA_A });
+
+  it('devuelve usuario, empresa con rfc y roles ordenados', async () => {
+    buscarRoles.mockResolvedValueOnce([fila('revisor'), fila('admin')]);
+
+    const contexto = await service.contexto(user.id, EMPRESA_A.id);
+
+    expect(contexto).toEqual({
+      usuario: user,
+      empresa: EMPRESA_A,
+      roles: ['admin', 'revisor'],
+    });
+    expect(contexto.usuario).not.toHaveProperty('passwordHash');
+  });
+
+  it('filtra por usuario, empresa y vigencia, sin pedir passwordHash', async () => {
+    buscarRoles.mockResolvedValueOnce([fila('admin')]);
+
+    await service.contexto(user.id, EMPRESA_A.id);
+
+    const consulta = buscarRoles.mock.calls[0][0] as {
+      select: { user: Record<string, boolean> };
+    };
+    expect(consulta).toMatchObject({
+      where: {
+        userId: user.id,
+        companyId: EMPRESA_A.id,
+        company: { activa: true },
+        user: { activo: true },
+      },
+    });
+    expect(consulta.select.user).not.toHaveProperty('passwordHash');
+  });
+
+  it('da 403 si no hay filas vigentes', async () => {
+    buscarRoles.mockResolvedValueOnce([]);
+
+    await expect(service.contexto(user.id, EMPRESA_A.id)).rejects.toThrow(
+      new ForbiddenException('Sin acceso a esta empresa'),
+    );
+  });
+
+  it('no registra el email ni el nombre en logs', async () => {
+    const espias = [
+      jest.spyOn(Logger.prototype, 'log'),
+      jest.spyOn(Logger.prototype, 'warn'),
+      jest.spyOn(Logger.prototype, 'error'),
+      jest.spyOn(console, 'log'),
+    ];
+    try {
+      buscarRoles.mockResolvedValueOnce([fila('admin')]);
+      await service.contexto(user.id, EMPRESA_A.id);
+
+      const registrado = JSON.stringify(espias.flatMap((e) => e.mock.calls));
+      expect(registrado).not.toContain(user.email);
+      expect(registrado).not.toContain(user.nombre);
+    } finally {
+      jest.restoreAllMocks();
+    }
+  });
+});

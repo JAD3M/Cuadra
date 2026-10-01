@@ -374,6 +374,192 @@ describe('GET /auth/empresas', () => {
   });
 });
 
+describe('GET /auth/contexto', () => {
+  interface Contexto {
+    usuario: { id: string; nombre: string; email: string };
+    empresa: { id: string; razonSocial: string; rfc: string };
+    roles: string[];
+  }
+
+  const contexto = (token: string, ruta = '/auth/contexto') =>
+    http().get(ruta).auth(token, { type: 'bearer' });
+
+  // La base se comparte: una fila de bitácora rompería el `down` de otros specs.
+  afterAll(() => ds.query('TRUNCATE bitacora'));
+  beforeEach(() => ds.query('TRUNCATE bitacora'));
+
+  it('con token de sesión devuelve usuario, empresa con rfc y roles, sin passwordHash', async () => {
+    const res = await contexto(await tokenSesion(JORGE, FERRETERIA)).expect(
+      200,
+    );
+
+    expect(res.body).toEqual({
+      usuario: {
+        id: (await una<{ id: string }>(ds, USUARIO_POR_EMAIL, [JORGE])).id,
+        nombre: 'Jorge Tapia',
+        email: JORGE,
+      },
+      empresa: {
+        id: empresas.get(FERRETERIA),
+        razonSocial: 'Ferreteria del Bajio SA de CV',
+        rfc: FERRETERIA,
+      },
+      roles: ['contador'],
+    });
+    expect(JSON.stringify(res.body)).not.toMatch(/password/i);
+  });
+
+  it('un miembro solo revisor también puede leerlo (sin @Roles)', async () => {
+    const res = await contexto(await tokenSesion(JORGE, TRANSPORTES)).expect(
+      200,
+    );
+
+    expect((res.body as Contexto).roles).toEqual(['revisor']);
+  });
+
+  it('con dos roles los devuelve en orden fijo', async () => {
+    await ds.query(
+      `INSERT INTO user_company_roles (user_id, company_id, rol)
+       VALUES ((SELECT id FROM users WHERE email = $1), $2, 'admin')`,
+      [JORGE, empresas.get(FERRETERIA)],
+    );
+    try {
+      const res = await contexto(await tokenSesion(JORGE, FERRETERIA)).expect(
+        200,
+      );
+
+      expect((res.body as Contexto).roles).toEqual(['admin', 'contador']);
+    } finally {
+      await ds.query(
+        `DELETE FROM user_company_roles
+          WHERE company_id = $1 AND rol = 'admin'
+            AND user_id = (SELECT id FROM users WHERE email = $2)`,
+        [empresas.get(FERRETERIA), JORGE],
+      );
+    }
+  });
+
+  it('rechaza el token de selección, sin token, sin exp y de otro secreto', async () => {
+    await contexto(await tokenSeleccion(JORGE)).expect(401);
+    await http().get('/auth/contexto').expect(401);
+    const eterno = await jwt.signAsync({
+      sub: 'cualquiera',
+      scope: 'sesion',
+      companyId: empresas.get(FERRETERIA),
+    });
+    await contexto(eterno).expect(401);
+    const ajeno = await new JwtService({ secret: 'otro-secreto' }).signAsync(
+      { sub: 'x', scope: 'sesion', companyId: empresas.get(FERRETERIA) },
+      { expiresIn: '15m' },
+    );
+    await contexto(ajeno).expect(401);
+  });
+
+  it('solo describe la empresa del token', async () => {
+    const enFerreteria = await contexto(
+      await tokenSesion(JORGE, FERRETERIA),
+    ).expect(200);
+    const enTransportes = await contexto(
+      await tokenSesion(JORGE, TRANSPORTES),
+    ).expect(200);
+
+    expect(enFerreteria.body).toMatchObject({
+      empresa: { rfc: FERRETERIA },
+      roles: ['contador'],
+    });
+    expect(enTransportes.body).toMatchObject({
+      empresa: { rfc: TRANSPORTES },
+      roles: ['revisor'],
+    });
+  });
+
+  it('ignora un id de empresa inyectado por query o header', async () => {
+    const token = await tokenSesion(JORGE, FERRETERIA);
+    const otra = empresas.get(TRANSPORTES) as string;
+
+    const res = await http()
+      .get(`/auth/contexto?companyId=${otra}`)
+      .set('x-company-id', otra)
+      .auth(token, { type: 'bearer' })
+      .expect(200);
+
+    expect(res.body).toMatchObject({
+      empresa: { rfc: FERRETERIA },
+      roles: ['contador'],
+    });
+  });
+
+  it('refleja al instante un cambio de razón social', async () => {
+    const token = await tokenSesion(JORGE, FERRETERIA);
+    await ds.query(
+      `UPDATE companies SET razon_social = 'Ferreteria Renombrada SA' WHERE rfc = $1`,
+      [FERRETERIA],
+    );
+    try {
+      const res = await contexto(token).expect(200);
+
+      expect((res.body as Contexto).empresa.razonSocial).toBe(
+        'Ferreteria Renombrada SA',
+      );
+    } finally {
+      await sembrar(ds);
+    }
+  });
+
+  it('da 403 y deja fila en la bitácora al revocar el rol con el mismo token', async () => {
+    const token = await tokenSesion(ANA, FERRETERIA);
+    await contexto(token).expect(200);
+    await ds.query(
+      `DELETE FROM user_company_roles
+        WHERE company_id = $1
+          AND user_id = (SELECT id FROM users WHERE email = $2)`,
+      [empresas.get(FERRETERIA), ANA],
+    );
+    try {
+      await contexto(token).expect(403);
+    } finally {
+      await sembrar(ds);
+    }
+
+    const filas = await ds.query<Array<{ accion: string; datos: object }>>(
+      'SELECT accion, datos FROM bitacora',
+    );
+    expect(filas).toHaveLength(1);
+    expect(filas[0]).toMatchObject({
+      accion: 'acceso_denegado',
+      datos: { ruta: '/auth/contexto', motivo: 'sin_membresia' },
+    });
+  });
+
+  it('da 403 con el usuario desactivado y con la empresa desactivada', async () => {
+    const token = await tokenSesion(JORGE, FERRETERIA);
+    await ds.query('UPDATE users SET activo = false WHERE email = $1', [JORGE]);
+    try {
+      await contexto(token).expect(403);
+    } finally {
+      await ds.query('UPDATE users SET activo = true WHERE email = $1', [
+        JORGE,
+      ]);
+    }
+    await ds.query('UPDATE companies SET activa = false WHERE rfc = $1', [
+      FERRETERIA,
+    ]);
+    try {
+      await contexto(token).expect(403);
+    } finally {
+      await ds.query('UPDATE companies SET activa = true WHERE rfc = $1', [
+        FERRETERIA,
+      ]);
+    }
+  });
+
+  it('una lectura correcta no escribe en la bitácora', async () => {
+    await contexto(await tokenSesion(JORGE, FERRETERIA)).expect(200);
+
+    expect(await ds.query('SELECT 1 FROM bitacora')).toHaveLength(0);
+  });
+});
+
 describe('POST /auth/empresa/:id', () => {
   it('canjea por un token de sesión cuando el usuario es miembro', async () => {
     const token = await tokenSesion(JORGE, TRANSPORTES);

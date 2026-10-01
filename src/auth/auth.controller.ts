@@ -6,6 +6,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -25,6 +26,7 @@ import {
 } from '../common/decorators/decoradores';
 import { LoginDto } from './dto/LoginDto';
 import {
+  ContextoSesionDto,
   EmpresaDisponibleDto,
   RespuestaErrorDto,
   RespuestaLoginDto,
@@ -101,5 +103,32 @@ export class AuthController {
     @Param('id', ParseUUIDPipe) companyId: string,
   ): Promise<RespuestaTokenDto> {
     return await this.authService.seleccionarEmpresa(usuario.userId, companyId);
+  }
+
+  @Get('contexto')
+  @Scope('sesion')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Quién es el usuario, en qué empresa y con qué roles (token de sesión)',
+    description:
+      'Se lee de la base en cada llamada. No exige un rol: basta ser miembro vigente de la empresa del token.',
+  })
+  @ApiOkResponse({ type: ContextoSesionDto })
+  @ApiUnauthorizedResponse({
+    type: RespuestaErrorDto,
+    description: 'Falta el token, expiró o no es de sesión.',
+  })
+  @ApiForbiddenResponse({
+    type: RespuestaErrorDto,
+    description:
+      'Ya no tiene roles vigentes en la empresa, o el usuario o la empresa fue desactivado.',
+  })
+  async contexto(
+    @UsuarioActual() usuario: UsuarioAutenticado,
+  ): Promise<ContextoSesionDto> {
+    // @Scope('sesion') ya lo garantiza; esto solo estrecha el tipo.
+    if (usuario.scope !== 'sesion') throw new UnauthorizedException();
+    return await this.authService.contexto(usuario.userId, usuario.companyId);
   }
 }
