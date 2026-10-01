@@ -1,3 +1,4 @@
+export { ControlTema } from './ControlTema';
 export { ThemeProvider } from './ThemeProvider';
 export { useTema } from './useTema';
 export { resolverTema } from './resolverTema';
