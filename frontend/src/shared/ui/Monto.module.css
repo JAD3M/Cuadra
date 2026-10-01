@@ -1,0 +1,33 @@
+/*
+ * Un monto nunca se parte en dos líneas ni se recorta: el contenedor crece con
+ * el número. Por eso no hay ancho fijo, overflow ni text-overflow.
+ */
+.monto {
+  display: inline-block;
+  flex-shrink: 0;
+  min-inline-size: max-content;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.negativo {
+  color: var(--color-danger-text);
+}
+
+.invalido {
+  color: var(--color-muted);
+}
+
+/* Auxiliar propio: Monto no depende de la clase global de reset.css. */
+.ocultoVisual {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
