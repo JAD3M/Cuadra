@@ -1,4 +1,3 @@
-import { useLocation } from 'react-router';
 import { Card } from '@/shared/ui/Card';
 import { ControlTema } from '@/shared/tema';
 import { Header, PENDIENTES_PLACEHOLDER, Sidebar } from '@/app/shell';
@@ -21,16 +20,23 @@ const SESION_DE_EJEMPLO: ContextoSesion = {
 };
 
 /**
+ * Ruta que la muestra presenta como activa. La galería vive en `/__kit`, que
+ * no es un elemento de navegación, así que se fija Bandeja para poder ver el
+ * estado activo. Los enlaces son reales y navegan con el router de la app.
+ */
+const RUTA_ACTIVA_DE_EJEMPLO = '/bandeja';
+
+/**
  * Ensambla las piezas del shell con datos de ejemplo para la galería. Solo
  * `Header` y `Sidebar`; el layout real llega con `ShellLayout`. No crea un
  * segundo `main`: el contenido es una región rotulada dentro de la página.
+ * No monta un router propio: los enlaces usan el de la app.
  */
 export function MuestraShell() {
-  const { pathname } = useLocation();
   return (
     <>
       <Sidebar
-        rutaActual={pathname}
+        rutaActual={RUTA_ACTIVA_DE_EJEMPLO}
         pendientes={PENDIENTES_PLACEHOLDER}
         usuario={SESION_DE_EJEMPLO.usuario}
         roles={SESION_DE_EJEMPLO.roles}
@@ -49,7 +55,7 @@ export function MuestraShell() {
         <Card>
           <p className={estilos.texto}>
             Área de contenido de la página. Los enlaces de la barra lateral
-            cambian la ruta de esta muestra.
+            navegan a las rutas reales de la aplicación.
           </p>
         </Card>
       </div>

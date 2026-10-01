@@ -15,6 +15,23 @@ function titulo(titulo: string): ManejadorRuta {
 }
 
 /**
+ * Galería de componentes. La condición `import.meta.env.DEV` está escrita
+ * aquí, sin pasar por una variable, para que Vite la sustituya por `false` en
+ * producción y elimine tanto la ruta como el chunk de la galería.
+ */
+const rutasDeDesarrollo: RouteObject[] = import.meta.env.DEV
+  ? [
+      {
+        path: '/__kit',
+        lazy: async () => ({
+          Component: (await import('./RutaKit')).RutaKit,
+        }),
+        handle: titulo('Galería de componentes'),
+      },
+    ]
+  : [];
+
+/**
  * Tabla de rutas. `/login` y `/empresa` van fuera del shell; el resto vive
  * bajo un layout sin ruta propia (`LayoutStub` hasta que llegue `ShellLayout`).
  */
@@ -63,6 +80,7 @@ export const rutas: RouteObject[] = [
           },
         ],
       },
+      ...rutasDeDesarrollo,
       {
         path: '*',
         element: <NoEncontradaPage />,

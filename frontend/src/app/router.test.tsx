@@ -4,7 +4,7 @@ import {
   RouterProvider,
   type RouteObject,
 } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { rutas } from './router';
 
 function renderizar(ruta: string, tabla: RouteObject[] = rutas) {
@@ -109,5 +109,36 @@ describe('título y anuncio del cambio de página', () => {
     renderizar('/bandeja');
     expect(screen.getAllByRole('main')).toHaveLength(1);
     expect(screen.queryAllByRole('region')).toHaveLength(0);
+  });
+});
+
+describe('galería /__kit', () => {
+  it('está registrada en desarrollo', () => {
+    const rutaKit = rutas[0]?.children?.find((r) => r.path === '/__kit');
+    expect(rutaKit).toBeDefined();
+  });
+
+  it('no existe cuando DEV es falso y cae en no encontrada', async () => {
+    vi.stubEnv('DEV', false);
+    vi.resetModules();
+    try {
+      const { rutas: rutasProduccion } = await import('./router');
+      expect(
+        rutasProduccion[0]?.children?.some((r) => r.path === '/__kit'),
+      ).toBe(false);
+      // Tras resetModules, router y react-router son instancias nuevas: el
+      // proveedor debe salir de la misma instancia que las rutas.
+      const rr = await import('react-router');
+      const router = rr.createMemoryRouter(rutasProduccion, {
+        initialEntries: ['/__kit'],
+      });
+      render(<rr.RouterProvider router={router} />);
+      expect(
+        screen.getByRole('heading', { name: 'Página no encontrada' }),
+      ).toBeInTheDocument();
+    } finally {
+      vi.unstubAllEnvs();
+      vi.resetModules();
+    }
   });
 });

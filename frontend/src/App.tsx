@@ -1,20 +1,17 @@
-import { MemoryRouter } from 'react-router';
-import { MuestraShell } from '@/app/MuestraShell';
-import { KitPage } from '@/features/kit/KitPage';
-import { ThemeProvider } from '@/shared/tema';
+import type { ComponentProps } from 'react';
+import { RouterProvider } from 'react-router/dom';
+import { Providers } from '@/app/providers';
 
-/*
- * TEMPORAL: montaje de la galería para ver la interfaz antes de que exista
- * el router. La rebanada 9 introduce el router y los proveedores reales;
- * la rebanada 11 mueve la galería a la ruta `/__kit`, solo en desarrollo.
- * Entonces este archivo y `MuestraShell` se reemplazan.
- */
-export function App() {
+export interface AppProps {
+  /** Router de la app: `crearRouter()` en `main`, uno en memoria en pruebas. */
+  router: ComponentProps<typeof RouterProvider>['router'];
+}
+
+/** Raíz de la aplicación: proveedores globales y router. */
+export function App({ router }: AppProps) {
   return (
-    <ThemeProvider>
-      <MemoryRouter initialEntries={['/bandeja']}>
-        <KitPage muestraShell={<MuestraShell />} />
-      </MemoryRouter>
-    </ThemeProvider>
+    <Providers>
+      <RouterProvider router={router} />
+    </Providers>
   );
 }
