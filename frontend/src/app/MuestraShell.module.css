@@ -1,0 +1,12 @@
+.contenido {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-28);
+  min-inline-size: 0;
+  padding: var(--space-28) var(--space-40) var(--space-48);
+}
+
+.texto {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
