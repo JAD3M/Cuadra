@@ -1,0 +1,61 @@
+/*
+ * Tokens independientes del tema: tipografía, espaciado, radios y layout.
+ * Los valores salen de las maquetas aprobadas (px literales solo aquí).
+ */
+:root {
+  --font-ui: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-base: 15px;
+  --text-lg: 16px;
+  --text-xl: 17px;
+  --text-2xl: 20px;
+  --text-title: 32px;
+  --text-title-lg: 34px;
+  --text-display-md: 36px;
+  --text-display: 44px;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-none: 1;
+  --leading-tight: 1.1;
+  --leading-snug: 1.15;
+  --leading-heading: 1.2;
+  --leading-normal: 1.4;
+  --leading-relaxed: 1.5;
+  --leading-prose: 1.7;
+
+  --tracking-tight: -0.02em;
+  --tracking-label: 0.06em;
+  --tracking-label-wide: 0.08em;
+
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-28: 28px;
+  --space-40: 40px;
+  --space-48: 48px;
+
+  --radius-xs: 7px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-full: 999px;
+
+  --sidebar-width: 248px;
+  --touch-min: 44px;
+}

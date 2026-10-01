@@ -1,0 +1,127 @@
+/*
+ * Tokens de color por rol. Único archivo con valores de color: los
+ * componentes solo consumen var(--...). Ambos temas definen exactamente los
+ * mismos nombres (lo verifica tests/css/tokens.test.ts) y los contrastes de
+ * texto se verifican en tests/contraste/contraste.test.ts, que lee este
+ * archivo. Solo hex de 6 dígitos, para que el parser de las pruebas sea exacto.
+ *
+ * Oscuro: maquetas aprobadas. Claro: aprobado por el usuario, mismos roles.
+ * Sin data-theme el valor por omisión es oscuro (coincide con el script que
+ * se agrega en la rebanada del tema).
+ */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-ground: #0a0e13;
+  --color-sidebar: #0d131a;
+  --color-surface: #0e141c;
+  --color-surface-raised: #11171f;
+  --color-inset: #0a0f15;
+
+  --color-border: #232e3b;
+  --color-border-strong: #2a3645;
+  --color-border-subtle: #1b2430;
+  --color-row-divider: #18202b;
+
+  --color-hover: #111923;
+  --color-hover-2: #141c26;
+  --color-selected: #13263a;
+
+  --color-text: #e8eef4;
+  --color-text-soft: #c3cdd8;
+  --color-text-secondary: #9ba8b6;
+  --color-muted: #7a8796;
+
+  --color-accent: #5aa9ff;
+  --color-link: #7fbbff;
+  --color-link-hover: #b3d6ff;
+
+  --color-danger: #ff6b7f;
+  --color-danger-text: #ff8a9b;
+  --color-danger-title: #ffc2cb;
+  --color-danger-tint: #1e1014;
+  --color-danger-border: #5a2a33;
+
+  --color-ia: #c9b5ff;
+  --color-ia-tint: #221a3a;
+  --color-chip-neutral: #161e28;
+
+  --estado-sugerencia-accent: #5aa9ff;
+  --estado-sugerencia-tint: #13263a;
+  --estado-sugerencia-tile-bg: #0f1b2a;
+  --estado-sugerencia-tile-border: #1f3a5a;
+  --estado-sugerencia-text: #7fbbff;
+
+  --estado-sin-match-accent: #ffa24c;
+  --estado-sin-match-tint: #2a1e10;
+  --estado-sin-match-tile-bg: #1d150d;
+  --estado-sin-match-tile-border: #4a331c;
+  --estado-sin-match-text: #ffb877;
+
+  --estado-conciliado-accent: #34d6a6;
+  --estado-conciliado-tint: #0f2a22;
+  --estado-conciliado-tile-bg: #0c1c17;
+  --estado-conciliado-tile-border: #184437;
+  --estado-conciliado-text: #5be3b9;
+  --estado-conciliado-on-accent: #04231a;
+  --estado-conciliado-disabled: #1f4d40;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --color-ground: #f5f7fa;
+  --color-sidebar: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-inset: #f5f7fa;
+
+  --color-border: #d5dce5;
+  --color-border-strong: #c5ceda;
+  --color-border-subtle: #e3e8ef;
+  --color-row-divider: #eaeef3;
+
+  --color-hover: #f0f4f8;
+  --color-hover-2: #eef2f6;
+  --color-selected: #e1eeff;
+
+  --color-text: #0f1720;
+  --color-text-soft: #2b3846;
+  --color-text-secondary: #4a5868;
+  --color-muted: #5e6c7c;
+
+  --color-accent: #0b5cad;
+  --color-link: #0b5cad;
+  --color-link-hover: #084a8c;
+
+  --color-danger: #c2283e;
+  --color-danger-text: #b3243a;
+  --color-danger-title: #8e1b2d;
+  --color-danger-tint: #fdecef;
+  --color-danger-border: #f2b8c1;
+
+  --color-ia: #5b3fc4;
+  --color-ia-tint: #eee8ff;
+  --color-chip-neutral: #eef2f6;
+
+  --estado-sugerencia-accent: #0b5cad;
+  --estado-sugerencia-tint: #e1eeff;
+  --estado-sugerencia-tile-bg: #eaf3ff;
+  --estado-sugerencia-tile-border: #b5d3f5;
+  --estado-sugerencia-text: #0b5cad;
+
+  --estado-sin-match-accent: #a85400;
+  --estado-sin-match-tint: #fff0dd;
+  --estado-sin-match-tile-bg: #fff4e6;
+  --estado-sin-match-tile-border: #f0cfa0;
+  --estado-sin-match-text: #8a4500;
+
+  --estado-conciliado-accent: #0a7a5a;
+  --estado-conciliado-tint: #ddf5ec;
+  --estado-conciliado-tile-bg: #e8f8f1;
+  --estado-conciliado-tile-border: #a9dec9;
+  --estado-conciliado-text: #0a6b50;
+  --estado-conciliado-on-accent: #ffffff;
+  --estado-conciliado-disabled: #9ccfbd;
+}
