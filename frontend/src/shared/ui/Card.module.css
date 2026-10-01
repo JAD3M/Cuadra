@@ -1,0 +1,20 @@
+/*
+ * Superficie de contenido. min-inline-size: 0 deja que la tarjeta se encoja
+ * dentro de un grid o flex sin empujar a sus vecinas; los montos de su
+ * interior siguen sin partirse porque Monto fija su propio ancho mínimo.
+ */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-inline-size: 0;
+  padding: var(--space-28);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.elevada {
+  background: var(--color-surface-raised);
+}
