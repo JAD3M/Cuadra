@@ -132,7 +132,7 @@ log. Con `NODE_ENV=production` ese valor se **rechaza** al arrancar.
 Para usar el modelo real (de pago): en `.env` pon `LLM_PROVEEDOR=anthropic` y
 tu `ANTHROPIC_API_KEY`, y reinicia la api. Con el proveedor real la demo no
 reproducirá las mismas cuatro sugerencias. La prueba de humo contra la API real
-sigue pendiente (ver la bitácora de `CUADRA.md`).
+sigue pendiente (ver la bitácora en `docs/bitacora.md`).
 
 ## Volver a empezar
 

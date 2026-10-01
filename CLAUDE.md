@@ -1,7 +1,11 @@
 # Cuadra
 
 Lee `CUADRA.md` antes de tocar nada. Ahí están el problema, la
-arquitectura, las decisiones y las 18 historias con sus criterios.
+arquitectura, las decisiones y las historias.
+
+La bitácora vive aparte, en `docs/bitacora.md`. Es historial: no la
+leas completa; búscala solo cuando necesites saber cómo se llegó a
+algo.
 
 ## Reglas no negociables
 
@@ -40,8 +44,8 @@ lee con la herramienta Artifact, archivos `project/*.dc.html`).
 
 ## Flujo
 
-Trabajamos historia por historia (CU-01 … CU-18). No adelantes
-historias. Al terminar una, corre los tests y actualiza la bitácora
-de `CUADRA.md`.
+Trabajamos historia por historia (CU-01 … CU-26). No adelantes
+historias. Al terminar una, corre los tests, agrega la entrada en
+`docs/bitacora.md` y actualiza el estado en `CUADRA.md`.
 
 El frontend se trabaja con SDD, un cambio a la vez.
