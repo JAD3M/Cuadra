@@ -51,6 +51,9 @@ async function insertarUsuario(email: string): Promise<void> {
  * El `runMigrations()` de cada `finally` las vuelve a aplicar todas.
  */
 async function revertirEmailSinMayusculas(): Promise<void> {
+  // cuadra_test sobrevive entre suites: una fila 'acceso_denegado' que dejó
+  // otra impide revertir AccesoDenegadoEnBitacora.
+  await ds.query('TRUNCATE bitacora');
   for (;;) {
     const ultima = await una<{ name: string } | undefined>(
       ds,

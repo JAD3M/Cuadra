@@ -644,6 +644,10 @@ const TABLAS_DE_TYPEORM = `('migrations', 'typeorm_metadata')`;
 // Va al final: vacía la base y la vuelve a levantar.
 describe('reversibilidad', () => {
   it('revierte sin dejar rastro y se puede volver a aplicar', async () => {
+    // cuadra_test sobrevive entre suites: una fila 'acceso_denegado' que dejó
+    // otra impide revertir AccesoDenegadoEnBitacora.
+    await ds.query('TRUNCATE bitacora');
+
     // Todas, de la más nueva a la más vieja: cada `down` debe dejar a la
     // anterior en condiciones de revertirse.
     for (let i = 0; i < ds.migrations.length; i++) {
