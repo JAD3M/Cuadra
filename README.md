@@ -160,6 +160,31 @@ docker compose exec api npm run demo
 - **La carga se queda en un estado intermedio**: el worker corre dentro de la
   api; revisa `docker compose logs api` y que Redis esté sano.
 
+## Interfaz (frontend)
+
+La interfaz vive en `frontend/` (React, Vite y TypeScript) y es un proyecto
+aparte del API: tiene su propio `package.json` y su propio `package-lock.json`.
+
+Requisitos: Node 22.22 o superior (o 24.15 o superior) y el API arriba
+(`docker compose up -d`, ver "De cero a la demo").
+
+```bash
+cd frontend && npm install && npm run dev
+```
+
+Abre `http://localhost:5173`. El navegador llama al API por `/api/*`; el
+servidor de desarrollo reenvía esas peticiones a `http://localhost:3000` sin
+el prefijo `/api`, así que el backend no necesita CORS. Para apuntar a otro
+destino define `API_TARGET` (hay un ejemplo en `frontend/.env.example`):
+
+```bash
+API_TARGET=http://api:3000 npm run dev
+```
+
+Swagger sigue en `http://localhost:3000/docs`, directo y sin proxy.
+
+Todavía no hay pantalla de acceso: el inicio de sesión llega con CU-21.
+
 ## Pruebas
 
 Necesitan Postgres y Redis arriba (`docker compose up -d`):
@@ -173,3 +198,14 @@ npm run build
 Incluyen una prueba de integración (`src/demo/demo.integracion.spec.ts`) que
 corre el mismo runner de la demo contra la app real, con el proveedor simulado.
 Ninguna prueba llama a una API de IA real.
+
+Las del frontend corren desde `frontend/` y no necesitan Postgres ni Redis:
+
+```bash
+cd frontend
+npm test            # Vitest, una sola corrida
+npm run typecheck
+npm run lint        # solo revisa; `npm run lint:fix` corrige
+npm run format:check
+npm run build
+```
