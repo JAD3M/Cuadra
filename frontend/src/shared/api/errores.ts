@@ -37,10 +37,11 @@ export class NetworkError extends Error {
  * del usuario ni se use como dato.
  */
 export class ContratoError extends Error {
-  readonly detalle: ZodError;
+  /** Incidencias de zod; ausente cuando el cuerpo ni siquiera era JSON. */
+  readonly detalle: ZodError | undefined;
 
-  constructor(detalle: ZodError) {
-    super('La respuesta del servidor no cumple el contrato esperado.');
+  constructor(detalle?: ZodError, options?: { cause?: unknown }) {
+    super('La respuesta del servidor no cumple el contrato esperado.', options);
     this.name = 'ContratoError';
     this.detalle = detalle;
   }

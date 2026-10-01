@@ -80,6 +80,6 @@ describe('tipos de error', () => {
     const error = new ContratoError(resultado.error);
     expect(error).not.toBeInstanceOf(ApiError);
     expect(error.name).toBe('ContratoError');
-    expect(error.detalle.issues.length).toBeGreaterThan(0);
+    expect(error.detalle?.issues.length).toBeGreaterThan(0);
   });
 });
