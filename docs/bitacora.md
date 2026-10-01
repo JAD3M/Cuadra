@@ -6,7 +6,7 @@
 ### 1 oct 2026
 
 - **CU-20 terminado: base del frontend con tema claro y oscuro (KAN-98).**
-  Pendiente de integrar a `master`. Lo entregado:
+  Integrado a `master` el mismo día. Lo entregado:
   - El frontend vive en `frontend/` (Vite 8, React 19, TypeScript 6,
     Vitest 5, React Router 8, TanStack Query 5, zod 4 y decimal.js), aislado
     de las herramientas del backend: `frontend` queda excluido en
@@ -47,9 +47,11 @@
   pruebas.
 - **Verificación de CU-20:** en `frontend/`, typecheck, lint, formato y
   build limpios; 768 pruebas en 47 archivos; `verificar:dist` limpio. En la
-  raíz, typecheck limpio y 785 pruebas en verde.
+  raíz, typecheck limpio y 785 pruebas en verde. Una verificación
+  independiente contra la especificación no encontró bloqueos. Tras integrar
+  a `master` (avance directo, sin commit de merge) se repitieron las mismas
+  comprobaciones con el mismo resultado.
 - **Pendiente de CU-20:**
-  - Las ramas no están integradas a `master`.
   - Nadie ha visto las páginas renderizadas en un navegador: no se ha
     comprobado que el tema no parpadee al recargar ni que los montos no se
     partan ni se recorten, y los objetivos de 44 px y los anillos de foco
