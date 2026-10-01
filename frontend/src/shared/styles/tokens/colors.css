@@ -34,6 +34,8 @@
   --color-muted: #7a8796;
 
   --color-accent: #5aa9ff;
+  --color-on-accent: #06121f;
+  --color-accent-disabled: #243242;
   --color-link: #7fbbff;
   --color-link-hover: #b3d6ff;
 
@@ -58,6 +60,8 @@
   --estado-sin-match-tile-bg: #1d150d;
   --estado-sin-match-tile-border: #4a331c;
   --estado-sin-match-text: #ffb877;
+  --estado-sin-match-on-accent: #1f1206;
+  --estado-sin-match-disabled: #243242;
 
   --estado-conciliado-accent: #34d6a6;
   --estado-conciliado-tint: #0f2a22;
@@ -92,6 +96,8 @@
   --color-muted: #5e6c7c;
 
   --color-accent: #0b5cad;
+  --color-on-accent: #ffffff;
+  --color-accent-disabled: #9dbede;
   --color-link: #0b5cad;
   --color-link-hover: #084a8c;
 
@@ -116,6 +122,8 @@
   --estado-sin-match-tile-bg: #fff4e6;
   --estado-sin-match-tile-border: #f0cfa0;
   --estado-sin-match-text: #8a4500;
+  --estado-sin-match-on-accent: #ffffff;
+  --estado-sin-match-disabled: #dcbb99;
 
   --estado-conciliado-accent: #0a7a5a;
   --estado-conciliado-tint: #ddf5ec;

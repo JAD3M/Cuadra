@@ -33,13 +33,32 @@
 }
 
 .primario {
-  background: var(--estado-conciliado-accent);
-  color: var(--estado-conciliado-on-accent);
+  background: var(--_relleno);
+  color: var(--_sobre-relleno);
+}
+
+/* Tonos del primario: acento (azul, por omisión), conciliado y sin match. */
+.acento {
+  --_relleno: var(--color-accent);
+  --_sobre-relleno: var(--color-on-accent);
+  --_relleno-deshabilitado: var(--color-accent-disabled);
+}
+
+.conciliado {
+  --_relleno: var(--estado-conciliado-accent);
+  --_sobre-relleno: var(--estado-conciliado-on-accent);
+  --_relleno-deshabilitado: var(--estado-conciliado-disabled);
+}
+
+.sin_match {
+  --_relleno: var(--estado-sin-match-accent);
+  --_sobre-relleno: var(--estado-sin-match-on-accent);
+  --_relleno-deshabilitado: var(--estado-sin-match-disabled);
 }
 
 .primario:disabled {
-  background: var(--estado-conciliado-disabled);
-  border-color: var(--estado-conciliado-on-accent);
+  border-color: var(--_sobre-relleno);
+  background: var(--_relleno-deshabilitado);
 }
 
 .secundario {

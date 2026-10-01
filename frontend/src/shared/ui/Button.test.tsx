@@ -72,6 +72,34 @@ describe('Button', () => {
     );
   });
 
+  it('el primario usa el tono acento por omisión', () => {
+    render(<Button>Entrar</Button>);
+    expect(screen.getByRole('button')).toHaveAttribute('data-tono', 'acento');
+  });
+
+  it.each(['acento', 'conciliado', 'sin_match'] as const)(
+    'el primario expone el tono %s',
+    (tono) => {
+      render(<Button tono={tono}>Acción</Button>);
+      expect(screen.getByRole('button')).toHaveAttribute('data-tono', tono);
+    },
+  );
+
+  it('las variantes distintas de primario ignoran el tono', () => {
+    render(
+      <Button variante="secundario" tono="sin_match">
+        Acción
+      </Button>,
+    );
+    expect(screen.getByRole('button')).not.toHaveAttribute('data-tono');
+  });
+
+  it('rechaza tonos desconocidos en tiempo de compilación', () => {
+    // @ts-expect-error el tono no existe
+    render(<Button tono="rosa">Acción</Button>);
+    expect(screen.getByRole('button')).toBeInTheDocument();
+  });
+
   it('rechaza variantes desconocidas en tiempo de compilación', () => {
     // @ts-expect-error la variante no existe
     render(<Button variante="enorme">Acción</Button>);

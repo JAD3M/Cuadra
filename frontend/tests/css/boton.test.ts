@@ -35,6 +35,45 @@ describe('contrato CSS de Button', () => {
     },
   );
 
+  it.each([
+    [
+      'acento',
+      '--color-accent',
+      '--color-on-accent',
+      '--color-accent-disabled',
+    ],
+    [
+      'conciliado',
+      '--estado-conciliado-accent',
+      '--estado-conciliado-on-accent',
+      '--estado-conciliado-disabled',
+    ],
+    [
+      'sin_match',
+      '--estado-sin-match-accent',
+      '--estado-sin-match-on-accent',
+      '--estado-sin-match-disabled',
+    ],
+  ])(
+    'el tono %s del primario usa su relleno, su texto y su deshabilitado',
+    (tono, relleno, sobreRelleno, deshabilitado) => {
+      const bloque = bloqueCss(css, `.${tono}`);
+      expect(bloque).toMatch(new RegExp(`--_relleno:\\s*var\\(${relleno}\\)`));
+      expect(bloque).toMatch(
+        new RegExp(`--_sobre-relleno:\\s*var\\(${sobreRelleno}\\)`),
+      );
+      expect(bloque).toMatch(
+        new RegExp(`--_relleno-deshabilitado:\\s*var\\(${deshabilitado}\\)`),
+      );
+    },
+  );
+
+  it('el primario pinta con las variables del tono, no con un color fijo', () => {
+    const primario = bloqueCss(css, '.primario');
+    expect(primario).toMatch(/background:\s*var\(--_relleno\)/);
+    expect(primario).toMatch(/color:\s*var\(--_sobre-relleno\)/);
+  });
+
   it('solo usa tokens: sin literales de color', () => {
     expect(css).not.toMatch(LITERAL_DE_COLOR);
   });

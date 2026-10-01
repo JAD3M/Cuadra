@@ -55,6 +55,8 @@ const PARES: Par[] = [
     ['--color-text-secondary', `--estado-${s}-tile-bg`],
   ]),
   ['--estado-conciliado-on-accent', '--estado-conciliado-accent'],
+  ['--color-on-accent', '--color-accent'],
+  ['--estado-sin-match-on-accent', '--estado-sin-match-accent'],
   ['--color-danger-text', '--color-danger-tint'],
   ['--color-danger-text', '--color-surface'],
   ['--color-danger-title', '--color-danger-tint'],

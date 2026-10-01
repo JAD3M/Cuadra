@@ -3,6 +3,8 @@ import estilos from './Button.module.css';
 
 export type VarianteButton = 'primario' | 'secundario' | 'peligro' | 'fantasma';
 
+export type TonoButton = 'acento' | 'conciliado' | 'sin_match';
+
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /**
    * `primario`: acción principal (confirmar). `secundario`: acción neutra
@@ -10,6 +12,12 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
    * `fantasma`: acción en línea con aspecto de enlace.
    */
   variante?: VarianteButton;
+  /**
+   * Color del relleno de la variante `primario`; las demás lo ignoran.
+   * `acento` (azul): acción general. `conciliado` (verde): confirmar.
+   * `sin_match` (naranja): acciones de estado de cuenta y tolerancia.
+   */
+  tono?: TonoButton;
 }
 
 /**
@@ -19,11 +27,18 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  */
 export function Button({
   variante = 'primario',
+  tono = 'acento',
   type = 'button',
   className,
   ...resto
 }: ButtonProps) {
-  const clases = [estilos.boton, estilos[variante], className]
+  const esPrimario = variante === 'primario';
+  const clases = [
+    estilos.boton,
+    estilos[variante],
+    esPrimario && estilos[tono],
+    className,
+  ]
     .filter(Boolean)
     .join(' ');
   return (
@@ -32,6 +47,7 @@ export function Button({
       type={type}
       className={clases}
       data-variante={variante}
+      data-tono={esPrimario ? tono : undefined}
     />
   );
 }
