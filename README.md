@@ -185,6 +185,13 @@ Swagger sigue en `http://localhost:3000/docs`, directo y sin proxy.
 
 Todavía no hay pantalla de acceso: el inicio de sesión llega con CU-21.
 
+El tema (claro u oscuro) sigue al del sistema operativo hasta que la persona
+elige uno; esa elección se guarda en el navegador (`localStorage`, clave
+`cuadra.tema`) y se mantiene al recargar. Un script en línea de
+`frontend/index.html` lo aplica antes del primer pintado para evitar el
+parpadeo; si algún día se agrega una CSP, ese script necesitará un hash o un
+nonce.
+
 ## Pruebas
 
 Necesitan Postgres y Redis arriba (`docker compose up -d`):
