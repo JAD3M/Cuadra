@@ -1,0 +1,23 @@
+/* Marcador de pantalla pendiente: solo tokens de rol. */
+.marcador {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-inline-size: 0;
+  padding: var(--space-28) var(--space-40) var(--space-48);
+  color: var(--color-text);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-title);
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-tight);
+}
+
+.aviso {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
+}
