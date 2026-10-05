@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { LayoutAuth } from '@/features/auth/components/LayoutAuth';
 import {
@@ -10,30 +10,8 @@ import {
   saludoEmpresas,
 } from '@/features/auth/components/textos';
 import { ApiError, mensajeDeError } from '@/shared/api';
-import {
-  useSessionActions,
-  useSessionContext,
-  type SessionContext,
-} from '@/shared/sesion';
+import { useSessionActions, useSessionContext } from '@/shared/sesion';
 import { ControlTema } from '@/shared/tema';
-
-/**
- * Razón social de la empresa activa durante un cambio. El estado `selecting`
- * no la trae, pero la sesión viva sigue en la caché de consultas (el contexto
- * no se vacía al empezar el cambio). Si no está, el saludo es neutro.
- */
-function useEmpresaActiva(): string | undefined {
-  const consultas = useQueryClient();
-  const [empresa] = useState(
-    () =>
-      consultas
-        .getQueriesData<SessionContext>({ queryKey: ['sesion'] })
-        .find(
-          ([clave, datos]) => clave[2] === 'contexto' && datos !== undefined,
-        )?.[1]?.empresa.razonSocial,
-  );
-  return empresa;
-}
 
 /**
  * Paso 2 del acceso (y del cambio de empresa). Contenedor: lee `selecting`,
@@ -45,7 +23,6 @@ export function EmpresaPage() {
   const estado = useSessionContext();
   const { elegirEmpresa, volverAlInicio, regresarSinCambiar } =
     useSessionActions();
-  const empresaActiva = useEmpresaActiva();
   const [fallo, setFallo] = useState<FalloEmpresa | null>(null);
 
   const eleccion = useMutation({
@@ -66,7 +43,7 @@ export function EmpresaPage() {
 
   const cambio = estado.origen === 'cambio';
   const saludo = cambio
-    ? saludoCambio(empresaActiva)
+    ? saludoCambio(estado.empresaActual?.razonSocial)
     : saludoEmpresas(estado.usuario.nombre, estado.empresas.length);
 
   return (

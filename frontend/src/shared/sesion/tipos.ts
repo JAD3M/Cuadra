@@ -1,6 +1,7 @@
 import type { MotivoFinSesion } from '@/shared/api';
 import type {
   ContextoSesion,
+  EmpresaContexto,
   EmpresaDisponible,
   SolicitudLogin,
   Usuario,
@@ -47,6 +48,11 @@ export type SessionState =
       origen: OrigenSeleccion;
       usuario: Usuario;
       empresas: EmpresaDisponible[];
+      /**
+       * Empresa de la sesión viva durante un cambio (`origen: 'cambio'`).
+       * Ausente en el login o si su contexto todavía no se conoce.
+       */
+      empresaActual?: EmpresaContexto;
     }
   | { status: 'loading'; restaurarOrigen: boolean }
   | { status: 'unavailable' }

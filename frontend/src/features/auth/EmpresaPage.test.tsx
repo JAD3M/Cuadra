@@ -542,7 +542,46 @@ describe('EmpresaPage: privacidad', () => {
 });
 
 describe('EmpresaPage: saludo neutro', () => {
-  it('en un cambio sin la empresa activa en la caché el saludo no nombra empresa', () => {
+  it('lee la empresa activa del estado, no de la caché de consultas', () => {
+    const inertes = new Proxy({} as AccionesSesion, {
+      get: () => () => {},
+    });
+    const consultas = crearQueryClient();
+    // Un contexto ajeno en la caché no debe influir en el saludo.
+    consultas.setQueryData(['sesion', 1, 'contexto'], {
+      empresa: { razonSocial: 'Empresa de la caché' },
+    });
+    render(
+      <QueryClientProvider client={consultas}>
+        <ThemeProvider>
+          <SessionStateProvider
+            acciones={inertes}
+            estado={{
+              status: 'selecting',
+              origen: 'cambio',
+              usuario: USUARIO,
+              empresas: [],
+              empresaActual: {
+                id: 'e-1',
+                razonSocial: 'Empresa del estado SA',
+                rfc: 'AAA010101AAA',
+              },
+            }}
+          >
+            <EmpresaPage />
+          </SessionStateProvider>
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+    expect(
+      screen.getByText(
+        'Estás en Empresa del estado SA. Elige la empresa a la que quieres cambiar.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Empresa de la caché/)).not.toBeInTheDocument();
+  });
+
+  it('en un cambio sin la empresa activa en el estado el saludo no nombra empresa', () => {
     const inertes = new Proxy({} as AccionesSesion, {
       get: () => () => {},
     });

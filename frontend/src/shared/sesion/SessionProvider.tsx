@@ -47,13 +47,19 @@ function publicar(
   switch (interno.fase) {
     case 'anonymous':
       return { status: 'anonymous' };
-    case 'selecting':
-      return {
+    case 'selecting': {
+      const base = {
         status: 'selecting',
         origen: interno.origen,
         usuario: interno.usuario,
         empresas: interno.empresas,
-      };
+      } as const;
+      // En un cambio la sesión viva conserva su contexto: de ahí sale la
+      // empresa activa para el saludo.
+      return interno.origen === 'cambio' && consulta.data !== undefined
+        ? { ...base, empresaActual: consulta.data.empresa }
+        : base;
+    }
     case 'sesion':
       if (consulta.data !== undefined) {
         return {

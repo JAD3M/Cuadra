@@ -65,6 +65,22 @@ describe('cambiarEmpresa', () => {
     expect(JSON.stringify(estado)).not.toContain('token-de-');
   });
 
+  it('expone la empresa activa solo durante el cambio, no en el login', async () => {
+    const { entorno } = montarSesion();
+    await act(() => entorno.acciones().iniciarSesion(CREDENCIALES));
+    const enLogin = entorno.estado();
+    expect(enLogin.status).toBe('selecting');
+    expect(enLogin).not.toHaveProperty('empresaActual');
+    await act(() => entorno.acciones().elegirEmpresa(EMPRESA_A));
+    await waitFor(() => expect(entorno.estado().status).toBe('ready'));
+    await act(() => entorno.acciones().cambiarEmpresa());
+    const enCambio = entorno.estado();
+    if (enCambio.status !== 'selecting') throw new Error('sin cambio');
+    expect(enCambio.empresaActual).toMatchObject({ id: EMPRESA_A });
+    expect(enCambio.empresaActual?.razonSocial).toBeTruthy();
+    expect(JSON.stringify(enCambio)).not.toContain('token-de-');
+  });
+
   it('conserva ambos tokens (SA-1) y no cambia la época', async () => {
     const { entorno } = montarSesion();
     await listo(entorno);
