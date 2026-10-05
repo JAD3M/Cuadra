@@ -9,13 +9,19 @@ export const EXCLUIDOS_BACKEND: Readonly<Record<string, string>> = {
 export const RAZON_TIPOS =
   'tipos de TypeScript: el espejo los deriva de sus propias listas';
 
+/** Las clases (DTO con decoradores) no tienen espejo: solo se espejan sus constantes. */
+export const RAZON_CLASES =
+  'clases de TypeScript (DTO del backend): el frontend valida con sus propios contratos';
+
 export interface ExportsBackend {
-  /** `export const X = [...] as const`, en el orden del archivo. */
+  /** `export const X = [...]` (con o sin `as const`), en el orden del archivo. */
   arreglos: Record<string, string[]>;
-  /** `export const X = 'texto'`. */
-  constantes: Record<string, string>;
+  /** `export const X = 'texto'` o `export const X = 50`. */
+  constantes: Record<string, string | number>;
   funciones: string[];
   tipos: string[];
+  /** `export class X`: se excluyen solas, con la razón `RAZON_CLASES`. */
+  clases: string[];
   /** Exports que no encajan en ninguna clase conocida. */
   desconocidos: string[];
 }
@@ -29,12 +35,15 @@ function esExportado(nodo: ts.Node): boolean {
   );
 }
 
-/** Lee `export const X = [...] as const` y devuelve sus literales de texto. */
+/**
+ * Lee `export const X = [...]` y devuelve sus literales de texto. Acepta el
+ * arreglo plano (con o sin tipo declarado) y el `as const`.
+ */
 function literalesDeArreglo(init: ts.Expression): string[] | null {
-  if (!ts.isAsExpression(init) || !ts.isArrayLiteralExpression(init.expression))
-    return null;
+  const literal = ts.isAsExpression(init) ? init.expression : init;
+  if (!ts.isArrayLiteralExpression(literal)) return null;
   const valores: string[] = [];
-  for (const el of init.expression.elements) {
+  for (const el of literal.elements) {
     if (!ts.isStringLiteral(el)) return null;
     valores.push(el.text);
   }
@@ -57,12 +66,15 @@ export function extraerExportsBackend(
     constantes: {},
     funciones: [],
     tipos: [],
+    clases: [],
     desconocidos: [],
   };
   for (const sentencia of fuente.statements) {
     if (!esExportado(sentencia)) continue;
     if (ts.isTypeAliasDeclaration(sentencia)) {
       salida.tipos.push(sentencia.name.text);
+    } else if (ts.isClassDeclaration(sentencia)) {
+      salida.clases.push(sentencia.name?.text ?? '(anónima)');
     } else if (ts.isFunctionDeclaration(sentencia)) {
       salida.funciones.push(sentencia.name?.text ?? '(anónima)');
     } else if (ts.isVariableStatement(sentencia)) {
@@ -73,6 +85,8 @@ export function extraerExportsBackend(
         if (arreglo) salida.arreglos[nombre] = arreglo;
         else if (init && ts.isStringLiteral(init))
           salida.constantes[nombre] = init.text;
+        else if (init && ts.isNumericLiteral(init))
+          salida.constantes[nombre] = Number(init.text);
         else salida.desconocidos.push(nombre);
       }
     } else {
@@ -94,12 +108,13 @@ export function compararConEspejo(
   espejo: Record<string, unknown>,
   nombreArchivo: string,
   excluidos: Readonly<Record<string, string>> = EXCLUIDOS_BACKEND,
+  minimoArreglos: number = MINIMO_ARREGLOS,
 ): string[] {
   const problemas: string[] = [];
   const total = Object.keys(backend.arreglos).length;
-  if (total < MINIMO_ARREGLOS) {
+  if (total < minimoArreglos) {
     problemas.push(
-      `${nombreArchivo}: se encontraron ${total} listas \`as const\` y se esperaban al menos ${MINIMO_ARREGLOS}; ¿cambió el formato del archivo?`,
+      `${nombreArchivo}: se encontraron ${total} listas y se esperaban al menos ${minimoArreglos}; ¿cambió el formato del archivo?`,
     );
   }
   const reconocidos = new Set<string>([

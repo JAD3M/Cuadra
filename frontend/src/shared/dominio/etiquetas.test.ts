@@ -1,11 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { ETIQUETAS_ROL, ordenarRoles } from './etiquetas';
+import { ESTADOS_BANDEJA } from './bandeja';
+import {
+  ETIQUETAS_ESTADO_BANDEJA,
+  ETIQUETAS_ROL,
+  ordenarRoles,
+} from './etiquetas';
 import { ROLES, type Rol } from './tipos';
 
 describe('ETIQUETAS_ROL', () => {
   it('etiqueta cada rol del espejo y nada más', () => {
     expect(Object.keys(ETIQUETAS_ROL).sort()).toEqual([...ROLES].sort());
     for (const rol of ROLES) expect(ETIQUETAS_ROL[rol]).not.toBe('');
+  });
+});
+
+describe('ETIQUETAS_ESTADO_BANDEJA', () => {
+  it('etiqueta cada estado del espejo y nada más', () => {
+    expect(Object.keys(ETIQUETAS_ESTADO_BANDEJA).sort()).toEqual(
+      [...ESTADOS_BANDEJA].sort(),
+    );
+  });
+
+  it('usa los textos de la bandeja aprobada', () => {
+    expect(ETIQUETAS_ESTADO_BANDEJA).toEqual({
+      sugerencia: 'Sugerencia',
+      sin_match: 'Sin match',
+      conciliado: 'Conciliado',
+    });
   });
 });
 
