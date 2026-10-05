@@ -1,0 +1,37 @@
+/* Paginación de la bandeja (Bandeja.dc.html). Solo tokens de rol. */
+.paginacion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: var(--space-14) var(--space-16);
+}
+
+.rango {
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+}
+
+.controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+/* El Button ya trae 44 px; aquí se fija el mínimo y se quita el relleno ancho. */
+.pagina {
+  min-inline-size: var(--touch-min);
+  min-block-size: var(--touch-min);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-md);
+  font-size: var(--text-lg);
+}
+
+.actual {
+  border-color: var(--color-accent);
+}
+
+.elipsis {
+  color: var(--color-text-secondary);
+}
