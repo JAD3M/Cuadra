@@ -1,0 +1,71 @@
+/* Celdas de la tabla de la bandeja. Solo tokens de rol, sin literales. */
+.fecha {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* El enlace de la fila es la descripción; una descripción larga se parte. */
+.enlace {
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.enlace:hover {
+  color: var(--color-link);
+}
+
+.referencia {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+/* Monto: sin partir y del tamaño del contenido (la columna crece con él). */
+.monto {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  white-space: nowrap;
+}
+
+.reglaFila {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.regla {
+  color: var(--color-text-soft);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.cfdi {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  white-space: nowrap;
+}
+
+.diferencia {
+  font-size: var(--text-md);
+}
+
+/* Carga inicial: filas de relleno del alto de un objetivo táctil. */
+.esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-8) var(--space-16) var(--space-20);
+}
+
+.barra {
+  min-block-size: var(--touch-min);
+  border-radius: var(--radius-md);
+  background: var(--color-border-subtle);
+}

@@ -77,6 +77,19 @@ const PARES: Par[] = [
   ['--color-danger-text', '--color-ground'],
   // Rótulo "Paso N de 2" del formulario sobre el fondo del panel.
   ['--color-accent', '--color-ground'],
+  // Tabla de la bandeja (CU-22, Bandeja.dc.html): la fila bajo el cursor pinta
+  // sus celdas con --color-hover. Diferencia resaltada, regla en mono y
+  // enlace de la fila (normal y al pasar el cursor) sobre ese fondo.
+  ['--estado-sin-match-text', '--color-hover'],
+  ['--color-text-soft', '--color-hover'],
+  ['--color-link', '--color-hover'],
+  ['--color-link-hover', '--color-hover'],
+  // Descripción y regla sobre la superficie de la tabla (sin cursor), y la
+  // insignia de IA sobre su fondo propio y sobre la superficie.
+  ['--color-text', '--color-surface'],
+  ['--color-text-soft', '--color-surface'],
+  ['--color-ia', '--color-ia-tint'],
+  ['--color-ia', '--color-hover'],
 ];
 
 /** Indicadores no textuales (foco y enlaces): mínimo 3:1. */
