@@ -1,0 +1,11 @@
+.celda {
+  white-space: nowrap;
+}
+
+.atenuada {
+  color: var(--color-text-secondary);
+}
+
+.resaltada {
+  color: var(--estado-sin-match-text);
+}
