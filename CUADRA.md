@@ -5,11 +5,11 @@
 
 | | |
 |---|---|
-| **Estado** | Día 8 de 9 · CU-01 a CU-20, más CU-04b · 20 / 26 historias · 76 / 99 pts · Épicas A–E cerradas, F en curso (falta CU-21), G y H pendientes |
-| **Entrega** | 2 de octubre de 2026 (backend, CU-01 a CU-18); el frontend (CU-19 a CU-26) no tiene fecha; CU-21 a CU-26 (23 pts) quedan pendientes |
+| **Estado** | Día 8 de 9 · CU-01 a CU-21, más CU-04b · 21 / 26 historias · 79 / 99 pts · Épicas A–F cerradas, G y H pendientes (CU-21 pendiente de integrar a `master`) |
+| **Entrega** | 2 de octubre de 2026 (backend, CU-01 a CU-18); el frontend (CU-19 a CU-26) no tiene fecha; CU-22 a CU-26 (20 pts) quedan pendientes |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 26 historias · 99 puntos (69 del backend y 30 de la interfaz) · 9 días hábiles para el backend |
-| **Última actualización** | 1 oct 2026 |
+| **Última actualización** | 5 oct 2026 |
 
 Este archivo es la fuente de verdad del proyecto. Vive en la raíz del repo.
 Si usas un agente de código, apúntalo aquí desde `CLAUDE.md` o `AGENTS.md`
@@ -793,7 +793,7 @@ CU-20 a CU-26 están en Jira; solo CU-19 los lleva en este archivo.
 |---|---|---|---|---|---|
 | CU-19 | Contexto de sesión para el cliente | 2 | 1 oct | KAN-97 | El API expone usuario, roles y RFC en el login y `GET /auth/contexto` |
 | CU-20 | Base del frontend con tema claro y oscuro | 5 | 1 oct | KAN-98 | Proyecto en `frontend/`, estructura y tema claro y oscuro |
-| CU-21 | Inicio de sesión y elección de empresa | 3 | sin fecha | KAN-99 | Pantallas de login y de elección de empresa |
+| CU-21 | Inicio de sesión y elección de empresa | 3 | 5 oct | KAN-99 | Pantallas de login y de elección de empresa; sesión real en memoria |
 
 ### Épica G · Revisión en pantalla — KAN-105 · 10 pts
 

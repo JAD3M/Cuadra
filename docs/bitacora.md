@@ -3,6 +3,87 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 5 oct 2026
+
+- **CU-21 terminado: inicio de sesión y elección de empresa (KAN-99).**
+  Pendiente de integrar a `master`. Es la última historia de la épica F
+  (CU-19, CU-20 y CU-21): con ella van 21 de 26 historias y 79 de 99 puntos;
+  CU-22 a CU-26 (20 pts) y las épicas G y H siguen pendientes. Lo entregado:
+  - Inicio de sesión real en dos pasos: credenciales y luego empresa, con
+    su RFC y los roles como Administrador, Contador y Revisor.
+  - Un solo mensaje, "Correo o contraseña incorrectos", para toda causa de
+    401 (sin enumerar usuarios). Sigue sin bloqueo de cuenta (D-11).
+  - Los tokens viven solo en memoria: recargar la página obliga a iniciar
+    sesión de nuevo.
+  - Un 401 en una llamada con el token de sesión termina la sesión: aviso
+    "Tu sesión terminó…" y regreso a la pantalla pedida solo si se elige de
+    nuevo la misma empresa. Un 403 en `GET /auth/contexto` también termina la
+    sesión; cualquier otro 403 muestra "No tienes permiso para esta acción."
+    y la conserva.
+  - Cambio de empresa desde el encabezado: directo mientras dure el token de
+    selección (5 minutos); si no, pide la contraseña con el correo ya
+    escrito. Se oculta con una sola empresa. Abandonar el cambio devuelve a
+    la pantalla exacta, con la sesión viva; un cambio completo aterriza en
+    `/bandeja`.
+  - "Cerrar sesión" descarta los tokens de la pestaña y limpia la caché de
+    consultas, sin afirmar que se revoque en el servidor (no hay endpoint de
+    cierre). La caché también se limpia al cambiar a otra empresa y al
+    terminar la sesión.
+  - Guardas de ruta con destino de retorno validado, que viaja en el estado
+    del router. Control de tema (Claro, Sistema y Oscuro) en las pantallas de
+    acceso; panel de marca sin contadores.
+  - Dependencias nuevas: react-hook-form 7.89.0 y @hookform/resolvers 5.9.1
+    (la prueba de compatibilidad pasó, sin alternativa).
+- **Entrega de CU-21.** Nueve ramas locales apiladas,
+  `feat/cu-21-01-cliente-401` a `feat/cu-21-08-integracion`, más
+  `docs/cu-21-cierre`. Se partieron en límites de commit y el usuario
+  aprobó la excepción de tamaño para los cortes con muchas pruebas. Tamaño
+  real por rama, contra la anterior: 01 (407+/5-), 02 (2,943+/96-),
+  03 (1,254+/79-), 04 (1,146+), 05 (1,337+/42-, sin lockfile),
+  06 (1,552+/9-), 07 (1,176+/52-), 08 (1,280+/230-). Cerca del 60 % es
+  de pruebas.
+- **Verificación de CU-21**, observada en `feat/cu-21-08-integracion`: en
+  `frontend/`, 76 archivos y 1,450 pruebas en verde; typecheck, lint,
+  formato, build y `verificar:dist` limpios. En la raíz, typecheck limpio y
+  37 suites con 785 pruebas en verde. Comprobación en vivo contra el API real
+  por el proxy de desarrollo, con un usuario de la demo: el login responde
+  200 con `usuario` y `empresas`; contraseña errónea y usuario inexistente
+  dan el mismo 401, byte por byte; `GET /auth/empresas`,
+  `POST /auth/empresa/:id` y `GET /auth/contexto` devuelven las formas
+  documentadas; los tokens de otro alcance responden 401.
+- **Enmiendas a la especificación** (SA-1 a SA-9, guardadas en Engram como
+  `sdd/cu-21-inicio-sesion/spec-amendments`): el cambio de empresa conserva la
+  sesión viva hasta elegir otra y abandonarlo vuelve sin recarga (SA-1); el
+  regreso al origen tras expirar solo aplica con la misma empresa (SA-2);
+  transición `ended -> anonymous` tras mostrar el aviso una vez (SA-3); el
+  token de selección no es accesible para el cliente ni el proveedor (SA-4);
+  motivos internos que se muestran como aviso de un solo uso (SA-5); `ready`
+  incluye `puedeCambiarEmpresa` y aparece `unavailable` (SA-6); una lista
+  vacía tras un 403 vuelve al paso 1 (SA-7); el botón de envío queda
+  realmente deshabilitado mientras espera (SA-8); el esquema del formulario
+  se deriva del contrato `solicitudLogin` (SA-9). La excepción a SA-2 de la
+  tarea 2.3: "Cambiar de cuenta" conserva el id de la empresa previa, para que
+  otra cuenta que elija una empresa distinta no herede el destino anterior.
+- **Correcciones halladas durante la historia:**
+  - Un primer inicio de sesión desde un enlace profundo ahora vuelve a la
+    pantalla pedida (regla `restaurarOrigen`); antes iba a `/bandeja`.
+  - Elegir la empresa que ya está activa durante un cambio equivale a
+    regresar sin cambiar.
+  - Abandonar el cambio regresa a la pantalla exacta, no a `/bandeja`.
+- **Pendiente de CU-21:**
+  - La lista de comprobación manual en navegador no la ha corrido ninguna
+    persona: ambos temas a 1440, 900 y 375 px, control de tema en pantallas
+    angostas, recorrido solo con teclado, muestra con lector de pantalla,
+    acceso, elección, cambio, abandono y cierre reales contra el API de
+    desarrollo (barra de direcciones, almacenamiento y consola limpios),
+    recarga, botón Atrás tras cerrar sesión y gestor de contraseñas.
+  - Siguen pendientes también las comprobaciones en navegador de CU-20.
+  - Un posible cuadro en blanco de un fotograma entre iniciar un cambio y
+    llegar a `/empresa` no está corregido.
+  - Playwright y el servicio `web` de docker siguen diferidos.
+  - Cerrar sesión no revoca el token en el servidor: sigue válido hasta
+    15 minutos y no hay sincronía entre pestañas.
+
 ### 1 oct 2026
 
 - **CU-20 terminado: base del frontend con tema claro y oscuro (KAN-98).**
