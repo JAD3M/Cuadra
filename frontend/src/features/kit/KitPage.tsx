@@ -16,6 +16,7 @@ import { Card } from '@/shared/ui/Card';
 import { EstadoChip, TONOS_ESTADO_CHIP } from '@/shared/ui/EstadoChip';
 import { Monto } from '@/shared/ui/Monto';
 import { Td, Th, Tabla } from '@/shared/ui/Tabla';
+import { SeccionBandeja } from './SeccionBandeja';
 import estilos from './KitPage.module.css';
 
 /** Empresas de ejemplo del paso 2 del acceso (una con dos roles). */
@@ -78,6 +79,14 @@ const MOVIMIENTOS = [
     concepto: 'Movimiento con monto ilegible',
     monto: 'abc',
     tono: 'neutral',
+  },
+  {
+    id: 'm5',
+    fecha: '2026-09-24',
+    concepto: 'Pago de proveedor en dólares',
+    monto: '2150.00',
+    codigoMoneda: 'USD',
+    tono: 'sugerencia',
   },
 ] as const;
 
@@ -317,7 +326,12 @@ export function KitPage({ muestraShell }: KitPageProps) {
                 <Td>{m.fecha}</Td>
                 <Td>{m.concepto}</Td>
                 <Td numerica>
-                  <Monto valor={m.monto} />
+                  <Monto
+                    valor={m.monto}
+                    codigoMoneda={
+                      'codigoMoneda' in m ? m.codigoMoneda : undefined
+                    }
+                  />
                 </Td>
                 <Td>
                   <EstadoChip tono={m.tono}>
@@ -328,6 +342,10 @@ export function KitPage({ muestraShell }: KitPageProps) {
             ))}
           </tbody>
         </Tabla>
+      </Seccion>
+
+      <Seccion id="kit-bandeja" titulo="Bandeja">
+        <SeccionBandeja />
       </Seccion>
 
       {muestraShell && (

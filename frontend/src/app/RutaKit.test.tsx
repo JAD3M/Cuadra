@@ -46,6 +46,7 @@ describe('RutaKit (galería de componentes)', () => {
       'Tarjetas',
       'Chips de estado',
       'Tabla con montos',
+      'Bandeja',
       'Piezas del shell',
     ];
     for (const nombre of secciones) {
@@ -134,6 +135,99 @@ describe('RutaKit (galería de componentes)', () => {
       within(tabla).getByText('$12,345,678,901,234,567,890.12'),
     ).toBeInTheDocument();
     expect(within(tabla).getByText('Monto no disponible')).toBeInTheDocument();
+  });
+
+  it('la tabla con montos muestra un monto en otra moneda con su código', () => {
+    renderizar();
+    const tabla = screen.getByRole('table', { name: 'Movimientos de ejemplo' });
+    expect(within(tabla).getByText('$2,150.00 USD')).toBeInTheDocument();
+  });
+
+  describe('sección Bandeja', () => {
+    const seccion = () => screen.getByRole('region', { name: 'Bandeja' });
+
+    it('muestra los indicadores cargados, en carga y con fallo', () => {
+      renderizar();
+      const bandeja = seccion();
+      expect(within(bandeja).getByText('$138,990.40')).toBeInTheDocument();
+      expect(
+        within(bandeja).getAllByText('Monto por revisar').length,
+      ).toBeGreaterThanOrEqual(3);
+      expect(
+        within(bandeja).getAllByRole('button', { name: 'Reintentar' }),
+      ).toHaveLength(2);
+      expect(
+        bandeja.querySelectorAll('[aria-busy="true"]').length,
+      ).toBeGreaterThanOrEqual(1);
+    });
+
+    it('muestra los filtros por defecto y con el último chip activo', () => {
+      renderizar();
+      const bandeja = seccion();
+      expect(
+        within(bandeja).getAllByRole('group', { name: 'Filtrar por estado' }),
+      ).toHaveLength(2);
+      expect(
+        within(bandeja).getByText('Debe quedar al menos un estado activo.'),
+      ).toBeInTheDocument();
+    });
+
+    it('muestra la tabla con los tres estados, la fila en USD, la diferencia bajo un centavo y las insignias de IA', () => {
+      renderizar();
+      const tabla = within(seccion()).getByRole('table', {
+        name: /Movimientos por revisar/,
+      });
+      expect(within(tabla).getAllByText('Sugerencia').length).toBeGreaterThan(
+        0,
+      );
+      expect(within(tabla).getAllByText('Sin match').length).toBeGreaterThan(0);
+      expect(within(tabla).getAllByText('Conciliado').length).toBeGreaterThan(
+        0,
+      );
+      expect(within(tabla).getByText('$2,150.00 USD')).toBeInTheDocument();
+      expect(within(tabla).getByText('menor a un centavo')).toBeInTheDocument();
+      expect(within(tabla).getByText('IA')).toBeInTheDocument();
+      expect(within(tabla).getByText('IA · simulada')).toBeInTheDocument();
+    });
+
+    it('muestra la paginación en la primera página, una intermedia y la última', () => {
+      renderizar();
+      const paginas = within(seccion()).getAllByRole('navigation', {
+        name: 'Paginación',
+      });
+      expect(paginas).toHaveLength(3);
+      expect(
+        within(seccion()).getByText('Mostrando 1–20 de 100'),
+      ).toBeInTheDocument();
+      expect(
+        within(seccion()).getByText('Mostrando 41–60 de 100'),
+      ).toBeInTheDocument();
+      expect(
+        within(seccion()).getByText('Mostrando 81–100 de 100'),
+      ).toBeInTheDocument();
+    });
+
+    it('muestra el vacío con filtros y por defecto, el error y el permiso denegado', () => {
+      renderizar();
+      const bandeja = seccion();
+      expect(
+        within(bandeja).getByText('No hay movimientos con estos filtros.'),
+      ).toBeInTheDocument();
+      expect(
+        within(bandeja).getByRole('button', { name: 'Restablecer filtros' }),
+      ).toBeInTheDocument();
+      expect(
+        within(bandeja).getByText('No hay movimientos por revisar.'),
+      ).toBeInTheDocument();
+      const alertas = within(bandeja).getAllByRole('alert');
+      expect(alertas).toHaveLength(2);
+      expect(
+        within(bandeja).getByText('No se pudo conectar con el servidor.'),
+      ).toBeInTheDocument();
+      expect(
+        within(bandeja).getByText('No tienes permiso para esta acción.'),
+      ).toBeInTheDocument();
+    });
   });
 
   it('el control de tema cambia el tema del documento', async () => {
