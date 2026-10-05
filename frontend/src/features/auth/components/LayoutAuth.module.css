@@ -1,0 +1,65 @@
+/*
+ * Disposición de las pantallas de acceso (Main.dc.html): panel de marca y
+ * panel del formulario. Bajo 900 px (mismo literal que el shell) queda una
+ * sola columna, el panel de marca se oculta y el control de tema deja de
+ * flotar para no tapar el formulario en pantallas bajas.
+ */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  min-block-size: var(--_alto-layout, 100vh);
+  background: var(--color-ground);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+}
+
+.marca {
+  display: contents;
+}
+
+.formulario {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-32);
+  min-inline-size: 0;
+  padding: var(--space-64) var(--space-48);
+}
+
+.tema {
+  position: absolute;
+  inset-block-start: var(--space-24);
+  inset-inline-end: var(--space-24);
+  inline-size: var(--auth-theme-width);
+}
+
+.contenido {
+  inline-size: 100%;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+@media (width < 900px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .marca {
+    display: none;
+  }
+
+  .formulario {
+    padding: var(--space-20);
+    justify-content: flex-start;
+  }
+
+  .tema {
+    position: static;
+    align-self: flex-end;
+    max-inline-size: 100%;
+  }
+}

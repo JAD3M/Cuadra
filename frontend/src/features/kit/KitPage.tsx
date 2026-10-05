@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import { AvisoAuth } from '@/features/auth/components/AvisoAuth';
+import { LayoutAuth } from '@/features/auth/components/LayoutAuth';
+import { AVISOS } from '@/features/auth/components/textos';
 import { ControlTema } from '@/shared/tema';
 import { AlertaError } from '@/shared/ui/AlertaError';
 import { Button } from '@/shared/ui/Button';
@@ -142,6 +145,21 @@ export function KitPage({ muestraShell }: KitPageProps) {
             titulo="Correo o contraseña incorrectos"
             detalle="Revisa tus datos e inténtalo de nuevo."
           />
+        </div>
+      </Seccion>
+
+      <Seccion id="kit-acceso" titulo="Pantalla de acceso">
+        <p className={estilos.nota}>
+          Layout con panel de marca y control de tema; bajo 900 px el panel se
+          oculta.
+        </p>
+        <div className={estilos.marcoAcceso}>
+          <LayoutAuth como="div" controlTema={<ControlTema />}>
+            <div className={estilos.columna}>
+              <AvisoAuth>{AVISOS.sesion_expirada}</AvisoAuth>
+              <AvisoAuth>{AVISOS.reingreso}</AvisoAuth>
+            </div>
+          </LayoutAuth>
         </div>
       </Seccion>
 

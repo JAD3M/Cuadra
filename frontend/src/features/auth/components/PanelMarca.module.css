@@ -1,0 +1,52 @@
+/* Panel de marca de Main.dc.html (.hero). Solo tokens de rol. */
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-inline-size: 0;
+  padding: var(--space-64);
+  border-inline-end: 1px solid var(--color-border-subtle);
+  background: var(--color-sidebar);
+  overflow: hidden;
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.logo {
+  flex-shrink: 0;
+  color: var(--estado-conciliado-accent);
+}
+
+.nombre {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
+}
+
+.mensaje {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-28);
+  max-inline-size: var(--auth-hero-max-width);
+}
+
+.titular {
+  margin: 0;
+  font-size: var(--text-hero);
+  line-height: var(--leading-hero);
+  letter-spacing: var(--tracking-hero);
+  font-weight: var(--weight-bold);
+  overflow-wrap: break-word;
+}
+
+.apoyo {
+  margin: 0;
+  font-size: var(--text-lead);
+  line-height: var(--leading-support);
+  color: var(--color-text-secondary);
+}

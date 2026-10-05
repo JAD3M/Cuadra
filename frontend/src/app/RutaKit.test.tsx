@@ -39,6 +39,8 @@ describe('RutaKit (galería de componentes)', () => {
     const secciones = [
       'Tema',
       'Botones',
+      'Campos y alertas',
+      'Pantalla de acceso',
       'Tarjetas',
       'Chips de estado',
       'Tabla con montos',
@@ -49,6 +51,26 @@ describe('RutaKit (galería de componentes)', () => {
         screen.getByRole('heading', { level: 2, name: nombre }),
       ).toBeInTheDocument();
     }
+  });
+
+  it('la galería de acceso no repite el main ni los encabezados de la página', () => {
+    renderizar();
+    const seccion = screen.getByRole('region', { name: 'Pantalla de acceso' });
+    expect(within(seccion).queryByRole('main')).not.toBeInTheDocument();
+    expect(within(seccion).getAllByRole('status')).toHaveLength(2);
+    expect(
+      within(seccion).getByText('Cada peso del banco, con su CFDI.'),
+    ).toBeInTheDocument();
+  });
+
+  it('la galería de campos muestra un campo con error y una alerta', () => {
+    renderizar();
+    const seccion = screen.getByRole('region', { name: 'Campos y alertas' });
+    expect(within(seccion).getByLabelText('Correo con error')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(within(seccion).getByRole('alert')).toBeInTheDocument();
   });
 
   it('muestra los botones deshabilitados', () => {
