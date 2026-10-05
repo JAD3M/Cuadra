@@ -8,3 +8,5 @@ export type {
 } from './client';
 export { ApiError, ContratoError, NetworkError, aApiError } from './errores';
 export { crearQueryClient, reintentarConsulta } from './queryClient';
+export { mensajeDeError } from './mensajes';
+export type { ContextoMensaje, MensajeError, TipoMensaje } from './mensajes';
