@@ -17,7 +17,13 @@ export interface FalloLogin {
   titulo: string;
   detalle?: string;
   /** `conexion` conserva la contraseña escrita; los demás la vacían. */
-  tipo: 'credenciales' | 'sin_empresas' | 'conexion' | 'otro';
+  tipo:
+    | 'credenciales'
+    | 'sin_empresas'
+    | 'sin_acceso'
+    | 'sin_permiso'
+    | 'conexion'
+    | 'otro';
 }
 
 export interface FormularioLoginProps {

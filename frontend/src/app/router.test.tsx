@@ -1,3 +1,4 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import {
   createMemoryRouter,
@@ -5,14 +6,29 @@ import {
   type RouteObject,
 } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
+import { crearQueryClient } from '@/shared/api';
 import { ThemeProvider } from '@/shared/tema';
 import {
   PlaceholderSessionProvider,
   SessionStateProvider,
+  type AccionesSesion,
   type SessionState,
 } from '@/shared/sesion';
 import { ESTADOS, terminada } from '@/test/montarRutas';
 import { rutas } from './router';
+
+/** Acciones inertas: la pantalla de acceso las exige, estas pruebas no las usan. */
+const ACCIONES: AccionesSesion = {
+  iniciarSesion: vi.fn(() => Promise.resolve()),
+  elegirEmpresa: vi.fn(() => Promise.resolve()),
+  cambiarEmpresa: vi.fn(() => Promise.resolve()),
+  regresarSinCambiar: vi.fn(),
+  refrescarEmpresas: vi.fn(() => Promise.resolve()),
+  volverAlInicio: vi.fn(),
+  cerrarSesion: vi.fn(),
+  reintentarContexto: vi.fn(),
+  consumirFin: vi.fn(),
+};
 
 function Entorno({
   router,
@@ -23,13 +39,17 @@ function Entorno({
 }) {
   const contenido = <RouterProvider router={router} />;
   return (
-    <ThemeProvider>
-      {estado ? (
-        <SessionStateProvider estado={estado}>{contenido}</SessionStateProvider>
-      ) : (
-        <PlaceholderSessionProvider>{contenido}</PlaceholderSessionProvider>
-      )}
-    </ThemeProvider>
+    <QueryClientProvider client={crearQueryClient()}>
+      <ThemeProvider>
+        {estado ? (
+          <SessionStateProvider estado={estado} acciones={ACCIONES}>
+            {contenido}
+          </SessionStateProvider>
+        ) : (
+          <PlaceholderSessionProvider>{contenido}</PlaceholderSessionProvider>
+        )}
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 
@@ -82,7 +102,7 @@ describe('tabla de rutas', () => {
   });
 
   it.each([
-    ['/login', 'Iniciar sesión'],
+    ['/login', 'Inicia sesión'],
     ['/empresa', 'Elegir empresa'],
   ])('%s se muestra fuera del shell con su propio main', (ruta, nombre) => {
     renderizar(
@@ -174,7 +194,7 @@ describe('guardas en el árbol de rutas', () => {
       from: { pathname: '/casos/9', search: '?x=1', hash: '#y' },
     });
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Iniciar sesión' }),
+      screen.getByRole('heading', { level: 1, name: 'Inicia sesión' }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('navigation')).toBeNull();
   });
