@@ -183,7 +183,18 @@ API_TARGET=http://api:3000 npm run dev
 
 Swagger sigue en `http://localhost:3000/docs`, directo y sin proxy.
 
-Todavía no hay pantalla de acceso: el inicio de sesión llega con CU-21.
+### Iniciar sesión en la interfaz
+
+Con el API arriba y `npm run dev` corriendo en `frontend/`:
+
+1. Abre `http://localhost:5173`.
+2. Entra con cualquier persona de la tabla "Usuarios de la demo".
+3. Elige la empresa. Con varias empresas, el encabezado permite cambiar
+   de una a otra; "Cerrar sesión" termina la sesión en esa pestaña.
+
+Recargar la página te saca de la sesión, a propósito: los tokens viven solo
+en la memoria de la pestaña. Cerrar sesión los descarta ahí, pero el API no
+tiene endpoint de cierre, así que no revoca el token en el servidor.
 
 El tema (claro u oscuro) sigue al del sistema operativo hasta que la persona
 elige uno; esa elección se guarda en el navegador (`localStorage`, clave
