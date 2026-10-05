@@ -2,6 +2,7 @@ import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { Outlet, useLocation, useMatches, useNavigate } from 'react-router';
 import { ApiError, mensajeDeError, type MensajeError } from '@/shared/api';
 import {
+  destinoSeguro,
   useSessionActions,
   useSessionActionsOpcional,
   useSessionContext,
@@ -53,7 +54,7 @@ export function ShellLayout() {
   const sesion = useSessionContext();
   const acciones = useSessionActionsOpcional();
   const navegar = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search, hash } = useLocation();
   const coincidencias = useMatches();
   const contenido = useRef<HTMLElement>(null);
   const botonMenu = useRef<HTMLButtonElement>(null);
@@ -92,8 +93,11 @@ export function ShellLayout() {
     setFallo(null);
     try {
       await acciones.cambiarEmpresa();
-      // Sin destino guardado: tras elegir, las guardas mandan a `/bandeja`.
-      await navegar('/empresa');
+      // La pantalla actual viaja como destino de retorno (validada al
+      // leerla): abandonar el cambio vuelve a ella. Elegir otra empresa va a
+      // `/bandeja`.
+      const volverA = destinoSeguro({ pathname, search, hash });
+      await navegar('/empresa', volverA ? { state: { volverA } } : undefined);
     } catch (error) {
       // Un 401 termina la sesión y la guarda lleva a `/login`: no hay aviso.
       if (error instanceof ApiError && error.statusCode === 401) return;

@@ -401,7 +401,7 @@ describe('ShellLayout: cambio de empresa y cierre de sesión', () => {
     expect(screen.queryByRole('button', { name: 'Cerrar sesión' })).toBeNull();
   });
 
-  it('cambiar pide la lista y, al llegar, navega a /empresa sin destino guardado', async () => {
+  it('cambiar pide la lista y, al llegar, navega a /empresa con la pantalla actual como retorno', async () => {
     const acciones = accionesFalsas();
     const router = renderizar(VARIAS, '/cargas', acciones);
     await userEvent.setup().click(botonCambio());
@@ -409,7 +409,9 @@ describe('ShellLayout: cambio de empresa y cierre de sesión', () => {
       expect(router.state.location.pathname).toBe('/empresa'),
     );
     expect(acciones.cambiarEmpresa).toHaveBeenCalledTimes(1);
-    expect(router.state.location.state).toBeNull();
+    expect(router.state.location.state).toEqual({
+      volverA: { pathname: '/cargas' },
+    });
     expect(router.state.location.search).toBe('');
   });
 

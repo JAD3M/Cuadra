@@ -76,7 +76,10 @@ afterEach(() => {
  * la sesión en `selecting`. En modo `cambio` primero entra a la sesión con la
  * empresa A y luego pide cambiarla.
  */
-async function montar(modo: 'login' | 'cambio' = 'login') {
+async function montar(
+  modo: 'login' | 'cambio' = 'login',
+  volverA?: { pathname: string; search?: string },
+) {
   const consultas = crearQueryClient();
   consultas.setDefaultOptions({
     queries: {
@@ -101,7 +104,10 @@ async function montar(modo: 'login' | 'cambio' = 'login') {
       },
       {
         element: <RutaProtegida />,
-        children: [{ path: '/bandeja', element: <p>Bandeja</p> }],
+        children: [
+          { path: '/bandeja', element: <p>Bandeja</p> },
+          { path: '/casos/9', element: <p>Detalle del caso</p> },
+        ],
       },
     ],
     { initialEntries: ['/login'] },
@@ -126,7 +132,9 @@ async function montar(modo: 'login' | 'cambio' = 'login') {
       expect(consultas.getQueryData(['sesion', 1, 'contexto'])).toBeTruthy(),
     );
     await act(() => acciones.cambiarEmpresa());
-    await act(() => router.navigate('/empresa'));
+    await act(() =>
+      router.navigate('/empresa', volverA ? { state: { volverA } } : undefined),
+    );
   }
   await screen.findByRole('heading', { level: 1, name: 'Elige empresa' });
   return { ...vista, router, tienda, almacen, consultas };
@@ -438,7 +446,7 @@ describe('EmpresaPage: cambio de empresa', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('abandonar vuelve a la sesión viva sin pasar por loading ni pedir nada', async () => {
+  it('abandonar vuelve a la sesión viva sin pasar por loading ni pedir nada (sin destino: /bandeja)', async () => {
     const elecciones = eleccionesPeticiones();
     const { router, tienda, almacen } = await montar('cambio');
     const epoca = tienda.obtener().epoca;
@@ -458,18 +466,54 @@ describe('EmpresaPage: cambio de empresa', () => {
     expect(elecciones).toEqual(['Bearer token-de-seleccion']);
   });
 
-  it('elegir la empresa activa equivale a abandonar', async () => {
+  it('abandonar vuelve a la pantalla exacta que se dejó, aún con la sesión', async () => {
+    const { router, tienda } = await montar('cambio', {
+      pathname: '/casos/9',
+      search: '?x=1',
+    });
+    const antes = historial.length;
+    await userEvent
+      .setup()
+      .click(
+        screen.getByRole('button', { name: '← Volver sin cambiar de empresa' }),
+      );
+
+    await screen.findByText('Detalle del caso');
+    expect(router.state.location.pathname).toBe('/casos/9');
+    expect(router.state.location.search).toBe('?x=1');
+    expect(tienda.obtener().fase).toBe('sesion');
+    expect(historial.slice(antes)).not.toContain('loading');
+    expect(historial.slice(antes)).not.toContain('anonymous');
+  });
+
+  it('un destino de retorno hostil se ignora y se vuelve a /bandeja', async () => {
+    const { router } = await montar('cambio', { pathname: '//evil.com' });
+    await userEvent
+      .setup()
+      .click(
+        screen.getByRole('button', { name: '← Volver sin cambiar de empresa' }),
+      );
+    await screen.findByText('Bandeja');
+    expect(router.state.location.pathname).toBe('/bandeja');
+  });
+
+  it('elegir la empresa activa equivale a abandonar y vuelve a la pantalla que se dejó', async () => {
     const elecciones = eleccionesPeticiones();
-    const { tienda } = await montar('cambio');
+    const { tienda, router } = await montar('cambio', {
+      pathname: '/casos/9',
+    });
     const antes = elecciones.length;
     await userEvent.setup().click(tarjeta(/Ferreteria/));
-    await screen.findByText('Bandeja');
+    await screen.findByText('Detalle del caso');
+    expect(router.state.location.pathname).toBe('/casos/9');
     expect(tienda.obtener().fase).toBe('sesion');
     expect(elecciones.length).toBe(antes);
   });
 
-  it('elegir otra empresa va a /bandeja y vacía la caché de la anterior', async () => {
-    const { router, tienda, consultas } = await montar('cambio');
+  it('elegir otra empresa va a /bandeja aunque haya un destino de retorno y vacía la caché de la anterior', async () => {
+    const { router, tienda, consultas } = await montar('cambio', {
+      pathname: '/casos/9',
+    });
     consultas.setQueryData(['dato-ajeno'], 'privado');
     await userEvent.setup().click(tarjeta(/Abarrotes/));
     await waitFor(() => expect(tienda.obtener().epoca).toBe(2));

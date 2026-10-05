@@ -15,6 +15,7 @@ export { useSessionContext } from './useSessionContext';
 export { useSessionActions } from './useSessionActions';
 export { useSessionActionsOpcional } from './useSessionActionsOpcional';
 export {
+  destinoDeRegreso,
   destinoSeguro,
   destinoTrasAcceso,
   estadoAcceso,

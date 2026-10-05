@@ -13,6 +13,11 @@ export interface DestinoGuardado {
 export interface EstadoAcceso {
   from?: DestinoGuardado;
   foco?: 'correo';
+  /**
+   * Pantalla desde la que se empezó un cambio de empresa: a ella se vuelve si
+   * se abandona el cambio. Solo la pone el shell al abrir `/empresa`.
+   */
+  volverA?: DestinoGuardado;
 }
 
 const DESTINO_POR_DEFECTO: DestinoGuardado = { pathname: '/bandeja' };
@@ -80,6 +85,8 @@ export function estadoAcceso(state: unknown): EstadoAcceso {
   const acceso: EstadoAcceso = {};
   const from = destinoSeguro(state.from);
   if (from) acceso.from = from;
+  const volverA = destinoSeguro(state.volverA);
+  if (volverA) acceso.volverA = volverA;
   if (state.foco === 'correo') acceso.foco = 'correo';
   return acceso;
 }
@@ -95,4 +102,12 @@ export function destinoTrasAcceso(
 ): DestinoGuardado {
   if (!restaurarOrigen) return DESTINO_POR_DEFECTO;
   return estadoAcceso(state).from ?? DESTINO_POR_DEFECTO;
+}
+
+/**
+ * A dónde va quien abandona un cambio de empresa (o vuelve a elegir la activa):
+ * la pantalla que dejó, si el estado la trae y es segura; si no, `/bandeja`.
+ */
+export function destinoDeRegreso(state: unknown): DestinoGuardado {
+  return estadoAcceso(state).volverA ?? DESTINO_POR_DEFECTO;
 }

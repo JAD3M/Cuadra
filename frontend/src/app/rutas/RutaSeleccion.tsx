@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router';
 import {
+  destinoDeRegreso,
   destinoTrasAcceso,
   estadoAcceso,
   useSessionContext,
@@ -13,7 +14,9 @@ import {
  *   guardado sigue su camino solo si la sesión anterior expiró o nunca hubo.
  * - `loading`, `ready`, `unavailable`: ya se eligió; va al destino guardado
  *   si la sesión permite restaurarlo (misma empresa tras una expiración) o
- *   a `/bandeja` (empresa distinta o cambio de empresa).
+ *   a `/bandeja` (empresa distinta o cambio de empresa). Excepción: un
+ *   `ready` que llega con `volverA` (abandono de un cambio) regresa a esa
+ *   pantalla.
  */
 export function RutaSeleccion() {
   const sesion = useSessionContext();
@@ -41,8 +44,25 @@ export function RutaSeleccion() {
           }}
         />
       );
+    case 'ready': {
+      // Volver a `ready` estando en `/empresa` solo ocurre al abandonar un
+      // cambio (o al re-elegir la empresa activa): se regresa a la pantalla
+      // que se dejó. Elegir otra empresa pasa antes por `loading`.
+      const { volverA } = estadoAcceso(state);
+      return (
+        <Navigate
+          to={
+            volverA
+              ? destinoDeRegreso(state)
+              : destinoTrasAcceso(state, {
+                  restaurarOrigen: sesion.restaurarOrigen,
+                })
+          }
+          replace
+        />
+      );
+    }
     case 'loading':
-    case 'ready':
       return (
         <Navigate
           to={destinoTrasAcceso(state, {

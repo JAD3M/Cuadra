@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { destinoSeguro, destinoTrasAcceso, estadoAcceso } from './destino';
+import {
+  destinoDeRegreso,
+  destinoSeguro,
+  destinoTrasAcceso,
+  estadoAcceso,
+} from './destino';
 
 describe('destinoSeguro', () => {
   it.each([
@@ -113,6 +118,39 @@ describe('destinoTrasAcceso', () => {
     expect(
       destinoTrasAcceso(
         { from: { pathname: '/login' } },
+        { restaurarOrigen: true },
+      ),
+    ).toEqual({ pathname: '/bandeja' });
+  });
+});
+
+describe('volverA y destinoDeRegreso', () => {
+  it('estadoAcceso lee un volverA seguro y descarta el hostil', () => {
+    expect(
+      estadoAcceso({ volverA: { pathname: '/casos/9', search: '?x=1' } }),
+    ).toEqual({ volverA: { pathname: '/casos/9', search: '?x=1' } });
+    expect(estadoAcceso({ volverA: { pathname: '//evil.com' } })).toEqual({});
+    expect(estadoAcceso({ volverA: '/casos/9' })).toEqual({});
+  });
+
+  it('destinoDeRegreso devuelve la pantalla dejada o /bandeja', () => {
+    expect(destinoDeRegreso({ volverA: { pathname: '/casos/9' } })).toEqual({
+      pathname: '/casos/9',
+    });
+    for (const state of [
+      null,
+      undefined,
+      {},
+      { volverA: { pathname: '/login' } },
+    ]) {
+      expect(destinoDeRegreso(state)).toEqual({ pathname: '/bandeja' });
+    }
+  });
+
+  it('volverA no se confunde con from al restaurar un origen', () => {
+    expect(
+      destinoTrasAcceso(
+        { volverA: { pathname: '/casos/9' } },
         { restaurarOrigen: true },
       ),
     ).toEqual({ pathname: '/bandeja' });

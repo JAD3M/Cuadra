@@ -186,7 +186,7 @@ const tarjeta = (nombre: RegExp | string) =>
   screen.getByRole('button', { name: nombre });
 
 describe('ShellLayout con la sesión real: cambio de empresa', () => {
-  it('abandonar vuelve a la sesión viva sin loading y sin pedir el contexto otra vez', async () => {
+  it('abandonar vuelve a la pantalla exacta, con la sesión viva, sin loading y sin pedir el contexto otra vez', async () => {
     servidorPorEmpresa();
     const { router, tienda } = await montar();
     await entrarConEmpresa();
@@ -194,6 +194,8 @@ describe('ShellLayout con la sesión real: cambio de empresa', () => {
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/bandeja'),
     );
+    await act(() => router.navigate('/casos/9?x=1'));
+    await screen.findByTestId('prueba');
     const epoca = tienda.obtener().epoca;
     const antes = historial.length;
     const contextos = () =>
@@ -203,7 +205,9 @@ describe('ShellLayout con la sesión real: cambio de empresa', () => {
     await userEvent.setup().click(interruptor());
     await screen.findByRole('heading', { level: 1, name: 'Elige empresa' });
     expect(router.state.location.pathname).toBe('/empresa');
-    expect(router.state.location.state).toBeNull();
+    expect(router.state.location.state).toEqual({
+      volverA: { pathname: '/casos/9', search: '?x=1' },
+    });
     expect(
       screen.getByText(
         'Estás en Ferreteria del Bajio SA de CV. Elige la empresa a la que quieres cambiar.',
@@ -216,7 +220,9 @@ describe('ShellLayout con la sesión real: cambio de empresa', () => {
         screen.getByRole('button', { name: '← Volver sin cambiar de empresa' }),
       );
     await screen.findByTestId('prueba');
-    expect(router.state.location.pathname).toBe('/bandeja');
+    // Vuelve a la pantalla exacta que se dejó, no a /bandeja.
+    expect(router.state.location.pathname).toBe('/casos/9');
+    expect(router.state.location.search).toBe('?x=1');
     expect(historial.slice(antes)).not.toContain('loading');
     expect(historial.slice(antes)).not.toContain('anonymous');
     expect(tienda.obtener()).toMatchObject({ fase: 'sesion', epoca });

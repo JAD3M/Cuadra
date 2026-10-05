@@ -237,6 +237,41 @@ describe('RutaSeleccion', () => {
     expect(pantalla()).toBe('bandeja');
   });
 
+  it('ready en /empresa con volverA regresa a esa pantalla (abandono de un cambio)', () => {
+    const { router } = montarRutas(
+      {
+        pathname: '/empresa',
+        state: { volverA: { pathname: '/casos/9', search: '?x=1' } },
+      },
+      ESTADOS.ready,
+    );
+    expect(router.state.location.pathname).toBe('/casos/9');
+    expect(router.state.location.search).toBe('?x=1');
+    expect(router.state.historyAction).toBe('REPLACE');
+  });
+
+  it.each([
+    ['loading (otra empresa elegida)', ESTADOS.loading],
+    ['loading restaurando', ESTADOS.loadingRestaurando],
+  ])(
+    '%s con volverA va a /bandeja, no a la pantalla anterior',
+    (_n, estado) => {
+      montarRutas(
+        { pathname: '/empresa', state: { volverA: { pathname: '/casos/9' } } },
+        estado,
+      );
+      expect(pantalla()).toBe('bandeja');
+    },
+  );
+
+  it('un volverA hostil se ignora y va a /bandeja', () => {
+    montarRutas(
+      { pathname: '/empresa', state: { volverA: { pathname: '//evil.com' } } },
+      ESTADOS.ready,
+    );
+    expect(pantalla()).toBe('bandeja');
+  });
+
   it('ignora un destino hostil en el estado del historial', () => {
     montarRutas(
       { pathname: '/empresa', state: { from: { pathname: '/\\evil.com' } } },
