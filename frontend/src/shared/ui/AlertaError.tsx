@@ -1,9 +1,11 @@
-import type { Ref } from 'react';
+import type { ReactNode, Ref } from 'react';
 import estilos from './AlertaError.module.css';
 
 export interface AlertaErrorProps {
   titulo: string;
   detalle?: string;
+  /** Acción de recuperación (p. ej. «Reintentar») dentro de la alerta. */
+  accion?: ReactNode;
   /** Permite enlazarla desde `aria-describedby` de un control. */
   id?: string;
   /** Referencia para mover el foco a la alerta tras un fallo. */
@@ -14,7 +16,13 @@ export interface AlertaErrorProps {
  * Alerta de fallo. `role="alert"` la anuncia al aparecer y `tabIndex={-1}`
  * permite enfocarla desde código sin meterla en el orden de tabulación.
  */
-export function AlertaError({ titulo, detalle, id, ref }: AlertaErrorProps) {
+export function AlertaError({
+  titulo,
+  detalle,
+  accion,
+  id,
+  ref,
+}: AlertaErrorProps) {
   return (
     <div
       ref={ref}
@@ -40,6 +48,7 @@ export function AlertaError({ titulo, detalle, id, ref }: AlertaErrorProps) {
       <div className={estilos.texto}>
         <strong className={estilos.titulo}>{titulo}</strong>
         {detalle && <span className={estilos.detalle}>{detalle}</span>}
+        {accion}
       </div>
     </div>
   );

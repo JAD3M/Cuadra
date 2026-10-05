@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
 import { EmpresaPage } from '@/features/auth/EmpresaPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { BandejaPage } from '@/features/bandeja/BandejaPage';
+import { SUBTITULO, TITULO } from '@/features/bandeja/textos';
 import { BitacoraPage } from '@/features/bitacora/BitacoraPage';
 import { CargasPage } from '@/features/cargas/CargasPage';
 import { CasoPage } from '@/features/caso/CasoPage';
@@ -73,7 +74,10 @@ export const rutas: RouteObject[] = [
               {
                 path: '/bandeja',
                 element: <BandejaPage />,
-                handle: titulo('Bandeja'),
+                handle: {
+                  titulo: TITULO,
+                  subtitulo: SUBTITULO,
+                } satisfies ManejadorRuta,
               },
               {
                 path: '/casos/:id',

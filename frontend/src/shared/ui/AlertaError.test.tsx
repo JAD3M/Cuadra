@@ -1,5 +1,5 @@
 import { createRef } from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { AlertaError } from './AlertaError';
 
@@ -23,6 +23,15 @@ describe('AlertaError', () => {
     expect(screen.getByRole('alert')).toHaveAttribute('tabindex', '-1');
     ref.current?.focus();
     expect(screen.getByRole('alert')).toHaveFocus();
+  });
+
+  it('muestra la acción dentro de la alerta cuando se da', () => {
+    render(<AlertaError titulo="Falló" accion={<button>Reintentar</button>} />);
+    expect(
+      within(screen.getByRole('alert')).getByRole('button', {
+        name: 'Reintentar',
+      }),
+    ).toBeInTheDocument();
   });
 
   it('acepta un id para enlazarla con aria-describedby', () => {

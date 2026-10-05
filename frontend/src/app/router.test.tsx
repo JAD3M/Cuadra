@@ -61,8 +61,19 @@ function renderizar(
 }
 
 describe('tabla de rutas', () => {
+  it('/bandeja muestra la pantalla real con su título y subtítulo', () => {
+    renderizar('/bandeja');
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Bandeja de revisión' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Movimientos abiertos, del monto más alto al más bajo'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Pantalla en construcción/)).toBeNull();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
   it.each([
-    ['/bandeja', 'Bandeja'],
     ['/cargas', 'Cargas'],
     ['/tolerancia', 'Tolerancia'],
     ['/bitacora', 'Bitácora'],
@@ -134,7 +145,7 @@ describe('tabla de rutas', () => {
     const router = renderizar('/');
     expect(router.state.location.pathname).toBe('/bandeja');
     expect(
-      screen.getByRole('heading', { level: 2, name: 'Bandeja' }),
+      screen.getByRole('heading', { level: 1, name: 'Bandeja de revisión' }),
     ).toBeInTheDocument();
   });
 
@@ -261,7 +272,9 @@ describe('título y anuncio del cambio de página', () => {
 
   it('actualiza ambos al navegar', async () => {
     const router = renderizar('/bandeja');
-    await waitFor(() => expect(document.title).toBe('Bandeja · Cuadra'));
+    await waitFor(() =>
+      expect(document.title).toBe('Bandeja de revisión · Cuadra'),
+    );
     await router.navigate('/casos/7');
     await waitFor(() =>
       expect(document.title).toBe('Detalle del caso · Cuadra'),
