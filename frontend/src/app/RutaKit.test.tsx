@@ -41,6 +41,7 @@ describe('RutaKit (galería de componentes)', () => {
       'Botones',
       'Campos y alertas',
       'Pantalla de acceso',
+      'Formulario de acceso',
       'Tarjetas',
       'Chips de estado',
       'Tabla con montos',
@@ -61,6 +62,20 @@ describe('RutaKit (galería de componentes)', () => {
     expect(
       within(seccion).getByText('Cada peso del banco, con su CFDI.'),
     ).toBeInTheDocument();
+  });
+
+  it('la galería del formulario de acceso muestra sus estados sin un segundo h1', () => {
+    renderizar();
+    const seccion = screen.getByRole('region', {
+      name: 'Formulario de acceso',
+    });
+    expect(within(seccion).getAllByRole('form')).toHaveLength(4);
+    expect(within(seccion).queryByRole('heading', { level: 1 })).toBeNull();
+    expect(within(seccion).getAllByRole('alert')).toHaveLength(2);
+    expect(
+      within(seccion).getByRole('button', { name: 'Entrando…' }),
+    ).toBeDisabled();
+    expect(document.body).toHaveFocus();
   });
 
   it('la galería de campos muestra un campo con error y una alerta', () => {

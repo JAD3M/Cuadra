@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { AvisoAuth } from '@/features/auth/components/AvisoAuth';
+import { FormularioLogin } from '@/features/auth/components/FormularioLogin';
 import { LayoutAuth } from '@/features/auth/components/LayoutAuth';
 import { AVISOS } from '@/features/auth/components/textos';
 import { ControlTema } from '@/shared/tema';
@@ -160,6 +161,52 @@ export function KitPage({ muestraShell }: KitPageProps) {
               <AvisoAuth>{AVISOS.reingreso}</AvisoAuth>
             </div>
           </LayoutAuth>
+        </div>
+      </Seccion>
+
+      <Seccion id="kit-login" titulo="Formulario de acceso">
+        <p className={estilos.nota}>
+          Estados del paso 1: con aviso y correo, con credenciales incorrectas,
+          sin conexión y enviando.
+        </p>
+        <div className={estilos.rejilla}>
+          <FormularioLogin
+            titulo="h3"
+            correoInicial="tapia@despacho.mx"
+            pendiente={false}
+            fallo={null}
+            aviso={<AvisoAuth>{AVISOS.reingreso}</AvisoAuth>}
+            onEnviar={() => {}}
+          />
+          <FormularioLogin
+            titulo="h3"
+            correoInicial="tapia@despacho.mx"
+            pendiente={false}
+            fallo={{
+              titulo: 'Correo o contraseña incorrectos',
+              detalle: 'Revisa tus datos e inténtalo de nuevo.',
+              tipo: 'credenciales',
+            }}
+            onEnviar={() => {}}
+          />
+          <FormularioLogin
+            titulo="h3"
+            correoInicial="tapia@despacho.mx"
+            pendiente={false}
+            fallo={{
+              titulo: 'No se pudo conectar con el servidor.',
+              detalle: 'Inténtalo de nuevo.',
+              tipo: 'conexion',
+            }}
+            onEnviar={() => {}}
+          />
+          <FormularioLogin
+            titulo="h3"
+            correoInicial="tapia@despacho.mx"
+            pendiente
+            fallo={null}
+            onEnviar={() => {}}
+          />
         </div>
       </Seccion>
 
