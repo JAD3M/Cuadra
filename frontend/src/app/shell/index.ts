@@ -7,6 +7,5 @@ export {
   type IconoNav,
 } from './navegacion';
 export { NavItem, type NavItemProps } from './NavItem';
-export { PENDIENTES_PLACEHOLDER } from './pendientesPlaceholder';
 export { Sidebar, type SidebarProps } from './Sidebar';
 export { UserBlock, type UserBlockProps } from './UserBlock';

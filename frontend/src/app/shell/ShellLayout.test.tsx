@@ -1,3 +1,4 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import {
   act,
   cleanup,
@@ -7,6 +8,7 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { delay, http, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -18,6 +20,11 @@ import { ApiError, NetworkError } from '@/shared/api';
 import { contextoSesion } from '@/shared/api/contratos';
 import { CONTEXTO_SESION as PAYLOAD } from '@/test/fixtures';
 import { ThemeProvider } from '@/shared/tema';
+import { BandejaPage } from '@/features/bandeja/BandejaPage';
+import { FILAS_DEMO, resumenDe, resumenFalla } from '@/test/fixturesBandeja';
+import { espiarSolicitudes } from '@/test/handlersAuth';
+import { clienteDePruebas } from '@/test/montarBandeja';
+import { servidor } from '@/test/servidor';
 import { ShellLayout } from './ShellLayout';
 
 const CONTEXTO_SESION = contextoSesion.parse(PAYLOAD);
@@ -76,11 +83,13 @@ function renderizar(
     { initialEntries: [ruta] },
   );
   render(
-    <ThemeProvider>
-      <SessionStateProvider estado={estado} acciones={acciones}>
-        <RouterProvider router={router} />
-      </SessionStateProvider>
-    </ThemeProvider>,
+    <QueryClientProvider client={clienteDePruebas()}>
+      <ThemeProvider>
+        <SessionStateProvider estado={estado} acciones={acciones}>
+          <RouterProvider router={router} />
+        </SessionStateProvider>
+      </ThemeProvider>
+    </QueryClientProvider>,
   );
   return router;
 }
@@ -370,12 +379,15 @@ describe('ShellLayout según el estado de la sesión', () => {
         ],
         { initialEntries: [ruta] },
       );
+      const cliente = clienteDePruebas();
       const arbol = (estado: SessionState) => (
-        <ThemeProvider>
-          <SessionStateProvider estado={estado} acciones={accionesFalsas()}>
-            <RouterProvider router={router} />
-          </SessionStateProvider>
-        </ThemeProvider>
+        <QueryClientProvider client={cliente}>
+          <ThemeProvider>
+            <SessionStateProvider estado={estado} acciones={accionesFalsas()}>
+              <RouterProvider router={router} />
+            </SessionStateProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
       );
       const vista = render(
         arbol({
@@ -406,6 +418,14 @@ describe('ShellLayout según el estado de la sesión', () => {
       expect(
         screen.queryByRole('button', { name: /Cambiar de empresa/ }),
       ).toBeNull();
+    });
+
+    it('durante el cambio no dibuja el contador de otra empresa y no falla', async () => {
+      const { arbol, vista } = montarCambio();
+      await screen.findByRole('link', { name: 'Bandeja 39 pendientes' });
+      vista.rerender(arbol(CAMBIO));
+      expect(screen.getByRole('link', { name: 'Bandeja' })).toBeInTheDocument();
+      expect(screen.queryByText(/pendientes/)).toBeNull();
     });
 
     it('sin contexto retenido muestra el estado de carga, nunca vacío', () => {
@@ -601,5 +621,103 @@ describe('ShellLayout: cambio de empresa y cierre de sesión', () => {
     ).toBeInTheDocument();
     expect(panel).not.toContainElement(botonCambio());
     expect(screen.getByRole('banner')).toContainElement(botonCambio());
+  });
+});
+
+describe('ShellLayout: contador real de pendientes', () => {
+  const enlaceBandeja = () => screen.findByRole('link', { name: /^Bandeja/ });
+
+  it('muestra sugerencia + sin match una vez cargado el resumen, también fuera de /bandeja', async () => {
+    servidor.use(
+      http.get('/api/bandeja/resumen', () =>
+        HttpResponse.json({
+          conteos: { conciliado: 120, sugerencia: 4, sin_match: 3 },
+          montoPorRevisar: [{ moneda: 'MXN', monto: '10.0000' }],
+        }),
+      ),
+    );
+    renderizar(LISTO, '/cargas');
+    expect(
+      await screen.findByRole('link', { name: 'Bandeja 7 pendientes' }),
+    ).toBeInTheDocument();
+  });
+
+  it('no muestra contador mientras carga', async () => {
+    servidor.use(
+      http.get('/api/bandeja/resumen', async () => {
+        await delay(200);
+        return HttpResponse.json(resumenDe(FILAS_DEMO));
+      }),
+    );
+    renderizar(LISTO, '/cargas');
+    expect(await enlaceBandeja()).toHaveAccessibleName('Bandeja');
+    expect(screen.queryByText(/pendiente/)).toBeNull();
+    expect(
+      await screen.findByRole('link', { name: 'Bandeja 39 pendientes' }),
+    ).toBeInTheDocument();
+  });
+
+  it('si el resumen falla no hay contador ni alerta y la navegación sigue usable', async () => {
+    const espia = espiarSolicitudes();
+    servidor.use(resumenFalla(500));
+    renderizar(LISTO, '/cargas');
+    await waitFor(() =>
+      expect(espia.cuantas('GET', '/api/bandeja/resumen')).toBe(1),
+    );
+    espia.detener();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByRole('link', { name: 'Bandeja' })).toBeInTheDocument();
+    expect(screen.queryByText(/pendiente/)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Cargas' })).toBeInTheDocument();
+  });
+
+  it('con cero pendientes no muestra contador aunque haya conciliados', async () => {
+    const espia = espiarSolicitudes();
+    servidor.use(
+      http.get('/api/bandeja/resumen', () =>
+        HttpResponse.json({
+          conteos: { conciliado: 5, sugerencia: 0, sin_match: 0 },
+          montoPorRevisar: [],
+        }),
+      ),
+    );
+    renderizar(LISTO, '/cargas');
+    await waitFor(() =>
+      expect(espia.cuantas('GET', '/api/bandeja/resumen')).toBe(1),
+    );
+    espia.detener();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByRole('link', { name: 'Bandeja' })).toBeInTheDocument();
+    expect(screen.queryByText(/pendiente/)).toBeNull();
+  });
+
+  it('en /bandeja el contador coincide con los indicadores y se pide el resumen una sola vez', async () => {
+    const espia = espiarSolicitudes();
+    const router = createMemoryRouter(
+      [
+        {
+          element: <ShellLayout />,
+          children: [{ path: '/bandeja', element: <BandejaPage /> }],
+        },
+      ],
+      { initialEntries: ['/bandeja'] },
+    );
+    render(
+      <QueryClientProvider client={clienteDePruebas()}>
+        <ThemeProvider>
+          <SessionStateProvider estado={LISTO} acciones={accionesFalsas()}>
+            <RouterProvider router={router} />
+          </SessionStateProvider>
+        </ThemeProvider>
+      </QueryClientProvider>,
+    );
+    expect(
+      await screen.findByRole('link', { name: 'Bandeja 39 pendientes' }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText('26')).toBeInTheDocument();
+    expect(screen.getByText('13')).toBeInTheDocument();
+    espia.detener();
+    expect(espia.cuantas('GET', '/api/bandeja/resumen')).toBe(1);
   });
 });

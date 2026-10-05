@@ -1,11 +1,6 @@
 import { Card } from '@/shared/ui/Card';
 import { ControlTema } from '@/shared/tema';
-import {
-  CompanyBadge,
-  Header,
-  PENDIENTES_PLACEHOLDER,
-  Sidebar,
-} from '@/app/shell';
+import { CompanyBadge, Header, Sidebar } from '@/app/shell';
 import type { ContextoSesion } from '@/shared/api/contratos';
 import estilos from './MuestraShell.module.css';
 
@@ -31,6 +26,9 @@ const SESION_DE_EJEMPLO: ContextoSesion = {
  */
 const RUTA_ACTIVA_DE_EJEMPLO = '/bandeja';
 
+/** Contador de ejemplo de la galería: la muestra no consulta la API. */
+const PENDIENTES_DE_EJEMPLO = 39;
+
 /**
  * Ensambla las piezas del shell con datos de ejemplo para la galería. Solo
  * `Header` y `Sidebar`; el layout real llega con `ShellLayout`. No crea un
@@ -42,7 +40,7 @@ export function MuestraShell() {
     <>
       <Sidebar
         rutaActual={RUTA_ACTIVA_DE_EJEMPLO}
-        pendientes={PENDIENTES_PLACEHOLDER}
+        pendientes={PENDIENTES_DE_EJEMPLO}
         usuario={SESION_DE_EJEMPLO.usuario}
         roles={SESION_DE_EJEMPLO.roles}
         controlTema={<ControlTema />}

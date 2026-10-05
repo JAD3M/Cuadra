@@ -6,6 +6,7 @@ import {
   type MouseEvent,
 } from 'react';
 import { Outlet, useLocation, useMatches, useNavigate } from 'react-router';
+import { usePendientesBandeja } from '@/features/bandeja/useResumenBandeja';
 import { ApiError, mensajeDeError, type MensajeError } from '@/shared/api';
 import {
   destinoSeguro,
@@ -17,7 +18,6 @@ import { ControlTema } from '@/shared/tema';
 import { AlertaError } from '@/shared/ui/AlertaError';
 import { subtituloDeRuta, tituloDeRuta } from '@/app/manejadorRuta';
 import { Header } from './Header';
-import { PENDIENTES_PLACEHOLDER } from './pendientesPlaceholder';
 import { SesionNoDisponible } from './SesionNoDisponible';
 import { Sidebar } from './Sidebar';
 import estilos from './ShellLayout.module.css';
@@ -26,7 +26,8 @@ import estilos from './ShellLayout.module.css';
  * Layout de las rutas internas (contenedor). Es el único consumidor de la
  * sesión: la convierte en props para las piezas de presentación.
  *
- * - `ready`: enlace de salto, barra lateral, encabezado y contenido. El
+ * - `ready`: enlace de salto, barra lateral (con el contador real de
+ *   pendientes de la bandeja), encabezado y contenido. El
  *   cambio de empresa (encabezado) solo se ofrece si `puedeCambiarEmpresa`; si
  *   la petición de la lista falla por red o 5xx, un aviso lo dice y la sesión
  *   sigue en `ready`. «Cerrar sesión» (barra lateral) es local.
@@ -56,6 +57,10 @@ function EstadoCarga() {
 export function ShellLayout() {
   const sesion = useSessionContext();
   const acciones = useSessionActions();
+  // Contador real de la barra lateral: el mismo resumen que usan los
+  // indicadores de la bandeja (una sola petición). Se llama antes del `switch`
+  // por las reglas de los hooks; sin sesión lista no hay época y no consulta.
+  const pendientes = usePendientesBandeja();
   const navegar = useNavigate();
   const { pathname, search, hash } = useLocation();
   const coincidencias = useMatches();
@@ -175,7 +180,7 @@ export function ShellLayout() {
         >
           <Sidebar
             rutaActual={pathname}
-            pendientes={PENDIENTES_PLACEHOLDER}
+            pendientes={pendientes}
             usuario={usuario}
             roles={roles}
             controlTema={<ControlTema />}

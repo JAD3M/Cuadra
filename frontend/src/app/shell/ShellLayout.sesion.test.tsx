@@ -316,6 +316,33 @@ describe('ShellLayout con la sesión real: cambio de empresa', () => {
     ).toContain(EMPRESA_B);
   });
 
+  it('el contador de pendientes es el de la empresa activa y nunca el de la anterior', async () => {
+    servidorPorEmpresa();
+    servidor.use(
+      http.get('/api/bandeja/resumen', ({ request }) =>
+        HttpResponse.json({
+          conteos: {
+            conciliado: 0,
+            sugerencia: tokenDe(request).endsWith(EMPRESA_B) ? 2 : 5,
+            sin_match: tokenDe(request).endsWith(EMPRESA_B) ? 1 : 4,
+          },
+          montoPorRevisar: [],
+        }),
+      ),
+    );
+    await montar();
+    await entrarConEmpresa();
+    await screen.findByRole('link', { name: 'Bandeja 9 pendientes' });
+
+    await userEvent.setup().click(interruptor());
+    await screen.findByRole('heading', { level: 1, name: 'Elige empresa' });
+    await userEvent.setup().click(tarjeta(/Abarrotes/));
+    await screen.findByRole('link', { name: 'Bandeja 3 pendientes' });
+    expect(
+      screen.queryByRole('link', { name: 'Bandeja 9 pendientes' }),
+    ).toBeNull();
+  });
+
   it('un 401 durante el cambio termina la sesión con el aviso de expiración', async () => {
     servidorPorEmpresa();
     const { router } = await montar();
@@ -382,6 +409,9 @@ describe('ShellLayout con la sesión real: cierre de sesión', () => {
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/bandeja'),
     );
+    // El contador de la barra lateral pide el resumen al entrar: se espera a
+    // que termine para que la comparación solo vea lo posterior al cierre.
+    await screen.findByRole('link', { name: 'Bandeja 39 pendientes' });
     const antes = solicitudes.length;
 
     await userEvent
