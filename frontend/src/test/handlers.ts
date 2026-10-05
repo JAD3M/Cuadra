@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw';
+import { crearHandlersBandeja } from '@/test/handlersBandeja';
 import {
   CONTEXTO_SESION,
   EMPRESAS_DISPONIBLES,
@@ -7,7 +8,7 @@ import {
 } from '@/test/fixtures';
 
 // Manejadores por defecto: los caminos felices de CU-19 con los payloads de
-// `fixtures.ts`. Las pruebas que necesitan otra respuesta usan
+// `fixtures.ts`, y los de la bandeja (CU-22) con `fixturesBandeja.ts`. Las pruebas que necesitan otra respuesta usan
 // `servidor.use(...)`. Los caminos llevan el prefijo `/api` porque el
 // cliente lo antepone (en desarrollo el proxy de Vite lo retira).
 export const handlers = [
@@ -15,4 +16,5 @@ export const handlers = [
   http.get('/api/auth/empresas', () => HttpResponse.json(EMPRESAS_DISPONIBLES)),
   http.post('/api/auth/empresa/:id', () => HttpResponse.json(RESPUESTA_TOKEN)),
   http.get('/api/auth/contexto', () => HttpResponse.json(CONTEXTO_SESION)),
+  ...crearHandlersBandeja().handlers,
 ];
