@@ -103,7 +103,7 @@ describe('tabla de rutas', () => {
 
   it.each([
     ['/login', 'Inicia sesión'],
-    ['/empresa', 'Elegir empresa'],
+    ['/empresa', 'Elige empresa'],
   ])('%s se muestra fuera del shell con su propio main', (ruta, nombre) => {
     renderizar(
       ruta,
@@ -221,7 +221,7 @@ describe('guardas en el árbol de rutas', () => {
     const router = renderizar('/bandeja', rutas, ESTADOS.selectingLogin);
     expect(router.state.location.pathname).toBe('/empresa');
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Elegir empresa' }),
+      screen.getByRole('heading', { level: 1, name: 'Elige empresa' }),
     ).toBeInTheDocument();
   });
 
