@@ -46,6 +46,7 @@ export function MuestraShell() {
         usuario={SESION_DE_EJEMPLO.usuario}
         roles={SESION_DE_EJEMPLO.roles}
         controlTema={<ControlTema />}
+        onCerrarSesion={() => {}}
       />
       <div
         className={estilos.contenido}

@@ -13,6 +13,12 @@ describe('contrato CSS de la barra lateral', () => {
     );
   });
 
+  it('«Cerrar sesión» mide al menos --touch-min y usa el color de enlace', () => {
+    const cerrar = bloqueCss(usuario, '.cerrar');
+    expect(cerrar).toMatch(/min-block-size:\s*var\(--touch-min\)/);
+    expect(cerrar).toMatch(/color:\s*var\(--color-link\)/);
+  });
+
   it('el enlace tiene foco visible propio', () => {
     expect(bloqueCss(nav, '.item:focus-visible')).toMatch(
       /outline:\s*2px solid/,

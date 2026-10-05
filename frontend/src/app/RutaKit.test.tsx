@@ -158,6 +158,9 @@ describe('RutaKit (galería de componentes)', () => {
       within(seccion).getByText('Administrador, Revisor'),
     ).toBeInTheDocument();
     expect(
+      within(seccion).getByRole('button', { name: 'Cerrar sesión' }),
+    ).toBeInTheDocument();
+    expect(
       within(seccion).getByRole('button', { name: /Cambiar de empresa/ }),
     ).toBeInTheDocument();
     expect(

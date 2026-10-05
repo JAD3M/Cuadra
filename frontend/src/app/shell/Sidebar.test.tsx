@@ -1,12 +1,17 @@
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ETIQUETAS_ROL, type Rol } from '@/shared/dominio';
 import { Sidebar } from './Sidebar';
 
 function dibujar(
   ruta: string,
-  opciones: { pendientes?: number; roles?: Rol[] } = {},
+  opciones: {
+    pendientes?: number;
+    roles?: Rol[];
+    onCerrarSesion?: () => void;
+  } = {},
 ) {
   return render(
     <MemoryRouter initialEntries={[ruta]}>
@@ -16,6 +21,7 @@ function dibujar(
         usuario={{ nombre: 'Luis Reyes' }}
         roles={opciones.roles ?? ['contador']}
         controlTema={<div data-testid="control-tema">tema</div>}
+        onCerrarSesion={opciones.onCerrarSesion}
       />
     </MemoryRouter>,
   );
@@ -111,5 +117,23 @@ describe('Sidebar', () => {
   it('muestra el usuario con la etiqueta del rol', () => {
     dibujar('/bandeja', { roles: ['contador'] });
     expect(screen.getByText(ETIQUETAS_ROL.contador)).toBeInTheDocument();
+  });
+
+  it('sin onCerrarSesion no dibuja el botón', () => {
+    dibujar('/bandeja');
+    expect(screen.queryByRole('button', { name: 'Cerrar sesión' })).toBeNull();
+  });
+
+  it('reenvía «Cerrar sesión» desde el bloque de usuario, después del tema', async () => {
+    const onCerrarSesion = vi.fn();
+    dibujar('/bandeja', { onCerrarSesion });
+    const barra = screen.getByRole('complementary', { name: 'Barra lateral' });
+    const boton = within(barra).getByRole('button', { name: 'Cerrar sesión' });
+    expect(
+      screen.getByTestId('control-tema').compareDocumentPosition(boton) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    await userEvent.click(boton);
+    expect(onCerrarSesion).toHaveBeenCalledOnce();
   });
 });

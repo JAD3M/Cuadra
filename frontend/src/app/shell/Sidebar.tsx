@@ -14,6 +14,8 @@ export interface SidebarProps {
   roles: readonly Rol[];
   /** Control de tema; se dibuja justo encima del bloque de usuario. */
   controlTema: ReactNode;
+  /** Cierra la sesión desde el bloque de usuario; ausente = sin botón. */
+  onCerrarSesion?: () => void;
 }
 
 /** Barra lateral: marca, navegación principal, control de tema y usuario. */
@@ -23,6 +25,7 @@ export function Sidebar({
   usuario,
   roles,
   controlTema,
+  onCerrarSesion,
 }: SidebarProps) {
   const activo = elementoActivo(rutaActual);
   return (
@@ -55,7 +58,11 @@ export function Sidebar({
       </nav>
       <div className={estilos.pie}>
         {controlTema}
-        <UserBlock nombre={usuario.nombre} roles={roles} />
+        <UserBlock
+          nombre={usuario.nombre}
+          roles={roles}
+          onCerrarSesion={onCerrarSesion}
+        />
       </div>
     </aside>
   );
