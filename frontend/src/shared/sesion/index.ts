@@ -13,3 +13,10 @@ export type {
 } from './tipos';
 export { useSessionContext } from './useSessionContext';
 export { useSessionActions } from './useSessionActions';
+export {
+  destinoSeguro,
+  destinoTrasAcceso,
+  estadoAcceso,
+  type DestinoGuardado,
+  type EstadoAcceso,
+} from './destino';
