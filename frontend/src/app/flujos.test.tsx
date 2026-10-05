@@ -1,6 +1,14 @@
-import { act, screen, waitFor } from '@testing-library/react';
+import { configure, act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { AVISOS } from '@/features/auth/components/textos';
 import {
   contextoFalla,
@@ -15,6 +23,11 @@ import {
   montarApp,
 } from '@/test/montarApp';
 import { servidor } from '@/test/servidor';
+
+// Montar la app completa y teclear en el formulario tarda más que una pantalla
+// suelta; con la suite en paralelo el límite por omisión (1 s) es justo.
+beforeAll(() => configure({ asyncUtilTimeout: 5000 }));
+afterAll(() => configure({ asyncUtilTimeout: 1000 }));
 
 let espia: ReturnType<typeof espiarSolicitudes> | null = null;
 

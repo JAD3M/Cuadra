@@ -1,8 +1,23 @@
 import { QueryClientProvider, type QueryClient } from '@tanstack/react-query';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import {
+  configure,
+  act,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 import { rutas } from '@/app/router';
 import { crearQueryClient, reintentarConsulta } from '@/shared/api';
 import { SessionProvider } from '@/shared/sesion';
@@ -27,6 +42,11 @@ const SECRETOS = [
   'Bearer',
 ];
 const METODOS = ['log', 'info', 'warn', 'error', 'debug'] as const;
+
+// Montar la app completa y teclear en el formulario tarda más que una pantalla
+// suelta; con la suite en paralelo el límite por omisión (1 s) es justo.
+beforeAll(() => configure({ asyncUtilTimeout: 5000 }));
+afterAll(() => configure({ asyncUtilTimeout: 1000 }));
 
 let consultas: QueryClient;
 let router: ReturnType<typeof createMemoryRouter>;
