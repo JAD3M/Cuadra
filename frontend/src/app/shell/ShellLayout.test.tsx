@@ -38,7 +38,7 @@ function accionesFalsas() {
 function renderizar(
   estado: SessionState,
   ruta = '/cargas',
-  acciones?: AccionesSesion,
+  acciones: AccionesSesion = accionesFalsas(),
 ) {
   const router = createMemoryRouter(
     [
@@ -391,14 +391,6 @@ describe('ShellLayout: cambio de empresa y cierre de sesión', () => {
     expect(
       screen.getByRole('group', { name: 'Empresa activa' }),
     ).toBeInTheDocument();
-  });
-
-  it('con el proveedor de solo lectura no hay cambio ni cierre de sesión', () => {
-    renderizar(VARIAS);
-    expect(
-      screen.queryByRole('button', { name: /Cambiar de empresa/ }),
-    ).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Cerrar sesión' })).toBeNull();
   });
 
   it('cambiar pide la lista y, al llegar, navega a /empresa con la pantalla actual como retorno', async () => {

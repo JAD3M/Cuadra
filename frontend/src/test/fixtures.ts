@@ -1,3 +1,6 @@
+import { contextoSesion } from '@/shared/api/contratos';
+import type { SessionState } from '@/shared/sesion';
+
 // Cargas útiles de ejemplo con la forma exacta que responde la API (CU-19).
 // Las comparten las pruebas de contratos, de cliente y de pantallas.
 
@@ -35,4 +38,12 @@ export const CONTEXTO_SESION = {
   usuario: USUARIO,
   empresa: EMPRESA_CONTEXTO,
   roles: ['admin', 'contador'],
+};
+
+/** Estado público `ready` ya resuelto, para pruebas que no ejercen la sesión. */
+export const SESION_LISTA: SessionState = {
+  status: 'ready',
+  contexto: contextoSesion.parse(CONTEXTO_SESION),
+  puedeCambiarEmpresa: false,
+  restaurarOrigen: false,
 };

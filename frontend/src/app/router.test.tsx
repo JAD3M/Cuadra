@@ -9,11 +9,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { crearQueryClient } from '@/shared/api';
 import { ThemeProvider } from '@/shared/tema';
 import {
-  PlaceholderSessionProvider,
   SessionStateProvider,
   type AccionesSesion,
   type SessionState,
 } from '@/shared/sesion';
+import { SESION_LISTA } from '@/test/fixtures';
 import { ESTADOS, terminada } from '@/test/montarRutas';
 import { rutas } from './router';
 
@@ -35,29 +35,25 @@ function Entorno({
   estado,
 }: {
   router: ReturnType<typeof createMemoryRouter>;
-  estado?: SessionState;
+  estado: SessionState;
 }) {
   const contenido = <RouterProvider router={router} />;
   return (
     <QueryClientProvider client={crearQueryClient()}>
       <ThemeProvider>
-        {estado ? (
-          <SessionStateProvider estado={estado} acciones={ACCIONES}>
-            {contenido}
-          </SessionStateProvider>
-        ) : (
-          <PlaceholderSessionProvider>{contenido}</PlaceholderSessionProvider>
-        )}
+        <SessionStateProvider estado={estado} acciones={ACCIONES}>
+          {contenido}
+        </SessionStateProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
 }
 
-/** Sin `estado` usa el proveedor provisional, que siempre está `ready`. */
+/** Sin `estado` la sesión está lista (`SESION_LISTA`). */
 function renderizar(
   ruta: string,
   tabla: RouteObject[] = rutas,
-  estado?: SessionState,
+  estado: SessionState = SESION_LISTA,
 ) {
   const router = createMemoryRouter(tabla, { initialEntries: [ruta] });
   render(<Entorno router={router} estado={estado} />);
@@ -155,6 +151,7 @@ describe('tabla de rutas', () => {
       const { unmount } = render(
         <Entorno
           router={createMemoryRouter(rutas, { initialEntries: [ruta] })}
+          estado={SESION_LISTA}
         />,
       );
       expect(screen.getAllByRole('main')).toHaveLength(1);

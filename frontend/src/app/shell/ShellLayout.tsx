@@ -4,7 +4,6 @@ import { ApiError, mensajeDeError, type MensajeError } from '@/shared/api';
 import {
   destinoSeguro,
   useSessionActions,
-  useSessionActionsOpcional,
   useSessionContext,
 } from '@/shared/sesion';
 import { ControlTema } from '@/shared/tema';
@@ -15,21 +14,6 @@ import { PENDIENTES_PLACEHOLDER } from './pendientesPlaceholder';
 import { SesionNoDisponible } from './SesionNoDisponible';
 import { Sidebar } from './Sidebar';
 import estilos from './ShellLayout.module.css';
-
-/**
- * Contenedor del aviso `unavailable`. Pide las acciones aquí y no en
- * `ShellLayout` para que la sesión provisional (sin acciones, siempre
- * `ready`) siga funcionando.
- */
-function NoDisponible() {
-  const { reintentarContexto, cerrarSesion } = useSessionActions();
-  return (
-    <SesionNoDisponible
-      onReintentar={reintentarContexto}
-      onCerrarSesion={cerrarSesion}
-    />
-  );
-}
 
 /**
  * Layout de las rutas internas (contenedor). Es el único consumidor de la
@@ -52,7 +36,7 @@ function NoDisponible() {
  */
 export function ShellLayout() {
   const sesion = useSessionContext();
-  const acciones = useSessionActionsOpcional();
+  const acciones = useSessionActions();
   const navegar = useNavigate();
   const { pathname, search, hash } = useLocation();
   const coincidencias = useMatches();
@@ -75,7 +59,12 @@ export function ShellLayout() {
         </main>
       );
     case 'unavailable':
-      return <NoDisponible />;
+      return (
+        <SesionNoDisponible
+          onReintentar={acciones.reintentarContexto}
+          onCerrarSesion={acciones.cerrarSesion}
+        />
+      );
     case 'anonymous':
     case 'selecting':
     case 'ended':
@@ -88,7 +77,7 @@ export function ShellLayout() {
   const titulo = tituloDeRuta(coincidencias.at(-1)?.handle) ?? 'Cuadra';
 
   async function cambiarEmpresa() {
-    if (acciones === null || cambiando) return;
+    if (cambiando) return;
     setCambiando(true);
     setFallo(null);
     try {
@@ -147,7 +136,7 @@ export function ShellLayout() {
             usuario={usuario}
             roles={roles}
             controlTema={<ControlTema />}
-            onCerrarSesion={acciones?.cerrarSesion}
+            onCerrarSesion={acciones.cerrarSesion}
           />
         </div>
         <div className={estilos.columna}>
@@ -155,9 +144,7 @@ export function ShellLayout() {
             titulo={titulo}
             empresa={empresa}
             onCambiarEmpresa={
-              sesion.puedeCambiarEmpresa && acciones !== null
-                ? cambiarEmpresa
-                : undefined
+              sesion.puedeCambiarEmpresa ? cambiarEmpresa : undefined
             }
             cambioPendiente={cambiando}
             barraMovil={

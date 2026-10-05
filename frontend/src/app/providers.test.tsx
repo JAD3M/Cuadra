@@ -47,13 +47,13 @@ describe('Providers', () => {
     expect(document.documentElement.dataset.theme).toBe('light');
   });
 
-  it('monta la sesión provisional en ready', () => {
+  it('monta la sesión real: arranca anónima (recargar pide iniciar sesión)', () => {
     render(
       <Providers>
         <Sonda />
       </Providers>,
     );
-    expect(screen.getByTestId('sesion')).toHaveTextContent('ready');
+    expect(screen.getByTestId('sesion')).toHaveTextContent('anonymous');
   });
 
   it('conserva el mismo cliente de consultas entre renders', () => {

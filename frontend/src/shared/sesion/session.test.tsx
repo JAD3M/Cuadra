@@ -1,15 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { contextoSesion } from '@/shared/api/contratos';
-import { ROLES } from '@/shared/dominio';
-import { CONTEXTO_SESION } from '@/test/fixtures';
-import { ESTADO_SESION_PLACEHOLDER } from './contextoPlaceholder';
+import { CONTEXTO_SESION, SESION_LISTA } from '@/test/fixtures';
 import {
-  PlaceholderSessionProvider,
   SessionStateProvider,
-  useSessionActionsOpcional,
   useSessionContext,
-  type AccionesSesion,
   type SessionState,
 } from './index';
 
@@ -63,68 +58,10 @@ describe('useSessionContext', () => {
 
   it('publica el contexto cuando el estado es ready', () => {
     render(
-      <SessionStateProvider estado={ESTADO_SESION_PLACEHOLDER}>
+      <SessionStateProvider estado={SESION_LISTA}>
         <Lector />
       </SessionStateProvider>,
     );
     expect(screen.getByTestId('estado')).toHaveTextContent('ready:Jorge Tapia');
-  });
-});
-
-describe('PlaceholderSessionProvider', () => {
-  it('entrega siempre un estado ready', () => {
-    render(
-      <PlaceholderSessionProvider>
-        <Lector />
-      </PlaceholderSessionProvider>,
-    );
-    expect(screen.getByTestId('estado')).toHaveTextContent('ready:Jorge Tapia');
-  });
-
-  it('sus datos cumplen el contrato de contextoSesion de la API', () => {
-    if (ESTADO_SESION_PLACEHOLDER.status !== 'ready') {
-      throw new Error('el placeholder debe estar en ready');
-    }
-    expect(
-      contextoSesion.safeParse(ESTADO_SESION_PLACEHOLDER.contexto).success,
-    ).toBe(true);
-  });
-
-  it('sus roles pertenecen al espejo del dominio', () => {
-    if (ESTADO_SESION_PLACEHOLDER.status !== 'ready') {
-      throw new Error('el placeholder debe estar en ready');
-    }
-    for (const rol of ESTADO_SESION_PLACEHOLDER.contexto.roles) {
-      expect(ROLES).toContain(rol);
-    }
-  });
-});
-
-describe('useSessionActionsOpcional', () => {
-  function Sonda() {
-    const acciones = useSessionActionsOpcional();
-    return <p data-testid="acciones">{acciones ? 'con' : 'sin'}</p>;
-  }
-
-  it('devuelve null con un proveedor de solo lectura, sin lanzar', () => {
-    render(
-      <PlaceholderSessionProvider>
-        <Sonda />
-      </PlaceholderSessionProvider>,
-    );
-    expect(screen.getByTestId('acciones')).toHaveTextContent('sin');
-  });
-
-  it('devuelve las acciones cuando el proveedor las trae', () => {
-    const acciones = {} as AccionesSesion;
-    render(
-      <SessionStateProvider
-        estado={{ status: 'anonymous' }}
-        acciones={acciones}
-      >
-        <Sonda />
-      </SessionStateProvider>,
-    );
-    expect(screen.getByTestId('acciones')).toHaveTextContent('con');
   });
 });

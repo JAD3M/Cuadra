@@ -6,19 +6,21 @@ import { rutas } from './app/router';
 
 function montar(ruta: string) {
   const router = createMemoryRouter(rutas, { initialEntries: [ruta] });
-  return render(<App router={router} />);
+  render(<App router={router} />);
+  return router;
 }
 
 describe('App', () => {
-  it('monta en /bandeja sin errores', () => {
+  it('monta en /bandeja sin errores: sin sesión muestra el acceso', async () => {
     const errores: unknown[] = [];
     const original = console.error;
     console.error = (...args: unknown[]) => errores.push(args);
     try {
-      montar('/bandeja');
+      const router = montar('/bandeja');
       expect(
-        screen.getByRole('heading', { level: 2, name: 'Bandeja' }),
+        await screen.findByRole('heading', { level: 1, name: 'Inicia sesión' }),
       ).toBeInTheDocument();
+      expect(router.state.location.pathname).toBe('/login');
       expect(screen.getByRole('main')).toBeInTheDocument();
       expect(errores).toEqual([]);
     } finally {
@@ -26,20 +28,22 @@ describe('App', () => {
     }
   });
 
-  it('smoke: App renders (raíz redirige a /bandeja)', () => {
-    montar('/');
+  it('smoke: App renders (la raíz sin sesión termina en /login)', async () => {
+    const router = montar('/');
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Bandeja' }),
+      await screen.findByRole('heading', { level: 1, name: 'Inicia sesión' }),
     ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/login');
   });
 
-  it('con la sesión provisional (siempre lista) /login lleva a /bandeja', () => {
-    const router = createMemoryRouter(rutas, { initialEntries: ['/login'] });
-    render(<App router={router} />);
-    expect(router.state.location.pathname).toBe('/bandeja');
-    expect(
-      screen.getByRole('heading', { level: 1, name: 'Bandeja' }),
-    ).toBeInTheDocument();
+  it('el destino pedido viaja en el estado del enrutador, no en la URL', async () => {
+    const router = montar('/casos/9?x=1');
+    await screen.findByRole('heading', { level: 1, name: 'Inicia sesión' });
+    expect(router.state.location.pathname).toBe('/login');
+    expect(router.state.location.search).toBe('');
+    expect(router.state.location.state).toMatchObject({
+      from: { pathname: '/casos/9', search: '?x=1' },
+    });
   });
 
   it('aplica el tema por defecto del proveedor al montar', () => {
