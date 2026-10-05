@@ -70,6 +70,8 @@
   - Elegir la empresa que ya está activa durante un cambio equivale a
     regresar sin cambiar.
   - Abandonar el cambio regresa a la pantalla exacta, no a `/bandeja`.
+  - Atrás durante un cambio de empresa regresa al paso de empresa y el shell
+    ya no se dibuja vacío durante el cambio.
 - **Pendiente de CU-21:**
   - La lista de comprobación manual en navegador no la ha corrido ninguna
     persona: ambos temas a 1440, 900 y 375 px, control de tema en pantallas
@@ -78,8 +80,6 @@
     desarrollo (barra de direcciones, almacenamiento y consola limpios),
     recarga, botón Atrás tras cerrar sesión y gestor de contraseñas.
   - Siguen pendientes también las comprobaciones en navegador de CU-20.
-  - Un posible cuadro en blanco de un fotograma entre iniciar un cambio y
-    llegar a `/empresa` no está corregido.
   - Playwright y el servicio `web` de docker siguen diferidos.
   - Cerrar sesión no revoca el token en el servidor: sigue válido hasta
     15 minutos y no hay sincronía entre pestañas.
