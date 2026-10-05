@@ -1,20 +1,38 @@
 import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { Outlet, useLocation, useMatches } from 'react-router';
-import { useSessionContext } from '@/shared/sesion';
+import { useSessionActions, useSessionContext } from '@/shared/sesion';
 import { ControlTema } from '@/shared/tema';
 import { tituloDeRuta } from '@/app/manejadorRuta';
 import { Header } from './Header';
 import { PENDIENTES_PLACEHOLDER } from './pendientesPlaceholder';
+import { SesionNoDisponible } from './SesionNoDisponible';
 import { Sidebar } from './Sidebar';
 import estilos from './ShellLayout.module.css';
+
+/**
+ * Contenedor del aviso `unavailable`. Pide las acciones aquí y no en
+ * `ShellLayout` para que la sesión provisional (sin acciones, siempre
+ * `ready`) siga funcionando.
+ */
+function NoDisponible() {
+  const { reintentarContexto, cerrarSesion } = useSessionActions();
+  return (
+    <SesionNoDisponible
+      onReintentar={reintentarContexto}
+      onCerrarSesion={cerrarSesion}
+    />
+  );
+}
 
 /**
  * Layout de las rutas internas (contenedor). Es el único consumidor de la
  * sesión: la convierte en props para las piezas de presentación.
  *
  * - `ready`: enlace de salto, barra lateral, encabezado y contenido.
- * - cualquier otro estado: estado neutro de carga, sin datos de identidad.
- *   Es provisional: CU-21 dará su propia pantalla a cada estado (guardas).
+ * - `loading`: estado neutro de carga, sin datos de identidad.
+ * - `unavailable`: aviso de conexión con «Reintentar» y «Cerrar sesión».
+ * - `anonymous`, `selecting`, `ended`: nada; la guarda `RutaProtegida` decide
+ *   a dónde va el usuario.
  *
  * Por debajo de 900 px la barra lateral pasa a ser un panel que se abre con
  * el botón «Menú» (divulgación: `aria-expanded` y `aria-controls`). Se cierra
@@ -33,12 +51,23 @@ export function ShellLayout() {
   const [abiertoEn, setAbiertoEn] = useState<string | null>(null);
   const menuAbierto = abiertoEn === pathname;
 
-  if (sesion.status !== 'ready') {
-    return (
-      <main id="contenido" aria-busy="true" className={estilos.estado}>
-        <p>Cargando la sesión…</p>
-      </main>
-    );
+  switch (sesion.status) {
+    case 'ready':
+      break;
+    case 'loading':
+      return (
+        <main id="contenido" aria-busy="true" className={estilos.estado}>
+          <p>Cargando la sesión…</p>
+        </main>
+      );
+    case 'unavailable':
+      return <NoDisponible />;
+    case 'anonymous':
+    case 'selecting':
+    case 'ended':
+      // `RutaProtegida` ya redirigió (o, en un cambio de empresa, la pantalla
+      // de elección ocupa su lugar): aquí no hay nada que mostrar.
+      return null;
   }
 
   const { usuario, empresa, roles } = sesion.contexto;

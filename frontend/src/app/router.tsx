@@ -10,6 +10,7 @@ import { TolerPage } from '@/features/tolerancia/TolerPage';
 import { ShellLayout } from './shell/ShellLayout';
 import type { ManejadorRuta } from './manejadorRuta';
 import { RutaRaiz } from './RutaRaiz';
+import { RutaAnonima, RutaProtegida, RutaSeleccion } from './rutas';
 
 function titulo(titulo: string): ManejadorRuta {
   return { titulo };
@@ -33,8 +34,10 @@ const rutasDeDesarrollo: RouteObject[] = import.meta.env.DEV
   : [];
 
 /**
- * Tabla de rutas. `/login` y `/empresa` van fuera del shell; el resto vive
- * bajo `ShellLayout`, un layout sin ruta propia.
+ * Tabla de rutas. Tres guardas, todas layouts sin ruta propia, deciden por la
+ * sesión: `RutaAnonima` (`/login`), `RutaSeleccion` (`/empresa`) y
+ * `RutaProtegida`, que envuelve a `ShellLayout` y a las cinco pantallas.
+ * La galería de desarrollo y la vista de no encontrada no tienen guarda.
  */
 export const rutas: RouteObject[] = [
   {
@@ -42,42 +45,57 @@ export const rutas: RouteObject[] = [
     children: [
       { path: '/', element: <Navigate to="/bandeja" replace /> },
       {
-        path: '/login',
-        element: <LoginPage />,
-        handle: titulo('Iniciar sesión'),
-      },
-      {
-        path: '/empresa',
-        element: <EmpresaPage />,
-        handle: titulo('Elegir empresa'),
-      },
-      {
-        element: <ShellLayout />,
+        element: <RutaAnonima />,
         children: [
           {
-            path: '/bandeja',
-            element: <BandejaPage />,
-            handle: titulo('Bandeja'),
+            path: '/login',
+            element: <LoginPage />,
+            handle: titulo('Iniciar sesión'),
           },
+        ],
+      },
+      {
+        element: <RutaSeleccion />,
+        children: [
           {
-            path: '/casos/:id',
-            element: <CasoPage />,
-            handle: titulo('Detalle del caso'),
+            path: '/empresa',
+            element: <EmpresaPage />,
+            handle: titulo('Elegir empresa'),
           },
+        ],
+      },
+      {
+        element: <RutaProtegida />,
+        children: [
           {
-            path: '/cargas',
-            element: <CargasPage />,
-            handle: titulo('Cargas'),
-          },
-          {
-            path: '/tolerancia',
-            element: <TolerPage />,
-            handle: titulo('Tolerancia'),
-          },
-          {
-            path: '/bitacora',
-            element: <BitacoraPage />,
-            handle: titulo('Bitácora'),
+            element: <ShellLayout />,
+            children: [
+              {
+                path: '/bandeja',
+                element: <BandejaPage />,
+                handle: titulo('Bandeja'),
+              },
+              {
+                path: '/casos/:id',
+                element: <CasoPage />,
+                handle: titulo('Detalle del caso'),
+              },
+              {
+                path: '/cargas',
+                element: <CargasPage />,
+                handle: titulo('Cargas'),
+              },
+              {
+                path: '/tolerancia',
+                element: <TolerPage />,
+                handle: titulo('Tolerancia'),
+              },
+              {
+                path: '/bitacora',
+                element: <BitacoraPage />,
+                handle: titulo('Bitácora'),
+              },
+            ],
           },
         ],
       },

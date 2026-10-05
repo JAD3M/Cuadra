@@ -6,26 +6,41 @@ import {
 } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '@/shared/tema';
-import { PlaceholderSessionProvider } from '@/shared/sesion';
+import {
+  PlaceholderSessionProvider,
+  SessionStateProvider,
+  type SessionState,
+} from '@/shared/sesion';
+import { ESTADOS, terminada } from '@/test/montarRutas';
 import { rutas } from './router';
 
 function Entorno({
   router,
+  estado,
 }: {
   router: ReturnType<typeof createMemoryRouter>;
+  estado?: SessionState;
 }) {
+  const contenido = <RouterProvider router={router} />;
   return (
     <ThemeProvider>
-      <PlaceholderSessionProvider>
-        <RouterProvider router={router} />
-      </PlaceholderSessionProvider>
+      {estado ? (
+        <SessionStateProvider estado={estado}>{contenido}</SessionStateProvider>
+      ) : (
+        <PlaceholderSessionProvider>{contenido}</PlaceholderSessionProvider>
+      )}
     </ThemeProvider>
   );
 }
 
-function renderizar(ruta: string, tabla: RouteObject[] = rutas) {
+/** Sin `estado` usa el proveedor provisional, que siempre está `ready`. */
+function renderizar(
+  ruta: string,
+  tabla: RouteObject[] = rutas,
+  estado?: SessionState,
+) {
   const router = createMemoryRouter(tabla, { initialEntries: [ruta] });
-  render(<Entorno router={router} />);
+  render(<Entorno router={router} estado={estado} />);
   return router;
 }
 
@@ -70,7 +85,11 @@ describe('tabla de rutas', () => {
     ['/login', 'Iniciar sesión'],
     ['/empresa', 'Elegir empresa'],
   ])('%s se muestra fuera del shell con su propio main', (ruta, nombre) => {
-    renderizar(ruta);
+    renderizar(
+      ruta,
+      rutas,
+      ruta === '/login' ? ESTADOS.anonymous : ESTADOS.selectingLogin,
+    );
     expect(
       screen.getByRole('heading', { level: 1, name: nombre }),
     ).toBeInTheDocument();
@@ -112,7 +131,7 @@ describe('tabla de rutas', () => {
   });
 
   it('cada ruta aporta un solo main', () => {
-    for (const ruta of ['/login', '/bandeja', '/casos/1', '/nada']) {
+    for (const ruta of ['/bandeja', '/casos/1', '/nada']) {
       const { unmount } = render(
         <Entorno
           router={createMemoryRouter(rutas, { initialEntries: [ruta] })}
@@ -121,6 +140,98 @@ describe('tabla de rutas', () => {
       expect(screen.getAllByRole('main')).toHaveLength(1);
       unmount();
     }
+  });
+});
+
+describe('guardas en el árbol de rutas', () => {
+  const hijos = rutas[0]?.children ?? [];
+
+  it('envuelve /login, /empresa y el shell, y deja libres la galería y no encontrada', () => {
+    const guardada = (ruta: string) =>
+      hijos.some((h) => h.children?.some((c) => c.path === ruta));
+    expect(guardada('/login')).toBe(true);
+    expect(guardada('/empresa')).toBe(true);
+    expect(hijos.some((h) => h.path === '*')).toBe(true);
+    expect(hijos.some((h) => h.path === '/__kit')).toBe(true);
+    const protegida = hijos.find((h) =>
+      h.children?.some((c) => c.children?.some((n) => n.path === '/bandeja')),
+    );
+    expect(protegida?.children?.[0]?.children?.map((n) => n.path)).toEqual([
+      '/bandeja',
+      '/casos/:id',
+      '/cargas',
+      '/tolerancia',
+      '/bitacora',
+    ]);
+  });
+
+  it('sin sesión, una pantalla interna lleva a /login y la dirección es solo /login', () => {
+    const router = renderizar('/casos/9?x=1#y', rutas, ESTADOS.anonymous);
+    expect(router.state.location.pathname).toBe('/login');
+    expect(router.state.location.search).toBe('');
+    expect(router.state.location.hash).toBe('');
+    expect(router.state.location.state).toEqual({
+      from: { pathname: '/casos/9', search: '?x=1', hash: '#y' },
+    });
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Iniciar sesión' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).toBeNull();
+  });
+
+  it('tras expirar, /login recuerda el destino; tras cerrar sesión, no', () => {
+    const expirada = renderizar('/cargas', rutas, terminada('sesion_expirada'));
+    expect(expirada.state.location.state).toEqual({
+      from: { pathname: '/cargas' },
+    });
+    const cerrada = renderizar(
+      '/cargas',
+      rutas,
+      terminada('cierre_voluntario'),
+    );
+    expect(cerrada.state.location.state).toBeNull();
+  });
+
+  it('con sesión, /login y /empresa llevan a /bandeja', () => {
+    expect(renderizar('/login').state.location.pathname).toBe('/bandeja');
+    expect(renderizar('/empresa').state.location.pathname).toBe('/bandeja');
+  });
+
+  it('eligiendo empresa, el shell lleva a /empresa', () => {
+    const router = renderizar('/bandeja', rutas, ESTADOS.selectingLogin);
+    expect(router.state.location.pathname).toBe('/empresa');
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Elegir empresa' }),
+    ).toBeInTheDocument();
+  });
+
+  it.each<[string, SessionState]>([
+    ['anonymous', ESTADOS.anonymous],
+    ['selecting', ESTADOS.selectingLogin],
+    ['loading', ESTADOS.loading],
+    ['unavailable', ESTADOS.unavailable],
+    ['ready', ESTADOS.ready],
+    ['ended', terminada('sesion_expirada')],
+  ])(
+    '%s: una ruta desconocida es no encontrada y no redirige',
+    (_n, estado) => {
+      const router = renderizar('/nada', rutas, estado);
+      expect(router.state.location.pathname).toBe('/nada');
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Página no encontrada' }),
+      ).toBeInTheDocument();
+    },
+  );
+
+  it('la galería no pasa por ninguna guarda', async () => {
+    const router = renderizar('/__kit', rutas, ESTADOS.anonymous);
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Galería de componentes',
+      }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/__kit');
   });
 });
 

@@ -33,8 +33,17 @@ describe('App', () => {
     ).toBeInTheDocument();
   });
 
+  it('con la sesión provisional (siempre lista) /login lleva a /bandeja', () => {
+    const router = createMemoryRouter(rutas, { initialEntries: ['/login'] });
+    render(<App router={router} />);
+    expect(router.state.location.pathname).toBe('/bandeja');
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Bandeja' }),
+    ).toBeInTheDocument();
+  });
+
   it('aplica el tema por defecto del proveedor al montar', () => {
-    montar('/login');
+    montar('/bandeja');
     expect(document.documentElement.dataset.theme).toMatch(/^(light|dark)$/);
   });
 

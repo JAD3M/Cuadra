@@ -1,0 +1,29 @@
+.estado {
+  display: grid;
+  min-block-size: 100vh;
+  place-items: center;
+  padding: var(--space-24);
+  background: var(--color-ground);
+  color: var(--color-text);
+}
+
+.aviso {
+  display: grid;
+  gap: var(--space-16);
+  max-inline-size: 28rem;
+  padding: var(--space-24);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-danger-tint);
+}
+
+.texto {
+  margin: 0;
+  color: var(--color-danger-text);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}

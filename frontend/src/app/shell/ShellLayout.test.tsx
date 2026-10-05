@@ -1,8 +1,12 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
-import { describe, expect, it } from 'vitest';
-import { SessionStateProvider, type SessionState } from '@/shared/sesion';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  SessionStateProvider,
+  type AccionesSesion,
+  type SessionState,
+} from '@/shared/sesion';
 import { contextoSesion } from '@/shared/api/contratos';
 import { CONTEXTO_SESION as PAYLOAD } from '@/test/fixtures';
 import { ThemeProvider } from '@/shared/tema';
@@ -16,7 +20,25 @@ const LISTO: SessionState = {
   restaurarOrigen: false,
 };
 
-function renderizar(estado: SessionState, ruta = '/cargas') {
+function accionesFalsas() {
+  return {
+    iniciarSesion: vi.fn(),
+    elegirEmpresa: vi.fn(),
+    cambiarEmpresa: vi.fn(),
+    regresarSinCambiar: vi.fn(),
+    refrescarEmpresas: vi.fn(),
+    volverAlInicio: vi.fn(),
+    cerrarSesion: vi.fn(),
+    reintentarContexto: vi.fn(),
+    consumirFin: vi.fn(),
+  } satisfies AccionesSesion;
+}
+
+function renderizar(
+  estado: SessionState,
+  ruta = '/cargas',
+  acciones?: AccionesSesion,
+) {
   const router = createMemoryRouter(
     [
       {
@@ -45,7 +67,7 @@ function renderizar(estado: SessionState, ruta = '/cargas') {
   );
   render(
     <ThemeProvider>
-      <SessionStateProvider estado={estado}>
+      <SessionStateProvider estado={estado} acciones={acciones}>
         <RouterProvider router={router} />
       </SessionStateProvider>
     </ThemeProvider>,
@@ -266,36 +288,85 @@ describe('menú responsive (menos de 900 px)', () => {
 });
 
 describe('ShellLayout según el estado de la sesión', () => {
+  it('loading: estado de carga sin identidad ni piezas del shell, sin redirigir', () => {
+    const router = renderizar({ status: 'loading', restaurarOrigen: false });
+    const main = screen.getByRole('main');
+    expect(main).toHaveAttribute('aria-busy', 'true');
+    expect(main).toHaveTextContent('Cargando');
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.queryByRole('banner')).toBeNull();
+    expect(screen.queryByRole('navigation')).toBeNull();
+    expect(screen.queryByText(CONTEXTO_SESION.usuario.nombre)).toBeNull();
+    expect(screen.queryByText(CONTEXTO_SESION.empresa.razonSocial)).toBeNull();
+    expect(screen.queryByText('Contenido de cargas')).toBeNull();
+    expect(router.state.location.pathname).toBe('/cargas');
+  });
+
   it.each<[string, SessionState]>([
-    ['loading', { status: 'loading', restaurarOrigen: false }],
-    ['unavailable', { status: 'unavailable' }],
     ['anonymous', { status: 'anonymous' }],
     [
       'selecting',
       {
         status: 'selecting',
-        origen: 'login',
+        origen: 'cambio',
         usuario: CONTEXTO_SESION.usuario,
         empresas: [],
       },
     ],
     ['ended', { status: 'ended', motivo: 'sesion_expirada' }],
-  ])(
-    '%s: estado de carga sin identidad ni piezas del shell, sin redirigir',
-    (_nombre, estado) => {
-      const router = renderizar(estado);
-      const main = screen.getByRole('main');
-      expect(main).toHaveAttribute('aria-busy', 'true');
-      expect(main).toHaveTextContent('Cargando');
+  ])('%s: no dibuja nada y no redirige (lo hace la guarda)', (_n, estado) => {
+    const router = renderizar(estado);
+    expect(screen.queryByRole('main')).toBeNull();
+    expect(screen.queryByRole('banner')).toBeNull();
+    expect(screen.queryByText('Contenido de cargas')).toBeNull();
+    expect(screen.queryByText(CONTEXTO_SESION.usuario.nombre)).toBeNull();
+    expect(router.state.location.pathname).toBe('/cargas');
+  });
+
+  describe('unavailable', () => {
+    const NO_DISPONIBLE: SessionState = { status: 'unavailable' };
+
+    it('muestra un aviso con el texto de conexión, sin identidad ni shell', () => {
+      renderizar(NO_DISPONIBLE, '/cargas', accionesFalsas());
       expect(screen.getAllByRole('main')).toHaveLength(1);
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'No se pudo conectar con el servidor. Inténtalo de nuevo.',
+      );
       expect(screen.queryByRole('banner')).toBeNull();
       expect(screen.queryByRole('navigation')).toBeNull();
       expect(screen.queryByText(CONTEXTO_SESION.usuario.nombre)).toBeNull();
-      expect(
-        screen.queryByText(CONTEXTO_SESION.empresa.razonSocial),
-      ).toBeNull();
       expect(screen.queryByText('Contenido de cargas')).toBeNull();
-      expect(router.state.location.pathname).toBe('/cargas');
-    },
-  );
+    });
+
+    it('Reintentar pide el contexto otra vez y no cierra la sesión', async () => {
+      const acciones = accionesFalsas();
+      renderizar(NO_DISPONIBLE, '/cargas', acciones);
+      await userEvent
+        .setup()
+        .click(screen.getByRole('button', { name: 'Reintentar' }));
+      expect(acciones.reintentarContexto).toHaveBeenCalledTimes(1);
+      expect(acciones.cerrarSesion).not.toHaveBeenCalled();
+    });
+
+    it('Cerrar sesión cierra la sesión y no reintenta', async () => {
+      const acciones = accionesFalsas();
+      renderizar(NO_DISPONIBLE, '/cargas', acciones);
+      await userEvent
+        .setup()
+        .click(screen.getByRole('button', { name: 'Cerrar sesión' }));
+      expect(acciones.cerrarSesion).toHaveBeenCalledTimes(1);
+      expect(acciones.reintentarContexto).not.toHaveBeenCalled();
+    });
+
+    it('los dos botones se alcanzan con teclado en ese orden', async () => {
+      renderizar(NO_DISPONIBLE, '/cargas', accionesFalsas());
+      const usuario = userEvent.setup();
+      await usuario.tab();
+      expect(screen.getByRole('button', { name: 'Reintentar' })).toHaveFocus();
+      await usuario.tab();
+      expect(
+        screen.getByRole('button', { name: 'Cerrar sesión' }),
+      ).toHaveFocus();
+    });
+  });
 });
