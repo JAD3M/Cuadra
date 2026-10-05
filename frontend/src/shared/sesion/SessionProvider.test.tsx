@@ -127,7 +127,7 @@ describe('SessionProvider', () => {
     expect(cabeceras).toEqual(['Bearer token-de-seleccion']);
     expect(entorno.estado()).toEqual({
       status: 'loading',
-      restaurarOrigen: false,
+      restaurarOrigen: true,
     });
     expect(entorno.almacen.sesion()).toBe('token-de-sesion');
     expect(JSON.stringify(entorno.estado())).not.toContain('token-de-');

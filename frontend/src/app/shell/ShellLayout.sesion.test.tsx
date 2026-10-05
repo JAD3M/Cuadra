@@ -421,10 +421,8 @@ describe('ShellLayout con la sesión real: errores de la API en pantallas intern
     await screen.findByRole('heading', { level: 1, name: 'Elige empresa' });
     await usuario.click(tarjeta(/Ferreteria/));
     await screen.findByTestId('prueba');
-    // Un acceso nuevo no restaura el origen: va a /bandeja.
-    expect(router.state.location.pathname).toBe('/bandeja');
-    await act(() => router.navigate('/casos/9'));
-    await screen.findByTestId('prueba');
+    // Un acceso nuevo (sin sesión previa) vuelve al destino pedido.
+    expect(router.state.location.pathname).toBe('/casos/9');
 
     // La sesión expira en medio de una consulta de la pantalla.
     servidor.use(http.get('/api/prueba', () => fallo(401)));

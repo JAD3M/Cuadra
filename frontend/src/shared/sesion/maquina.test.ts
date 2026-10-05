@@ -73,7 +73,7 @@ describe('reducir: transiciones legales', () => {
       fase: 'sesion',
       empresaId: EMPRESA_A.id,
       usuario: USUARIO,
-      restaurarOrigen: false,
+      restaurarOrigen: true,
       varias: true,
     });
   });
@@ -397,7 +397,14 @@ describe('empresa previa (SA-2) y regreso al origen', () => {
     expect(vencida).toMatchObject({ empresaPrevia: EMPRESA_A.id });
   });
 
-  it('SELECCION_OK la borra y activa restaurarOrigen solo con la misma empresa', () => {
+  it('un acceso nuevo, sin sesión previa que recordar, permite restaurar el destino pedido', () => {
+    expect(aplicar(SELECCION, elegir(EMPRESA_A.id))).toMatchObject({
+      fase: 'sesion',
+      restaurarOrigen: true,
+    });
+  });
+
+  it('SELECCION_OK la borra y, tras una expiración, activa restaurarOrigen solo con la misma empresa', () => {
     const misma = aplicar(EXPIRADO, LOGIN_OK, elegir(EMPRESA_A.id));
     expect(misma).toMatchObject({ fase: 'sesion', restaurarOrigen: true });
     expect(misma).not.toHaveProperty('empresaPrevia');
@@ -414,22 +421,23 @@ describe('empresa previa (SA-2) y regreso al origen', () => {
     expect(otra).toMatchObject({ empresaPrevia: EMPRESA_B.id });
   });
 
-  it('VOLVER la borra', () => {
+  it('VOLVER la conserva: otra cuenta no hereda el destino de la sesión expirada', () => {
     const volvio = aplicar(EXPIRADO, LOGIN_OK, { tipo: 'VOLVER' });
-    expect(volvio).toMatchObject({ fase: 'anonymous', empresaPrevia: null });
-    expect(aplicar(volvio, LOGIN_OK, elegir(EMPRESA_A.id))).toMatchObject({
+    expect(volvio).toMatchObject({
+      fase: 'anonymous',
+      empresaPrevia: EMPRESA_A.id,
+    });
+    expect(aplicar(volvio, LOGIN_OK, elegir(EMPRESA_B.id))).toMatchObject({
       restaurarOrigen: false,
+    });
+    expect(aplicar(volvio, LOGIN_OK, elegir(EMPRESA_A.id))).toMatchObject({
+      restaurarOrigen: true,
     });
   });
 
   it('el cierre voluntario no recuerda la empresa', () => {
-    const cierre = aplicar(
-      SESION,
-      { tipo: 'CIERRE' },
-      LOGIN_OK,
-      elegir(EMPRESA_A.id),
-    );
-    expect(cierre).toMatchObject({ restaurarOrigen: false });
+    const cierre = aplicar(SESION, { tipo: 'CIERRE' });
+    expect(cierre).toMatchObject({ empresaPrevia: null });
   });
 
   it('un cambio de empresa nunca activa restaurarOrigen', () => {

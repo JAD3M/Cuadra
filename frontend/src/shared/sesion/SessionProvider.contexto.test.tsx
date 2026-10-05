@@ -54,7 +54,8 @@ describe('contexto de la sesión', () => {
     const estado = entorno.estado();
     if (estado.status !== 'ready') throw new Error('debía estar ready');
     expect(estado.contexto).toEqual(CONTEXTO_SESION);
-    expect(estado.restaurarOrigen).toBe(false);
+    // Un acceso nuevo puede ir al destino pedido (la guarda decide con `from`).
+    expect(estado.restaurarOrigen).toBe(true);
     expect(entorno.historial()).toEqual([
       'anonymous',
       'selecting',
@@ -386,14 +387,16 @@ describe('restaurarOrigen tras una expiración (SA-2)', () => {
     });
   });
 
-  it('se consume: una segunda sesión normal no hereda el destino', async () => {
+  it('se consume: tras cerrar sesión no queda empresa previa que restaurar', async () => {
     const { entorno } = montarSesion();
     await entrarYEsperarListo(entorno, EMPRESA_A);
     await expirar(entorno);
     await entrarYEsperarListo(entorno, EMPRESA_A);
     act(() => entorno.acciones().cerrarSesion());
-    await entrarYEsperarListo(entorno, EMPRESA_A);
-    expect(entorno.estado()).toMatchObject({ restaurarOrigen: false });
+    expect(entorno.tienda.obtener()).toMatchObject({
+      fase: 'ended',
+      empresaPrevia: null,
+    });
   });
 
   it('nunca viaja en el historial ni en la ubicación', async () => {

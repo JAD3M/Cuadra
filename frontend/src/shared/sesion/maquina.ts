@@ -162,8 +162,12 @@ export function reducir(
         epoca: estado.epoca + 1,
         usuario: estado.usuario,
         empresaId: evento.empresaId,
-        // Solo se vuelve a donde se estaba si es la misma empresa (SA-2).
-        restaurarOrigen: previa !== null && previa === evento.empresaId,
+        // Un acceso nuevo (sin sesión previa que recordar) puede ir al destino
+        // pedido; tras una expiración solo si es la misma empresa (SA-2). Un
+        // cambio de empresa nunca: va a `/bandeja`.
+        restaurarOrigen:
+          estado.origen === 'login' &&
+          (previa === null || previa === evento.empresaId),
         varias: estado.empresas.length > 1,
       };
     }
@@ -218,7 +222,13 @@ export function reducir(
       if (estado.fase !== 'selecting' || estado.origen !== 'login') {
         return estado;
       }
-      return { fase: 'anonymous', epoca: estado.epoca, empresaPrevia: null };
+      // «Cambiar de cuenta» no borra la empresa previa: si la sesión expiró,
+      // otra cuenta no hereda el destino de la anterior (SA-2).
+      return {
+        fase: 'anonymous',
+        epoca: estado.epoca,
+        empresaPrevia: estado.empresaPrevia,
+      };
 
     case 'EMPRESAS_REFRESCADAS':
       if (estado.fase !== 'selecting') return estado;
