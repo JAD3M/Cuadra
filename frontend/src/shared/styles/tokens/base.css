@@ -17,6 +17,8 @@
   --text-title-lg: 34px;
   --text-display-md: 36px;
   --text-display: 44px;
+  --text-lead: 18px;
+  --text-hero: 56px;
 
   --weight-regular: 400;
   --weight-medium: 500;
@@ -30,10 +32,13 @@
   --leading-normal: 1.4;
   --leading-relaxed: 1.5;
   --leading-prose: 1.7;
+  --leading-hero: 1.02;
+  --leading-support: 1.55;
 
   --tracking-tight: -0.02em;
   --tracking-label: 0.06em;
   --tracking-label-wide: 0.08em;
+  --tracking-hero: -0.03em;
 
   --space-4: 4px;
   --space-6: 6px;
@@ -42,11 +47,15 @@
   --space-12: 12px;
   --space-14: 14px;
   --space-16: 16px;
+  --space-18: 18px;
   --space-20: 20px;
+  --space-22: 22px;
   --space-24: 24px;
   --space-28: 28px;
+  --space-32: 32px;
   --space-40: 40px;
   --space-48: 48px;
+  --space-64: 64px;
 
   --radius-xs: 7px;
   --radius-sm: 8px;
@@ -58,4 +67,12 @@
 
   --sidebar-width: 248px;
   --touch-min: 44px;
+  --control-height: 48px;
+  --control-height-lg: 52px;
+
+  /* Pantallas de acceso (Main.dc.html). */
+  --auth-form-width: 420px;
+  --auth-company-width: 460px;
+  --auth-theme-width: 264px;
+  --auth-hero-max-width: 560px;
 }

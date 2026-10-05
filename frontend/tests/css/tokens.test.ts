@@ -105,3 +105,45 @@ describe('sin colores literales fuera de colors.css', () => {
     );
   });
 });
+
+describe('tokens de escala de las pantallas de acceso', () => {
+  const css = fs
+    .readFileSync(
+      path.join(RAIZ_FRONTEND, 'src/shared/styles/tokens/base.css'),
+      'utf8',
+    )
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  const NUEVOS: Record<string, string> = {
+    '--space-18': '18px',
+    '--space-22': '22px',
+    '--space-32': '32px',
+    '--space-64': '64px',
+    '--text-lead': '18px',
+    '--text-hero': '56px',
+    '--leading-hero': '1.02',
+    '--leading-support': '1.55',
+    '--tracking-hero': '-0.03em',
+    '--control-height': '48px',
+    '--control-height-lg': '52px',
+    '--auth-form-width': '420px',
+    '--auth-company-width': '460px',
+    '--auth-theme-width': '264px',
+    '--auth-hero-max-width': '560px',
+  };
+
+  it.each(Object.entries(NUEVOS))(
+    '%s vale %s y se declara una vez',
+    (nombre, valor) => {
+      const declaraciones = [
+        ...css.matchAll(new RegExp(`(${nombre})\\s*:\\s*([^;]+);`, 'g')),
+      ];
+      expect(declaraciones.map((d) => d[2]?.trim())).toEqual([valor]);
+    },
+  );
+
+  it('ningún token de base.css se declara dos veces', () => {
+    const nombres = [...css.matchAll(/(--[\w-]+)\s*:/g)].map((d) => d[1]);
+    const repetidos = nombres.filter((n, i) => nombres.indexOf(n) !== i);
+    expect(repetidos).toEqual([]);
+  });
+});
