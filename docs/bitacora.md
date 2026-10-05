@@ -6,7 +6,9 @@
 ### 5 oct 2026
 
 - **CU-21 terminado: inicio de sesión y elección de empresa (KAN-99).**
-  Pendiente de integrar a `master`. Es la última historia de la épica F
+  Integrado a `master` el 5 oct (avance directo, sin commit de merge; sobre
+  `master`, 1,454 pruebas del frontend y 785 del backend en verde). Es la
+  última historia de la épica F
   (CU-19, CU-20 y CU-21): con ella van 21 de 26 historias y 79 de 99 puntos;
   CU-22 a CU-26 (20 pts) y las épicas G y H siguen pendientes. Lo entregado:
   - Inicio de sesión real en dos pasos: credenciales y luego empresa, con
@@ -72,9 +74,12 @@
   - Abandonar el cambio regresa a la pantalla exacta, no a `/bandeja`.
   - Atrás durante un cambio de empresa regresa al paso de empresa y el shell
     ya no se dibuja vacío durante el cambio.
+- **Prueba del usuario en navegador:** el usuario probó el inicio de sesión
+  en el navegador y lo reportó correcto. No se registraron las demás
+  comprobaciones de la lista.
 - **Pendiente de CU-21:**
-  - La lista de comprobación manual en navegador no la ha corrido ninguna
-    persona: ambos temas a 1440, 900 y 375 px, control de tema en pantallas
+  - Del resto de la lista de comprobación manual en navegador no hay
+    constancia: ambos temas a 1440, 900 y 375 px, control de tema en pantallas
     angostas, recorrido solo con teclado, muestra con lector de pantalla,
     acceso, elección, cambio, abandono y cierre reales contra el API de
     desarrollo (barra de direcciones, almacenamiento y consola limpios),

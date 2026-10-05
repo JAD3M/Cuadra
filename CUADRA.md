@@ -5,7 +5,7 @@
 
 | | |
 |---|---|
-| **Estado** | Día 8 de 9 · CU-01 a CU-21, más CU-04b · 21 / 26 historias · 79 / 99 pts · Épicas A–F cerradas, G y H pendientes (CU-21 pendiente de integrar a `master`) |
+| **Estado** | Día 8 de 9 · CU-01 a CU-21, más CU-04b · 21 / 26 historias · 79 / 99 pts · Épicas A–F cerradas, G y H pendientes |
 | **Entrega** | 2 de octubre de 2026 (backend, CU-01 a CU-18); el frontend (CU-19 a CU-26) no tiene fecha; CU-22 a CU-26 (20 pts) quedan pendientes |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 26 historias · 99 puntos (69 del backend y 30 de la interfaz) · 9 días hábiles para el backend |
