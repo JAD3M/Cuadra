@@ -2,6 +2,7 @@ import type { MotivoFinSesion } from '@/shared/api';
 import type {
   ContextoSesion,
   EmpresaDisponible,
+  SolicitudLogin,
   Usuario,
 } from '@/shared/api/contratos';
 
@@ -56,3 +57,19 @@ export type SessionState =
       restaurarOrigen: boolean;
     }
   | { status: 'ended'; motivo: MotivoSalida; email?: string };
+
+/**
+ * Acciones que las pantallas pueden pedir a la sesión. Su identidad es
+ * estable, así que quien solo las usa no se vuelve a renderizar con el estado.
+ */
+export interface AccionesSesion {
+  /**
+   * Inicia sesión. Rechaza con `ApiError`, `NetworkError` o `ContratoError`
+   * y deja el estado como estaba si falla.
+   */
+  iniciarSesion(credenciales: SolicitudLogin): Promise<void>;
+  /** Canjea el token de selección por uno de sesión para la empresa dada. */
+  elegirEmpresa(empresaId: string): Promise<void>;
+  /** «Cambiar de cuenta»: descarta todo y vuelve a `anonymous`, sin correo. */
+  volverAlInicio(): void;
+}

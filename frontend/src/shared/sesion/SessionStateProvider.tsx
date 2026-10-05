@@ -1,23 +1,29 @@
 import type { ReactNode } from 'react';
-import { ContextoEstadoSesion } from './contextos';
-import type { SessionState } from './tipos';
+import { ContextoAccionesSesion, ContextoEstadoSesion } from './contextos';
+import type { AccionesSesion, SessionState } from './tipos';
 
 export interface SessionStateProviderProps {
   estado: SessionState;
+  /** Sin acciones, `useSessionActions` falla: es un proveedor de solo lectura. */
+  acciones?: AccionesSesion;
   children: ReactNode;
 }
 
 /**
- * Proveedor genérico: publica un estado ya resuelto. El proveedor real de
- * CU-21 calculará `estado` desde `/auth/contexto` y se montará en su lugar.
+ * Proveedor genérico: publica un estado ya resuelto (pruebas, previsualización
+ * y el proveedor provisional). `SessionProvider` lo usa para publicar el
+ * estado real junto con las acciones.
  */
 export function SessionStateProvider({
   estado,
+  acciones,
   children,
 }: SessionStateProviderProps) {
   return (
     <ContextoEstadoSesion.Provider value={estado}>
-      {children}
+      <ContextoAccionesSesion.Provider value={acciones ?? null}>
+        {children}
+      </ContextoAccionesSesion.Provider>
     </ContextoEstadoSesion.Provider>
   );
 }
