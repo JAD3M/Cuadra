@@ -7,7 +7,9 @@ import { ESTADO_SESION_PLACEHOLDER } from './contextoPlaceholder';
 import {
   PlaceholderSessionProvider,
   SessionStateProvider,
+  useSessionActionsOpcional,
   useSessionContext,
+  type AccionesSesion,
   type SessionState,
 } from './index';
 
@@ -95,5 +97,34 @@ describe('PlaceholderSessionProvider', () => {
     for (const rol of ESTADO_SESION_PLACEHOLDER.contexto.roles) {
       expect(ROLES).toContain(rol);
     }
+  });
+});
+
+describe('useSessionActionsOpcional', () => {
+  function Sonda() {
+    const acciones = useSessionActionsOpcional();
+    return <p data-testid="acciones">{acciones ? 'con' : 'sin'}</p>;
+  }
+
+  it('devuelve null con un proveedor de solo lectura, sin lanzar', () => {
+    render(
+      <PlaceholderSessionProvider>
+        <Sonda />
+      </PlaceholderSessionProvider>,
+    );
+    expect(screen.getByTestId('acciones')).toHaveTextContent('sin');
+  });
+
+  it('devuelve las acciones cuando el proveedor las trae', () => {
+    const acciones = {} as AccionesSesion;
+    render(
+      <SessionStateProvider
+        estado={{ status: 'anonymous' }}
+        acciones={acciones}
+      >
+        <Sonda />
+      </SessionStateProvider>,
+    );
+    expect(screen.getByTestId('acciones')).toHaveTextContent('con');
   });
 });

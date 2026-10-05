@@ -7,6 +7,7 @@ import {
   type AccionesSesion,
   type SessionState,
 } from '@/shared/sesion';
+import { ApiError, NetworkError } from '@/shared/api';
 import { contextoSesion } from '@/shared/api/contratos';
 import { CONTEXTO_SESION as PAYLOAD } from '@/test/fixtures';
 import { ThemeProvider } from '@/shared/tema';
@@ -62,6 +63,7 @@ function renderizar(
           { path: '/sin-titulo', element: <p>Sin título</p> },
         ],
       },
+      { path: '/empresa', element: <p>Paso de empresa</p> },
     ],
     { initialEntries: [ruta] },
   );
@@ -368,5 +370,150 @@ describe('ShellLayout según el estado de la sesión', () => {
         screen.getByRole('button', { name: 'Cerrar sesión' }),
       ).toHaveFocus();
     });
+  });
+});
+
+describe('ShellLayout: cambio de empresa y cierre de sesión', () => {
+  const VARIAS: SessionState = { ...LISTO, puedeCambiarEmpresa: true };
+  const botonCambio = () =>
+    screen.getByRole('button', { name: /Cambiar de empresa/ });
+
+  it('con varias empresas el encabezado ofrece el cambio', () => {
+    renderizar(VARIAS, '/cargas', accionesFalsas());
+    expect(botonCambio()).toBeInTheDocument();
+  });
+
+  it('con una sola empresa no hay botón de cambio', () => {
+    renderizar(LISTO, '/cargas', accionesFalsas());
+    expect(
+      screen.queryByRole('button', { name: /Cambiar de empresa/ }),
+    ).toBeNull();
+    expect(
+      screen.getByRole('group', { name: 'Empresa activa' }),
+    ).toBeInTheDocument();
+  });
+
+  it('con el proveedor de solo lectura no hay cambio ni cierre de sesión', () => {
+    renderizar(VARIAS);
+    expect(
+      screen.queryByRole('button', { name: /Cambiar de empresa/ }),
+    ).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cerrar sesión' })).toBeNull();
+  });
+
+  it('cambiar pide la lista y, al llegar, navega a /empresa sin destino guardado', async () => {
+    const acciones = accionesFalsas();
+    const router = renderizar(VARIAS, '/cargas', acciones);
+    await userEvent.setup().click(botonCambio());
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/empresa'),
+    );
+    expect(acciones.cambiarEmpresa).toHaveBeenCalledTimes(1);
+    expect(router.state.location.state).toBeNull();
+    expect(router.state.location.search).toBe('');
+  });
+
+  it('mientras la lista llega el botón queda ocupado y un segundo clic no repite la petición', async () => {
+    const acciones = accionesFalsas();
+    let resolver = () => {};
+    acciones.cambiarEmpresa.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolver = resolve;
+      }),
+    );
+    const router = renderizar(VARIAS, '/cargas', acciones);
+    const usuario = userEvent.setup();
+    await usuario.click(botonCambio());
+    expect(botonCambio()).toHaveAttribute('aria-busy', 'true');
+    await usuario.click(botonCambio());
+    expect(acciones.cambiarEmpresa).toHaveBeenCalledTimes(1);
+    expect(router.state.location.pathname).toBe('/cargas');
+    await act(async () => resolver());
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/empresa'),
+    );
+  });
+
+  it.each([
+    ['red', () => new NetworkError()],
+    ['5xx', () => new ApiError(503, 'x', ['texto del servidor'])],
+  ])(
+    'un fallo de %s deja el shell en ready, avisa y no navega',
+    async (_n, crear) => {
+      const acciones = accionesFalsas();
+      acciones.cambiarEmpresa.mockRejectedValue(crear());
+      const router = renderizar(VARIAS, '/cargas', acciones);
+      await userEvent.setup().click(botonCambio());
+      const aviso = await screen.findByRole('alert');
+      expect(aviso).toHaveTextContent('No se pudo conectar con el servidor.');
+      expect(aviso).not.toHaveTextContent('texto del servidor');
+      expect(router.state.location.pathname).toBe('/cargas');
+      expect(screen.getByText('Contenido de cargas')).toBeInTheDocument();
+      expect(botonCambio()).not.toHaveAttribute('aria-busy');
+    },
+  );
+
+  it('el aviso se retira al reintentar con éxito', async () => {
+    const acciones = accionesFalsas();
+    acciones.cambiarEmpresa
+      .mockRejectedValueOnce(new NetworkError())
+      .mockResolvedValueOnce(undefined);
+    renderizar(VARIAS, '/cargas', acciones);
+    const usuario = userEvent.setup();
+    await usuario.click(botonCambio());
+    await screen.findByRole('alert');
+    await usuario.click(botonCambio());
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  });
+
+  it('un 401 al pedir la lista no muestra aviso: la sesión ya terminó', async () => {
+    const acciones = accionesFalsas();
+    acciones.cambiarEmpresa.mockRejectedValue(
+      new ApiError(401, 'Unauthorized', []),
+    );
+    const router = renderizar(VARIAS, '/cargas', acciones);
+    await userEvent.setup().click(botonCambio());
+    await waitFor(() => expect(botonCambio()).not.toHaveAttribute('aria-busy'));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(router.state.location.pathname).toBe('/cargas');
+  });
+
+  it('un 403 al pedir la lista muestra el permiso denegado y mantiene la sesión', async () => {
+    const acciones = accionesFalsas();
+    acciones.cambiarEmpresa.mockRejectedValue(
+      new ApiError(403, 'Forbidden', []),
+    );
+    renderizar(VARIAS, '/cargas', acciones);
+    await userEvent.setup().click(botonCambio());
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No tienes permiso para esta acción.',
+    );
+    expect(acciones.cerrarSesion).not.toHaveBeenCalled();
+  });
+
+  it('«Cerrar sesión» está en el bloque de usuario y llama a cerrarSesion una vez', async () => {
+    const acciones = accionesFalsas();
+    renderizar(LISTO, '/cargas', acciones);
+    const lateral = screen.getByRole('complementary', {
+      name: 'Barra lateral',
+    });
+    await userEvent
+      .setup()
+      .click(within(lateral).getByRole('button', { name: 'Cerrar sesión' }));
+    expect(acciones.cerrarSesion).toHaveBeenCalledTimes(1);
+  });
+
+  it('con el menú móvil abierto «Cerrar sesión» sigue en el panel y el cambio en el encabezado', async () => {
+    const acciones = accionesFalsas();
+    renderizar(VARIAS, '/cargas', acciones);
+    const usuario = userEvent.setup();
+    await usuario.click(screen.getByRole('button', { name: 'Menú' }));
+    const panel = document.getElementById('barra-lateral') as HTMLElement;
+    expect(panel).toHaveAttribute('data-abierto', 'true');
+    expect(
+      within(panel).getByRole('button', { name: 'Cerrar sesión' }),
+    ).toBeInTheDocument();
+    expect(panel).not.toContainElement(botonCambio());
+    expect(screen.getByRole('banner')).toContainElement(botonCambio());
   });
 });
