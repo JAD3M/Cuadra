@@ -157,7 +157,12 @@ describe('RutaKit (galería de componentes)', () => {
     expect(
       within(seccion).getByText('Administrador, Revisor'),
     ).toBeInTheDocument();
-    expect(within(seccion).getByText('FDB190215QK4')).toBeInTheDocument();
+    expect(
+      within(seccion).getByRole('button', { name: /Cambiar de empresa/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(seccion).getByRole('group', { name: 'Empresa activa' }),
+    ).toBeInTheDocument();
     expect(
       within(seccion).getByRole('region', { name: 'Contenido de ejemplo' }),
     ).toBeInTheDocument();

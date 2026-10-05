@@ -1,4 +1,4 @@
-/* Insignia de empresa (maqueta Bandeja, sin el chevron: no es interactiva). */
+/* Insignia de empresa (maqueta Bandeja). Estática por omisión. */
 .insignia {
   display: flex;
   align-items: center;
@@ -46,4 +46,23 @@
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* Variante interactiva (maqueta Bandeja): botón de 48 px con flecha. */
+.boton {
+  min-block-size: var(--control-height);
+  padding-block: 0;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.boton[aria-disabled='true'] {
+  border-style: dashed;
+  cursor: progress;
+}
+
+.flecha {
+  flex-shrink: 0;
+  stroke: var(--color-text-secondary);
 }

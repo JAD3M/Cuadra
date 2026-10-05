@@ -1,6 +1,11 @@
 import { Card } from '@/shared/ui/Card';
 import { ControlTema } from '@/shared/tema';
-import { Header, PENDIENTES_PLACEHOLDER, Sidebar } from '@/app/shell';
+import {
+  CompanyBadge,
+  Header,
+  PENDIENTES_PLACEHOLDER,
+  Sidebar,
+} from '@/app/shell';
 import type { ContextoSesion } from '@/shared/api/contratos';
 import estilos from './MuestraShell.module.css';
 
@@ -51,7 +56,17 @@ export function MuestraShell() {
           titulo="Bandeja de revisión"
           subtitulo="Movimientos abiertos, del monto más alto al más bajo"
           empresa={SESION_DE_EJEMPLO.empresa}
+          onCambiarEmpresa={() => {}}
         />
+        <section aria-labelledby="muestra-insignia-estatica">
+          <h3 id="muestra-insignia-estatica" className={estilos.texto}>
+            Insignia estática (usuario con una sola empresa)
+          </h3>
+          <CompanyBadge
+            razonSocial={SESION_DE_EJEMPLO.empresa.razonSocial}
+            rfc={SESION_DE_EJEMPLO.empresa.rfc}
+          />
+        </section>
         <Card>
           <p className={estilos.texto}>
             Área de contenido de la página. Los enlaces de la barra lateral

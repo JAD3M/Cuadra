@@ -7,15 +7,22 @@ export interface HeaderProps {
   titulo: string;
   subtitulo?: string;
   empresa: { razonSocial: string; rfc: string };
+  /** Abre el cambio de empresa; ausente = insignia estática. */
+  onCambiarEmpresa?: () => void;
+  /** El cambio de empresa está en curso. */
+  cambioPendiente?: boolean;
   /** Barra superior para pantallas angostas (menú); opcional. */
   barraMovil?: ReactNode;
 }
 
-/** Encabezado de página: título, subtítulo e insignia de la empresa. */
+/** Encabezado de página: título, subtítulo e insignia de la empresa
+ * (botón de cambio cuando se pasa `onCambiarEmpresa`). */
 export function Header({
   titulo,
   subtitulo,
   empresa,
+  onCambiarEmpresa,
+  cambioPendiente,
   barraMovil,
 }: HeaderProps) {
   return (
@@ -26,7 +33,12 @@ export function Header({
           <h1 className={estilos.titulo}>{titulo}</h1>
           {subtitulo && <span className={estilos.subtitulo}>{subtitulo}</span>}
         </div>
-        <CompanyBadge razonSocial={empresa.razonSocial} rfc={empresa.rfc} />
+        <CompanyBadge
+          razonSocial={empresa.razonSocial}
+          rfc={empresa.rfc}
+          onCambiar={onCambiarEmpresa}
+          pendiente={cambioPendiente}
+        />
       </div>
     </header>
   );

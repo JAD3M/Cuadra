@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import { Header } from './Header';
 
 const EMPRESA = { razonSocial: 'Ferretería del Bajío', rfc: 'FDB190215QK4' };
@@ -44,5 +45,38 @@ describe('Header', () => {
     expect(
       barra.compareDocumentPosition(titulo) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+});
+
+describe('Header: cambio de empresa', () => {
+  it('sin onCambiarEmpresa la insignia es estática', () => {
+    render(<Header titulo="Cargas" empresa={EMPRESA} />);
+    expect(screen.queryByRole('button')).toBeNull();
+    expect(
+      screen.getByRole('group', { name: 'Empresa activa' }),
+    ).toBeInTheDocument();
+  });
+
+  it('con onCambiarEmpresa la insignia es el botón de cambio', async () => {
+    const onCambiar = vi.fn();
+    render(
+      <Header titulo="Cargas" empresa={EMPRESA} onCambiarEmpresa={onCambiar} />,
+    );
+    await userEvent.click(
+      screen.getByRole('button', { name: /Cambiar de empresa/ }),
+    );
+    expect(onCambiar).toHaveBeenCalledOnce();
+  });
+
+  it('propaga el estado pendiente', () => {
+    render(
+      <Header
+        titulo="Cargas"
+        empresa={EMPRESA}
+        onCambiarEmpresa={() => {}}
+        cambioPendiente
+      />,
+    );
+    expect(screen.getByRole('button')).toHaveAttribute('aria-busy', 'true');
   });
 });

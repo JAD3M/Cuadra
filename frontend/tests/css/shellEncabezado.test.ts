@@ -31,6 +31,18 @@ describe('contrato CSS de la insignia de empresa', () => {
     expect(bloqueCss(encabezado, '.fila')).toMatch(/flex-wrap:\s*wrap/);
   });
 
+  it('el botón de cambio mide al menos 48 px y usa tokens de foco heredados', () => {
+    expect(bloqueCss(insignia, '.boton')).toMatch(
+      /min-block-size:\s*var\(--control-height\)/,
+    );
+    expect(bloqueCss(insignia, '.insignia')).toMatch(
+      /border-radius:\s*var\(--radius-lg\)/,
+    );
+    expect(bloqueCss(insignia, '.flecha')).toMatch(
+      /stroke:\s*var\(--color-text-secondary\)/,
+    );
+  });
+
   it('solo usa tokens: sin literales de color', () => {
     expect(insignia).not.toMatch(LITERAL_DE_COLOR);
     expect(encabezado).not.toMatch(LITERAL_DE_COLOR);
