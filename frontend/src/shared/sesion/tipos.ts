@@ -68,8 +68,27 @@ export interface AccionesSesion {
    * y deja el estado como estaba si falla.
    */
   iniciarSesion(credenciales: SolicitudLogin): Promise<void>;
-  /** Canjea el token de selección por uno de sesión para la empresa dada. */
+  /**
+   * Canjea el token de selección por uno de sesión para la empresa dada. Con
+   * un 401 (la selección venció) la sesión termina y además rechaza; con un
+   * 403 refresca la lista de empresas y rechaza para que la pantalla muestre
+   * el mensaje.
+   */
   elegirEmpresa(empresaId: string): Promise<void>;
+  /**
+   * Cambio directo de empresa: con el token de selección que se conserva pide
+   * la lista y pasa a `selecting` con origen `cambio`. La sesión actual sigue
+   * viva y la caché no se toca. Con un fallo de red o 5xx rechaza y la sesión
+   * sigue en `ready`.
+   */
+  cambiarEmpresa(): Promise<void>;
+  /** Abandona el cambio de empresa y vuelve a la sesión viva, sin recargar. */
+  regresarSinCambiar(): void;
+  /**
+   * Vuelve a pedir la lista de empresas durante la selección. Si la lista
+   * quedó vacía la sesión termina con `sin_empresas`.
+   */
+  refrescarEmpresas(): Promise<void>;
   /** «Cambiar de cuenta»: descarta todo y vuelve a `anonymous`, sin correo. */
   volverAlInicio(): void;
   /**

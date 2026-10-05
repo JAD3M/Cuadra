@@ -203,6 +203,18 @@ describe('reducir: transiciones legales', () => {
       { tipo: 'TERMINAR', motivo: 'sin_empresas', email: 'a@b.mx' },
       'sin_empresas',
     ],
+    [
+      'cambio',
+      CAMBIO,
+      { tipo: 'TERMINAR', motivo: 'sin_empresas', email: 'a@b.mx' },
+      'sin_empresas',
+    ],
+    [
+      'sesion',
+      SESION,
+      { tipo: 'TERMINAR', motivo: 'sin_empresas', email: 'a@b.mx' },
+      'sin_empresas',
+    ],
   ])('TERMINAR desde %s: %#', (_origen, estado, evento, motivo) => {
     expect(reducir(estado, evento)).toMatchObject({ fase: 'ended', motivo });
   });
@@ -275,6 +287,8 @@ describe('reducir: transiciones ilegales dejan el estado intacto', () => {
     'selecting(cambio)|TERMINAR reingreso',
     'selecting(login)|TERMINAR seleccion_vencida',
     'selecting(login)|TERMINAR sin_empresas',
+    'selecting(cambio)|TERMINAR sin_empresas',
+    'sesion|TERMINAR sin_empresas',
   ]);
 
   const ilegales = Object.keys(TODOS).flatMap((fase) =>

@@ -98,12 +98,25 @@ function terminar(
   const { motivo } = evento;
   const base = { fase: 'ended', epoca: estado.epoca, motivo } as const;
 
-  if (motivo === 'seleccion_vencida' || motivo === 'sin_empresas') {
+  if (motivo === 'seleccion_vencida') {
     if (estado.fase !== 'selecting' || estado.origen !== 'login') return estado;
     return {
       ...base,
       email: evento.email,
       empresaPrevia: estado.empresaPrevia,
+    };
+  }
+
+  if (motivo === 'sin_empresas') {
+    // La lista quedó vacía: sirve desde cualquier punto con sesión o selección.
+    if (estado.fase === 'anonymous' || estado.fase === 'ended') return estado;
+    return {
+      ...base,
+      email: evento.email,
+      empresaPrevia:
+        estado.fase === 'selecting' && estado.origen === 'login'
+          ? estado.empresaPrevia
+          : empresaVigente(estado),
     };
   }
 

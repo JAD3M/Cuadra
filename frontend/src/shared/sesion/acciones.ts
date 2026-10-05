@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query';
-import type { ClienteApi } from '@/shared/api';
+import { ApiError, type ClienteApi } from '@/shared/api';
 import {
+  listaEmpresasDisponibles,
   respuestaLogin,
   respuestaToken,
   type SolicitudLogin,
@@ -79,25 +80,117 @@ export function crearAcciones({
     });
   }
 
+  /** El motivo cuando el token de selección ya no sirve, según el paso. */
+  function motivoDeVencimiento(origen: 'login' | 'cambio'): MotivoSalida {
+    return origen === 'cambio' ? 'reingreso' : 'seleccion_vencida';
+  }
+
   async function elegirEmpresa(empresaId: string): Promise<void> {
     const inicial = tienda.obtener();
     const seleccion = almacen.seleccion();
     if (inicial.fase !== 'selecting' || seleccion === null) return;
 
-    const respuesta = await api.fetch(
-      `/auth/empresa/${encodeURIComponent(empresaId)}`,
-      { method: 'POST', schema: respuestaToken, token: seleccion },
-    );
-
     // Si mientras tanto se salió o se cambió de paso, la respuesta ya no
     // corresponde a esta selección.
-    const actual = tienda.obtener();
-    if (actual.fase !== 'selecting' || almacen.seleccion() !== seleccion) {
+    const vigente = () =>
+      tienda.obtener().fase === 'selecting' &&
+      almacen.seleccion() === seleccion;
+
+    let respuesta;
+    try {
+      respuesta = await api.fetch(
+        `/auth/empresa/${encodeURIComponent(empresaId)}`,
+        { method: 'POST', schema: respuestaToken, token: seleccion },
+      );
+    } catch (causa) {
+      if (causa instanceof ApiError && vigente()) {
+        if (causa.statusCode === 401) {
+          terminar(motivoDeVencimiento(inicial.origen));
+        } else if (causa.statusCode === 403) {
+          // Perdió el acceso a esa empresa: la lista pudo haber cambiado. Si
+          // el refresco falla se informa el 403 original.
+          await refrescarEmpresas().catch(() => undefined);
+        }
+      }
+      throw causa;
+    }
+
+    if (!vigente()) return;
+    // En un cambio el token de sesión se reemplaza solo ahora, con la
+    // elección ya aceptada. La caché se conserva si se vuelve a elegir la
+    // misma empresa; con otra, nada del tenant anterior debe quedar a la vista.
+    const mismaEmpresa =
+      inicial.origen === 'cambio' && inicial.empresaId === empresaId;
+    almacen.fijarSesion(respuesta.token);
+    if (!mismaEmpresa) consultas.clear();
+    tienda.enviar({ tipo: 'SELECCION_OK', empresaId });
+  }
+
+  async function cambiarEmpresa(): Promise<void> {
+    if (tienda.obtener().fase !== 'sesion') return;
+    const seleccion = almacen.seleccion();
+    if (seleccion === null) {
+      terminar('reingreso');
       return;
     }
-    almacen.fijarSesion(respuesta.token);
-    consultas.clear();
-    tienda.enviar({ tipo: 'SELECCION_OK', empresaId });
+    const vigente = () =>
+      tienda.obtener().fase === 'sesion' && almacen.seleccion() === seleccion;
+
+    let empresas;
+    try {
+      empresas = await api.fetch('/auth/empresas', {
+        schema: listaEmpresasDisponibles,
+        token: seleccion,
+      });
+    } catch (causa) {
+      // 401: la selección venció; hay que ingresar la contraseña otra vez.
+      // Cualquier otro fallo deja la sesión como está y lo ve quien llamó.
+      if (causa instanceof ApiError && causa.statusCode === 401 && vigente()) {
+        terminar('reingreso');
+      }
+      throw causa;
+    }
+
+    if (!vigente()) return;
+    if (empresas.length === 0) {
+      terminar('sin_empresas');
+      return;
+    }
+    // Sin vaciar la caché: el usuario puede abandonar el cambio.
+    tienda.enviar({ tipo: 'CAMBIO_OK', empresas });
+  }
+
+  function regresarSinCambiar(): void {
+    tienda.enviar({ tipo: 'REGRESAR' });
+  }
+
+  async function refrescarEmpresas(): Promise<void> {
+    const inicial = tienda.obtener();
+    const seleccion = almacen.seleccion();
+    if (inicial.fase !== 'selecting' || seleccion === null) return;
+    const vigente = () =>
+      tienda.obtener().fase === 'selecting' &&
+      almacen.seleccion() === seleccion;
+
+    let empresas;
+    try {
+      empresas = await api.fetch('/auth/empresas', {
+        schema: listaEmpresasDisponibles,
+        token: seleccion,
+      });
+    } catch (causa) {
+      if (causa instanceof ApiError && causa.statusCode === 401 && vigente()) {
+        terminar(motivoDeVencimiento(inicial.origen));
+      }
+      throw causa;
+    }
+
+    if (!vigente()) return;
+    if (empresas.length === 0) {
+      terminar('sin_empresas');
+      return;
+    }
+    tienda.enviar({ tipo: 'EMPRESAS_REFRESCADAS', empresas });
   }
 
   function volverAlInicio(): void {
@@ -147,6 +240,9 @@ export function crearAcciones({
   return {
     iniciarSesion,
     elegirEmpresa,
+    cambiarEmpresa,
+    regresarSinCambiar,
+    refrescarEmpresas,
     volverAlInicio,
     cerrarSesion,
     reintentarContexto,
