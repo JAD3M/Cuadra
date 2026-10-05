@@ -90,6 +90,8 @@ const PARES: Par[] = [
   ['--color-text-soft', '--color-surface'],
   ['--color-ia', '--color-ia-tint'],
   ['--color-ia', '--color-hover'],
+  // Indicadores de la bandeja: «Reintentar» (enlace) en el tile de monto.
+  ['--color-link', '--color-surface-raised'],
 ];
 
 /** Indicadores no textuales (foco y enlaces): mínimo 3:1. */

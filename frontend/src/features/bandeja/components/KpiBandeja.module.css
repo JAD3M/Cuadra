@@ -1,0 +1,105 @@
+/*
+ * Indicadores de la bandeja (Bandeja.dc.html). Solo tokens de rol. Tres tiles
+ * de conteo y uno de monto que crece con el número: la última columna mide al
+ * menos lo que mide su contenido y nada se parte ni se recorta.
+ */
+.cuadricula {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(max-content, 1.5fr);
+  gap: var(--space-16);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-inline-size: 0;
+  padding: var(--space-20);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+}
+
+.sugerencia {
+  border-color: var(--estado-sugerencia-tile-border);
+  background: var(--estado-sugerencia-tile-bg);
+  --_acento: var(--estado-sugerencia-accent);
+}
+
+.sin_match {
+  border-color: var(--estado-sin-match-tile-border);
+  background: var(--estado-sin-match-tile-bg);
+  --_acento: var(--estado-sin-match-accent);
+}
+
+.conciliado {
+  border-color: var(--estado-conciliado-tile-border);
+  background: var(--estado-conciliado-tile-bg);
+  --_acento: var(--estado-conciliado-accent);
+}
+
+.tileMonto {
+  padding: var(--space-20) var(--space-28);
+  border-color: var(--color-border);
+  background: var(--color-surface-raised);
+}
+
+.etiqueta {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.numero {
+  color: var(--_acento);
+  font-family: var(--font-mono);
+  font-size: var(--text-display);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-none);
+  white-space: nowrap;
+}
+
+.detalle {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.lineaMonto {
+  font-family: var(--font-mono);
+  font-size: var(--text-display-md);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-snug);
+  white-space: nowrap;
+}
+
+.variasLineas {
+  font-size: var(--text-title);
+}
+
+.apagado {
+  color: var(--color-text-secondary);
+}
+
+.reintentar {
+  align-self: flex-start;
+}
+
+/* Carga: bloques del alto de los números, sin dígitos. */
+.esqueleto {
+  display: block;
+  min-block-size: var(--space-40);
+  border-radius: var(--radius-md);
+  background: var(--color-border-subtle);
+}
+
+@media (max-width: 900px) {
+  .cuadricula {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tileMonto {
+    grid-column: 1 / -1;
+  }
+}
