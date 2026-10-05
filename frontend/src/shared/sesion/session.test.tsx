@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { contextoSesion } from '@/shared/api/contratos';
 import { ROLES } from '@/shared/dominio';
+import { CONTEXTO_SESION } from '@/test/fixtures';
 import { ESTADO_SESION_PLACEHOLDER } from './contextoPlaceholder';
 import {
   PlaceholderSessionProvider,
@@ -29,8 +30,10 @@ describe('useSessionContext', () => {
   });
 
   it.each<[string, SessionState, string]>([
-    ['loading', { status: 'loading' }, 'loading'],
-    ['ended', { status: 'ended' }, 'ended'],
+    ['anonymous', { status: 'anonymous' }, 'anonymous'],
+    ['loading', { status: 'loading', restaurarOrigen: false }, 'loading'],
+    ['unavailable', { status: 'unavailable' }, 'unavailable'],
+    ['ended', { status: 'ended', motivo: 'sesion_expirada' }, 'ended'],
   ])('publica el estado %s del proveedor genérico', (_n, estado, esperado) => {
     render(
       <SessionStateProvider estado={estado}>
@@ -38,6 +41,22 @@ describe('useSessionContext', () => {
       </SessionStateProvider>,
     );
     expect(screen.getByTestId('estado')).toHaveTextContent(esperado);
+  });
+
+  it('publica el estado selecting con la lista de empresas', () => {
+    render(
+      <SessionStateProvider
+        estado={{
+          status: 'selecting',
+          origen: 'login',
+          usuario: contextoSesion.parse(CONTEXTO_SESION).usuario,
+          empresas: [],
+        }}
+      >
+        <Lector />
+      </SessionStateProvider>,
+    );
+    expect(screen.getByTestId('estado')).toHaveTextContent('selecting');
   });
 
   it('publica el contexto cuando el estado es ready', () => {

@@ -3,5 +3,10 @@ export {
   SessionStateProvider,
   type SessionStateProviderProps,
 } from './SessionStateProvider';
-export type { SessionContext, SessionState } from './tipos';
+export type {
+  MotivoSalida,
+  OrigenSeleccion,
+  SessionContext,
+  SessionState,
+} from './tipos';
 export { useSessionContext } from './useSessionContext';

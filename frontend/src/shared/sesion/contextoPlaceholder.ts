@@ -19,4 +19,6 @@ export const ESTADO_SESION_PLACEHOLDER: SessionState = {
     },
     roles: ['admin', 'contador'],
   },
+  puedeCambiarEmpresa: false,
+  restaurarOrigen: false,
 };

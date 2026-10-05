@@ -12,10 +12,9 @@ import estilos from './ShellLayout.module.css';
  * Layout de las rutas internas (contenedor). Es el único consumidor de la
  * sesión: la convierte en props para las piezas de presentación.
  *
- * - `loading`: estado neutro de carga, sin datos de identidad.
  * - `ready`: enlace de salto, barra lateral, encabezado y contenido.
- * - `ended`: aviso neutro de sesión terminada. Es el punto de enganche de
- *   CU-21 (redirección a `/login`); aquí no se implementa ninguna.
+ * - cualquier otro estado: estado neutro de carga, sin datos de identidad.
+ *   Es provisional: CU-21 dará su propia pantalla a cada estado (guardas).
  *
  * Por debajo de 900 px la barra lateral pasa a ser un panel que se abre con
  * el botón «Menú» (divulgación: `aria-expanded` y `aria-controls`). Se cierra
@@ -34,18 +33,10 @@ export function ShellLayout() {
   const [abiertoEn, setAbiertoEn] = useState<string | null>(null);
   const menuAbierto = abiertoEn === pathname;
 
-  if (sesion.status === 'loading') {
+  if (sesion.status !== 'ready') {
     return (
       <main id="contenido" aria-busy="true" className={estilos.estado}>
         <p>Cargando la sesión…</p>
-      </main>
-    );
-  }
-
-  if (sesion.status === 'ended') {
-    return (
-      <main id="contenido" className={estilos.estado}>
-        <p>La sesión terminó.</p>
       </main>
     );
   }

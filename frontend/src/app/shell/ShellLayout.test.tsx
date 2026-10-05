@@ -9,7 +9,12 @@ import { ThemeProvider } from '@/shared/tema';
 import { ShellLayout } from './ShellLayout';
 
 const CONTEXTO_SESION = contextoSesion.parse(PAYLOAD);
-const LISTO: SessionState = { status: 'ready', contexto: CONTEXTO_SESION };
+const LISTO: SessionState = {
+  status: 'ready',
+  contexto: CONTEXTO_SESION,
+  puedeCambiarEmpresa: false,
+  restaurarOrigen: false,
+};
 
 function renderizar(estado: SessionState, ruta = '/cargas') {
   const router = createMemoryRouter(
@@ -261,25 +266,36 @@ describe('menú responsive (menos de 900 px)', () => {
 });
 
 describe('ShellLayout según el estado de la sesión', () => {
-  it('loading: estado de carga sin identidad ni piezas del shell', () => {
-    renderizar({ status: 'loading' });
-    const main = screen.getByRole('main');
-    expect(main).toHaveAttribute('aria-busy', 'true');
-    expect(main).toHaveTextContent('Cargando');
-    expect(screen.queryByRole('banner')).toBeNull();
-    expect(screen.queryByRole('navigation')).toBeNull();
-    expect(screen.queryByText(CONTEXTO_SESION.usuario.nombre)).toBeNull();
-    expect(screen.queryByText('Contenido de cargas')).toBeNull();
-  });
-
-  it('ended: aviso neutro, sin datos ni contenido, sin redirigir', () => {
-    const router = renderizar({ status: 'ended' });
-    expect(screen.getByRole('main')).toHaveTextContent('La sesión terminó');
-    expect(screen.getAllByRole('main')).toHaveLength(1);
-    expect(screen.queryByRole('banner')).toBeNull();
-    expect(screen.queryByRole('navigation')).toBeNull();
-    expect(screen.queryByText(CONTEXTO_SESION.empresa.razonSocial)).toBeNull();
-    expect(screen.queryByText('Contenido de cargas')).toBeNull();
-    expect(router.state.location.pathname).toBe('/cargas');
-  });
+  it.each<[string, SessionState]>([
+    ['loading', { status: 'loading', restaurarOrigen: false }],
+    ['unavailable', { status: 'unavailable' }],
+    ['anonymous', { status: 'anonymous' }],
+    [
+      'selecting',
+      {
+        status: 'selecting',
+        origen: 'login',
+        usuario: CONTEXTO_SESION.usuario,
+        empresas: [],
+      },
+    ],
+    ['ended', { status: 'ended', motivo: 'sesion_expirada' }],
+  ])(
+    '%s: estado de carga sin identidad ni piezas del shell, sin redirigir',
+    (_nombre, estado) => {
+      const router = renderizar(estado);
+      const main = screen.getByRole('main');
+      expect(main).toHaveAttribute('aria-busy', 'true');
+      expect(main).toHaveTextContent('Cargando');
+      expect(screen.getAllByRole('main')).toHaveLength(1);
+      expect(screen.queryByRole('banner')).toBeNull();
+      expect(screen.queryByRole('navigation')).toBeNull();
+      expect(screen.queryByText(CONTEXTO_SESION.usuario.nombre)).toBeNull();
+      expect(
+        screen.queryByText(CONTEXTO_SESION.empresa.razonSocial),
+      ).toBeNull();
+      expect(screen.queryByText('Contenido de cargas')).toBeNull();
+      expect(router.state.location.pathname).toBe('/cargas');
+    },
+  );
 });
