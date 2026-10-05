@@ -1,10 +1,17 @@
-import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react';
 import { Outlet, useLocation, useMatches, useNavigate } from 'react-router';
 import { ApiError, mensajeDeError, type MensajeError } from '@/shared/api';
 import {
   destinoSeguro,
   useSessionActions,
   useSessionContext,
+  type SessionContext,
 } from '@/shared/sesion';
 import { ControlTema } from '@/shared/tema';
 import { AlertaError } from '@/shared/ui/AlertaError';
@@ -23,10 +30,14 @@ import estilos from './ShellLayout.module.css';
  *   cambio de empresa (encabezado) solo se ofrece si `puedeCambiarEmpresa`; si
  *   la petición de la lista falla por red o 5xx, un aviso lo dice y la sesión
  *   sigue en `ready`. «Cerrar sesión» (barra lateral) es local.
+ * - `selecting` con origen `cambio`: la sesión sigue viva, así que se dibuja el
+ *   shell completo con el último contexto conocido (nunca vacío). Solo si no
+ *   hay contexto retenido se muestra el estado de carga. `RutaProtegida`
+ *   lleva al usuario a `/empresa`.
  * - `loading`: estado neutro de carga, sin datos de identidad.
  * - `unavailable`: aviso de conexión con «Reintentar» y «Cerrar sesión».
- * - `anonymous`, `selecting`, `ended`: nada; la guarda `RutaProtegida` decide
- *   a dónde va el usuario.
+ * - `anonymous`, `selecting` de un login, `ended`: nada; la guarda
+ *   `RutaProtegida` decide a dónde va el usuario.
  *
  * Por debajo de 900 px la barra lateral pasa a ser un panel que se abre con
  * el botón «Menú» (divulgación: `aria-expanded` y `aria-controls`). Se cierra
@@ -34,6 +45,14 @@ import estilos from './ShellLayout.module.css';
  *
  * El título del documento lo pone `RutaRaiz`; aquí solo se muestra en el `h1`.
  */
+function EstadoCarga() {
+  return (
+    <main id="contenido" aria-busy="true" className={estilos.estado}>
+      <p>Cargando la sesión…</p>
+    </main>
+  );
+}
+
 export function ShellLayout() {
   const sesion = useSessionContext();
   const acciones = useSessionActions();
@@ -48,16 +67,38 @@ export function ShellLayout() {
   const menuAbierto = abiertoEn === pathname;
   const [cambiando, setCambiando] = useState(false);
   const [fallo, setFallo] = useState<MensajeError | null>(null);
+  // Último contexto de una sesión `ready`: durante un cambio de empresa el
+  // estado `selecting` no lo trae, pero la sesión sigue viva.
+  const [retenido, setRetenido] = useState<SessionContext | null>(null);
+  if (sesion.status === 'ready' && retenido !== sesion.contexto) {
+    setRetenido(sesion.contexto);
+  }
+  // La guarda puede desmontar el shell en cuanto empieza el cambio y llevar
+  // ella misma a `/empresa`: entonces no se navega una segunda vez.
+  const montado = useRef(false);
+  useEffect(() => {
+    montado.current = true;
+    return () => {
+      montado.current = false;
+    };
+  }, []);
 
+  let contexto: SessionContext;
+  let puedeCambiarEmpresa = false;
   switch (sesion.status) {
     case 'ready':
+      contexto = sesion.contexto;
+      puedeCambiarEmpresa = sesion.puedeCambiarEmpresa;
       break;
+    case 'selecting':
+      if (sesion.origen === 'cambio' && retenido) {
+        contexto = retenido;
+        break;
+      }
+      if (sesion.origen !== 'cambio') return null;
+      return <EstadoCarga />;
     case 'loading':
-      return (
-        <main id="contenido" aria-busy="true" className={estilos.estado}>
-          <p>Cargando la sesión…</p>
-        </main>
-      );
+      return <EstadoCarga />;
     case 'unavailable':
       return (
         <SesionNoDisponible
@@ -66,14 +107,12 @@ export function ShellLayout() {
         />
       );
     case 'anonymous':
-    case 'selecting':
     case 'ended':
-      // `RutaProtegida` ya redirigió (o, en un cambio de empresa, la pantalla
-      // de elección ocupa su lugar): aquí no hay nada que mostrar.
+      // `RutaProtegida` ya redirigió: aquí no hay nada que mostrar.
       return null;
   }
 
-  const { usuario, empresa, roles } = sesion.contexto;
+  const { usuario, empresa, roles } = contexto;
   const titulo = tituloDeRuta(coincidencias.at(-1)?.handle) ?? 'Cuadra';
 
   async function cambiarEmpresa() {
@@ -85,6 +124,8 @@ export function ShellLayout() {
       // La pantalla actual viaja como destino de retorno (validada al
       // leerla): abandonar el cambio vuelve a ella. Elegir otra empresa va a
       // `/bandeja`.
+      // Si la guarda ya llevó a `/empresa` (el shell se desmontó), no se repite.
+      if (!montado.current) return;
       const volverA = destinoSeguro({ pathname, search, hash });
       await navegar('/empresa', volverA ? { state: { volverA } } : undefined);
     } catch (error) {
@@ -143,9 +184,7 @@ export function ShellLayout() {
           <Header
             titulo={titulo}
             empresa={empresa}
-            onCambiarEmpresa={
-              sesion.puedeCambiarEmpresa ? cambiarEmpresa : undefined
-            }
+            onCambiarEmpresa={puedeCambiarEmpresa ? cambiarEmpresa : undefined}
             cambioPendiente={cambiando}
             barraMovil={
               <div className={estilos.barraMovil}>

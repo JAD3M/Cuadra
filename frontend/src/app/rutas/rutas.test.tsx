@@ -32,7 +32,12 @@ describe('RutaProtegida', () => {
     ['ended seleccion_vencida', terminada('seleccion_vencida'), 'login', null],
     ['ended sin_empresas', terminada('sin_empresas'), 'login', null],
     ['selecting (login)', ESTADOS.selectingLogin, 'empresa', { from: FROM }],
-    ['selecting (cambio)', ESTADOS.selectingCambio, 'caso', null],
+    [
+      'selecting (cambio)',
+      ESTADOS.selectingCambio,
+      'empresa',
+      { volverA: FROM },
+    ],
     ['loading', ESTADOS.loading, 'caso', null],
     ['unavailable', ESTADOS.unavailable, 'caso', null],
     ['ready', ESTADOS.ready, 'caso', null],
@@ -79,14 +84,23 @@ describe('RutaProtegida', () => {
     });
   });
 
-  it('mantiene la pantalla al pasar de ready a un cambio de empresa y volver', async () => {
-    const { cambiar, dibujadas } = montarRutas(PEDIDA, ESTADOS.ready);
+  it('al pasar de ready a un cambio de empresa va a /empresa con la pantalla como retorno y agrega una entrada', async () => {
+    const { cambiar, router } = montarRutas(PEDIDA, ESTADOS.ready);
     await cambiar(ESTADOS.selectingCambio);
-    expect(pantalla()).toBe('caso');
+    expect(pantalla()).toBe('empresa');
+    expect(estadoDelRouter()).toEqual({ volverA: FROM });
+    expect(router.state.historyAction).toBe('PUSH');
+    // El retorno viaja en el estado del enrutador, nunca en la URL.
+    expect(router.state.location.search).toBe('');
     await cambiar(ESTADOS.ready);
     expect(pantalla()).toBe('caso');
-    // Ni un solo cuadro con otra pantalla: no hubo carga ni redirección.
-    expect(new Set(dibujadas)).toEqual(new Set(['caso']));
+  });
+
+  it('llegar a una ruta interna con el cambio en curso reemplaza la entrada y lleva a /empresa', () => {
+    const { router } = montarRutas(PEDIDA, ESTADOS.selectingCambio);
+    expect(pantalla()).toBe('empresa');
+    expect(router.state.historyAction).toBe('REPLACE');
+    expect(estadoDelRouter()).toEqual({ volverA: FROM });
   });
 
   it('expulsa a /login con el destino cuando la sesión expira estando dentro', async () => {
@@ -108,7 +122,8 @@ describe('RutaProtegida', () => {
     const { cambiar } = montarRutas(PEDIDA, ESTADOS.selectingCambio);
     await cambiar(terminada('reingreso'));
     expect(pantalla()).toBe('login');
-    expect(estadoDelRouter()).toBeNull();
+    // Sin destino guardado: solo el foco en el correo.
+    expect(estadoDelRouter()).toEqual({ foco: 'correo' });
   });
 });
 

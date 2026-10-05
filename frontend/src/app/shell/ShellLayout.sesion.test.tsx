@@ -232,6 +232,56 @@ describe('ShellLayout con la sesión real: cambio de empresa', () => {
     );
   });
 
+  it('Atrás desde /empresa durante un cambio vuelve al paso de empresa, nunca a una página en blanco, y abandonar regresa a la pantalla de origen sin pedir el contexto', async () => {
+    servidorPorEmpresa();
+    const { router, tienda } = await montar();
+    await entrarConEmpresa();
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/bandeja'),
+    );
+    await act(() => router.navigate('/casos/9?x=1'));
+    await screen.findByTestId('prueba');
+    const epoca = tienda.obtener().epoca;
+    const contextos = () =>
+      solicitudes.filter((s) => s === 'GET /api/auth/contexto').length;
+    const previos = contextos();
+
+    await userEvent.setup().click(interruptor());
+    await screen.findByRole('heading', { level: 1, name: 'Elige empresa' });
+    expect(router.state.location.pathname).toBe('/empresa');
+
+    // Atrás: la ruta interna con el cambio en curso redirige al paso.
+    await act(() => router.navigate(-1));
+    await screen.findByRole('heading', { level: 1, name: 'Elige empresa' });
+    expect(router.state.location.pathname).toBe('/empresa');
+    expect(router.state.location.search).toBe('');
+    expect(router.state.location.state).toEqual({
+      volverA: { pathname: '/casos/9', search: '?x=1' },
+    });
+    expect(
+      screen.getByText(
+        'Estás en Ferreteria del Bajio SA de CV. Elige la empresa a la que quieres cambiar.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('main')).toBeInTheDocument();
+    expect(tienda.obtener()).toMatchObject({ epoca });
+
+    await userEvent
+      .setup()
+      .click(
+        screen.getByRole('button', { name: '← Volver sin cambiar de empresa' }),
+      );
+    await screen.findByTestId('prueba');
+    expect(router.state.location.pathname).toBe('/casos/9');
+    expect(router.state.location.search).toBe('?x=1');
+    expect(historial.at(-1)).toBe('ready');
+    expect(tienda.obtener()).toMatchObject({ fase: 'sesion', epoca });
+    expect(contextos()).toBe(previos);
+    expect(screen.getByRole('banner')).toHaveTextContent(
+      'Ferreteria del Bajio',
+    );
+  });
+
   it('cambiar a otra empresa va a /bandeja y los datos de A no aparecen bajo B', async () => {
     servidorPorEmpresa();
     const { router, consultas } = await montar();

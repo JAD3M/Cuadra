@@ -307,10 +307,10 @@ describe('ShellLayout según el estado de la sesión', () => {
   it.each<[string, SessionState]>([
     ['anonymous', { status: 'anonymous' }],
     [
-      'selecting',
+      'selecting (login)',
       {
         status: 'selecting',
-        origen: 'cambio',
+        origen: 'login',
         usuario: CONTEXTO_SESION.usuario,
         empresas: [],
       },
@@ -323,6 +323,76 @@ describe('ShellLayout según el estado de la sesión', () => {
     expect(screen.queryByText('Contenido de cargas')).toBeNull();
     expect(screen.queryByText(CONTEXTO_SESION.usuario.nombre)).toBeNull();
     expect(router.state.location.pathname).toBe('/cargas');
+  });
+
+  describe('selecting (cambio): la sesión sigue viva', () => {
+    const CAMBIO: SessionState = {
+      status: 'selecting',
+      origen: 'cambio',
+      usuario: CONTEXTO_SESION.usuario,
+      empresas: [],
+    };
+
+    function montarCambio(ruta = '/cargas') {
+      const router = createMemoryRouter(
+        [
+          {
+            element: <ShellLayout />,
+            children: [
+              {
+                path: '/cargas',
+                element: <p>Contenido de cargas</p>,
+                handle: { titulo: 'Cargas' },
+              },
+            ],
+          },
+        ],
+        { initialEntries: [ruta] },
+      );
+      const arbol = (estado: SessionState) => (
+        <ThemeProvider>
+          <SessionStateProvider estado={estado} acciones={accionesFalsas()}>
+            <RouterProvider router={router} />
+          </SessionStateProvider>
+        </ThemeProvider>
+      );
+      const vista = render(
+        arbol({
+          status: 'ready',
+          contexto: CONTEXTO_SESION,
+          puedeCambiarEmpresa: true,
+          restaurarOrigen: false,
+        }),
+      );
+      return { router, arbol, vista };
+    }
+
+    it('conserva el shell completo con el contexto retenido, sin botón de cambio', () => {
+      const { arbol, vista } = montarCambio();
+      vista.rerender(arbol(CAMBIO));
+      expect(screen.getByRole('banner')).toBeInTheDocument();
+      expect(screen.getByRole('navigation')).toBeInTheDocument();
+      expect(screen.getByRole('main')).toContainElement(
+        screen.getByText('Contenido de cargas'),
+      );
+      expect(
+        within(screen.getByRole('banner')).getByText(
+          CONTEXTO_SESION.empresa.razonSocial,
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByText(CONTEXTO_SESION.usuario.nombre)).toBeVisible();
+      expect(
+        screen.queryByRole('button', { name: /Cambiar de empresa/ }),
+      ).toBeNull();
+    });
+
+    it('sin contexto retenido muestra el estado de carga, nunca vacío', () => {
+      renderizar(CAMBIO);
+      const main = screen.getByRole('main');
+      expect(main).toHaveAttribute('aria-busy', 'true');
+      expect(main).toHaveTextContent('Cargando');
+      expect(screen.queryByText(CONTEXTO_SESION.usuario.nombre)).toBeNull();
+    });
   });
 
   describe('unavailable', () => {
