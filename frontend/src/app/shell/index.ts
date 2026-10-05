@@ -1,6 +1,5 @@
 export { CompanyBadge, type CompanyBadgeProps } from './CompanyBadge';
 export { Header, type HeaderProps } from './Header';
-export { iniciales } from './iniciales';
 export {
   ELEMENTOS_NAV,
   elementoActivo,

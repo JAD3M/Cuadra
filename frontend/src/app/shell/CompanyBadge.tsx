@@ -1,4 +1,4 @@
-import { iniciales } from './iniciales';
+import { iniciales } from '@/shared/dominio';
 import estilos from './CompanyBadge.module.css';
 
 export interface CompanyBadgeProps {
