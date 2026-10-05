@@ -2,6 +2,10 @@ import type { ReactNode } from 'react';
 import { AvisoAuth } from '@/features/auth/components/AvisoAuth';
 import { FormularioLogin } from '@/features/auth/components/FormularioLogin';
 import { LayoutAuth } from '@/features/auth/components/LayoutAuth';
+import {
+  ListaEmpresas,
+  type EmpresaElegible,
+} from '@/features/auth/components/ListaEmpresas';
 import { AVISOS } from '@/features/auth/components/textos';
 import { ControlTema } from '@/shared/tema';
 import { AlertaError } from '@/shared/ui/AlertaError';
@@ -12,6 +16,28 @@ import { EstadoChip, TONOS_ESTADO_CHIP } from '@/shared/ui/EstadoChip';
 import { Monto } from '@/shared/ui/Monto';
 import { Td, Th, Tabla } from '@/shared/ui/Tabla';
 import estilos from './KitPage.module.css';
+
+/** Empresas de ejemplo del paso 2 del acceso (una con dos roles). */
+const EMPRESAS_EJEMPLO: EmpresaElegible[] = [
+  {
+    id: 'kit-a',
+    razonSocial: 'Ferretería del Bajío',
+    rfc: 'FDB190215QK4',
+    roles: ['contador', 'admin'],
+  },
+  {
+    id: 'kit-b',
+    razonSocial: 'Transportes Cuautla',
+    rfc: 'TCU170830R52',
+    roles: ['revisor'],
+  },
+  {
+    id: 'kit-c',
+    razonSocial: 'Abarrotes y Distribuciones del Norte de la Sierra Madre',
+    rfc: 'ADN200310AB1',
+    roles: ['admin'],
+  },
+];
 
 const ETIQUETAS_TONO: Record<(typeof TONOS_ESTADO_CHIP)[number], string> = {
   sugerencia: 'Sugerencia',
@@ -206,6 +232,30 @@ export function KitPage({ muestraShell }: KitPageProps) {
             pendiente
             fallo={null}
             onEnviar={() => {}}
+          />
+        </div>
+      </Seccion>
+
+      <Seccion id="kit-empresas" titulo="Elección de empresa">
+        <p className={estilos.nota}>
+          Lista del paso 2: en reposo, con una petición en curso y con una sola
+          empresa.
+        </p>
+        <div className={estilos.rejilla}>
+          <ListaEmpresas
+            empresas={EMPRESAS_EJEMPLO}
+            pendienteId={null}
+            onElegir={() => {}}
+          />
+          <ListaEmpresas
+            empresas={EMPRESAS_EJEMPLO}
+            pendienteId="kit-b"
+            onElegir={() => {}}
+          />
+          <ListaEmpresas
+            empresas={EMPRESAS_EJEMPLO.slice(0, 1)}
+            pendienteId={null}
+            onElegir={() => {}}
           />
         </div>
       </Seccion>

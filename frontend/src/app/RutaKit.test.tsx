@@ -42,6 +42,7 @@ describe('RutaKit (galería de componentes)', () => {
       'Campos y alertas',
       'Pantalla de acceso',
       'Formulario de acceso',
+      'Elección de empresa',
       'Tarjetas',
       'Chips de estado',
       'Tabla con montos',
@@ -75,6 +76,15 @@ describe('RutaKit (galería de componentes)', () => {
     expect(
       within(seccion).getByRole('button', { name: 'Entrando…' }),
     ).toBeDisabled();
+    expect(document.body).toHaveFocus();
+  });
+
+  it('la galería de empresas muestra la lista en reposo, en curso y con una sola', () => {
+    renderizar();
+    const seccion = screen.getByRole('region', { name: 'Elección de empresa' });
+    expect(within(seccion).getAllByRole('list')).toHaveLength(3);
+    expect(within(seccion).getAllByRole('button')).toHaveLength(7);
+    expect(within(seccion).getByText('Entrando…')).toBeInTheDocument();
     expect(document.body).toHaveFocus();
   });
 

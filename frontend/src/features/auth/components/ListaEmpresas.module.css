@@ -1,0 +1,9 @@
+/* Pila de tarjetas del paso 2; la separación sale de Main.dc.html (18 px). */
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-18);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

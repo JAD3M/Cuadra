@@ -1,0 +1,98 @@
+/*
+ * Tarjeta de empresa del paso 2 (Main.dc.html): mosaico de 44 px, nombre,
+ * RFC en monoespaciada y chips de rol. Solo tokens de rol.
+ */
+.tarjeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-14);
+  inline-size: 100%;
+  min-block-size: var(--touch-min);
+  padding: var(--space-14) var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tarjeta:hover:not([aria-disabled='true']) {
+  border-color: var(--color-border-strong);
+  background: var(--color-hover);
+}
+
+.tarjeta:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Inactiva: cursor y borde discontinuo, no solo color. */
+.tarjeta[aria-disabled='true'] {
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.mosaico {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  inline-size: var(--touch-min);
+  block-size: var(--touch-min);
+  border-radius: var(--radius-md);
+  background: var(--_tinte);
+  color: var(--_texto);
+  font-weight: var(--weight-bold);
+}
+
+.sugerencia {
+  --_tinte: var(--estado-sugerencia-tint);
+  --_texto: var(--estado-sugerencia-text);
+}
+
+.sin_match {
+  --_tinte: var(--estado-sin-match-tint);
+  --_texto: var(--estado-sin-match-text);
+}
+
+.conciliado {
+  --_tinte: var(--estado-conciliado-tint);
+  --_texto: var(--estado-conciliado-text);
+}
+
+.datos {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+/* La razón social puede partirse en varias líneas, nunca desborda. */
+.nombre {
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+/* El RFC jamás se trunca ni se parte. */
+.rfc {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.roles {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}
+
+.entrando {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
