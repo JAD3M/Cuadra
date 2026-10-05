@@ -3,6 +3,13 @@
  * Dirección de dependencias: app -> features -> shared.
  * Los componentes de presentación no conocen la API ni la sesión.
  */
+/** Código que maneja tokens y credenciales: nunca escribe en la consola. */
+const CODIGO_DE_SESION = [
+  'src/shared/sesion/**/*.{ts,tsx}',
+  'src/shared/api/**/*.{ts,tsx}',
+  'src/features/auth/**/*.{ts,tsx}',
+];
+
 const PRESENTACIONALES = [
   'src/shared/ui/**/*.{ts,tsx}',
   'src/app/shell/**/*.{ts,tsx}',
@@ -83,5 +90,10 @@ export default [
         },
       ],
     },
+  },
+  {
+    files: CODIGO_DE_SESION,
+    ignores: ['src/**/*.test.{ts,tsx}'],
+    rules: { 'no-console': 'error' },
   },
 ];
