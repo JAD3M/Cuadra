@@ -2,13 +2,18 @@ import { Controller, Get, Query } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiForbiddenResponse,
   ApiOkResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { UsuarioAutenticado } from '../auth/tipos';
 import { UsuarioActual } from '../common/decorators/decoradores';
 import { BandejaService } from './bandeja.service';
-import { ConsultaBandejaDto, RespuestaBandejaDto } from './dto/bandeja.dto';
+import {
+  ConsultaBandejaDto,
+  RespuestaBandejaDto,
+  ResumenBandejaDto,
+} from './dto/bandeja.dto';
 
 /** La sesión ya la exige JwtAuthGuard; aquí solo se estrecha el tipo. */
 type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
@@ -28,5 +33,14 @@ export class BandejaController {
     @Query() consulta: ConsultaBandejaDto,
   ): Promise<RespuestaBandejaDto> {
     return this.bandeja.listar(usuario.companyId, consulta);
+  }
+
+  /** CU-22. Conteos por estado y monto por revisar; mismos roles que el listado. */
+  @Get('resumen')
+  @ApiOkResponse({ type: ResumenBandejaDto })
+  @ApiUnauthorizedResponse({ description: 'Sin sesión válida.' })
+  @ApiForbiddenResponse({ description: 'Sin membresía vigente en la empresa.' })
+  resumen(@UsuarioActual() usuario: Sesion): Promise<ResumenBandejaDto> {
+    return this.bandeja.resumen(usuario.companyId);
   }
 }

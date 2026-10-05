@@ -7,6 +7,8 @@ import {
   type FilaBandejaDto,
   LIMITE_POR_DEFECTO,
   type RespuestaBandejaDto,
+  type ResumenBandejaDto,
+  ESTADOS_BANDEJA,
 } from './dto/bandeja.dto';
 
 /**
@@ -36,6 +38,12 @@ const DESDE_FILTRO = `
       OR (m.estado = 'abierto' AND p.id IS NULL
           AND m.regla_sin_match IS NOT NULL AND 'sin_match' = ANY($2))
     )`;
+
+/** Estado derivado de una fila de DESDE_FILTRO; espeja `aFila`. */
+const ESTADO_DERIVADO = `
+  CASE WHEN m.estado = 'conciliado' THEN 'conciliado'
+       WHEN p.id IS NOT NULL THEN 'sugerencia'
+       ELSE 'sin_match' END`;
 
 interface FilaSql {
   movimiento_id: string;
@@ -109,6 +117,51 @@ export class BandejaService {
     );
 
     return { datos: filas.map(aFila), pagina, limite, total };
+  }
+
+  /**
+   * Conteos por estado y monto por revisar por moneda, con el mismo
+   * predicado que `listar` para que cuadren con `total`. Los montos se suman
+   * en SQL (NUMERIC) y viajan como texto; en TypeScript solo se suman
+   * conteos enteros.
+   */
+  async resumen(companyId: string): Promise<ResumenBandejaDto> {
+    const filas = await this.contexto.manager().query<
+      {
+        moneda: string;
+        conciliado: number;
+        sugerencia: number;
+        sin_match: number;
+        por_revisar: string;
+      }[]
+    >(
+      `WITH f AS (
+         SELECT m.moneda, m.monto, ${ESTADO_DERIVADO} AS estado
+         ${DESDE_FILTRO}
+       )
+       SELECT moneda,
+              (count(*) FILTER (WHERE estado = 'conciliado'))::int AS conciliado,
+              (count(*) FILTER (WHERE estado = 'sugerencia'))::int AS sugerencia,
+              (count(*) FILTER (WHERE estado = 'sin_match'))::int AS sin_match,
+              COALESCE(sum(monto) FILTER (WHERE estado <> 'conciliado'), 0)::text
+                AS por_revisar
+         FROM f
+        GROUP BY moneda
+        ORDER BY moneda`,
+      [companyId, [...ESTADOS_BANDEJA]],
+    );
+
+    const conteos = { conciliado: 0, sugerencia: 0, sin_match: 0 };
+    const montoPorRevisar: { moneda: string; monto: string }[] = [];
+    for (const f of filas) {
+      conteos.conciliado += f.conciliado;
+      conteos.sugerencia += f.sugerencia;
+      conteos.sin_match += f.sin_match;
+      if (f.sugerencia + f.sin_match > 0) {
+        montoPorRevisar.push({ moneda: f.moneda, monto: f.por_revisar });
+      }
+    }
+    return { conteos, montoPorRevisar };
   }
 }
 

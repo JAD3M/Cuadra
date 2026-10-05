@@ -4,6 +4,7 @@ import type { DataSource } from 'typeorm';
 import {
   ANA,
   type AppDeCargas,
+  CARMEN,
   FERRETERIA,
   JORGE,
   levantarAppDeCargas,
@@ -11,7 +12,10 @@ import {
   TRANSPORTES,
 } from '../cargas/testing/app-de-cargas';
 import { una } from '../database/testing/base-de-pruebas';
-import type { RespuestaBandejaDto } from './dto/bandeja.dto';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { aTexto, dinero, sumar } from '../common/dinero';
+import type { RespuestaBandejaDto, ResumenBandejaDto } from './dto/bandeja.dto';
 
 /**
  * CU-14 de punta a punta contra Postgres real con RLS: la bandeja de
@@ -51,15 +55,16 @@ async function movimiento(
     estado?: string;
     regla?: string | null;
     referencia?: string | null;
+    moneda?: string;
   } = {},
 ): Promise<string> {
   const regla = o.regla ?? null;
   const { id } = await una<{ id: string }>(
     ds,
     `INSERT INTO movimientos (company_id, linea_numero, fecha, descripcion, referencia, monto,
-                              estado, motivo_sin_match, regla_sin_match)
+                              estado, motivo_sin_match, regla_sin_match, moneda)
      VALUES ($1,$2,'2026-09-02','SPEI RECIBIDO',$3,$4,$5,
-             CASE WHEN $6::text IS NULL THEN NULL ELSE 'Motivo guardado' END, $6)
+             CASE WHEN $6::text IS NULL THEN NULL ELSE 'Motivo guardado' END, $6, $7)
      RETURNING id`,
     [
       empresa,
@@ -68,6 +73,7 @@ async function movimiento(
       o.monto ?? '1160.00',
       o.estado ?? 'abierto',
       regla,
+      o.moneda ?? 'MXN',
     ],
   );
   return id;
@@ -511,5 +517,260 @@ describe('BJ-9 solo lectura', () => {
   it('S31: una empresa sin filas recibe 200 con lista vacía', async () => {
     const r = await listar();
     expect(r).toEqual({ datos: [], pagina: 1, limite: 50, total: 0 });
+  });
+});
+
+/** Mismo orden que el endpoint: estado y moneda se piden aparte. */
+const ESTADOS = ['conciliado', 'sugerencia', 'sin_match'] as const;
+
+const resumir = (token: string, query = '') =>
+  request(entorno.app.getHttpServer())
+    .get(`/bandeja/resumen${query}`)
+    .auth(token, { type: 'bearer' });
+
+async function resumen(token = tokenA, query = ''): Promise<ResumenBandejaDto> {
+  const res = await resumir(token, query).expect(200);
+  return res.body as ResumenBandejaDto;
+}
+
+/** Datos mixtos para el resumen: ver RS-2. */
+async function sembrarMixto(empresa: string): Promise<void> {
+  // 2 sugerencias, una con dos propuestas vigentes y una rechazada.
+  const m1 = await movimiento(empresa, { monto: '0.10' });
+  await conciliacion(empresa, await factura(empresa), m1, 'propuesta', {
+    score: '0.7000',
+  });
+  await conciliacion(empresa, await factura(empresa), m1, 'propuesta', {
+    score: '0.9500',
+  });
+  await conciliacion(empresa, await factura(empresa), m1, 'rechazada');
+  await sugerido(empresa, '0.20');
+  // 3 sin_match, uno con solo una conciliación rechazada.
+  await sinMatch(empresa, '10.00');
+  await sinMatch(empresa, '20.00');
+  const r = await movimiento(empresa, {
+    monto: '30.00',
+    regla: 'monto_candidato_ocupado',
+  });
+  await conciliacion(empresa, await factura(empresa), r, 'rechazada');
+  // 1 conciliado.
+  await cerrado(empresa, '500.00');
+  // No cuentan: abierto sin evaluar, cargo, descartado.
+  await movimiento(empresa, { monto: '999.00' });
+  await movimiento(empresa, { monto: '-50.00', regla: 'sin_candidato_monto' });
+  await movimiento(empresa, {
+    monto: '70.00',
+    estado: 'descartado',
+    regla: 'sin_candidato_monto',
+  });
+}
+
+describe('RS-1 empresa vacía', () => {
+  it('R1: ceros, lista vacía y solo las llaves del contrato', async () => {
+    const r = await resumen();
+    expect(r).toEqual({
+      conteos: { conciliado: 0, sugerencia: 0, sin_match: 0 },
+      montoPorRevisar: [],
+    });
+    expect(Object.keys(r).sort()).toEqual(['conteos', 'montoPorRevisar']);
+    expect(Object.keys(r.conteos).sort()).toEqual([
+      'conciliado',
+      'sin_match',
+      'sugerencia',
+    ]);
+  });
+});
+
+describe('RS-2 conteos y monto', () => {
+  it('R2: cuenta por estado derivado sin duplicar por propuesta', async () => {
+    await sembrarMixto(A);
+    expect((await resumen()).conteos).toEqual({
+      conciliado: 1,
+      sugerencia: 2,
+      sin_match: 3,
+    });
+  });
+
+  it('R3: monto por revisar exacto, solo sugerencia y sin_match, como texto', async () => {
+    await sembrarMixto(A);
+    const r = await resumen();
+    // 0.10 + 0.20 + 10 + 20 + 30; el conciliado de 500 no entra.
+    expect(r.montoPorRevisar).toEqual([{ moneda: 'MXN', monto: '60.3000' }]);
+    expect(typeof r.montoPorRevisar[0].monto).toBe('string');
+  });
+
+  it('R3: 0.10 + 0.20 da 0.3000 sin error de flotante', async () => {
+    await sinMatch(A, '0.10');
+    await sinMatch(A, '0.20');
+    expect((await resumen()).montoPorRevisar).toEqual([
+      { moneda: 'MXN', monto: '0.3000' },
+    ]);
+  });
+
+  it('R3: un monto de 14 dígitos enteros no pierde precisión', async () => {
+    await sinMatch(A, '99999999999999.9900');
+    await sugerido(A, '0.0100');
+    expect((await resumen()).montoPorRevisar).toEqual([
+      { moneda: 'MXN', monto: '100000000000000.0000' },
+    ]);
+  });
+
+  it('R4: una fila por moneda, ordenadas; sin pendientes no aparece', async () => {
+    await movimiento(A, {
+      monto: '100.50',
+      moneda: 'USD',
+      regla: 'sin_candidato_monto',
+    });
+    await movimiento(A, {
+      monto: '2150.00',
+      moneda: 'MXN',
+      regla: 'sin_candidato_monto',
+    });
+    await sugerido(A, '1.25');
+    // EUR solo con un conciliado: cuenta, pero no tiene monto por revisar.
+    const m = await movimiento(A, {
+      monto: '40.00',
+      moneda: 'EUR',
+      estado: 'conciliado',
+    });
+    await conciliacion(A, await factura(A), m, 'confirmada');
+    const r = await resumen();
+    expect(r.montoPorRevisar).toEqual([
+      { moneda: 'MXN', monto: '2151.2500' },
+      { moneda: 'USD', monto: '100.5000' },
+    ]);
+    expect(r.conteos).toEqual({ conciliado: 1, sugerencia: 1, sin_match: 2 });
+  });
+});
+
+describe('RS-3 paridad con GET /bandeja', () => {
+  it('R5: cada conteo es el total del listado de ese estado', async () => {
+    await sembrarMixto(A);
+    const { conteos } = await resumen();
+    for (const e of ESTADOS) {
+      const r = await listar(`?estado=${e}&limite=1`);
+      expect(conteos[e]).toBe(r.total);
+    }
+    const porDefecto = await listar();
+    expect(conteos.sugerencia + conteos.sin_match).toBe(porDefecto.total);
+  });
+
+  it('R6: el monto por revisar es la suma de las filas del listado', async () => {
+    await sembrarMixto(A);
+    await movimiento(A, {
+      monto: '12.34',
+      moneda: 'USD',
+      regla: 'sin_candidato_monto',
+    });
+    await movimiento(A, {
+      monto: '0.66',
+      moneda: 'USD',
+      regla: 'sin_candidato_monto',
+    });
+    const filas = (await listar('?limite=200')).datos;
+    const porMoneda = new Map<string, ReturnType<typeof dinero>[]>();
+    for (const f of filas) {
+      porMoneda.set(f.moneda, [
+        ...(porMoneda.get(f.moneda) ?? []),
+        dinero(f.monto),
+      ]);
+    }
+    const esperado = [...porMoneda.entries()]
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([moneda, montos]) => ({
+        moneda,
+        monto: aTexto(sumar(montos), 4),
+      }));
+    expect(esperado.length).toBe(2);
+    expect((await resumen()).montoPorRevisar).toEqual(esperado);
+  });
+});
+
+describe('RS-4 aislamiento y acceso', () => {
+  it('R7: cada empresa ve solo lo suyo con su propio token', async () => {
+    await sinMatch(A, '10.00');
+    await sinMatch(B, '1.00');
+    await sinMatch(B, '2.00');
+    await sugerido(B, '4.00');
+    const deA = await resumen(tokenA);
+    const deB = await resumen(await entorno.token(CARMEN, TRANSPORTES));
+    expect(deA).toEqual({
+      conteos: { conciliado: 0, sugerencia: 0, sin_match: 1 },
+      montoPorRevisar: [{ moneda: 'MXN', monto: '10.0000' }],
+    });
+    expect(deB).toEqual({
+      conteos: { conciliado: 0, sugerencia: 1, sin_match: 2 },
+      montoPorRevisar: [{ moneda: 'MXN', monto: '7.0000' }],
+    });
+  });
+
+  it('R8: un companyId en la query se ignora', async () => {
+    await sinMatch(A, '10.00');
+    await sinMatch(B, '1.00');
+    await sinMatch(B, '2.00');
+    const limpio = await resumen();
+    const conAjeno = await resumen(tokenA, `?companyId=${B}`);
+    expect(conAjeno).toEqual(limpio);
+    expect(conAjeno.conteos.sin_match).toBe(1);
+  });
+
+  it('R9: admin, contador y revisor leen con su propio token', async () => {
+    await sembrarMixto(A);
+    await sembrarMixto(B);
+    const admin = await resumen(await entorno.token(ANA, FERRETERIA));
+    const contador = await resumen(await entorno.token(LUIS, FERRETERIA));
+    const revisor = await resumen(await entorno.token(JORGE, TRANSPORTES));
+    expect(admin.conteos.sin_match).toBe(3);
+    expect(contador).toEqual(admin);
+    // Mismos datos sembrados en Transportes: mismo cuerpo.
+    expect(revisor).toEqual(admin);
+  });
+
+  it('R9: sin token es 401', async () => {
+    await request(entorno.app.getHttpServer())
+      .get('/bandeja/resumen')
+      .expect(401);
+  });
+
+  it('R9: un token de selección de empresa es 401', async () => {
+    const jwt = new JwtService({
+      secret: entorno.app.get(ConfigService).getOrThrow<string>('JWT_SECRET'),
+    });
+    const token = await jwt.signAsync(
+      { sub: entorno.persona(ANA), scope: 'seleccion' },
+      { expiresIn: '5m' },
+    );
+    await resumir(token).expect(401);
+  });
+
+  it('R9: sin membresía en la empresa del token es 403', async () => {
+    await resumir(await entorno.token(LUIS, TRANSPORTES)).expect(403);
+  });
+});
+
+describe('RS-5 solo lectura y compatibilidad', () => {
+  it('R10: llamar al resumen no cambia ninguna tabla', async () => {
+    await sembrarMixto(A);
+    const foto = () =>
+      ds.query<unknown[]>(
+        `SELECT (SELECT json_agg(m ORDER BY id) FROM movimientos m) AS m,
+                (SELECT json_agg(c ORDER BY id) FROM conciliaciones c) AS c`,
+      );
+    const antes = await foto();
+    await resumen();
+    await resumen();
+    expect(await foto()).toEqual(antes);
+  });
+
+  it('R11: GET /bandeja sigue respondiendo con la misma forma', async () => {
+    await sinMatch(A);
+    const r = await listar();
+    expect(Object.keys(r).sort()).toEqual([
+      'datos',
+      'limite',
+      'pagina',
+      'total',
+    ]);
+    expect(r.total).toBe(1);
   });
 });

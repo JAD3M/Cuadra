@@ -111,3 +111,37 @@ export class RespuestaBandejaDto {
   @ApiProperty({ description: 'Filas que cumplen el filtro, sin paginar.' })
   total: number;
 }
+
+export class ConteosBandejaDto {
+  @ApiProperty({ description: 'Movimientos conciliados a mano o confirmados.' })
+  conciliado: number;
+  @ApiProperty({ description: 'Movimientos abiertos con propuesta vigente.' })
+  sugerencia: number;
+  @ApiProperty({ description: 'Movimientos abiertos con motivo sin match.' })
+  sin_match: number;
+}
+
+export class MontoPorMonedaDto {
+  @ApiProperty({ example: 'MXN', description: 'Código de moneda de 3 letras.' })
+  moneda: string;
+  @ApiProperty({
+    example: '138990.4000',
+    description: 'Suma exacta, como texto decimal, nunca flotante.',
+  })
+  monto: string;
+}
+
+export class ResumenBandejaDto {
+  @ApiProperty({
+    type: ConteosBandejaDto,
+    description:
+      'Conteos por estado; coinciden con el total de GET /bandeja?estado=.',
+  })
+  conteos: ConteosBandejaDto;
+  @ApiProperty({
+    type: [MontoPorMonedaDto],
+    description:
+      'Monto por revisar (sugerencia + sin_match) por moneda, ordenado por moneda. Sin monedas sin pendientes.',
+  })
+  montoPorRevisar: MontoPorMonedaDto[];
+}
