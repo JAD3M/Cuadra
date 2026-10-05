@@ -73,8 +73,8 @@ export default [
               group: [
                 '@/shared/api',
                 '@/shared/api/*',
-                '@/app/session',
-                '@/app/session/*',
+                '@/shared/sesion',
+                '@/shared/sesion/*',
               ],
               message:
                 'Los componentes de presentación reciben datos por props; no importan la API ni la sesión.',

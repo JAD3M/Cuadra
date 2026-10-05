@@ -1,6 +1,6 @@
 import { useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
 import { Outlet, useLocation, useMatches } from 'react-router';
-import { useSessionContext } from '@/app/session';
+import { useSessionContext } from '@/shared/sesion';
 import { ControlTema } from '@/shared/tema';
 import { tituloDeRuta } from '@/app/manejadorRuta';
 import { Header } from './Header';

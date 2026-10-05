@@ -6,7 +6,7 @@ import {
 } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '@/shared/tema';
-import { PlaceholderSessionProvider } from './session';
+import { PlaceholderSessionProvider } from '@/shared/sesion';
 import { rutas } from './router';
 
 function Entorno({

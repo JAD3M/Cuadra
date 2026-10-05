@@ -1,4 +1,4 @@
-import type { SessionState } from './types';
+import type { SessionState } from './tipos';
 
 /**
  * Datos provisionales de la sesión. No vienen de la API: CU-21 los reemplaza

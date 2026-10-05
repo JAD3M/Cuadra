@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { ContextoEstadoSesion } from './contexto';
-import type { SessionState } from './types';
+import { ContextoEstadoSesion } from './contextos';
+import type { SessionState } from './tipos';
 
 export interface SessionStateProviderProps {
   estado: SessionState;

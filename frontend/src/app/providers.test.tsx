@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { useTema } from '@/shared/tema';
 import { Providers } from './providers';
-import { useSessionContext } from './session';
+import { useSessionContext } from '@/shared/sesion';
 
 function Sonda() {
   const cliente = useQueryClient();

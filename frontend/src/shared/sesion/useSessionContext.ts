@@ -1,6 +1,6 @@
 import { useContext } from 'react';
-import { ContextoEstadoSesion } from './contexto';
-import type { SessionState } from './types';
+import { ContextoEstadoSesion } from './contextos';
+import type { SessionState } from './tipos';
 
 /** Estado de la sesión. Falla si no hay un proveedor de sesión montado. */
 export function useSessionContext(): SessionState {

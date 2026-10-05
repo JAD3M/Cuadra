@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
-import { SessionStateProvider, type SessionState } from '@/app/session';
+import { SessionStateProvider, type SessionState } from '@/shared/sesion';
 import { contextoSesion } from '@/shared/api/contratos';
 import { CONTEXTO_SESION as PAYLOAD } from '@/test/fixtures';
 import { ThemeProvider } from '@/shared/tema';
