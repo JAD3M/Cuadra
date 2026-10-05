@@ -5,6 +5,91 @@
 
 ### 5 oct 2026
 
+- **CU-22 terminado: bandeja de revisión en pantalla (KAN-100). Pendiente de
+  integrar a `master`:** las ramas siguen apiladas y locales, sin push, sin
+  PR y sin merge; con ella irían 22 de 26 historias y 84 de 99 puntos. Las
+  comprobaciones manuales en el navegador contra los mockups **siguen
+  pendientes** (lista abajo); jsdom no mide diseño, desbordes, foco visible ni
+  contraste real. Lo entregado:
+  - API: `GET /bandeja/resumen` con los conteos por estado y el monto por
+    revisar por moneda, con el mismo predicado que la tabla de
+    `GET /bandeja`, filtrado por `company_id`, solo lectura y sin migración.
+  - Pantalla `/bandeja` en lugar del marcador: cuatro indicadores (tres
+    conteos y el monto por revisar, una línea por moneda), chips de estado
+    combinables (el último activo no se apaga), tabla de solo lectura en el
+    orden del servidor, paginación de 20 en 20 y estados de carga, vacío,
+    error y 403. Filtros y página viven en la URL (`?estado=…&pagina=N`):
+    se normalizan con `replace`, cambiar de chip reemplaza la entrada y
+    cambiar de página la empuja, y una página fuera de rango se reemplaza
+    por la última válida sin mostrar el vacío.
+  - Tabla: descripción como único enlace a `/casos/:id`, monto con el código
+    de moneda si no es MXN, diferencia resaltada por valor exacto (incluida la
+    menor a un centavo, con texto oculto), insignia «✦ IA» y «✦ IA ·
+    simulada» según el prefijo completo que guarda el backend.
+  - El contador de la barra lateral ya es el real (sugerencia + sin match, del
+    mismo resumen que los indicadores: una sola petición); se oculta al
+    cargar, al fallar y en cero. El marcador `PENDIENTES_PLACEHOLDER` se
+    retiró. El encabezado recibe el subtítulo desde el `handle` de la ruta.
+  - La galería `/__kit` tiene la sección «Bandeja» con cada pieza y estado.
+- **Entrega de CU-22.** Catorce ramas locales apiladas,
+  `feat/cu-22-00-api-resumen` a `feat/cu-22-13-kit-docs` (la 13 incluye estos
+  documentos). Se partieron en límites de commit; los cortes que pasan de 400
+  líneas por las pruebas (S4, S7, S10 y S11) quedan como candidatos a
+  `size:exception`. Tamaño real por rama, contra la anterior: S0 (366+/4-),
+  S1 (233+/11-), S2 (354+), S3 (122+/2-), S4 (1,103+/1-), S5 (297+),
+  S6 (439+), S7 (602+), S8 (248+), S9 (362+), S10 (449+), S11 (1,020+/14-, en
+  tres commits de 57, 780 y 183 líneas), S12 (198+/26-), S13 (301+/1- del kit
+  más estos documentos).
+- **Verificación de CU-22**, observada en `feat/cu-22-13-kit-docs`: en
+  `frontend/`, 105 archivos y 1,807 pruebas en verde; typecheck, lint,
+  formato, build y `verificar:dist` limpios. En la raíz, typecheck limpio. El
+  backend corrió sus 801 pruebas al cerrar S0 (Postgres y Redis activos) y no
+  se volvió a correr después, porque S1 a S13 no tocan `src/`.
+- **Enmiendas a la especificación** (A1 a A12, guardadas en Engram como
+  `sdd/cu-22-bandeja/spec-amendments`): la insignia «simulada» exige el
+  prefijo completo `Sugerencia de IA: [SIMULADA — no es un modelo real]` y una
+  prueba estática lo compara con el backend (A1); `SessionState.ready` suma
+  `epoca` para aislar las consultas por sesión y empresa (A2); copia de los
+  indicadores y de los estados vacío, error y 403 en un solo archivo,
+  `features/bandeja/textos.ts` (A3 a A5); el contador es `undefined` en cero
+  (A6); los detalles de error salen de `textos.ts` por tipo y
+  `shared/api/mensajes.ts` no cambia (A7); los contratos validan solo lo que
+  usa la pantalla (A8); la prueba de precisión del backend usa montos que
+  caben en `numeric(18,4)` (A9); `ShellLayout.sesion.test.tsx` y el cableado
+  de pruebas del shell (A10); enlace con `encodeURIComponent`, grupo de
+  indicadores sin landmark, pares de contraste nuevos, rango dentro del
+  `role="status"` y fechas sin pasar por `Date` (A11).
+- **Decisiones de CU-22** (Q1 a Q8, aceptadas): el resumen es un endpoint
+  propio y consistente con la tabla (Q1); la diferencia se decide por valor
+  decimal exacto (Q2); la IA se marca por regla y prefijo (Q3, Q8); al menos
+  un chip activo (Q4); la fila enlaza al caso por `movimientoId` (Q5); el
+  monto lleva su código de moneda (Q6); el contador de la barra lateral y los
+  indicadores comparten una sola consulta (Q7). La CFDI sin serie ni folio se
+  identifica por los primeros 8 caracteres de `uuidFiscal` (cierra
+  Q-SHORTUUID).
+- **Decisiones de implementación de S11.** El contenedor envuelve la tabla y
+  la paginación en una región de resultados (enfocable, con `aria-busy` al
+  conservar filas durante un cambio de página o de filtro) en vez de agregar
+  una propiedad a `TablaBandeja`. El aviso del último filtro sigue montándose
+  solo con un chip activo, como en el mockup: el texto queda enlazado por
+  `aria-describedby` y no se exige que se anuncie solo. `AlertaError` ganó una
+  propiedad opcional `accion` para el botón «Reintentar» dentro de la alerta.
+- **Pendiente: copia final de los indicadores y de los estados (R3).** Los
+  textos siguen a la espera del visto bueno final del usuario; cambiarlos es
+  editar solo `textos.ts`.
+- **Pendiente: comprobaciones manuales en el navegador, contra los mockups**
+  (nadie las ha corrido): ambos temas a 1440, 900 y 375 px (indicadores,
+  chips, tabla, paginación y estados); el monto del indicador con un número
+  largo y con dos monedas; la fila en otra moneda; la diferencia resaltada y
+  la menor a un centavo; las insignias «IA» y «simulada»; recorrido solo con
+  teclado (chips, enlaces, paginación, anillo de foco y tamaño de los
+  objetivos); lectura con un lector de pantalla (grupo de chips, resumen de
+  estado, `aria-current`, «menor a un centavo», aviso del último chip); Atrás
+  y Adelante reales entre cambios de filtro y página, enlace compartido y
+  enlace con una página que ya no existe; contador de la barra lateral en
+  `/cargas`; y `GET /bandeja/resumen` real contra el API de desarrollo con los
+  datos de la demo.
+
 - **CU-21 terminado: inicio de sesión y elección de empresa (KAN-99).**
   Integrado a `master` el 5 oct (avance directo, sin commit de merge; sobre
   `master`, 1,454 pruebas del frontend y 785 del backend en verde). Es la
