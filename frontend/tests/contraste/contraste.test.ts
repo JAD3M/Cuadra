@@ -67,6 +67,16 @@ const PARES: Par[] = [
   ['--color-text-secondary', '--color-chip-neutral'],
   ['--color-muted', '--color-chip-neutral'],
   ['--color-text-soft', '--color-chip-neutral'],
+  // Pantallas de acceso (Main.dc.html), M6. Ya cubiertos arriba: alerta
+  // (danger-text, danger-title y text-soft sobre danger-tint), campo
+  // (text, text-secondary y muted sobre sidebar/ground) y panel de marca.
+  // Aviso informativo: texto sobre su fondo (el borde es decorativo).
+  ['--color-text', '--estado-sugerencia-tile-bg'],
+  // Campo: mensaje de error sobre el fondo del control y del panel.
+  ['--color-danger-text', '--color-sidebar'],
+  ['--color-danger-text', '--color-ground'],
+  // Rótulo "Paso N de 2" del formulario sobre el fondo del panel.
+  ['--color-accent', '--color-ground'],
 ];
 
 /** Indicadores no textuales (foco y enlaces): mínimo 3:1. */
