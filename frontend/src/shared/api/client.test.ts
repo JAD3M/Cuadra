@@ -276,7 +276,7 @@ describe('fin de sesión', () => {
     expect(alTerminarSesion).not.toHaveBeenCalled();
   });
 
-  it('un 401 no llama al hook (se decide en CU-21)', async () => {
+  it('un 401 sin token del proveedor no llama al hook', async () => {
     servidor.use(
       http.get('/api/auth/contexto', () =>
         HttpResponse.json(
@@ -298,6 +298,180 @@ describe('fin de sesión', () => {
     await expect(
       crearClienteApi().fetch('/auth/contexto'),
     ).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+function responder401(ruta: string, contador?: { n: number }) {
+  servidor.use(
+    http.get(ruta, () => {
+      if (contador) contador.n += 1;
+      return HttpResponse.json(
+        { statusCode: 401, error: 'Unauthorized', message: 'x' },
+        { status: 401 },
+      );
+    }),
+  );
+}
+
+describe('fin de sesión por 401', () => {
+  it('con el token del proveedor llama al hook una vez y lanza ApiError', async () => {
+    responder401('/api/auth/contexto');
+    const alTerminarSesion = vi.fn();
+    const cliente = crearClienteApi({
+      proveedorToken: () => 'sesion',
+      alTerminarSesion,
+    });
+    const error = await cliente
+      .fetch('/auth/contexto')
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).statusCode).toBe(401);
+    expect(alTerminarSesion).toHaveBeenCalledTimes(1);
+    expect(alTerminarSesion).toHaveBeenCalledWith('sesion_expirada');
+  });
+
+  it('con un token por llamada (selección) no llama al hook', async () => {
+    responder401('/api/auth/contexto');
+    const alTerminarSesion = vi.fn();
+    const cliente = crearClienteApi({
+      proveedorToken: () => 'sesion',
+      alTerminarSesion,
+    });
+    await expect(
+      cliente.fetch('/auth/contexto', { token: 'seleccion' }),
+    ).rejects.toBeInstanceOf(ApiError);
+    expect(alTerminarSesion).not.toHaveBeenCalled();
+  });
+
+  it('con token: null (login) no llama al hook', async () => {
+    responder401('/api/auth/contexto');
+    const alTerminarSesion = vi.fn();
+    const cliente = crearClienteApi({
+      proveedorToken: () => 'sesion',
+      alTerminarSesion,
+    });
+    await expect(
+      cliente.fetch('/auth/contexto', { token: null }),
+    ).rejects.toBeInstanceOf(ApiError);
+    expect(alTerminarSesion).not.toHaveBeenCalled();
+  });
+
+  it('sin token del proveedor (null o vacío) no llama al hook', async () => {
+    responder401('/api/auth/contexto');
+    for (const token of [null, '']) {
+      const alTerminarSesion = vi.fn();
+      const cliente = crearClienteApi({
+        proveedorToken: () => token,
+        alTerminarSesion,
+      });
+      await expect(cliente.fetch('/auth/contexto')).rejects.toBeInstanceOf(
+        ApiError,
+      );
+      expect(alTerminarSesion).not.toHaveBeenCalled();
+    }
+  });
+
+  it('si el token rotó mientras la llamada estaba en vuelo no llama al hook', async () => {
+    let vigente = 'sesion-vieja';
+    servidor.use(
+      http.get('/api/auth/contexto', () => {
+        // La sesión cambia antes de que llegue la respuesta.
+        vigente = 'sesion-nueva';
+        return HttpResponse.json(
+          { statusCode: 401, error: 'Unauthorized', message: 'x' },
+          { status: 401 },
+        );
+      }),
+    );
+    const alTerminarSesion = vi.fn();
+    const cliente = crearClienteApi({
+      proveedorToken: () => vigente,
+      alTerminarSesion,
+    });
+    await expect(cliente.fetch('/auth/contexto')).rejects.toBeInstanceOf(
+      ApiError,
+    );
+    expect(alTerminarSesion).not.toHaveBeenCalled();
+  });
+
+  it('tres 401 simultáneos terminan la sesión una sola vez', async () => {
+    responder401('/api/auth/contexto');
+    let vigente: string | null = 'sesion';
+    // El hook real limpia el almacén: los 401 siguientes ven otro token.
+    const alTerminarSesion = vi.fn(() => {
+      vigente = null;
+    });
+    const cliente = crearClienteApi({
+      proveedorToken: () => vigente,
+      alTerminarSesion,
+    });
+    const resultados = await Promise.allSettled([
+      cliente.fetch('/auth/contexto'),
+      cliente.fetch('/auth/contexto'),
+      cliente.fetch('/auth/contexto'),
+    ]);
+    expect(resultados.every((r) => r.status === 'rejected')).toBe(true);
+    expect(alTerminarSesion).toHaveBeenCalledTimes(1);
+  });
+
+  it('un 403 en /auth/contexto solo notifica sin_acceso, nunca sesion_expirada', async () => {
+    responder403('/api/auth/contexto');
+    const alTerminarSesion = vi.fn();
+    const cliente = crearClienteApi({
+      proveedorToken: () => 'sesion',
+      alTerminarSesion,
+    });
+    await expect(cliente.fetch('/auth/contexto')).rejects.toBeInstanceOf(
+      ApiError,
+    );
+    expect(alTerminarSesion).toHaveBeenCalledTimes(1);
+    expect(alTerminarSesion).toHaveBeenCalledWith('sin_acceso');
+  });
+
+  it('un 403 en otra ruta con token del proveedor no llama al hook', async () => {
+    responder403('/api/casos');
+    const alTerminarSesion = vi.fn();
+    const cliente = crearClienteApi({
+      proveedorToken: () => 'sesion',
+      alTerminarSesion,
+    });
+    await expect(cliente.fetch('/casos')).rejects.toBeInstanceOf(ApiError);
+    expect(alTerminarSesion).not.toHaveBeenCalled();
+  });
+
+  it('sin hook registrado un 401 no rompe', async () => {
+    responder401('/api/auth/contexto');
+    const cliente = crearClienteApi({ proveedorToken: () => 'sesion' });
+    await expect(cliente.fetch('/auth/contexto')).rejects.toBeInstanceOf(
+      ApiError,
+    );
+  });
+
+  it('un 401 hace exactamente una petición (sin reintento ni refresco)', async () => {
+    const contador = { n: 0 };
+    responder401('/api/auth/contexto', contador);
+    const cliente = crearClienteApi({
+      proveedorToken: () => 'sesion',
+      alTerminarSesion: vi.fn(),
+    });
+    await expect(cliente.fetch('/auth/contexto')).rejects.toBeInstanceOf(
+      ApiError,
+    );
+    expect(contador.n).toBe(1);
+  });
+
+  it('un fallo de red con token del proveedor no termina la sesión', async () => {
+    servidor.use(http.get('/api/auth/contexto', () => HttpResponse.error()));
+    const alTerminarSesion = vi.fn();
+    const cliente = crearClienteApi({
+      proveedorToken: () => 'sesion',
+      alTerminarSesion,
+    });
+    // `HttpResponse.error()` llega como NetworkError a través del shim de fetch.
+    await expect(cliente.fetch('/auth/contexto')).rejects.toBeInstanceOf(
+      NetworkError,
+    );
+    expect(alTerminarSesion).not.toHaveBeenCalled();
   });
 });
 

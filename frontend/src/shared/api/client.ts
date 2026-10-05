@@ -2,12 +2,16 @@ import type { ZodType } from 'zod';
 import { ContratoError, NetworkError, aApiError } from '@/shared/api/errores';
 
 /** Por qué terminó la sesión; CU-21 decide qué hace la aplicación con cada uno. */
-export type MotivoFinSesion = 'sin_acceso';
+export type MotivoFinSesion = 'sin_acceso' | 'sesion_expirada';
 
 export interface ConfiguracionCliente {
   /** Devuelve el token vigente o `null`. En CU-20 no hay sesión: siempre `null`. */
   proveedorToken?: () => string | null;
-  /** Se invoca solo con un 403 en `GET /auth/contexto`. Inerte si no se registra. */
+  /**
+   * Se invoca con un 403 en `GET /auth/contexto` (`sin_acceso`) y con un 401 en
+   * una llamada autorizada por el proveedor (`sesion_expirada`). Inerte si no
+   * se registra.
+   */
   alTerminarSesion?: (motivo: MotivoFinSesion) => void;
 }
 
@@ -69,8 +73,10 @@ export function crearClienteApi(opciones: OpcionesCliente = {}): ClienteApi {
     const method = o.method ?? 'GET';
 
     const headers = new Headers({ Accept: 'application/json' });
-    const token =
-      o.token !== undefined ? o.token : (proveedorToken?.() ?? null);
+    // Solo una llamada autorizada por el proveedor puede terminar la sesión:
+    // el login (`token: null`) y el token de selección no son la sesión.
+    const delProveedor = o.token === undefined;
+    const token = delProveedor ? (proveedorToken?.() ?? null) : o.token;
     if (token) headers.set('Authorization', `Bearer ${token}`);
     let body: string | undefined;
     if (o.body !== undefined) {
@@ -101,6 +107,15 @@ export function crearClienteApi(opciones: OpcionesCliente = {}): ClienteApi {
         sinConsulta(path) === RUTA_CONTEXTO
       ) {
         alTerminarSesion?.('sin_acceso');
+      } else if (
+        respuesta.status === 401 &&
+        delProveedor &&
+        token &&
+        // Si el token ya rotó (otro 401 terminó la sesión, o hubo un cambio
+        // de empresa), este 401 es de una sesión anterior y se ignora.
+        proveedorToken?.() === token
+      ) {
+        alTerminarSesion?.('sesion_expirada');
       }
       throw error;
     }
