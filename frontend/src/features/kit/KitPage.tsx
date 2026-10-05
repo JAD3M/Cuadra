@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { ControlTema } from '@/shared/tema';
+import { AlertaError } from '@/shared/ui/AlertaError';
 import { Button } from '@/shared/ui/Button';
+import { Campo } from '@/shared/ui/Campo';
 import { Card } from '@/shared/ui/Card';
 import { EstadoChip, TONOS_ESTADO_CHIP } from '@/shared/ui/EstadoChip';
 import { Monto } from '@/shared/ui/Monto';
@@ -119,6 +121,27 @@ export function KitPage({ muestraShell }: KitPageProps) {
           <Button variante="fantasma" disabled>
             Ver detalle
           </Button>
+        </div>
+      </Seccion>
+
+      <Seccion id="kit-campos" titulo="Campos y alertas">
+        <div className={estilos.columna}>
+          <Campo
+            etiqueta="Correo"
+            type="email"
+            defaultValue="tapia@despacho.mx"
+          />
+          <Campo etiqueta="Contraseña" type="password" placeholder="••••••••" />
+          <Campo
+            etiqueta="Correo con error"
+            type="email"
+            defaultValue="tapia@"
+            error="Escribe un correo válido"
+          />
+          <AlertaError
+            titulo="Correo o contraseña incorrectos"
+            detalle="Revisa tus datos e inténtalo de nuevo."
+          />
         </div>
       </Seccion>
 

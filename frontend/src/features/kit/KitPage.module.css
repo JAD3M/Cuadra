@@ -47,6 +47,13 @@
   gap: var(--space-12);
 }
 
+.columna {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  max-inline-size: var(--auth-form-width);
+}
+
 .rejilla {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

@@ -123,6 +123,7 @@ describe('tokens de escala de las pantallas de acceso', () => {
     '--leading-hero': '1.02',
     '--leading-support': '1.55',
     '--tracking-hero': '-0.03em',
+    '--tracking-field': '0.04em',
     '--control-height': '48px',
     '--control-height-lg': '52px',
     '--auth-form-width': '420px',

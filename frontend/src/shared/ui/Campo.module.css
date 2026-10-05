@@ -1,0 +1,60 @@
+/*
+ * Campo de formulario: etiqueta, control y mensajes. Medidas de
+ * Main.dc.html (.fld). Solo tokens de rol.
+ */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.etiqueta {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  letter-spacing: var(--tracking-field);
+  text-transform: uppercase;
+}
+
+.control {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: var(--control-height);
+  padding: 0 var(--space-16);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-sidebar);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-lg);
+}
+
+.control::placeholder {
+  color: var(--color-muted);
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.control[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.control:disabled {
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.ayuda {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--color-text-secondary);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--text-md);
+  color: var(--color-danger-text);
+}
