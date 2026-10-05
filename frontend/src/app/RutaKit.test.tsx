@@ -82,8 +82,17 @@ describe('RutaKit (galería de componentes)', () => {
   it('la galería de empresas muestra la lista en reposo, en curso y con una sola', () => {
     renderizar();
     const seccion = screen.getByRole('region', { name: 'Elección de empresa' });
-    expect(within(seccion).getAllByRole('list')).toHaveLength(3);
-    expect(within(seccion).getAllByRole('button')).toHaveLength(7);
+    expect(within(seccion).getAllByRole('list')).toHaveLength(4);
+    expect(within(seccion).getAllByRole('button')).toHaveLength(11);
+    expect(within(seccion).queryByRole('heading', { level: 1 })).toBeNull();
+    expect(within(seccion).getByRole('alert')).toHaveTextContent(
+      'Ya no tienes acceso a esta empresa.',
+    );
+    expect(
+      within(seccion).getByRole('button', {
+        name: '← Volver sin cambiar de empresa',
+      }),
+    ).toBeInTheDocument();
     expect(within(seccion).getByText('Entrando…')).toBeInTheDocument();
     expect(document.body).toHaveFocus();
   });

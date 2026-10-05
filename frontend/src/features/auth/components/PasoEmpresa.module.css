@@ -1,0 +1,60 @@
+/*
+ * Paso 2 de la pantalla de acceso. Medidas de Main.dc.html (columna de
+ * 460 px, separación de 18 px, enlace de 44 px). Solo tokens de rol.
+ */
+.paso {
+  inline-size: 100%;
+  max-inline-size: var(--auth-company-width);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-18);
+}
+
+.encabezado {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.numero {
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  letter-spacing: var(--tracking-label-wide);
+  text-transform: uppercase;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-title-lg);
+  letter-spacing: var(--tracking-tight);
+}
+
+/* El título recibe el foco por código: sin contorno, no es un control. */
+.titulo:focus {
+  outline: none;
+}
+
+.saludo {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.volver {
+  align-self: flex-start;
+  min-block-size: var(--touch-min);
+  padding: 0 var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.volver:hover {
+  color: var(--color-text);
+}
+
+.volver:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}

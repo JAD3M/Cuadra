@@ -38,3 +38,26 @@ describe('contrato CSS de TarjetaEmpresa', () => {
     expect(css).not.toMatch(LITERAL_DE_COLOR);
   });
 });
+
+describe('contrato CSS de PasoEmpresa', () => {
+  const css = leerModuloCss('features/auth/components/PasoEmpresa.module.css');
+
+  it('la columna usa el ancho del paso y el enlace el objetivo táctil', () => {
+    expect(bloqueCss(css, '.paso')).toMatch(
+      /max-inline-size:\s*var\(--auth-company-width\)/,
+    );
+    expect(bloqueCss(css, '.volver')).toMatch(
+      /min-block-size:\s*var\(--touch-min\)/,
+    );
+  });
+
+  it('el enlace de volver declara foco visible propio', () => {
+    expect(bloqueCss(css, '.volver:focus-visible')).toMatch(
+      /outline:\s*2px solid var\(--color-accent\)/,
+    );
+  });
+
+  it('solo usa tokens: sin literales de color', () => {
+    expect(css).not.toMatch(LITERAL_DE_COLOR);
+  });
+});

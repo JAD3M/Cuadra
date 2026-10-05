@@ -6,6 +6,7 @@ import {
   ListaEmpresas,
   type EmpresaElegible,
 } from '@/features/auth/components/ListaEmpresas';
+import { PasoEmpresa } from '@/features/auth/components/PasoEmpresa';
 import { AVISOS } from '@/features/auth/components/textos';
 import { ControlTema } from '@/shared/tema';
 import { AlertaError } from '@/shared/ui/AlertaError';
@@ -239,7 +240,7 @@ export function KitPage({ muestraShell }: KitPageProps) {
       <Seccion id="kit-empresas" titulo="Elección de empresa">
         <p className={estilos.nota}>
           Lista del paso 2: en reposo, con una petición en curso y con una sola
-          empresa.
+          empresa; después el paso completo en modo de cambio, con un fallo.
         </p>
         <div className={estilos.rejilla}>
           <ListaEmpresas
@@ -256,6 +257,19 @@ export function KitPage({ muestraShell }: KitPageProps) {
             empresas={EMPRESAS_EJEMPLO.slice(0, 1)}
             pendienteId={null}
             onElegir={() => {}}
+          />
+          <PasoEmpresa
+            titulo="h3"
+            saludo="Estás en Ferretería del Bajío. Elige la empresa a la que quieres cambiar."
+            empresas={EMPRESAS_EJEMPLO}
+            pendienteId={null}
+            fallo={{
+              titulo: 'Ya no tienes acceso a esta empresa.',
+              detalle: 'Elige otra de la lista.',
+            }}
+            textoVolver="← Volver sin cambiar de empresa"
+            onElegir={() => {}}
+            onVolver={() => {}}
           />
         </div>
       </Seccion>
