@@ -63,4 +63,5 @@ export const SESION_LISTA: SessionState = {
   contexto: contextoSesion.parse(CONTEXTO_SESION),
   puedeCambiarEmpresa: false,
   restaurarOrigen: false,
+  epoca: 1,
 };

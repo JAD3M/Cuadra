@@ -61,6 +61,12 @@ export type SessionState =
       contexto: SessionContext;
       puedeCambiarEmpresa: boolean;
       restaurarOrigen: boolean;
+      /**
+       * Contador interno de la sesión: cambia al elegir empresa y al iniciar
+       * otra sesión. No es un token ni un identificador; solo sirve para
+       * aislar las consultas de una empresa de las de otra.
+       */
+      epoca: number;
     }
   | { status: 'ended'; motivo: MotivoSalida; email?: string };
 

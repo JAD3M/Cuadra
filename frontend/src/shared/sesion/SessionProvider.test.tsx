@@ -6,6 +6,7 @@ import { esperarTokensCoherentes } from '@/test/invariantesSesion';
 import {
   CREDENCIALES,
   EMPRESA_A,
+  EMPRESA_B,
   espiar,
   montarSesion,
 } from '@/test/montarSesion';
@@ -290,6 +291,60 @@ describe('SessionProvider', () => {
     const otro = montarSesion();
     expect(otro.entorno.estado().status).toBe('anonymous');
     expect(otro.entorno.almacen.seleccion()).toBeNull();
+  });
+});
+
+describe('época pública de la sesión (ready.epoca)', () => {
+  async function listo(entorno: ReturnType<typeof montarSesion>['entorno']) {
+    await act(() => entorno.acciones().iniciarSesion(CREDENCIALES));
+    await act(() => entorno.acciones().elegirEmpresa(EMPRESA_A));
+    await waitFor(() => expect(entorno.estado().status).toBe('ready'));
+  }
+
+  function epocaPublica(
+    entorno: ReturnType<typeof montarSesion>['entorno'],
+  ): number {
+    const estado = entorno.estado();
+    if (estado.status !== 'ready') throw new Error('la sesión no está lista');
+    return estado.epoca;
+  }
+
+  it('ready publica la época interna, un contador sin token', async () => {
+    const { entorno } = montarSesion();
+    await listo(entorno);
+    expect(epocaPublica(entorno)).toBe(entorno.tienda.obtener().epoca);
+    expect(typeof epocaPublica(entorno)).toBe('number');
+  });
+
+  it('aumenta tras elegir otra empresa', async () => {
+    const { entorno } = montarSesion();
+    await listo(entorno);
+    const antes = epocaPublica(entorno);
+    await act(() => entorno.acciones().cambiarEmpresa());
+    await act(() => entorno.acciones().elegirEmpresa(EMPRESA_B));
+    await waitFor(() => expect(epocaPublica(entorno)).toBeGreaterThan(antes));
+    expect(epocaPublica(entorno)).toBe(antes + 1);
+  });
+
+  it('no cambia con regresarSinCambiar', async () => {
+    const { entorno } = montarSesion();
+    await listo(entorno);
+    const antes = epocaPublica(entorno);
+    await act(() => entorno.acciones().cambiarEmpresa());
+    act(() => entorno.acciones().regresarSinCambiar());
+    await waitFor(() => expect(entorno.estado().status).toBe('ready'));
+    expect(epocaPublica(entorno)).toBe(antes);
+  });
+
+  it('es distinta tras cerrar sesión y volver a entrar', async () => {
+    const { entorno } = montarSesion();
+    await listo(entorno);
+    const antes = epocaPublica(entorno);
+    act(() => entorno.acciones().cerrarSesion());
+    await waitFor(() => expect(entorno.estado().status).toBe('ended'));
+    act(() => entorno.acciones().consumirFin());
+    await listo(entorno);
+    expect(epocaPublica(entorno)).not.toBe(antes);
   });
 });
 

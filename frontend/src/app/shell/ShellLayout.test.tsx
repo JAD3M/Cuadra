@@ -19,6 +19,7 @@ const LISTO: SessionState = {
   contexto: CONTEXTO_SESION,
   puedeCambiarEmpresa: false,
   restaurarOrigen: false,
+  epoca: 1,
 };
 
 function accionesFalsas() {
@@ -362,6 +363,7 @@ describe('ShellLayout según el estado de la sesión', () => {
           contexto: CONTEXTO_SESION,
           puedeCambiarEmpresa: true,
           restaurarOrigen: false,
+          epoca: 1,
         }),
       );
       return { router, arbol, vista };

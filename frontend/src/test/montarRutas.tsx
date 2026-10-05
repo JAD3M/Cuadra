@@ -41,12 +41,14 @@ export const ESTADOS = {
     contexto: CONTEXTO,
     puedeCambiarEmpresa: true,
     restaurarOrigen: false,
+    epoca: 1,
   },
   readyRestaurando: {
     status: 'ready',
     contexto: CONTEXTO,
     puedeCambiarEmpresa: true,
     restaurarOrigen: true,
+    epoca: 1,
   },
 } satisfies Record<string, SessionState>;
 

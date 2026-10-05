@@ -67,6 +67,7 @@ function publicar(
           contexto: consulta.data,
           puedeCambiarEmpresa: interno.varias,
           restaurarOrigen: interno.restaurarOrigen,
+          epoca: interno.epoca,
         };
       }
       if (consulta.isError) return { status: 'unavailable' };
