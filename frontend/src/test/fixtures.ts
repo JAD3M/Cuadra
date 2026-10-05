@@ -40,6 +40,23 @@ export const CONTEXTO_SESION = {
   roles: ['admin', 'contador'],
 };
 
+/** Una sola empresa: la respuesta de `/auth/login` de un usuario con acceso a una. */
+export const RESPUESTA_LOGIN_UNA_EMPRESA = {
+  ...RESPUESTA_LOGIN,
+  empresas: [EMPRESAS_DISPONIBLES[0]],
+};
+
+/** Contexto de la empresa B, para recorridos de cambio de empresa. */
+export const CONTEXTO_SESION_B = {
+  usuario: USUARIO,
+  empresa: {
+    id: EMPRESAS_DISPONIBLES[1]!.id,
+    razonSocial: EMPRESAS_DISPONIBLES[1]!.razonSocial,
+    rfc: EMPRESAS_DISPONIBLES[1]!.rfc,
+  },
+  roles: ['revisor'],
+};
+
 /** Estado público `ready` ya resuelto, para pruebas que no ejercen la sesión. */
 export const SESION_LISTA: SessionState = {
   status: 'ready',
