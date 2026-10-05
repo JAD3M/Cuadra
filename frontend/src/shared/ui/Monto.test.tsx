@@ -31,6 +31,42 @@ describe('Monto', () => {
     expect(screen.getByText('1,234.50')).toBeInTheDocument();
   });
 
+  it('codigoMoneda agrega el código en el mismo elemento', () => {
+    render(<Monto valor="2150" codigoMoneda="USD" />);
+    const monto = screen.getByText('$2,150.00 USD');
+    expect(monto).toHaveAttribute('data-estado', 'normal');
+    expect(monto.className).toContain('monto');
+  });
+
+  it('sin codigoMoneda no se agrega ningún código', () => {
+    render(<Monto valor="2150" />);
+    expect(screen.getByText('$2,150.00').textContent).toBe('$2,150.00');
+  });
+
+  it('el código acompaña a un negativo y a moneda={false}', () => {
+    render(
+      <>
+        <Monto valor="-1500.5" codigoMoneda="USD" />
+        <Monto valor="1234.5" moneda={false} codigoMoneda="EUR" />
+      </>,
+    );
+    expect(screen.getByText('−$1,500.50 USD')).toHaveAttribute(
+      'data-estado',
+      'negativo',
+    );
+    expect(screen.getByText('1,234.50 EUR')).toBeInTheDocument();
+  });
+
+  it('un valor inválido sigue mostrando el marcador, sin código', () => {
+    const { container } = render(<Monto valor="abc" codigoMoneda="USD" />);
+    expect(container.firstElementChild).toHaveAttribute(
+      'data-estado',
+      'invalido',
+    );
+    expect(container.textContent).not.toContain('USD');
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
   it.each([
     ['cadena inválida', 'abc'],
     ['vacío', ''],
