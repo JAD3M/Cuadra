@@ -15,7 +15,7 @@ import {
 } from '@/shared/sesion';
 import { ControlTema } from '@/shared/tema';
 import { AlertaError } from '@/shared/ui/AlertaError';
-import { tituloDeRuta } from '@/app/manejadorRuta';
+import { subtituloDeRuta, tituloDeRuta } from '@/app/manejadorRuta';
 import { Header } from './Header';
 import { PENDIENTES_PLACEHOLDER } from './pendientesPlaceholder';
 import { SesionNoDisponible } from './SesionNoDisponible';
@@ -113,7 +113,9 @@ export function ShellLayout() {
   }
 
   const { usuario, empresa, roles } = contexto;
-  const titulo = tituloDeRuta(coincidencias.at(-1)?.handle) ?? 'Cuadra';
+  const manejador = coincidencias.at(-1)?.handle;
+  const titulo = tituloDeRuta(manejador) ?? 'Cuadra';
+  const subtitulo = subtituloDeRuta(manejador);
 
   async function cambiarEmpresa() {
     if (cambiando) return;
@@ -183,6 +185,7 @@ export function ShellLayout() {
         <div className={estilos.columna}>
           <Header
             titulo={titulo}
+            subtitulo={subtitulo}
             empresa={empresa}
             onCambiarEmpresa={puedeCambiarEmpresa ? cambiarEmpresa : undefined}
             cambioPendiente={cambiando}

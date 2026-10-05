@@ -1,4 +1,11 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
@@ -49,7 +56,7 @@ function renderizar(
           {
             path: '/bandeja',
             element: <p>Contenido de bandeja</p>,
-            handle: { titulo: 'Bandeja' },
+            handle: { titulo: 'Bandeja', subtitulo: 'Apoyo de la bandeja' },
           },
           {
             path: '/casos/:id',
@@ -78,6 +85,11 @@ function renderizar(
   return router;
 }
 
+function renderizarConRuta(ruta: string) {
+  renderizar(LISTO, ruta);
+  return { unmount: () => cleanup() };
+}
+
 describe('ShellLayout con sesión lista', () => {
   it('expone exactamente un banner, una navegación y un main', () => {
     renderizar(LISTO);
@@ -98,6 +110,14 @@ describe('ShellLayout con sesión lista', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'Detalle del caso' }),
     ).toBeInTheDocument();
+  });
+
+  it('muestra el subtítulo del handle y no inventa uno si falta', () => {
+    const { unmount } = renderizarConRuta('/bandeja');
+    expect(screen.getByText('Apoyo de la bandeja')).toBeInTheDocument();
+    unmount();
+    renderizarConRuta('/cargas');
+    expect(screen.queryByText('Apoyo de la bandeja')).toBeNull();
   });
 
   it('usa un título neutro si la ruta no publica handle', () => {
