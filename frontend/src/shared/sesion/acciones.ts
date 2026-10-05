@@ -6,8 +6,13 @@ import {
   type SolicitudLogin,
 } from '@/shared/api/contratos';
 import type { AlmacenTokens } from './almacenTokens';
-import type { EstadoInterno, EventoSesion, Tienda } from './maquina';
-import type { AccionesSesion } from './tipos';
+import {
+  reducir,
+  type EstadoInterno,
+  type EventoSesion,
+  type Tienda,
+} from './maquina';
+import type { AccionesSesion, MotivoSalida } from './tipos';
 
 export interface DependenciasAcciones {
   api: ClienteApi;
@@ -25,12 +30,33 @@ export interface DependenciasAcciones {
  * eso cada acción revisa la fase antes de actuar y otra vez al volver de la
  * red (el usuario pudo salir mientras la petición estaba en vuelo).
  */
+/**
+ * Acciones públicas más `terminar`, que solo usan el proveedor (el hook del
+ * cliente de la API) y las propias acciones: las pantallas no terminan la
+ * sesión por su cuenta.
+ */
+export interface AccionesInternas extends AccionesSesion {
+  /** Termina la sesión por `motivo`; se ignora si la fase no lo admite. */
+  terminar(motivo: MotivoSalida): void;
+}
+
+/** Clave de la consulta del contexto de la sesión de una época. */
+export function claveContexto(epoca: number) {
+  return ['sesion', epoca, 'contexto'] as const;
+}
+
+const MOTIVOS_CON_CORREO: readonly MotivoSalida[] = [
+  'reingreso',
+  'seleccion_vencida',
+  'sin_empresas',
+];
+
 export function crearAcciones({
   api,
   almacen,
   tienda,
   consultas,
-}: DependenciasAcciones): AccionesSesion {
+}: DependenciasAcciones): AccionesInternas {
   async function iniciarSesion(credenciales: SolicitudLogin): Promise<void> {
     const { fase } = tienda.obtener();
     if (fase !== 'anonymous' && fase !== 'ended') return;
@@ -82,5 +108,49 @@ export function crearAcciones({
     tienda.enviar({ tipo: 'VOLVER' });
   }
 
-  return { iniciarSesion, elegirEmpresa, volverAlInicio };
+  /**
+   * Cierra el ciclo de una sesión que ya no sirve: primero se descartan los
+   * tokens y la caché y luego se avisa a la máquina. Solo si la máquina va a
+   * aceptar el evento; si no, no se toca nada (p. ej. un 401 tardío).
+   */
+  function cerrarCon(evento: EventoSesion): void {
+    const actual = tienda.obtener();
+    if (Object.is(reducir(actual, evento), actual)) return;
+    almacen.limpiar();
+    consultas.clear();
+    tienda.enviar(evento);
+  }
+
+  function terminar(motivo: MotivoSalida): void {
+    const email = almacen.email();
+    cerrarCon(
+      MOTIVOS_CON_CORREO.includes(motivo) && email !== null
+        ? { tipo: 'TERMINAR', motivo, email }
+        : { tipo: 'TERMINAR', motivo },
+    );
+  }
+
+  function cerrarSesion(): void {
+    cerrarCon({ tipo: 'CIERRE' });
+  }
+
+  function reintentarContexto(): void {
+    void consultas.refetchQueries({
+      queryKey: claveContexto(tienda.obtener().epoca),
+    });
+  }
+
+  function consumirFin(): void {
+    tienda.enviar({ tipo: 'CONSUMIR' });
+  }
+
+  return {
+    iniciarSesion,
+    elegirEmpresa,
+    volverAlInicio,
+    cerrarSesion,
+    reintentarContexto,
+    consumirFin,
+    terminar,
+  };
 }

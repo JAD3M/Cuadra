@@ -74,7 +74,17 @@ describe('reducir: transiciones legales', () => {
       empresaId: EMPRESA_A.id,
       usuario: USUARIO,
       restaurarOrigen: false,
+      varias: true,
     });
+  });
+
+  it('SELECCION_OK recuerda si el usuario tiene más de una empresa', () => {
+    const unica = aplicar(
+      ANONIMO,
+      { ...LOGIN_OK, empresas: [EMPRESA_A] },
+      elegir(EMPRESA_A.id),
+    );
+    expect(unica).toMatchObject({ fase: 'sesion', varias: false });
   });
 
   it('SELECCION_OK incrementa la época en cada elección', () => {
@@ -303,6 +313,24 @@ describe('idempotencia y CONSUMIR', () => {
     const anonimo = reducir(EXPIRADO, { tipo: 'CONSUMIR' });
     expect(anonimo.fase).toBe('anonymous');
     expect(reducir(anonimo, { tipo: 'CONSUMIR' })).toBe(anonimo);
+  });
+
+  it('CAMBIO_OK y EMPRESAS_REFRESCADAS actualizan varias con la lista fresca', () => {
+    const unica: EventoSesion = {
+      tipo: 'CAMBIO_OK',
+      empresas: [EMPRESA_A],
+    };
+    const cambio = aplicar(SESION, unica);
+    expect(cambio).toMatchObject({ origen: 'cambio', varias: false });
+    const refrescada = aplicar(cambio, {
+      tipo: 'EMPRESAS_REFRESCADAS',
+      empresas: EMPRESAS,
+    });
+    expect(refrescada).toMatchObject({ varias: true });
+    expect(aplicar(refrescada, { tipo: 'REGRESAR' })).toMatchObject({
+      fase: 'sesion',
+      varias: true,
+    });
   });
 
   it('preserva el origen del paso de elección al refrescar la lista', () => {

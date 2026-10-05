@@ -35,6 +35,8 @@ export type EstadoInterno =
       /** Empresa de la sesión viva que se está cambiando. */
       empresaId: string;
       restaurarOrigen: boolean;
+      /** ¿Tiene el usuario más de una empresa? Decide si puede cambiar. */
+      varias: boolean;
     }
   | {
       fase: 'sesion';
@@ -42,6 +44,7 @@ export type EstadoInterno =
       usuario: Usuario;
       empresaId: string;
       restaurarOrigen: boolean;
+      varias: boolean;
     }
   | {
       fase: 'ended';
@@ -148,6 +151,7 @@ export function reducir(
         empresaId: evento.empresaId,
         // Solo se vuelve a donde se estaba si es la misma empresa (SA-2).
         restaurarOrigen: previa !== null && previa === evento.empresaId,
+        varias: estado.empresas.length > 1,
       };
     }
 
@@ -161,6 +165,7 @@ export function reducir(
         empresas: evento.empresas,
         empresaId: estado.empresaId,
         restaurarOrigen: estado.restaurarOrigen,
+        varias: evento.empresas.length > 1,
       };
 
     case 'REGRESAR':
@@ -173,6 +178,7 @@ export function reducir(
         usuario: estado.usuario,
         empresaId: estado.empresaId,
         restaurarOrigen: estado.restaurarOrigen,
+        varias: estado.varias,
       };
 
     case 'CONSUMIR':
@@ -203,6 +209,13 @@ export function reducir(
 
     case 'EMPRESAS_REFRESCADAS':
       if (estado.fase !== 'selecting') return estado;
+      if (estado.origen === 'cambio') {
+        return {
+          ...estado,
+          empresas: evento.empresas,
+          varias: evento.empresas.length > 1,
+        };
+      }
       return { ...estado, empresas: evento.empresas };
   }
 }

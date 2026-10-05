@@ -72,4 +72,16 @@ export interface AccionesSesion {
   elegirEmpresa(empresaId: string): Promise<void>;
   /** «Cambiar de cuenta»: descarta todo y vuelve a `anonymous`, sin correo. */
   volverAlInicio(): void;
+  /**
+   * Cierre voluntario: descarta tokens y caché y pasa a `ended` con
+   * `cierre_voluntario`. No hace ninguna petición: la API no revoca tokens.
+   */
+  cerrarSesion(): void;
+  /** Vuelve a pedir el contexto cuando el estado es `unavailable`. */
+  reintentarContexto(): void;
+  /**
+   * Pasa de `ended` a `anonymous`. La pantalla de acceso lo llama una vez que
+   * leyó el motivo y el correo, para que el aviso se muestre una sola vez.
+   */
+  consumirFin(): void;
 }
