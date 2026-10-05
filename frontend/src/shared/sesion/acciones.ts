@@ -90,6 +90,13 @@ export function crearAcciones({
     const seleccion = almacen.seleccion();
     if (inicial.fase !== 'selecting' || seleccion === null) return;
 
+    // Elegir la empresa que ya está activa equivale a abandonar el cambio: sin
+    // petición, sin cambio de época y con la caché intacta.
+    if (inicial.origen === 'cambio' && inicial.empresaId === empresaId) {
+      regresarSinCambiar();
+      return;
+    }
+
     // Si mientras tanto se salió o se cambió de paso, la respuesta ya no
     // corresponde a esta selección.
     const vigente = () =>
@@ -117,12 +124,10 @@ export function crearAcciones({
 
     if (!vigente()) return;
     // En un cambio el token de sesión se reemplaza solo ahora, con la
-    // elección ya aceptada. La caché se conserva si se vuelve a elegir la
-    // misma empresa; con otra, nada del tenant anterior debe quedar a la vista.
-    const mismaEmpresa =
-      inicial.origen === 'cambio' && inicial.empresaId === empresaId;
+    // elección ya aceptada. Nunca es la empresa activa (esa regresa antes),
+    // así que nada del tenant anterior debe quedar a la vista.
     almacen.fijarSesion(respuesta.token);
-    if (!mismaEmpresa) consultas.clear();
+    consultas.clear();
     tienda.enviar({ tipo: 'SELECCION_OK', empresaId });
   }
 

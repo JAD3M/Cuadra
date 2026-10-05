@@ -291,13 +291,36 @@ describe('elegirEmpresa durante un cambio', () => {
     expect(entorno.consultas.getQueryData(['dato-ajeno'])).toBeUndefined();
   });
 
-  it('volver a elegir la misma empresa conserva la caché', async () => {
+  it('elegir la empresa ya activa equivale a regresar sin cambiar', async () => {
     const { entorno } = montarSesion();
-    await enCambio(entorno);
+    await listo(entorno);
+    const antes = entorno.estado();
+    await act(() => entorno.acciones().cambiarEmpresa());
     entorno.consultas.setQueryData(['dato-ajeno'], 'privado');
-    await act(() => entorno.acciones().elegirEmpresa(EMPRESA_A));
+    const epoca = entorno.tienda.obtener().epoca;
+    const eleccion = contar('POST', `/auth/empresa/${EMPRESA_A}`);
+    const contexto = contar('GET', '/auth/contexto');
+    try {
+      await act(() => entorno.acciones().elegirEmpresa(EMPRESA_A));
+      await act(() => delay(20));
+    } finally {
+      servidor.events.removeAllListeners();
+    }
+    expect(eleccion.n).toBe(0);
+    expect(contexto.n).toBe(0);
+    expect(entorno.tienda.obtener().epoca).toBe(epoca);
+    expect(entorno.historial()).toEqual([
+      'anonymous',
+      'selecting',
+      'loading',
+      'ready',
+      'selecting',
+      'ready',
+    ]);
+    expect(entorno.estado()).toEqual(antes);
     expect(entorno.consultas.getQueryData(['dato-ajeno'])).toBe('privado');
-    await waitFor(() => expect(entorno.estado().status).toBe('ready'));
+    expect(entorno.almacen.sesion()).toBe('token-de-sesion');
+    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
   });
 
   it('un fallo al elegir deja la sesión anterior viva y se puede abandonar', async () => {
