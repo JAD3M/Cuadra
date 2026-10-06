@@ -1,0 +1,32 @@
+/* Aviso informativo de Cargas.dc.html (.info). Solo tokens de rol. */
+.aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-14) var(--space-16);
+  border: 1px solid var(--estado-sugerencia-tile-border);
+  border-radius: var(--radius-md);
+  background: var(--estado-sugerencia-tile-bg);
+}
+
+.icono {
+  flex-shrink: 0;
+  margin-block-start: 2px;
+  color: var(--estado-sugerencia-accent);
+}
+
+.texto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.titulo {
+  color: var(--color-text);
+}
+
+.detalle {
+  color: var(--color-text-soft);
+  font-size: var(--text-md);
+}

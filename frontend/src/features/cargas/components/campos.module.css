@@ -1,0 +1,63 @@
+/*
+ * Campos de la tarjeta de estado de cuenta (Cargas.dc.html: .fld y .hint). La
+ * etiqueta va sin mayúsculas, a diferencia del Campo compartido de las
+ * pantallas de acceso. Solo tokens.
+ */
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.etiqueta {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.control {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: var(--control-height);
+  padding: 0 var(--space-14);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-inset);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-base);
+}
+
+.control::placeholder {
+  color: var(--color-muted);
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* Deshabilitado: borde discontinuo, no solo color. */
+.control:disabled {
+  border-style: dashed;
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.ayuda {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+/* Aviso no bloqueante: el texto sin match, en la superficie de la tarjeta. */
+.aviso {
+  margin: 0;
+  color: var(--estado-sin-match-text);
+  font-size: var(--text-sm);
+}

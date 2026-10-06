@@ -110,6 +110,19 @@ const PARES: Par[] = [
   ['--color-text-soft', '--color-danger-tint'],
   ['--color-text', '--color-ground'],
   ['--color-text-soft', '--color-ground'],
+  // Tarjetas de subida de cargas (CU-24, S5, diseño 4.13). Las filas de la
+  // selección y los resultados viven sobre --color-inset; el nombre y el peso
+  // de una fila rechazada, sobre --color-danger-tint; el detalle del aviso de
+  // solo lectura, sobre la baldosa de sugerencia. El resto de los pares de las
+  // tarjetas (text, text-secondary y muted sobre surface e inset, danger-title
+  // y danger-text sobre danger-tint, sin-match-text sobre surface) ya están
+  // arriba.
+  ['--estado-conciliado-text', '--color-inset'],
+  ['--color-danger-text', '--color-inset'],
+  ['--color-danger-title', '--color-inset'],
+  ['--color-text', '--color-danger-tint'],
+  ['--color-text-secondary', '--color-danger-tint'],
+  ['--color-text-soft', '--estado-sugerencia-tile-bg'],
 ];
 
 /** Indicadores no textuales (foco y enlaces): mínimo 3:1. */

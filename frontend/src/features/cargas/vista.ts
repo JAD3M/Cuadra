@@ -1,3 +1,4 @@
+import { ROLES_QUE_CARGAN } from '@/shared/dominio';
 import { clasificarErrorLectura } from './errores';
 
 // Derivación pura de lo que la pantalla de cargas muestra. Nada se guarda: la
@@ -35,3 +36,11 @@ export function vistaHistorial({
   }
   return isPending ? 'cargando' : null;
 }
+
+/**
+ * Quién puede subir cargas: basta un rol de los que cargan. Un usuario con
+ * varios roles sube si uno de ellos sirve. Es comodidad: el servidor decide,
+ * y un rol viejo se degrada al texto de «sin permiso» cuando el POST responde 403.
+ */
+export const puedeSubir = (roles: readonly string[]): boolean =>
+  ROLES_QUE_CARGAN.some((rol) => roles.includes(rol));

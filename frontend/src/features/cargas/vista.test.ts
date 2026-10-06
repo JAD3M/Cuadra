@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError, ContratoError, NetworkError } from '@/shared/api';
-import { vistaHistorial } from './vista';
+import { puedeSubir, vistaHistorial } from './vista';
 
 const CON_DATOS = { datos: [{ id: 'a' }] };
 const SIN_DATOS = { datos: [] };
@@ -99,5 +99,18 @@ describe('vistaHistorial', () => {
     expect(
       vistaHistorial({ data: undefined, error: null, isPending: false }),
     ).toBeNull();
+  });
+});
+
+describe('puedeSubir', () => {
+  it.each([
+    [['admin'], true],
+    [['contador'], true],
+    [['admin', 'contador'], true],
+    [['revisor', 'contador'], true],
+    [['revisor'], false],
+    [[], false],
+  ])('roles %j: %s', (roles, esperado) => {
+    expect(puedeSubir(roles)).toBe(esperado);
   });
 });
