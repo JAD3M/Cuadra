@@ -1,0 +1,121 @@
+/*
+ * Resultado de la carga recién subida (Cargas.dc.html: .res y sus listas).
+ * Solo tokens de rol. Todo el texto vive sobre --color-inset, la superficie de
+ * la caja; las cifras no se parten y las listas se desplazan, nunca recortan.
+ */
+.caja {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-inline-size: 0;
+  padding: var(--space-14) var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-inset);
+}
+
+.resumen {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--text-md);
+}
+
+/* La cifra no se parte en dos líneas y la caja crece con el número. */
+.cifra {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Hasta cientos de entradas: la región se desplaza y es enfocable. */
+.region {
+  max-block-size: 320px;
+  overflow: auto;
+  border-radius: var(--radius-md);
+}
+
+.region:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.archivo {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-12);
+}
+
+.marca {
+  font-weight: var(--weight-bold);
+}
+
+.texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.nombre {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.motivo {
+  color: var(--color-danger-title);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.estado {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+/* El color acompaña al texto del estado; nunca es el único canal. */
+.archivo[data-tono='ok'] .marca,
+.archivo[data-tono='ok'] .estado {
+  color: var(--estado-conciliado-text);
+}
+
+.archivo[data-tono='neutro'] .marca,
+.archivo[data-tono='neutro'] .estado {
+  color: var(--color-muted);
+}
+
+.archivo[data-tono='peligro'] .marca,
+.archivo[data-tono='peligro'] .estado {
+  color: var(--color-danger-text);
+}
+
+/* Fila de un estado de cuenta que no entró: «Fila 14: motivo». */
+.fila {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: var(--space-12);
+  color: var(--color-danger-title);
+  font-size: var(--text-md);
+}
+
+.filaMarca {
+  color: var(--color-danger-text);
+  font-weight: var(--weight-bold);
+}
+
+.filaTexto {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
