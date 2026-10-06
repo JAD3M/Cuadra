@@ -1,6 +1,8 @@
 import { act, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import type { SessionState } from '@/shared/sesion';
+import { contextoSesion } from '@/shared/api/contratos';
+import { CONTEXTO_SESION_B } from '@/test/fixtures';
 import { ESTADOS, montarRutas, terminada } from '@/test/montarRutas';
 
 const PEDIDA = '/casos/9?x=1#y';
@@ -278,6 +280,40 @@ describe('RutaSeleccion', () => {
       expect(pantalla()).toBe('bandeja');
     },
   );
+
+  describe('cambio de empresa sin pasar por loading', () => {
+    // El contexto puede llegar antes de que el enrutador termine de ir a
+    // `/bandeja`: la guarda ve `selecting` y luego `ready` sin `loading`.
+    const VOLVER_A = { pathname: '/casos/9', search: '?x=1' };
+    const enCambio = {
+      ...ESTADOS.selectingCambio,
+      empresaActual: ESTADOS.ready.contexto.empresa,
+      epoca: 1,
+    } satisfies SessionState;
+
+    it('ready de otra empresa va a /bandeja, no a la pantalla anterior', async () => {
+      const { cambiar, router } = montarRutas(
+        { pathname: '/empresa', state: { volverA: VOLVER_A } },
+        enCambio,
+      );
+      await cambiar({
+        ...ESTADOS.ready,
+        contexto: contextoSesion.parse(CONTEXTO_SESION_B),
+        epoca: 2,
+      });
+      expect(router.state.location.pathname).toBe('/bandeja');
+    });
+
+    it('ready de la misma empresa regresa a la pantalla anterior', async () => {
+      const { cambiar, router } = montarRutas(
+        { pathname: '/empresa', state: { volverA: VOLVER_A } },
+        enCambio,
+      );
+      await cambiar(ESTADOS.ready);
+      expect(router.state.location.pathname).toBe('/casos/9');
+      expect(router.state.location.search).toBe('?x=1');
+    });
+  });
 
   it('un volverA hostil se ignora y va a /bandeja', () => {
     montarRutas(

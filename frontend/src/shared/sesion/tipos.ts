@@ -53,6 +53,12 @@ export type SessionState =
        * Ausente en el login o si su contexto todavía no se conoce.
        */
       empresaActual?: EmpresaContexto;
+      /**
+       * Época de la sesión (misma noción que en `ready`). Solo sirve para
+       * saber si al volver a `ready` se eligió otra empresa. Ausente en
+       * estados construidos a mano.
+       */
+      epoca?: number;
     }
   | { status: 'loading'; restaurarOrigen: boolean }
   | { status: 'unavailable' }

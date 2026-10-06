@@ -53,6 +53,7 @@ function publicar(
         origen: interno.origen,
         usuario: interno.usuario,
         empresas: interno.empresas,
+        epoca: interno.epoca,
       } as const;
       // En un cambio la sesión viva conserva su contexto: de ahí sale la
       // empresa activa para el saludo.

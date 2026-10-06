@@ -256,6 +256,9 @@ describe('SessionProvider', () => {
 
     it('funciona bajo StrictMode (doble montaje) y sigue registrado', async () => {
       const llamadas = espiar('/api/prueba');
+      // El contexto no responde: `loading` es un estado estable de la prueba y
+      // no una carrera contra la respuesta del servidor simulado.
+      servidor.use(http.get('/api/auth/contexto', () => delay('infinite')));
       const { entorno } = montarSesion({ estricto: true });
       await act(() => entorno.acciones().iniciarSesion(CREDENCIALES));
       await act(() => entorno.acciones().elegirEmpresa(EMPRESA_A));
