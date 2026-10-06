@@ -11,6 +11,7 @@ const MODULOS = {
   revisor: 'features/cargas/components/AvisoRevisor.module.css',
   tarjeta: 'features/cargas/components/tarjeta.module.css',
   region: 'features/cargas/components/RegionSubida.module.css',
+  contenedor: 'features/cargas/CargasContenedor.module.css',
 } as const;
 
 const css = Object.fromEntries(
@@ -119,6 +120,17 @@ describe('contrato CSS de las tarjetas de subida', () => {
     expect(bloqueCss(css.region, '.region:focus-visible')).toContain(
       'var(--color-accent)',
     );
+  });
+
+  it('las dos tarjetas van en dos columnas y pasan a una con 900 px o menos', () => {
+    expect(bloqueCss(css.contenedor, '.tarjetas')).toContain(
+      'repeat(2, minmax(0, 1fr))',
+    );
+    const estrecho = css.contenedor.slice(
+      css.contenedor.indexOf('@media (max-width: 900px)'),
+    );
+    expect(estrecho).toContain('@media (max-width: 900px)');
+    expect(estrecho).toMatch(/grid-template-columns:\s*1fr/);
   });
 
   it('solo la lista en subida se atenúa con opacity; ningún otro módulo lo usa', () => {
