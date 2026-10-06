@@ -132,6 +132,14 @@ const PARES_NO_TEXTO: Par[] = [
     ['--color-accent', '--estado-conciliado-tile-bg'],
     ['--color-accent', '--estado-sin-match-tile-bg'],
     ['--color-accent', '--color-danger-tint'],
+    // Historial de cargas (CU-24, S4): los cuatro rellenos de la barra de
+    // Avance sobre su pista (WCAG 1.4.11, componente gráfico: 3:1). Los pares
+    // de texto del historial (chips, contadores, cabecera, quién subió y fecha,
+    // también bajo el cursor) ya están arriba.
+    ['--estado-sugerencia-accent', '--color-border-subtle'],
+    ['--estado-conciliado-accent', '--color-border-subtle'],
+    ['--estado-sin-match-accent', '--color-border-subtle'],
+    ['--color-danger', '--color-border-subtle'],
   ]);
 
 const TEMAS: Tema[] = ['dark', 'light'];

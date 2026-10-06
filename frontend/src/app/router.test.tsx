@@ -287,7 +287,9 @@ describe('título y anuncio del cambio de página', () => {
   it('pone el título del documento y lo anuncia', async () => {
     renderizar('/cargas');
     await waitFor(() => expect(document.title).toBe('Cargas · Cuadra'));
-    expect(screen.getByRole('status')).toHaveTextContent('Cargas');
+    // La pantalla de cargas ya trae sus propias regiones de estado (esqueleto
+    // del historial): el anuncio de ruta es el que queda fuera de `main`.
+    expect(anuncioDeRuta()).toHaveTextContent('Cargas');
   });
 
   it('actualiza ambos al navegar', async () => {

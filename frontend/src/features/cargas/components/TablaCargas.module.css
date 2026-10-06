@@ -1,0 +1,4 @@
+/* La columna Avance reserva una parte del ancho; la barra la llena. */
+.avance {
+  inline-size: 22%;
+}
