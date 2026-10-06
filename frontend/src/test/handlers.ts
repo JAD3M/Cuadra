@@ -16,6 +16,13 @@ import {
 const bandeja = crearHandlersBandeja();
 const caso = crearHandlersCaso(bandeja);
 
+/**
+ * Los almacenes en memoria de los manejadores por defecto, para que un flujo
+ * fije los datos que sirven (`establecer`) o fuerce un fallo (`opciones`). Los
+ * limpia `reiniciarHandlers` tras cada prueba.
+ */
+export const almacenes = { bandeja, caso };
+
 export const handlers = [
   http.post('/api/auth/login', () => HttpResponse.json(RESPUESTA_LOGIN)),
   http.get('/api/auth/empresas', () => HttpResponse.json(EMPRESAS_DISPONIBLES)),
