@@ -4,16 +4,35 @@ import { expect } from 'vitest';
 import { createMemoryRouter, type InitialEntry } from 'react-router';
 import { App } from '@/App';
 import { rutas } from '@/app/router';
+import {
+  ContextoPolling,
+  type ConfigPolling,
+} from '@/features/cargas/ContextoPolling';
 import { CREDENCIALES } from '@/test/montarSesion';
 
 /**
  * Monta la aplicación completa (proveedores reales, tabla de rutas real) sobre
  * un enrutador en memoria. Cada montaje es una página recién cargada: sin
  * tokens, sin sesión. Las respuestas de la API salen del servidor MSW.
+ * `polling` fija las constantes del sondeo de cargas (por omisión, las reales).
  */
-export function montarApp(entrada: InitialEntry) {
+export function montarApp(
+  entrada: InitialEntry,
+  opciones: { polling?: ConfigPolling } = {},
+) {
   const router = createMemoryRouter(rutas, { initialEntries: [entrada] });
-  const vista = render(<App router={router} />);
+  const { polling } = opciones;
+  const vista = render(
+    polling === undefined ? (
+      <App router={router} />
+    ) : (
+      // Constantes diminutas de las cargas: el polling real corre en
+      // milisegundos, sin reloj falso.
+      <ContextoPolling.Provider value={polling}>
+        <App router={router} />
+      </ContextoPolling.Provider>
+    ),
+  );
   return { ...vista, router };
 }
 
