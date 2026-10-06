@@ -5,6 +5,7 @@ import { BandejaPage } from '@/features/bandeja/BandejaPage';
 import { SUBTITULO, TITULO } from '@/features/bandeja/textos';
 import { BitacoraPage } from '@/features/bitacora/BitacoraPage';
 import { CargasPage } from '@/features/cargas/CargasPage';
+import { SUBTITULO_CARGAS } from '@/features/cargas/textos';
 import { CasoPage } from '@/features/caso/CasoPage';
 import { NoEncontradaPage } from '@/features/NoEncontradaPage';
 import { TolerPage } from '@/features/tolerancia/TolerPage';
@@ -87,7 +88,10 @@ export const rutas: RouteObject[] = [
               {
                 path: '/cargas',
                 element: <CargasPage />,
-                handle: titulo('Cargas'),
+                handle: {
+                  titulo: 'Cargas',
+                  subtitulo: SUBTITULO_CARGAS,
+                } satisfies ManejadorRuta,
               },
               {
                 path: '/tolerancia',

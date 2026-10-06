@@ -213,7 +213,8 @@ describe('CargasContenedor: subida de CFDI', () => {
     expect(regionDe('CFDI · XML')).toHaveTextContent('Subiendo tus archivos');
     // Solo se apaga la tarjeta que sube (M13): la otra sigue disponible.
     expect(screen.getByLabelText('Elegir archivo')).toBeEnabled();
-    expect(screen.queryByRole('table')).toBeNull();
+    // El historial ya vive en la pantalla: la carga en vuelo aún no tiene fila.
+    expect(screen.queryByRole('cell', { name: 'a.xml' })).toBeNull();
     compuerta.abrir();
     await waitFor(() =>
       expect(screen.queryByRole('button', { name: 'Subiendo…' })).toBeNull(),

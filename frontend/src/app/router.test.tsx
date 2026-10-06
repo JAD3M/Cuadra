@@ -82,8 +82,21 @@ describe('tabla de rutas', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
+  it('/cargas muestra la pantalla real con su título y subtítulo', () => {
+    renderizar('/cargas');
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Cargas' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Sube CFDI y estados de cuenta. El motor corre al terminar cada carga.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Pantalla en construcción/)).toBeNull();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+  });
+
   it.each([
-    ['/cargas', 'Cargas'],
     ['/tolerancia', 'Tolerancia'],
     ['/bitacora', 'Bitácora'],
   ])('%s muestra su marcador dentro del layout', (ruta, nombre) => {
@@ -109,12 +122,23 @@ describe('tabla de rutas', () => {
   );
 
   it('el h1 del encabezado precede al h2 del marcador', () => {
-    renderizar('/cargas');
-    const h1 = screen.getByRole('heading', { level: 1, name: 'Cargas' });
-    const h2 = screen.getByRole('heading', { level: 2, name: 'Cargas' });
+    renderizar('/tolerancia');
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Tolerancia' });
+    const h2 = screen.getByRole('heading', { level: 2, name: 'Tolerancia' });
     expect(
       h1.compareDocumentPosition(h2) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  it('en /cargas el h1 del encabezado precede a los h2 de la pantalla', () => {
+    renderizar('/cargas');
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Cargas' });
+    for (const nombre of ['CFDI · XML', 'Estado de cuenta']) {
+      const h2 = screen.getByRole('heading', { level: 2, name: nombre });
+      expect(
+        h1.compareDocumentPosition(h2) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
   });
 
   it.each([

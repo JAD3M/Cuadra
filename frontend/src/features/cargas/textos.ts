@@ -15,6 +15,10 @@ import type { MotivoRechazo } from './seleccion';
 
 export const TITULO_DOCUMENTO = 'Cargas · Cuadra';
 
+/** Línea de apoyo bajo el título de la página (Cargas.dc.html). */
+export const SUBTITULO_CARGAS =
+  'Sube CFDI y estados de cuenta. El motor corre al terminar cada carga.';
+
 /** Valor de una celda que no aplica o aún no existe. */
 export const SIN_DATO = '—';
 

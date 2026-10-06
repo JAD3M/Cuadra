@@ -1,21 +1,46 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { focusManager } from '@tanstack/react-query';
+import { focusManager, type QueryClient } from '@tanstack/react-query';
+import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it } from 'vitest';
+import { contextoSesion, type DetalleCarga } from '@/shared/api/contratos';
+import type { SessionState } from '@/shared/sesion';
 import { almacenes } from '@/test/handlers';
 import { crearCompuerta } from '@/test/compuerta';
-import { LISTA_CINCO_ESTADOS } from '@/test/fixturesCargas';
+import { CONTEXTO_SESION, SESION_LISTA } from '@/test/fixtures';
+import {
+  detalleCfdiConErrores,
+  detalleCsvConErrores,
+  LISTA_CINCO_ESTADOS,
+  respuestaYaExistia,
+} from '@/test/fixturesCargas';
 import { espiarSolicitudes } from '@/test/handlersAuth';
-import { listaFalla } from '@/test/handlersCargas';
+import {
+  listaFalla,
+  type ParcheDeCarga,
+  subida413Html,
+  subidaFalla,
+} from '@/test/handlersCargas';
 import { clienteDePruebas } from '@/test/montarBandeja';
 import { envolturaCargas, esperarIntervalos } from '@/test/montarCargas';
 import type { ConfigPolling } from './ContextoPolling';
 import { servidor } from '@/test/servidor';
 import { CargasPage } from './CargasPage';
 
-function montar(polling?: ConfigPolling) {
+function sesionConRoles(roles: string[]): SessionState {
+  return {
+    ...SESION_LISTA,
+    contexto: contextoSesion.parse({ ...CONTEXTO_SESION, roles }),
+  } as SessionState;
+}
+
+function montar(
+  polling?: ConfigPolling,
+  roles: string[] = ['admin', 'contador'],
+  cliente: QueryClient = clienteDePruebas(),
+) {
   return render(<CargasPage />, {
-    wrapper: envolturaCargas(clienteDePruebas(), undefined, polling),
+    wrapper: envolturaCargas(cliente, () => sesionConRoles(roles), polling),
   });
 }
 
@@ -79,32 +104,24 @@ describe('CargasPage: historial', () => {
     expect(screen.queryByRole('button', { name: 'Reintentar' })).toBeNull();
   });
 
-  it('solo pide GET /cargas: ninguna fila del historial pide el detalle (2.5)', async () => {
+  it('ninguna fila del historial pide el detalle: solo se pide la lista y los perfiles (2.5, 13.1)', async () => {
     const espia = espiarSolicitudes();
     montar();
     await screen.findByRole('table');
-    // Control positivo: la lista sí se pidió, una vez.
+    // Control positivo: la lista y los perfiles sí se pidieron, una vez.
     await waitFor(() => expect(espia.cuantas('GET', '/api/cargas')).toBe(1));
+    await waitFor(() =>
+      expect(espia.cuantas('GET', '/api/bancos/perfiles')).toBe(1),
+    );
     for (const fila of screen.getAllByRole('row').slice(1)) {
       await userEvent.click(fila);
     }
     await esperarIntervalos();
     expect(screen.queryByRole('link')).toBeNull();
-    expect(espia.solicitudes.map((s) => `${s.metodo} ${s.ruta}`)).toEqual([
-      'GET /api/cargas',
-    ]);
+    expect(
+      espia.solicitudes.map((s) => `${s.metodo} ${s.ruta}`).sort(),
+    ).toEqual(['GET /api/bancos/perfiles', 'GET /api/cargas']);
     espia.detener();
-  });
-
-  it('mantiene el marcador de la pantalla hasta que llegue la pantalla completa', async () => {
-    montar();
-    await screen.findByRole('table');
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Cargas' }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { level: 2, name: 'Cargas recientes' }),
-    ).toBeInTheDocument();
   });
 });
 
@@ -212,5 +229,430 @@ describe('CargasPage: aviso de actualización del historial', () => {
     expect(screen.getByRole('table')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
     espia.detener();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Pantalla completa (S8): las 13 vistas de Cargas.dc.html que dependen de la
+// pantalla entera, como combinaciones de lista, sesión, subida y polling.
+// ---------------------------------------------------------------------------
+
+const CFDI = 'CFDI · XML';
+const CSV = 'Estado de cuenta';
+const PROCESANDO = 'Procesando la carga…';
+const CON_TOPE_PANEL: ConfigPolling = { intervaloMs: 15, topeMs: 120 };
+
+const usuario = () => userEvent.setup({ applyAccept: false });
+const xml = (nombre: string) => new File(['<c/>'], nombre);
+const csv = (nombre: string) => new File(['a,b'], nombre);
+
+const tarjeta = (titulo: string) =>
+  screen.getByRole('region', { name: titulo });
+const regionDe = (titulo: string) =>
+  within(tarjeta(titulo)).getByRole('status');
+const botonCfdi = (n: number) =>
+  screen.getByRole('button', {
+    name: n === 1 ? 'Subir 1 archivo' : `Subir ${n} archivos`,
+  });
+const botonCsv = () =>
+  screen.getByRole('button', { name: 'Subir estado de cuenta' });
+/** Un párrafo cuyo texto completo es `texto` (las cifras van en sus propios spans). */
+const resumen = (texto: string) => (_: string, el: Element | null) =>
+  el?.tagName === 'P' && el.textContent === texto;
+
+async function esperarPerfiles() {
+  await waitFor(() =>
+    expect(
+      (screen.getByLabelText('Perfil de lectura') as HTMLSelectElement).options
+        .length,
+    ).toBe(3),
+  );
+}
+
+async function subirXml(...nombres: string[]) {
+  const u = usuario();
+  const lista = nombres.length > 0 ? nombres : ['a.xml'];
+  await u.upload(screen.getByLabelText('Elegir archivos'), lista.map(xml));
+  await u.click(botonCfdi(lista.length));
+}
+
+async function subirCsv() {
+  const u = usuario();
+  await u.upload(screen.getByLabelText('Elegir archivo'), csv('estado.csv'));
+  await u.click(botonCsv());
+}
+
+const parcheDe = (d: DetalleCarga): ParcheDeCarga => ({
+  totalRegistros: d.totalRegistros,
+  registrosOk: d.registrosOk,
+  registrosExistentes: d.registrosExistentes,
+  registrosError: d.registrosError,
+  resultados: d.resultados,
+  errorMensaje: d.errorMensaje,
+});
+
+const idDeLaUltima = () => almacenes.cargas.filas()[0]?.id ?? '';
+
+describe('CargasPage: las 13 vistas de la pantalla completa', () => {
+  it('normal: las dos tarjetas, el historial, la leyenda y ninguna alerta', async () => {
+    almacenes.cargas.establecer(LISTA_CINCO_ESTADOS);
+    montar(HOLGADO);
+    await screen.findByRole('table');
+    await esperarPerfiles();
+    expect(tarjeta(CFDI)).toBeInTheDocument();
+    expect(tarjeta(CSV)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Subir archivos' }),
+    ).toBeDisabled();
+    expect(botonCsv()).toBeDisabled();
+    expect(screen.getByLabelText('Elegir archivos')).toBeEnabled();
+    expect(screen.getByText(LEYENDA)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(
+      screen.queryByText('Tu rol solo permite consultar las cargas.'),
+    ).toBeNull();
+    expect(screen.queryByText('Cargas', { selector: 'h2' })).toBeNull();
+  });
+
+  it('cargando: el esqueleto del historial y, ya, las tarjetas (vista cargando)', async () => {
+    const compuerta = crearCompuerta();
+    almacenes.cargas.compuertas({ lista: compuerta.promesa });
+    montar(HOLGADO);
+    expect(await screen.findByText('Cargando cargas')).toBeInTheDocument();
+    expect(tarjeta(CFDI)).toBeInTheDocument();
+    expect(tarjeta(CSV)).toBeInTheDocument();
+    expect(screen.queryByText(LEYENDA)).toBeNull();
+    compuerta.abrir();
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+  });
+
+  it('vacío: «Aún no hay cargas.» y las tarjetas intactas (vista vacio)', async () => {
+    almacenes.cargas.establecer([]);
+    montar(HOLGADO);
+    expect(await screen.findByText('Aún no hay cargas.')).toBeInTheDocument();
+    expect(tarjeta(CFDI)).toBeInTheDocument();
+    expect(screen.getByLabelText('Elegir archivos')).toBeEnabled();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('error: una lista que falla muestra solo el texto de conectividad y no esconde las tarjetas (vista error, 1.5)', async () => {
+    servidor.use(listaFalla(500));
+    montar(HOLGADO);
+    const alerta = await screen.findByRole('alert');
+    expect(alerta).toHaveTextContent('No se pudo conectar con el servidor.');
+    expect(screen.queryByText(/detalle del servidor/)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeEnabled();
+    expect(tarjeta(CFDI)).toBeInTheDocument();
+    expect(tarjeta(CSV)).toBeInTheDocument();
+    expect(screen.getByLabelText('Elegir archivos')).toBeEnabled();
+    expect(screen.getByLabelText('Elegir archivo')).toBeEnabled();
+  });
+
+  it('revisor: el aviso, las tarjetas con cada control apagado y la tabla a la vista (vista revisor)', async () => {
+    montar(HOLGADO, ['revisor']);
+    await screen.findByRole('table');
+    await esperarPerfiles();
+    expect(
+      screen.getByText('Tu rol solo permite consultar las cargas.'),
+    ).toBeInTheDocument();
+    for (const control of [
+      screen.getByLabelText('Elegir archivos'),
+      screen.getByLabelText('Elegir archivo'),
+      screen.getByLabelText('Banco'),
+      screen.getByLabelText('Cuenta'),
+      screen.getByLabelText('Perfil de lectura'),
+      botonCsv(),
+    ]) {
+      expect(control).toBeDisabled();
+    }
+  });
+
+  it('subiendo: solo la tarjeta que sube dice «Subiendo…» y el historial sigue (vista subiendo)', async () => {
+    const compuerta = crearCompuerta();
+    almacenes.cargas.compuertas({ subida: compuerta.promesa });
+    montar(HOLGADO);
+    await screen.findByRole('table');
+    await esperarPerfiles();
+    await subirXml();
+    const boton = await screen.findByRole('button', { name: 'Subiendo…' });
+    expect(boton).toBeDisabled();
+    expect(botonCsv()).toBeDisabled();
+    expect(screen.getByLabelText('Banco')).toBeEnabled();
+    expect(
+      within(tarjeta(CFDI)).getByText('Subiendo tus archivos'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    compuerta.abrir();
+    expect(
+      await within(regionDe(CFDI)).findByText(PROCESANDO),
+    ).toBeInTheDocument();
+  });
+
+  it('resultado_cfdi: el resumen en la tarjeta de CFDI y la carga nueva en la tabla (vista resultado_cfdi)', async () => {
+    montar(HOLGADO);
+    await screen.findByRole('table');
+    await esperarPerfiles();
+    await subirXml('a.xml', 'b.xml', 'c.xml');
+    const region = regionDe(CFDI);
+    await within(region).findByText(PROCESANDO);
+    almacenes.cargas.avanzar(
+      idDeLaUltima(),
+      'con_errores',
+      parcheDe(detalleCfdiConErrores()),
+    );
+    expect(
+      await within(region).findByText(
+        resumen('1 nuevos, 1 ya existían, 1 con error.'),
+      ),
+    ).toBeInTheDocument();
+    expect(within(region).getAllByRole('listitem')).toHaveLength(3);
+    expect(regionDe(CSV)).toBeEmptyDOMElement();
+    // La tabla ya trae la carga que acaba de subirse.
+    expect(
+      await within(screen.getByRole('table')).findByRole('cell', {
+        name: /3 archivos: a\.xml, b\.xml, c\.xml/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('resultado_csv: las filas con error en la tarjeta del estado de cuenta (vista resultado_csv)', async () => {
+    montar(HOLGADO);
+    await screen.findByRole('table');
+    await esperarPerfiles();
+    await subirCsv();
+    const region = regionDe(CSV);
+    await within(region).findByText(PROCESANDO);
+    almacenes.cargas.avanzar(
+      idDeLaUltima(),
+      'con_errores',
+      parcheDe(detalleCsvConErrores()),
+    );
+    expect(
+      await within(region).findByText(
+        resumen('98 registros cargados, 2 con error.'),
+      ),
+    ).toBeInTheDocument();
+    expect(within(region).getAllByRole('listitem')).toHaveLength(2);
+    expect(regionDe(CFDI)).toBeEmptyDOMElement();
+  });
+
+  it('ya_existia: el aviso de lote ya cargado, sin resultados (vista ya_existia)', async () => {
+    servidor.use(
+      http.post('/api/cargas/cfdi', () =>
+        HttpResponse.json(respuestaYaExistia('procesada'), { status: 200 }),
+      ),
+    );
+    montar(HOLGADO);
+    await screen.findByRole('table');
+    await esperarPerfiles();
+    await subirXml();
+    const region = regionDe(CFDI);
+    expect(
+      await within(region).findByText('Este archivo ya se había cargado.'),
+    ).toBeInTheDocument();
+    expect(within(region).getByText('No se duplicó nada.')).toBeInTheDocument();
+    expect(within(region).queryByRole('list')).toBeNull();
+  });
+
+  it('error_400: el motivo del servidor en la tarjeta del estado de cuenta (vista error_400)', async () => {
+    servidor.use(
+      ...subidaFalla(
+        400,
+        'El encabezado del CSV no coincide con el perfil banco-norte.',
+      ),
+    );
+    montar(HOLGADO);
+    await screen.findByRole('table');
+    await esperarPerfiles();
+    await subirCsv();
+    const alerta = await within(tarjeta(CSV)).findByRole('alert');
+    expect(alerta).toHaveTextContent('No se pudo procesar la carga.');
+    expect(alerta).toHaveTextContent(
+      'El encabezado del CSV no coincide con el perfil banco-norte.',
+    );
+    expect(within(tarjeta(CFDI)).queryByRole('alert')).toBeNull();
+  });
+
+  it('error_413: «Los archivos pesan demasiado.» en la tarjeta de CFDI (vista error_413)', async () => {
+    servidor.use(...subida413Html());
+    montar(HOLGADO);
+    await screen.findByRole('table');
+    await esperarPerfiles();
+    await subirXml();
+    const alerta = await within(tarjeta(CFDI)).findByRole('alert');
+    expect(alerta).toHaveTextContent('Los archivos pesan demasiado.');
+    expect(alerta).toHaveTextContent(
+      'Divide la carga en partes más pequeñas e inténtalo de nuevo.',
+    );
+    expect(within(tarjeta(CSV)).queryByRole('alert')).toBeNull();
+  });
+
+  it('sin_actualizar: al vencer el tope el encabezado del historial ofrece «Actualizar» (vista sin_actualizar)', async () => {
+    almacenes.cargas.establecer(LISTA_CINCO_ESTADOS);
+    montar(CON_TOPE_PANEL);
+    expect(await screen.findByText(SIN_ACTUALIZAR)).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Actualizar' })).toHaveLength(
+      1,
+    );
+    expect(screen.queryByText(LEYENDA)).toBeNull();
+    expect(screen.getByRole('table')).toBeInTheDocument();
+  });
+
+  it('cuenta_completa: el aviso aparece, la cuenta escrita no sale del campo (vista cuenta_completa)', async () => {
+    const errores: unknown[][] = [];
+    const original = console.log;
+    console.log = (...args: unknown[]) => errores.push(args);
+    try {
+      montar(HOLGADO);
+      await screen.findByRole('table');
+      await esperarPerfiles();
+      const cuenta = screen.getByLabelText('Cuenta');
+      await usuario().type(cuenta, '012345678901234567');
+      expect(
+        screen.getByText(
+          'Parece un número de cuenta completo. Escribe solo los últimos dígitos.',
+        ),
+      ).toBeInTheDocument();
+      expect(cuenta).toHaveValue('012345678901234567');
+      expect(botonCsv()).toBeDisabled();
+    } finally {
+      console.log = original;
+    }
+    expect(JSON.stringify(errores)).not.toContain('0123456789');
+  });
+});
+
+describe('CargasPage: un solo sondeo para el historial y las tarjetas', () => {
+  it('la lista tiene un único observador y el encabezado y la tarjeta ven el mismo tope', async () => {
+    almacenes.cargas.establecer(LISTA_CINCO_ESTADOS);
+    const cliente = clienteDePruebas();
+    montar(CON_TOPE_PANEL, ['admin', 'contador'], cliente);
+    await screen.findByRole('table');
+    const consultasDeLista = cliente
+      .getQueryCache()
+      .findAll({ queryKey: ['cargas'] })
+      .filter((q) => q.queryKey[2] === 'lista');
+    expect(consultasDeLista).toHaveLength(1);
+    expect(consultasDeLista[0]?.getObserversCount()).toBe(1);
+    expect(await screen.findByText(SIN_ACTUALIZAR)).toBeInTheDocument();
+  });
+
+  it('«Actualizar» del encabezado reabre la ventana de las tarjetas: la carga subida vuelve a sondearse', async () => {
+    const espia = espiarSolicitudes();
+    montar(CON_TOPE_PANEL);
+    await screen.findByRole('table');
+    await esperarPerfiles();
+    await subirXml();
+    await within(regionDe(CFDI)).findByText(SIN_ACTUALIZAR);
+    const historial = screen.getByRole('region', { name: 'Cargas recientes' });
+    const detalle = () =>
+      espia.solicitudes.filter(
+        (s) => s.metodo === 'GET' && /^\/api\/cargas\/[^/]+$/.test(s.ruta),
+      ).length;
+    // Control positivo: antes del tope la carga subida sí se sondeó.
+    const antes = detalle();
+    expect(antes).toBeGreaterThan(1);
+    await esperarIntervalos(5);
+    expect(detalle()).toBe(antes);
+    await userEvent.click(
+      within(historial).getByRole('button', { name: 'Actualizar' }),
+    );
+    await waitFor(() => expect(detalle()).toBeGreaterThan(antes + 1));
+    espia.detener();
+  });
+});
+
+describe('CargasPage: estructura y accesibilidad (12.1, 12.3)', () => {
+  it('un h2 por sección, ningún h1 propio, una tabla con ocho encabezados', async () => {
+    montar(HOLGADO);
+    const tabla = await screen.findByRole('table');
+    expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    expect(
+      screen
+        .getAllByRole('heading')
+        .map((h) => [h.tagName, h.textContent ?? '']),
+    ).toEqual([
+      ['H2', CFDI],
+      ['H2', CSV],
+      ['H2', 'Cargas recientes'],
+    ]);
+    expect(screen.getAllByRole('table')).toHaveLength(1);
+    expect(
+      within(tabla)
+        .getAllByRole('columnheader')
+        .map((c) => c.textContent),
+    ).toEqual([
+      'Tipo',
+      'Archivo',
+      'Estado',
+      'Avance',
+      'Válidos',
+      'Con error',
+      'Subió',
+      'Fecha',
+    ]);
+  });
+
+  it('cada campo tiene su etiqueta y la ayuda de la cuenta cuelga de aria-describedby', async () => {
+    montar(HOLGADO);
+    await screen.findByRole('table');
+    await esperarPerfiles();
+    for (const etiqueta of [
+      'Elegir archivos',
+      'Elegir archivo',
+      'Banco',
+      'Cuenta',
+      'Perfil de lectura',
+    ]) {
+      expect(screen.getByLabelText(etiqueta)).toBeInTheDocument();
+    }
+    expect(screen.getByLabelText('Cuenta')).toHaveAccessibleDescription(
+      'Escribe solo los últimos dígitos. No hace falta el número completo.',
+    );
+  });
+
+  it('el orden del teclado es CFDI, estado de cuenta e historial, sin tabindex positivo', async () => {
+    montar(HOLGADO);
+    const tabla = await screen.findByRole('table');
+    await esperarPerfiles();
+    const antes = (a: Element, b: Element) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(antes(tarjeta(CFDI), tarjeta(CSV))).toBe(true);
+    expect(antes(tarjeta(CSV), tabla)).toBe(true);
+    expect(
+      antes(
+        screen.getByLabelText('Elegir archivos'),
+        screen.getByLabelText('Banco'),
+      ),
+    ).toBe(true);
+    const positivos = [...document.querySelectorAll('[tabindex]')].filter(
+      (e) => Number(e.getAttribute('tabindex')) > 0,
+    );
+    expect(positivos).toHaveLength(0);
+  });
+
+  it('el aviso del revisor va antes de las tarjetas, como en el mockup', async () => {
+    montar(HOLGADO, ['revisor']);
+    await screen.findByRole('table');
+    const aviso = screen.getByText('Tu rol solo permite consultar las cargas.');
+    expect(
+      aviso.compareDocumentPosition(tarjeta(CFDI)) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('las regiones de estado son corteses y los fallos son alertas', async () => {
+    servidor.use(...subidaFalla(500));
+    montar(HOLGADO);
+    await screen.findByRole('table');
+    await esperarPerfiles();
+    for (const titulo of [CFDI, CSV]) {
+      const region = regionDe(titulo);
+      expect(region).toHaveAttribute('role', 'status');
+      expect(region.getAttribute('aria-live')).not.toBe('assertive');
+    }
+    await subirXml();
+    const alerta = await within(tarjeta(CFDI)).findByRole('alert');
+    expect(alerta).toHaveTextContent('No se pudo completar la solicitud.');
   });
 });

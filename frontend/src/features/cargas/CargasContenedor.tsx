@@ -10,6 +10,7 @@ import { useSessionContext } from '@/shared/sesion';
 import { useEpoca } from './claves';
 import { AlertaSubida, type FalloSubida } from './components/AlertaSubida';
 import { AvisoRevisor } from './components/AvisoRevisor';
+import { HistorialCargas } from './components/HistorialCargas';
 import { PanelCarga } from './components/PanelCarga';
 import { TarjetaCfdi } from './components/TarjetaCfdi';
 import { TarjetaEstadoCuenta } from './components/TarjetaEstadoCuenta';
@@ -24,13 +25,23 @@ import {
 import { usePerfiles } from './usePerfiles';
 import { usePollingCargas, type PanelSubida } from './usePollingCargas';
 import { useSubirCarga } from './useSubirCarga';
-import { derivarPanel, mensajeYaExistia, puedeSubir } from './vista';
+import {
+  derivarPanel,
+  estadoActualizacion,
+  mensajeYaExistia,
+  puedeSubir,
+  vistaHistorial,
+} from './vista';
 
 /**
- * Contenedor de las tarjetas de subida (esqueleto de S5; la pantalla completa
- * llega en S8). Reúne rol, selección, campos escritos y la mutación; las
- * tarjetas solo reciben props. El estado de la pantalla se deriva de lo que ya
- * existe (sesión, mutación, perfiles): nada se guarda de más.
+ * Contenedor de la pantalla de cargas: el aviso de solo lectura, las tarjetas
+ * de subida y el historial, en ese orden (Cargas.dc.html). Reúne rol,
+ * selección, campos escritos y la mutación; las tarjetas solo reciben props.
+ * El estado de la pantalla se deriva de lo que ya existe (sesión, mutación,
+ * perfiles, lista): nada se guarda de más.
+ *
+ * Un solo `usePollingCargas` alimenta el historial y las tarjetas: la misma
+ * lista, la misma ventana, el mismo tope y el mismo «Actualizar».
  *
  * Tras un éxito la carga queda en el panel de su tarjeta: se muestra lo que
  * respondió el POST y, mientras siga activa, se sondea su detalle hasta que
@@ -53,7 +64,7 @@ export function CargasContenedor() {
   // La carga recién subida: la reemplaza la siguiente subida con éxito y no
   // hay forma de descartarla (M13).
   const [panel, setPanel] = useState<PanelSubida | null>(null);
-  const { panelDatos, iniciarVentana, capada, actualizar } =
+  const { lista, panelDatos, iniciarVentana, capada, activo, actualizar } =
     usePollingCargas(panel);
   // El último fallo de subida y la tarjeta en que ocurrió. Guarda la época:
   // la alerta de otra sesión no se muestra (CRG-9).
@@ -84,6 +95,7 @@ export function CargasContenedor() {
   const subiendoCsv = isPending && variables?.tipo === TIPO_ESTADO_CUENTA;
   const perfil = perfilVigente(perfiles.data, perfilElegido);
 
+  const vista = vistaHistorial(lista);
   const vistaPanel = derivarPanel({
     panel:
       panel === null
@@ -244,6 +256,13 @@ export function CargasContenedor() {
           onSubir={subirEstadoCuenta}
         />
       </div>
+      <HistorialCargas
+        vista={vista}
+        cargas={lista.data?.datos ?? []}
+        onReintentar={() => void lista.refetch()}
+        actualizacion={estadoActualizacion({ vista, activo, capada })}
+        onActualizar={actualizar}
+      />
     </div>
   );
 }
