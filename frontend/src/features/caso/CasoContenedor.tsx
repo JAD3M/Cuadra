@@ -5,6 +5,7 @@ import { etiquetaCfdi } from '@/features/bandeja/etiquetaCfdi';
 import { useEpoca } from '@/features/bandeja/useEpoca';
 import { AlertaAccion } from './components/AlertaAccion';
 import { AvisoVarias } from './components/AvisoVarias';
+import { BannerResolucion } from './components/BannerResolucion';
 import { BloqueMovimiento } from './components/BloqueMovimiento';
 import { DetallePropuesta } from './components/DetallePropuesta';
 import { EncabezadoCaso } from './components/EncabezadoCaso';
@@ -23,7 +24,14 @@ import { PROPUESTAS, VOLVER_A_BANDEJA } from './textos';
 import { useCaso } from './useCaso';
 import { useHistorial } from './useHistorial';
 import { useResolverCaso } from './useResolverCaso';
-import { derivarVista, propuestaSeleccionada, vistaDeLectura } from './vista';
+import {
+  bannerDe,
+  derivarVista,
+  historialIdDe,
+  propuestaSeleccionada,
+  vistaDeLectura,
+  type ResolucionVigente,
+} from './vista';
 
 export interface CasoContenedorProps {
   movimientoId: string;
@@ -31,10 +39,12 @@ export interface CasoContenedorProps {
 
 /**
  * Contenedor del detalle: lee el caso, deriva la vista del estado que devolvió
- * el servidor y compone los componentes de presentación. Por ahora cubre la
- * carga, las variantes con propuestas, las de solo lectura, el historial y la
- * decisión (confirmar y rechazar siempre actúan sobre la propuesta expandida);
- * los errores y los banners se agregan por rebanadas.
+ * el servidor y compone los componentes de presentación. Cubre los estados de
+ * lectura, las variantes con propuestas y de solo lectura, el historial, la
+ * decisión (confirmar y rechazar siempre actúan sobre la propuesta expandida),
+ * los errores de la acción, el banner de la resolución con su foco y el caso
+ * desactualizado. Todo lo que viene de una acción se muestra solo si se activó
+ * en la época vigente.
  */
 export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
   const consulta = useCaso(movimientoId);
@@ -44,21 +54,42 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
     caso === undefined
       ? null
       : propuestaSeleccionada(caso.propuestas, seleccion);
-  // El historial es el de la propuesta mostrada; un sin_match no tiene.
-  const historial = useHistorial(expandida?.conciliacionId ?? null);
   const resolucion = useResolverCaso();
   const cliente = useQueryClient();
   const epoca = useEpoca();
   const alertaRef = useRef<HTMLDivElement>(null);
+  const bannerRef = useRef<HTMLDivElement>(null);
+  const descripcionRef = useRef<HTMLHeadingElement>(null);
+  // Solo cuenta lo que se activó en la época vigente: lo de otra se ignora.
+  const vigente =
+    resolucion.variables !== undefined && resolucion.variables.epoca === epoca;
+  // La última resolución exitosa, derivada de la respuesta del servidor. La
+  // mutación termina cuando el caso ya se volvió a pedir.
+  const resuelta: ResolucionVigente | null =
+    vigente && resolucion.isSuccess
+      ? {
+          accion:
+            resolucion.data.estado === 'confirmada' ? 'confirmar' : 'rechazar',
+          conciliacionId: resolucion.data.id,
+          rechazadas: resolucion.data.rechazadasAutomaticamente.length,
+        }
+      : null;
+  // El caso mostrado ya es viejo: la resolución salió bien y volver a pedirlo
+  // falló. Se bloquean los controles hasta poder confirmar su estado actual.
+  const desactualizado = resuelta !== null && consulta.isRefetchError;
+  const hayResolucion = resuelta !== null;
+  // El historial es el de la propuesta mostrada; tras rechazar la última, el
+  // de la rechazada; un sin_match común no tiene.
+  const historial = useHistorial(
+    historialIdDe(resuelta, caso?.propuestas ?? [], expandida),
+  );
   const enviando =
     resolucion.isPending && resolucion.variables !== undefined
       ? resolucion.variables.accion
       : null;
   // Un fallo solo se muestra en la época en la que se activó la acción.
   const errorAccion =
-    resolucion.isError &&
-    resolucion.variables !== undefined &&
-    resolucion.variables.epoca === epoca
+    resolucion.isError && vigente && resolucion.variables !== undefined
       ? clasificarErrorAccion(resolucion.error, resolucion.variables.accion)
       : null;
   const conAlerta = errorAccion !== null && errorAccion !== 'motivo_largo';
@@ -68,10 +99,20 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
     if (conAlerta) alertaRef.current?.focus();
   }, [conAlerta, errorAccion]);
 
-  /** «Recargar caso» (409): solo al hacer clic; pide el caso y su historial. */
+  // Al terminar una resolución los controles ya no están o cambiaron: el foco
+  // va una sola vez al banner.
+  useEffect(() => {
+    if (hayResolucion) bannerRef.current?.focus();
+  }, [hayResolucion, resolucion.submittedAt]);
+
+  /**
+   * «Recargar caso» (409): solo al hacer clic; pide el caso y su historial. El
+   * botón desaparece con la alerta, así que el foco pasa a la descripción.
+   */
   async function recargar() {
     resolucion.reset();
     await cliente.invalidateQueries({ queryKey: clavesCaso.todas(epoca) });
+    descripcionRef.current?.focus();
   }
 
   const lectura = vistaDeLectura(consulta);
@@ -93,6 +134,10 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
   if (caso === undefined) return null;
 
   const vista = derivarVista(caso);
+  const banner =
+    resuelta === null
+      ? null
+      : bannerDe(resuelta, desactualizado ? undefined : caso);
   const conPropuestas = vista === 'sugerencia' || vista === 'varias';
 
   return (
@@ -102,6 +147,20 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
         regla={expandida?.regla ?? null}
         origen={expandida?.origen ?? null}
         descripcion={caso.movimiento.descripcion}
+        descripcionRef={descripcionRef}
+        avisos={
+          banner === null ? null : (
+            <>
+              <BannerResolucion ref={bannerRef} {...banner} />
+              {desactualizado ? (
+                <ErrorCaso
+                  tipo="conexion"
+                  onReintentar={() => void consulta.refetch()}
+                />
+              ) : null}
+            </>
+          )
+        }
       />
       <div className={estilos.columnas}>
         <div className={estilos.principal}>
@@ -128,7 +187,9 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
                 etiquetaCfdi={etiquetaCfdi(expandida.cfdi)}
                 enviando={enviando}
                 deshabilitado={
-                  errorAccion === 'conflicto' || errorAccion === 'no_encontrado'
+                  desactualizado ||
+                  errorAccion === 'conflicto' ||
+                  errorAccion === 'no_encontrado'
                 }
                 motivoLargoServidor={errorAccion === 'motivo_largo'}
                 onEditarMotivo={() => {

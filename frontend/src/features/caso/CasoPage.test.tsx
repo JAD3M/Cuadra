@@ -17,6 +17,7 @@ import {
   casoSinMatch,
   casoSugerencia,
   casoVarias,
+  propuestaCaso,
 } from '@/test/fixturesCaso';
 import { idDe } from '@/test/fixturesBandeja';
 import { espiarSolicitudes } from '@/test/handlersAuth';
@@ -860,6 +861,318 @@ describe('CasoPage', () => {
         await userEvent.click(confirmar('A-1001'));
         rerender(dibujar(2));
         await new Promise((r) => setTimeout(r, 160));
+        expect(screen.queryByRole('alert')).toBeNull();
+      });
+    });
+
+    describe('banners, foco y caso desactualizado', () => {
+      const CONFIRMADA =
+        'Conciliación confirmada. El movimiento y el CFDI quedan cerrados.';
+
+      const bannerDe = (texto: string) => {
+        const banner = screen.getByText(texto).closest('[role="status"]');
+        if (!(banner instanceof HTMLElement)) throw new Error('sin banner');
+        return banner;
+      };
+
+      /** Sirve `antes` hasta que se resuelve y `despues` desde entonces. */
+      function servirTrasResolver(
+        antes: ReturnType<typeof casoSugerencia>,
+        despues: ReturnType<typeof casoSugerencia>,
+        respuesta: () => object,
+      ) {
+        let resuelto = false;
+        servidor.use(
+          http.get('/api/casos/:id', () =>
+            HttpResponse.json(resuelto ? despues : antes),
+          ),
+        );
+        servirResolucion(() => {
+          resuelto = true;
+          return HttpResponse.json(respuesta());
+        });
+      }
+
+      it('tras confirmar: banner con usuario y fecha del caso vuelto a pedir, variante conciliado, sin controles y sin navegar', async () => {
+        const base = casoVarias();
+        servirTrasResolver(
+          base,
+          casoConciliado({ movimiento: base.movimiento }),
+          () => ({
+            ...resolucion('confirmada'),
+            rechazadasAutomaticamente: [idDe(5002), idDe(5003)],
+          }),
+        );
+        servirHistorial(() => [
+          ...EVENTOS,
+          {
+            id: 'e2',
+            accion: 'confirmar',
+            createdAt: '2026-10-05T18:00:00.000Z',
+            usuario: { nombre: 'Ana' },
+          },
+        ]);
+        const router = montar(base.movimiento.id);
+        await screen.findByRole('heading', { name: 'Tu decisión' });
+        await userEvent.click(confirmar('A-1001'));
+        await screen.findByText(CONFIRMADA);
+        const banner = bannerDe(CONFIRMADA);
+        expect(banner).toHaveTextContent(/Ana · \d{4}-\d{2}-\d{2}/);
+        expect(banner).toHaveTextContent(
+          'Las demás propuestas de este movimiento se rechazaron.',
+        );
+        expect(banner).toHaveFocus();
+        expect(
+          screen.getByRole('heading', { level: 3, name: 'Conciliado' }),
+        ).toBeInTheDocument();
+        expect(
+          screen.queryByRole('heading', { name: 'Tu decisión' }),
+        ).toBeNull();
+        expect(
+          screen.queryByRole('button', { name: /Confirmar|Rechazar/ }),
+        ).toBeNull();
+        expect(await screen.findByText('Confirmada')).toBeInTheDocument();
+        expect(router.state.location.pathname).toBe(
+          `/casos/${base.movimiento.id}`,
+        );
+      });
+
+      it('confirmar sin hermanas rechazadas no lleva nota', async () => {
+        const base = casoSugerencia();
+        servirTrasResolver(
+          base,
+          casoConciliado({ movimiento: base.movimiento }),
+          () => resolucion('confirmada'),
+        );
+        servirHistorial();
+        montar(base.movimiento.id);
+        await screen.findByRole('heading', { name: 'Tu decisión' });
+        await userEvent.click(confirmar('A-1001'));
+        await screen.findByText(CONFIRMADA);
+        expect(
+          screen.queryByText(/otra propuesta|demás propuestas/),
+        ).toBeNull();
+      });
+
+      it('con una hermana rechazada usa el singular aprobado', async () => {
+        const base = casoVarias();
+        servirTrasResolver(
+          base,
+          casoConciliado({ movimiento: base.movimiento }),
+          () => ({
+            ...resolucion('confirmada'),
+            rechazadasAutomaticamente: [idDe(5002)],
+          }),
+        );
+        servirHistorial();
+        montar(base.movimiento.id);
+        await screen.findByRole('heading', { name: 'Tu decisión' });
+        await userEvent.click(confirmar('A-1001'));
+        expect(
+          await screen.findByText(
+            'La otra propuesta de este movimiento se rechazó.',
+          ),
+        ).toBeInTheDocument();
+      });
+
+      it('tras rechazar con propuestas restantes: la rechazada desaparece y las demás conservan los controles', async () => {
+        const base = casoVarias();
+        servirTrasResolver(
+          base,
+          casoSugerencia({
+            movimiento: base.movimiento,
+            propuestas: [propuestaCaso(2), propuestaCaso(3)],
+          }),
+          () => ({ ...resolucion('rechazada'), id: idDe(5001) }),
+        );
+        servirHistorial();
+        montar(base.movimiento.id);
+        await screen.findByRole('heading', { name: 'Tu decisión' });
+        await userEvent.click(rechazar('A-1001'));
+        await screen.findByText('Propuesta rechazada.');
+        expect(
+          screen.getByText(
+            'Quedan 2 propuestas vigentes para este movimiento.',
+          ),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('A-1001')).toBeNull();
+        expect(confirmar('A-1002')).toBeEnabled();
+        expect(rechazar('A-1002')).toBeEnabled();
+      });
+
+      it('con una sola propuesta restante usa «Queda 1 propuesta vigente» (B11)', async () => {
+        const base = casoVarias();
+        servirTrasResolver(
+          base,
+          casoSugerencia({
+            movimiento: base.movimiento,
+            propuestas: [propuestaCaso(2)],
+          }),
+          () => resolucion('rechazada'),
+        );
+        servirHistorial();
+        montar(base.movimiento.id);
+        await screen.findByRole('heading', { name: 'Tu decisión' });
+        await userEvent.click(rechazar('A-1001'));
+        expect(
+          await screen.findByText(
+            'Queda 1 propuesta vigente para este movimiento.',
+          ),
+        ).toBeInTheDocument();
+      });
+
+      it('al rechazar la última: variante sin match con el banner y el historial de la rechazada (B5)', async () => {
+        const base = casoSugerencia();
+        const rechazada = base.propuestas[0]?.conciliacionId ?? '';
+        servirTrasResolver(
+          base,
+          casoSinMatch({ movimiento: base.movimiento }),
+          () => ({ ...resolucion('rechazada'), id: rechazada }),
+        );
+        servirHistorial((id) =>
+          id === rechazada
+            ? [
+                ...EVENTOS,
+                {
+                  id: 'e2',
+                  accion: 'rechazar',
+                  createdAt: '2026-10-05T18:00:00.000Z',
+                  usuario: { nombre: 'Luis' },
+                },
+              ]
+            : [],
+        );
+        montar(base.movimiento.id);
+        await screen.findByRole('heading', { name: 'Tu decisión' });
+        await userEvent.click(rechazar('A-1001'));
+        await screen.findByText('El movimiento vuelve a sin match.');
+        expect(screen.getByText('Propuesta rechazada.')).toBeInTheDocument();
+        expect(
+          screen.getByRole('heading', { level: 3, name: 'Sin match' }),
+        ).toBeInTheDocument();
+        expect(
+          screen.queryByRole('button', { name: /Confirmar|Rechazar/ }),
+        ).toBeNull();
+        expect(await screen.findByText('Rechazada')).toBeInTheDocument();
+        expect(
+          screen.queryByText('Aún no hay eventos en el historial.'),
+        ).toBeNull();
+      });
+
+      it('una respuesta con estado inesperado es un fallo de contrato y no pinta ningún banner', async () => {
+        const caso = casoSugerencia();
+        servir(caso);
+        servirHistorial();
+        servirResolucion(() => HttpResponse.json({ estado: 'otra' }));
+        montar(caso.movimiento.id);
+        await screen.findByRole('heading', { name: 'Tu decisión' });
+        await userEvent.click(confirmar('A-1001'));
+        await screen.findByText('No pudimos mostrar este caso.');
+        expect(
+          screen.queryByText(/Conciliación confirmada|Propuesta rechazada/),
+        ).toBeNull();
+      });
+
+      it('un exceso de caracteres devuelve el foco al campo del motivo', async () => {
+        const caso = servir();
+        servirHistorial();
+        montar(caso.movimiento.id);
+        await screen.findByRole('heading', { name: 'Tu decisión' });
+        fireEvent.change(campo(), { target: { value: 'a'.repeat(501) } });
+        await userEvent.click(rechazar('A-1001'));
+        expect(campo()).toHaveFocus();
+      });
+
+      it('tras «Recargar caso» el foco va a la descripción del movimiento', async () => {
+        const caso = servir();
+        servirHistorial();
+        montar(caso.movimiento.id);
+        await screen.findByRole('heading', { name: 'Tu decisión' });
+        servidor.use(resolverFalla(409));
+        await userEvent.click(confirmar('A-1001'));
+        await screen.findByRole('alert');
+        servir(casoSugerencia({ movimiento: caso.movimiento }));
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Recargar caso' }),
+        );
+        await waitFor(() =>
+          expect(
+            screen.getByRole('heading', { level: 2, name: /SPEI/ }),
+          ).toHaveFocus(),
+        );
+      });
+
+      it('desactualizado (B9): si el caso no se puede volver a pedir, banner sin detalle, el aviso de conectividad debajo y los controles bloqueados', async () => {
+        const base = casoSugerencia();
+        let lecturas = 0;
+        servidor.use(
+          http.get('/api/casos/:id', () => {
+            lecturas += 1;
+            return lecturas === 1
+              ? HttpResponse.json(base)
+              : HttpResponse.error();
+          }),
+        );
+        servirHistorial();
+        servirResolucion(() => HttpResponse.json(resolucion('confirmada')));
+        montar(base.movimiento.id);
+        await screen.findByRole('heading', { name: 'Tu decisión' });
+        await userEvent.click(confirmar('A-1001'));
+        await screen.findByText(CONFIRMADA);
+        const banner = bannerDe(CONFIRMADA);
+        expect(banner.querySelectorAll('span')).toHaveLength(0);
+        const alerta = await screen.findByRole('alert');
+        expect(alerta).toHaveTextContent(
+          'No se pudo conectar con el servidor.',
+        );
+        expect(alerta).toHaveTextContent(
+          'Revisa tu conexión e inténtalo de nuevo.',
+        );
+        expect(
+          banner.compareDocumentPosition(alerta) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        expect(confirmar('A-1001')).toBeDisabled();
+        expect(rechazar('A-1001')).toBeDisabled();
+        expect(campo()).toBeDisabled();
+
+        servir(casoConciliado({ movimiento: base.movimiento }));
+        await userEvent.click(
+          within(alerta).getByRole('button', { name: 'Reintentar' }),
+        );
+        await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+        expect(bannerDe(CONFIRMADA)).toHaveTextContent(/Ana · /);
+        expect(
+          screen.getByRole('heading', { level: 3, name: 'Conciliado' }),
+        ).toBeInTheDocument();
+      });
+
+      it('si la época cambió en vuelo no se muestra ningún banner', async () => {
+        const caso = casoSugerencia();
+        servir(caso);
+        servirHistorial();
+        servirResolucion(async () => {
+          await delay(80);
+          return HttpResponse.json(resolucion('confirmada'));
+        });
+        const router = createMemoryRouter(
+          [{ path: '/casos/:movimientoId', element: <CasoPage /> }],
+          { initialEntries: [`/casos/${caso.movimiento.id}`] },
+        );
+        const cliente = clienteDePruebas();
+        const dibujar = (epoca: number) => (
+          <QueryClientProvider client={cliente}>
+            <SessionStateProvider estado={sesionConEpoca(epoca)}>
+              <RouterProvider router={router} />
+            </SessionStateProvider>
+          </QueryClientProvider>
+        );
+        const { rerender } = render(dibujar(1));
+        await screen.findByRole('heading', { name: 'Tu decisión' });
+        await userEvent.click(confirmar('A-1001'));
+        rerender(dibujar(2));
+        await new Promise((r) => setTimeout(r, 160));
+        expect(screen.queryByText(CONFIRMADA)).toBeNull();
         expect(screen.queryByRole('alert')).toBeNull();
       });
     });
