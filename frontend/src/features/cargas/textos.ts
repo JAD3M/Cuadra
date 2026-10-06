@@ -170,11 +170,16 @@ export const YA_EXISTIA_EN_COLA = [
   'Este archivo ya se había cargado y se volvió a poner en la cola.',
 ] as const;
 
-/** Alertas de una subida que falla (mockup v23: error_400, error_413, error_subida, sin_permiso_subida). */
+/** Alertas de una subida que falla (mockup v25: error_400, error_413, error_subida, sin_permiso_subida, error_otro). */
 export const ERROR_RECHAZO_CARGA = 'No se pudo procesar la carga.';
 export const ERROR_DEMASIADO_GRANDE = {
   titulo: 'Los archivos pesan demasiado.',
   detalle: 'Divide la carga en partes más pequeñas e inténtalo de nuevo.',
+} as const;
+export const ERROR_OTRO = {
+  titulo: 'No se pudo completar la solicitud.',
+  detalle:
+    'Tus archivos siguen seleccionados. Inténtalo de nuevo en unos minutos.',
 } as const;
 
 /** Aviso del polling: la leyenda mientras corre y el aviso con «Actualizar» tras el tope (K5). */

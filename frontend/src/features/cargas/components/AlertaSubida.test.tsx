@@ -82,11 +82,22 @@ describe('AlertaSubida', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  it('error inesperado: título y detalle del mockup v25, sin Reintentar', () => {
+    render(<AlertaSubida fallo={{ clase: 'otro' }} />);
+    const alerta = screen.getByRole('alert');
+    expect(alerta).toHaveTextContent('No se pudo completar la solicitud.');
+    expect(alerta).toHaveTextContent(
+      'Tus archivos siguen seleccionados. Inténtalo de nuevo en unos minutos.',
+    );
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
   it('solo la conexión ofrece Reintentar aunque se pase la acción', () => {
     for (const fallo of [
       { clase: 'rechazo', detalle: null },
       { clase: 'demasiado_grande' },
       { clase: 'sin_permiso' },
+      { clase: 'otro' },
     ] as const) {
       const { unmount } = render(
         <AlertaSubida fallo={fallo} onReintentar={() => undefined} />,

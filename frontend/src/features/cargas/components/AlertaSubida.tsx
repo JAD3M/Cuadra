@@ -4,13 +4,14 @@ import { Button } from '@/shared/ui/Button';
 import {
   ERROR_CONEXION,
   ERROR_DEMASIADO_GRANDE,
+  ERROR_OTRO,
   ERROR_RECHAZO_CARGA,
   ERROR_SIN_PERMISO,
   REINTENTAR,
 } from '@/features/cargas/textos';
 
 /**
- * Por qué falló la subida. Solo las clases que el mockup v23 dibuja: el texto
+ * Por qué falló la subida. Las clases que el mockup v25 dibuja: el texto
  * sale de la clase, nunca del servidor, salvo el motivo de un rechazo (400).
  */
 export type FalloSubida =
@@ -18,7 +19,9 @@ export type FalloSubida =
   | { clase: 'rechazo'; detalle: string | null }
   | { clase: 'demasiado_grande' }
   | { clase: 'sin_permiso' }
-  | { clase: 'conexion' };
+  | { clase: 'conexion' }
+  /** 500 o cualquier fallo inesperado: sin Reintentar. */
+  | { clase: 'otro' };
 
 export interface AlertaSubidaProps {
   fallo: FalloSubida;
@@ -47,6 +50,8 @@ export function AlertaSubida({ fallo, onReintentar, ref }: AlertaSubidaProps) {
       return <AlertaError ref={ref} {...ERROR_DEMASIADO_GRANDE} />;
     case 'sin_permiso':
       return <AlertaError ref={ref} {...ERROR_SIN_PERMISO} />;
+    case 'otro':
+      return <AlertaError ref={ref} {...ERROR_OTRO} />;
     case 'conexion':
       return (
         <AlertaError

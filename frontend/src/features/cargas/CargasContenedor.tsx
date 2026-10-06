@@ -129,12 +129,12 @@ export function CargasContenedor() {
 
   /**
    * Clasifica el fallo y lo deja en la tarjeta que subió. Un 401 y una
-   * cancelación no dicen nada (la capa de sesión atiende el 401), y un fallo
-   * «otro» (500, red rara) todavía no tiene alerta en el mockup v23.
+   * cancelación no dicen nada (la capa de sesión atiende el 401); el resto,
+   * incluido «otro» (500, fallo inesperado), tiene su alerta en el mockup v25.
    */
   function registrarFallo(error: unknown, tipo: TipoCarga) {
     const clase = clasificarErrorSubida(error);
-    if (clase === null || clase.clase === 'otro' || epoca === null) return;
+    if (clase === null || epoca === null) return;
     setFallo({ tipo, clase, epoca });
   }
 

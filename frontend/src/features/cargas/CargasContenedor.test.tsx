@@ -935,20 +935,22 @@ describe('CargasContenedor: alertas de una subida que falla', () => {
     expect(within(alerta).queryByRole('button')).toBeNull();
   });
 
-  it('un 500 conserva la pantalla pero el mockup v23 no dibuja alerta para él (10.5, pendiente de decisión)', async () => {
-    const espia = espiarSolicitudes();
+  it('un 500: alerta de error inesperado en la tarjeta que subió, sin Reintentar, con el foco, la selección intacta y los controles activos (10.5, mockup v25)', async () => {
     servidor.use(...subidaFalla(500));
     montar(['admin'], POLLING_HOLGADO);
     await esperarPerfiles();
     await subirXml();
-    await waitFor(() =>
-      expect(espia.cuantas('POST', '/api/cargas/cfdi')).toBe(1),
+    const alerta = await within(tarjeta(CFDI)).findByRole('alert');
+    expect(alerta).toHaveTextContent('No se pudo completar la solicitud.');
+    expect(alerta).toHaveTextContent(
+      'Tus archivos siguen seleccionados. Inténtalo de nuevo en unos minutos.',
     );
-    await waitFor(() => expect(botonCfdi(1)).toBeEnabled());
-    await esperarIntervalos(3);
-    expect(screen.queryByRole('alert')).toBeNull();
+    expect(within(alerta).queryByRole('button')).toBeNull();
+    await waitFor(() => expect(alerta).toHaveFocus());
+    expect(botonCfdi(1)).toBeEnabled();
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(sinAlertaEn(CSV)).toBeNull();
     expect(regionDe(CFDI)).toBeEmptyDOMElement();
-    espia.detener();
   });
 
   it('un 401 no pinta mensaje: la capa de sesión decide (10.6)', async () => {
