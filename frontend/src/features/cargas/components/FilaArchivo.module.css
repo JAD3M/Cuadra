@@ -1,0 +1,57 @@
+/* Fila de un archivo elegido (Cargas.dc.html: .arch y .arch.mal). Solo tokens. */
+.fila {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-14);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-inset);
+}
+
+.fila[data-rechazado='true'] {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-tint);
+}
+
+.marca {
+  color: var(--estado-conciliado-text);
+  font-weight: var(--weight-bold);
+}
+
+.fila[data-rechazado='true'] .marca {
+  color: var(--color-danger-text);
+}
+
+.texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.nombre {
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.detalle {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.fila[data-rechazado='true'] .detalle {
+  color: var(--color-danger-title);
+}
+
+/* El peso no se parte y no se recorta: la columna crece con el número. */
+.peso {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

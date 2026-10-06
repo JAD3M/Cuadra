@@ -1,0 +1,23 @@
+/* Zona de soltar (Cargas.dc.html: .drop, .drop.drag, .drop.off). Solo tokens. */
+.zona {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-32);
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-xl);
+  background: var(--color-inset);
+  text-align: center;
+}
+
+/* Arrastre encima: borde continuo y fondo de aviso, no solo color. */
+.zona[data-arrastrando='true'] {
+  border-style: solid;
+  border-color: var(--color-accent);
+  background: var(--estado-sugerencia-tile-bg);
+}
+
+.zona[data-deshabilitada='true'] {
+  border-color: var(--color-border);
+}

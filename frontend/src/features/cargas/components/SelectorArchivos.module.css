@@ -1,0 +1,50 @@
+/* Botón de elegir archivos (Cargas.dc.html: .btn y .btn2). Solo tokens. */
+.selector {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-20);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+
+/* El input vive dentro: el anillo de foco lo pinta la etiqueta. */
+.selector:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.primario {
+  min-block-size: var(--control-height-lg);
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.secundario {
+  min-block-size: var(--touch-min);
+  padding: 0 var(--space-16);
+  border-color: var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-weight: var(--weight-semibold);
+}
+
+/* Deshabilitado: borde discontinuo y relleno atenuado, no solo color. */
+.selector[data-deshabilitado='true'] {
+  border-style: dashed;
+  cursor: not-allowed;
+}
+
+.primario[data-deshabilitado='true'] {
+  border-color: var(--color-on-accent);
+  background: var(--color-accent-disabled);
+}
+
+.secundario[data-deshabilitado='true'] {
+  border-color: var(--color-muted);
+  color: var(--color-muted);
+}
