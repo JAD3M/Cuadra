@@ -74,10 +74,11 @@ describe('contrato CSS de las propuestas del caso', () => {
   });
 
   it('los objetivos interactivos miden al menos 44 px', () => {
-    const volver = leerModuloCss(
-      'features/caso/components/EncabezadoCaso.module.css',
+    const enlace = leerModuloCss(
+      'features/caso/components/EnlaceBandeja.module.css',
     );
-    expect(bloqueCss(volver, '.volver')).toContain('var(--touch-min)');
+    expect(bloqueCss(enlace, '.atras')).toContain('var(--touch-min)');
+    expect(bloqueCss(enlace, '.accion')).toContain('var(--touch-min)');
     const fila = leerModuloCss(
       'features/caso/components/FilaPropuesta.module.css',
     );

@@ -1,17 +1,25 @@
-import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 import { REGLA_REFERENCIA_MONTO_EXACTO } from '@/shared/dominio';
 import { etiquetaCfdi } from '@/features/bandeja/etiquetaCfdi';
+import { useEpoca } from '@/features/bandeja/useEpoca';
+import { AlertaAccion } from './components/AlertaAccion';
 import { AvisoVarias } from './components/AvisoVarias';
 import { BloqueMovimiento } from './components/BloqueMovimiento';
 import { DetallePropuesta } from './components/DetallePropuesta';
 import { EncabezadoCaso } from './components/EncabezadoCaso';
+import { EnlaceBandeja } from './components/EnlaceBandeja';
+import { ErrorCaso } from './components/ErrorCaso';
+import { EstadoCargaCaso } from './components/EstadoCargaCaso';
 import { Historial } from './components/Historial';
 import { ListaPropuestas } from './components/ListaPropuestas';
 import { PanelDecision } from './components/PanelDecision';
 import { TarjetaConciliado } from './components/TarjetaConciliado';
 import { TarjetaSinMatch } from './components/TarjetaSinMatch';
 import estilos from './CasoContenedor.module.css';
-import { CARGANDO_CASO, PROPUESTAS } from './textos';
+import { clavesCaso } from './claves';
+import { clasificarErrorAccion } from './errores';
+import { PROPUESTAS, VOLVER_A_BANDEJA } from './textos';
 import { useCaso } from './useCaso';
 import { useHistorial } from './useHistorial';
 import { useResolverCaso } from './useResolverCaso';
@@ -39,15 +47,46 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
   // El historial es el de la propuesta mostrada; un sin_match no tiene.
   const historial = useHistorial(expandida?.conciliacionId ?? null);
   const resolucion = useResolverCaso();
+  const cliente = useQueryClient();
+  const epoca = useEpoca();
+  const alertaRef = useRef<HTMLDivElement>(null);
   const enviando =
     resolucion.isPending && resolucion.variables !== undefined
       ? resolucion.variables.accion
       : null;
+  // Un fallo solo se muestra en la época en la que se activó la acción.
+  const errorAccion =
+    resolucion.isError &&
+    resolucion.variables !== undefined &&
+    resolucion.variables.epoca === epoca
+      ? clasificarErrorAccion(resolucion.error, resolucion.variables.accion)
+      : null;
+  const conAlerta = errorAccion !== null && errorAccion !== 'motivo_largo';
 
-  if (vistaDeLectura(consulta) === 'cargando') {
+  // Tras un fallo el foco va a la alerta; el 400 lo lleva el propio campo.
+  useEffect(() => {
+    if (conAlerta) alertaRef.current?.focus();
+  }, [conAlerta, errorAccion]);
+
+  /** «Recargar caso» (409): solo al hacer clic; pide el caso y su historial. */
+  async function recargar() {
+    resolucion.reset();
+    await cliente.invalidateQueries({ queryKey: clavesCaso.todas(epoca) });
+  }
+
+  const lectura = vistaDeLectura(consulta);
+  if (lectura !== null) {
     return (
-      <div role="status" aria-busy="true">
-        <span className="solo-lectores">{CARGANDO_CASO}</span>
+      <div className={estilos.pagina}>
+        <EnlaceBandeja texto={VOLVER_A_BANDEJA} variante="atras" />
+        {lectura === 'cargando' ? (
+          <EstadoCargaCaso />
+        ) : (
+          <ErrorCaso
+            tipo={lectura === 'error' ? 'conexion' : lectura}
+            onReintentar={() => void consulta.refetch()}
+          />
+        )}
       </div>
     );
   }
@@ -88,6 +127,22 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
                 key={expandida.conciliacionId}
                 etiquetaCfdi={etiquetaCfdi(expandida.cfdi)}
                 enviando={enviando}
+                deshabilitado={
+                  errorAccion === 'conflicto' || errorAccion === 'no_encontrado'
+                }
+                motivoLargoServidor={errorAccion === 'motivo_largo'}
+                onEditarMotivo={() => {
+                  if (errorAccion === 'motivo_largo') resolucion.reset();
+                }}
+                alerta={
+                  conAlerta ? (
+                    <AlertaAccion
+                      ref={alertaRef}
+                      tipo={errorAccion}
+                      onRecargar={() => void recargar()}
+                    />
+                  ) : null
+                }
                 onConfirmar={() =>
                   resolucion.resolver({
                     accion: 'confirmar',

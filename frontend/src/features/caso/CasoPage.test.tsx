@@ -20,7 +20,13 @@ import {
 } from '@/test/fixturesCaso';
 import { idDe } from '@/test/fixturesBandeja';
 import { espiarSolicitudes } from '@/test/handlersAuth';
-import { clienteDePruebas } from '@/test/montarBandeja';
+import {
+  casoFalla,
+  casoRedDeFallo,
+  resolverFalla,
+  resolverRedDeFallo,
+} from '@/test/handlersCaso';
+import { clienteDePruebas, sesionConEpoca } from '@/test/montarBandeja';
 import { servidor } from '@/test/servidor';
 import { CasoPage } from './CasoPage';
 
@@ -340,6 +346,110 @@ describe('CasoPage', () => {
     });
   });
 
+  describe('estados de lectura', () => {
+    const SIN_RASTRO = 'detalle del servidor';
+
+    it('404: copy de no encontrado, enlace a la bandeja y nada del servidor', async () => {
+      servidor.use(casoFalla(404));
+      montar(idDe(9));
+      expect(
+        await screen.findByText('No encontramos este caso.'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          'Puede que no exista o que pertenezca a otra empresa.',
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('link', { name: 'Volver a la bandeja' }),
+      ).toHaveAttribute('href', '/bandeja');
+      expect(document.body.textContent).not.toContain(SIN_RASTRO);
+      expect(document.body.textContent).not.toContain(idDe(9));
+      expect(screen.queryByRole('heading', { name: 'Tu decisión' })).toBeNull();
+    });
+
+    it('400 (id mal formado) muestra lo mismo que un 404', async () => {
+      servidor.use(casoFalla(400));
+      montar('42');
+      expect(
+        await screen.findByText('No encontramos este caso.'),
+      ).toBeInTheDocument();
+    });
+
+    it('403 en la lectura: permiso genérico, sin redirigir', async () => {
+      servidor.use(casoFalla(403));
+      const router = montar(idDe(1));
+      const alerta = await screen.findByRole('alert');
+      expect(alerta).toHaveTextContent('No tienes permiso para esta acción.');
+      expect(alerta).toHaveTextContent(
+        'Si crees que es un error, pide acceso a un administrador de la empresa.',
+      );
+      expect(router.state.location.pathname).toBe(`/casos/${idDe(1)}`);
+      expect(screen.queryByRole('button', { name: 'Reintentar' })).toBeNull();
+    });
+
+    it('fallo de red: avisa, ofrece «Reintentar» y el reintento muestra el caso', async () => {
+      servidor.use(casoRedDeFallo());
+      const caso = casoSugerencia();
+      montar(caso.movimiento.id);
+      const alerta = await screen.findByRole('alert');
+      expect(alerta).toHaveTextContent('No se pudo conectar con el servidor.');
+      expect(alerta).toHaveTextContent(
+        'Revisa tu conexión e inténtalo de nuevo.',
+      );
+      expect(
+        screen.getByRole('link', { name: '← Volver a la bandeja' }),
+      ).toBeInTheDocument();
+      servir(caso);
+      servirHistorial();
+      await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+      expect(
+        await screen.findByRole('heading', { level: 2, name: /SPEI/ }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('5xx: mismo aviso de conectividad, sin texto del servidor', async () => {
+      servidor.use(casoFalla(500));
+      montar(idDe(1));
+      const alerta = await screen.findByRole('alert');
+      expect(alerta).toHaveTextContent('No se pudo conectar con el servidor.');
+      expect(document.body.textContent).not.toContain(SIN_RASTRO);
+    });
+
+    it('contrato: un monto numérico no se pinta a medias y «Reintentar» lo vuelve a pedir', async () => {
+      const espia = espiarSolicitudes();
+      const malo = { ...casoSugerencia(), toleranciaMonto: 0.5 };
+      servir(malo as unknown as ReturnType<typeof casoSugerencia>);
+      montar(idDe(1));
+      const alerta = await screen.findByRole('alert');
+      expect(alerta).toHaveTextContent('No pudimos mostrar este caso.');
+      expect(alerta).toHaveTextContent(
+        'El servidor respondió con datos inesperados. Inténtalo de nuevo más tarde.',
+      );
+      expect(screen.queryByText(/SPEI/)).toBeNull();
+      await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+      await waitFor(() =>
+        expect(espia.cuantas('GET', `/api/casos/${idDe(1)}`)).toBe(2),
+      );
+      espia.detener();
+    });
+
+    it('401: la capa de sesión decide; la pantalla no pinta ningún mensaje', async () => {
+      const espia = espiarSolicitudes();
+      servidor.use(casoFalla(401));
+      montar(idDe(1));
+      await waitFor(() =>
+        expect(espia.cuantas('GET', `/api/casos/${idDe(1)}`)).toBe(1),
+      );
+      await new Promise((r) => setTimeout(r, 40));
+      espia.detener();
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(screen.queryByText('No encontramos este caso.')).toBeNull();
+      expect(screen.queryByRole('heading', { level: 2 })).toBeNull();
+    });
+  });
+
   describe('decisión', () => {
     interface Pedido {
       ruta: string;
@@ -566,6 +676,192 @@ describe('CasoPage', () => {
         name: 'Rechazar A-1002',
       });
       expect(campo()).toHaveValue('');
+    });
+
+    describe('errores de la acción', () => {
+      const SIN_RASTRO = 'detalle del servidor';
+      const sugerencia = () => screen.getByText('Sugerencia');
+
+      async function abrir(caso = casoSugerencia()) {
+        servir(caso);
+        servirHistorial();
+        montar(caso.movimiento.id);
+        await screen.findByRole('heading', { name: 'Tu decisión' });
+        return caso;
+      }
+
+      it('403 al confirmar (D-08): copy aprobado, sin código ni texto del servidor, foco en la alerta', async () => {
+        await abrir();
+        servidor.use(resolverFalla(403));
+        await userEvent.click(confirmar('A-1001'));
+        const alerta = await screen.findByRole('alert');
+        expect(alerta).toHaveTextContent('No puedes confirmar este caso.');
+        expect(alerta).toHaveTextContent(
+          'Quien subió el CFDI o el estado de cuenta no puede confirmarlo. Pide a otra persona de la empresa que lo revise.',
+        );
+        expect(document.body.textContent).not.toMatch(/acceso_denegado/i);
+        expect(document.body.textContent).not.toContain(SIN_RASTRO);
+        expect(alerta).toHaveFocus();
+        expect(sugerencia()).toBeInTheDocument();
+        expect(confirmar('A-1001')).toBeEnabled();
+        expect(rechazar('A-1001')).toBeEnabled();
+      });
+
+      it('403 al rechazar: permiso genérico, no el de la segregación', async () => {
+        await abrir();
+        servidor.use(resolverFalla(403));
+        await userEvent.click(rechazar('A-1001'));
+        const alerta = await screen.findByRole('alert');
+        expect(alerta).toHaveTextContent('No tienes permiso para esta acción.');
+        expect(alerta).not.toHaveTextContent('No puedes confirmar este caso.');
+      });
+
+      it('400 por motivo largo: el mensaje queda bajo el campo, el texto se conserva y el foco vuelve al campo', async () => {
+        await abrir();
+        servidor.use(resolverFalla(400));
+        await userEvent.type(campo(), 'No corresponde');
+        await userEvent.click(rechazar('A-1001'));
+        await waitFor(() =>
+          expect(campo()).toHaveAttribute('aria-invalid', 'true'),
+        );
+        expect(
+          screen.getByText('El motivo no puede pasar de 500 caracteres.'),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).toBeNull();
+        expect(campo()).toHaveValue('No corresponde');
+        expect(campo()).toHaveFocus();
+        expect(rechazar('A-1001')).toBeEnabled();
+        await userEvent.type(campo(), '!');
+        expect(campo()).not.toHaveAttribute('aria-invalid');
+      });
+
+      it('409: alerta con «Recargar caso», controles bloqueados y ninguna recarga por sí sola', async () => {
+        const espia = espiarSolicitudes();
+        const caso = await abrir();
+        const ruta = `/api/casos/${caso.movimiento.id}`;
+        servidor.use(resolverFalla(409));
+        await userEvent.click(confirmar('A-1001'));
+        const alerta = await screen.findByRole('alert');
+        expect(alerta).toHaveTextContent('Este caso ya cambió.');
+        expect(alerta).toHaveTextContent(
+          'Otra persona lo resolvió o la propuesta ya no está vigente. Recarga para ver su estado actual.',
+        );
+        expect(confirmar('A-1001')).toBeDisabled();
+        expect(rechazar('A-1001')).toBeDisabled();
+        const antes = espia.cuantas('GET', ruta);
+        await new Promise((r) => setTimeout(r, 120));
+        fireEvent.focus(window);
+        fireEvent(document, new Event('visibilitychange'));
+        await new Promise((r) => setTimeout(r, 60));
+        espia.detener();
+        expect(espia.cuantas('GET', ruta)).toBe(antes);
+        expect(antes).toBe(1);
+      });
+
+      it('«Recargar caso» vuelve a pedir el caso, limpia la alerta y pinta el estado del servidor', async () => {
+        const espia = espiarSolicitudes();
+        const caso = await abrir();
+        const ruta = `/api/casos/${caso.movimiento.id}`;
+        servidor.use(resolverFalla(409));
+        await userEvent.click(confirmar('A-1001'));
+        await screen.findByRole('alert');
+        servir(casoConciliado({ movimiento: caso.movimiento }));
+        await userEvent.click(
+          screen.getByRole('button', { name: 'Recargar caso' }),
+        );
+        expect(
+          await screen.findByRole('heading', { level: 3, name: 'Conciliado' }),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).toBeNull();
+        espia.detener();
+        expect(espia.cuantas('GET', ruta)).toBe(2);
+      });
+
+      it('404 al resolver: copy de no encontrado y controles bloqueados', async () => {
+        await abrir();
+        servidor.use(resolverFalla(404));
+        await userEvent.click(confirmar('A-1001'));
+        const alerta = await screen.findByRole('alert');
+        expect(alerta).toHaveTextContent('No encontramos este caso.');
+        expect(
+          within(alerta).getByRole('link', { name: 'Volver a la bandeja' }),
+        ).toHaveAttribute('href', '/bandeja');
+        expect(confirmar('A-1001')).toBeDisabled();
+      });
+
+      it('fallo de red: aviso de conectividad, controles habilitados y el motivo intacto', async () => {
+        await abrir();
+        servidor.use(resolverRedDeFallo());
+        await userEvent.type(campo(), 'Monto no corresponde');
+        await userEvent.click(rechazar('A-1001'));
+        const alerta = await screen.findByRole('alert');
+        expect(alerta).toHaveTextContent(
+          'No se pudo conectar con el servidor.',
+        );
+        expect(confirmar('A-1001')).toBeEnabled();
+        expect(rechazar('A-1001')).toBeEnabled();
+        expect(campo()).toHaveValue('Monto no corresponde');
+      });
+
+      it('5xx: el mismo aviso y el motivo escrito sigue ahí', async () => {
+        await abrir();
+        servidor.use(resolverFalla(500));
+        await userEvent.type(campo(), 'otra obra');
+        await userEvent.click(rechazar('A-1001'));
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'No se pudo conectar con el servidor.',
+        );
+        expect(campo()).toHaveValue('otra obra');
+      });
+
+      it('un 200 con cuerpo ilegible: aviso de contrato, sin banner y el caso se vuelve a pedir', async () => {
+        const espia = espiarSolicitudes();
+        const caso = await abrir();
+        servirResolucion(() => HttpResponse.json({ estado: 'otra' }));
+        await userEvent.click(confirmar('A-1001'));
+        expect(await screen.findByRole('alert')).toHaveTextContent(
+          'No pudimos mostrar este caso.',
+        );
+        expect(
+          screen.queryByRole('status', { name: /confirmada/i }),
+        ).toBeNull();
+        await waitFor(() =>
+          expect(espia.cuantas('GET', `/api/casos/${caso.movimiento.id}`)).toBe(
+            2,
+          ),
+        );
+        espia.detener();
+      });
+
+      it('un fallo cuya época ya pasó no se muestra', async () => {
+        const caso = casoSugerencia();
+        servir(caso);
+        servirHistorial();
+        servidor.use(
+          http.post('/api/conciliaciones/:id/:accion', async () => {
+            await delay(80);
+            return HttpResponse.json({ statusCode: 409 }, { status: 409 });
+          }),
+        );
+        const router = createMemoryRouter(
+          [{ path: '/casos/:movimientoId', element: <CasoPage /> }],
+          { initialEntries: [`/casos/${caso.movimiento.id}`] },
+        );
+        const cliente = clienteDePruebas();
+        const dibujar = (epoca: number) => (
+          <QueryClientProvider client={cliente}>
+            <SessionStateProvider estado={sesionConEpoca(epoca)}>
+              <RouterProvider router={router} />
+            </SessionStateProvider>
+          </QueryClientProvider>
+        );
+        const { rerender } = render(dibujar(1));
+        await screen.findByRole('heading', { name: 'Tu decisión' });
+        await userEvent.click(confirmar('A-1001'));
+        rerender(dibujar(2));
+        await new Promise((r) => setTimeout(r, 160));
+        expect(screen.queryByRole('alert')).toBeNull();
+      });
     });
   });
 });

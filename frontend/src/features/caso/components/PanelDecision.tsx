@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Button } from '@/shared/ui/Button';
 import { DECISION } from '@/features/caso/textos';
 import { excedeLimite, motivoParaEnvio } from '@/features/caso/motivo';
@@ -16,6 +16,14 @@ export interface PanelDecisionProps {
   onConfirmar: () => void;
   /** Motivo ya recortado, o `undefined` si no escribió nada. */
   onRechazar: (motivo: string | undefined) => void;
+  /** Alerta del fallo de la acción, dentro de la tarjeta y antes de los botones. */
+  alerta?: ReactNode;
+  /** Bloquea botones y campo sin estar enviando (409, 404, caso desactualizado). */
+  deshabilitado?: boolean;
+  /** El servidor rechazó el motivo por largo (400): se marca el campo y se enfoca. */
+  motivoLargoServidor?: boolean;
+  /** El motivo cambió: el contenedor limpia el 400 del servidor. */
+  onEditarMotivo?: () => void;
 }
 
 /**
@@ -30,12 +38,20 @@ export function PanelDecision({
   enviando,
   onConfirmar,
   onRechazar,
+  alerta,
+  deshabilitado = false,
+  motivoLargoServidor = false,
+  onEditarMotivo,
 }: PanelDecisionProps) {
   const [motivo, setMotivo] = useState('');
   const titulo = useId();
   const campo = useRef<HTMLTextAreaElement>(null);
   const excede = excedeLimite(motivo);
-  const bloqueado = enviando !== null;
+  const bloqueado = enviando !== null || deshabilitado;
+
+  useEffect(() => {
+    if (motivoLargoServidor) campo.current?.focus();
+  }, [motivoLargoServidor]);
 
   function rechazar() {
     if (excede) {
@@ -53,8 +69,11 @@ export function PanelDecision({
       </h2>
       <CampoMotivo
         valor={motivo}
-        onCambio={setMotivo}
-        invalido={excede}
+        onCambio={(texto) => {
+          setMotivo(texto);
+          onEditarMotivo?.();
+        }}
+        invalido={excede || motivoLargoServidor}
         deshabilitado={bloqueado}
         campoRef={campo}
       />
@@ -63,6 +82,7 @@ export function PanelDecision({
           {DECISION.enviando}
         </span>
       )}
+      {alerta}
       <div className={estilos.acciones}>
         <Button
           tono="conciliado"

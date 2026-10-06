@@ -180,6 +180,42 @@ describe('PanelDecision', () => {
     });
   });
 
+  describe('fallos de la acción (S6)', () => {
+    it('muestra la alerta recibida dentro de la tarjeta, antes de los botones', () => {
+      dibujar({ alerta: <div role="alert">Fallo de prueba</div> });
+      const alerta = screen.getByRole('alert');
+      expect(alerta).toHaveTextContent('Fallo de prueba');
+      expect(
+        alerta.compareDocumentPosition(confirmar()) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it('deshabilitado bloquea botones y campo sin cambiar las etiquetas de envío', () => {
+      dibujar({ deshabilitado: true });
+      expect(confirmar()).toBeDisabled();
+      expect(rechazar()).toBeDisabled();
+      expect(campo()).toBeDisabled();
+      expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('un 400 del servidor por motivo largo marca el campo y enfoca el textarea', () => {
+      dibujar({ motivoLargoServidor: true });
+      expect(campo()).toHaveAttribute('aria-invalid', 'true');
+      expect(
+        screen.getByText('El motivo no puede pasar de 500 caracteres.'),
+      ).toBeInTheDocument();
+      expect(campo()).toHaveFocus();
+    });
+
+    it('al editar el motivo avisa para que el contenedor limpie el 400', async () => {
+      const onEditarMotivo = vi.fn();
+      dibujar({ onEditarMotivo });
+      await userEvent.type(campo(), 'ab');
+      expect(onEditarMotivo).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it('cualquier usuario ve los controles habilitados: el panel no conoce el rol', () => {
     dibujar();
     expect(confirmar()).toBeEnabled();
