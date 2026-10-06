@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef } from 'react';
 import { ContratoError, api } from '@/shared/api';
 import { respuestaResolucion } from '@/shared/api/contratos';
+import { ACCION_CONFIRMAR } from '@/shared/dominio';
 import { useEpoca } from '@/features/bandeja/useEpoca';
 import { clavesCaso } from './claves';
 import type { AccionCaso } from './errores';
@@ -41,7 +42,7 @@ export function useResolverCaso() {
   const mutacion = useMutation({
     mutationFn: ({ accion, conciliacionId, motivo }: VariablesResolver) => {
       const ruta = `/conciliaciones/${encodeURIComponent(conciliacionId)}/${accion}`;
-      if (accion === 'confirmar') {
+      if (accion === ACCION_CONFIRMAR) {
         return api.fetch(ruta, {
           method: 'POST',
           schema: respuestaResolucion,

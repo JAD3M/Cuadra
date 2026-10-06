@@ -1,6 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { REGLA_REFERENCIA_MONTO_EXACTO } from '@/shared/dominio';
+import {
+  ACCION_CONFIRMAR,
+  ACCION_RECHAZAR,
+  REGLA_REFERENCIA_MONTO_EXACTO,
+} from '@/shared/dominio';
 import { etiquetaCfdi } from '@/features/bandeja/etiquetaCfdi';
 import { useEpoca } from '@/features/bandeja/useEpoca';
 import { AlertaAccion } from './components/AlertaAccion';
@@ -69,7 +73,9 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
     vigente && resolucion.isSuccess
       ? {
           accion:
-            resolucion.data.estado === 'confirmada' ? 'confirmar' : 'rechazar',
+            resolucion.data.estado === 'confirmada'
+              ? ACCION_CONFIRMAR
+              : ACCION_RECHAZAR,
           conciliacionId: resolucion.data.id,
           rechazadas: resolucion.data.rechazadasAutomaticamente.length,
         }
@@ -206,13 +212,13 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
                 }
                 onConfirmar={() =>
                   resolucion.resolver({
-                    accion: 'confirmar',
+                    accion: ACCION_CONFIRMAR,
                     conciliacionId: expandida.conciliacionId,
                   })
                 }
                 onRechazar={(motivo) =>
                   resolucion.resolver({
-                    accion: 'rechazar',
+                    accion: ACCION_RECHAZAR,
                     conciliacionId: expandida.conciliacionId,
                     motivo,
                   })

@@ -1,4 +1,9 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import {
+  ACCION_CONFIRMAR,
+  ACCION_RECHAZAR,
+  type AccionResolucion,
+} from '@/shared/dominio';
 import { Button } from '@/shared/ui/Button';
 import { DECISION } from '@/features/caso/textos';
 import { excedeLimite, motivoParaEnvio } from '@/features/caso/motivo';
@@ -7,7 +12,7 @@ import { CampoMotivo } from './CampoMotivo';
 import estilos from './PanelDecision.module.css';
 
 /** La acción que viaja al servidor, si hay una. */
-export type AccionEnVuelo = 'confirmar' | 'rechazar';
+export type AccionEnVuelo = AccionResolucion;
 
 export interface PanelDecisionProps {
   /** Etiqueta del CFDI de la propuesta expandida: va en el nombre accesible. */
@@ -94,7 +99,9 @@ export function PanelDecision({
           onClick={onConfirmar}
         >
           <span aria-hidden="true">{DECISION.glifoConfirmar}</span>{' '}
-          {enviando === 'confirmar' ? DECISION.confirmando : DECISION.confirmar}{' '}
+          {enviando === ACCION_CONFIRMAR
+            ? DECISION.confirmando
+            : DECISION.confirmar}{' '}
           <span className="solo-lectores">{etiquetaCfdi}</span>
         </Button>
         <Button
@@ -104,7 +111,9 @@ export function PanelDecision({
           onClick={rechazar}
         >
           <span aria-hidden="true">{DECISION.glifoRechazar}</span>{' '}
-          {enviando === 'rechazar' ? DECISION.rechazando : DECISION.rechazar}{' '}
+          {enviando === ACCION_RECHAZAR
+            ? DECISION.rechazando
+            : DECISION.rechazar}{' '}
           <span className="solo-lectores">{etiquetaCfdi}</span>
         </Button>
       </div>

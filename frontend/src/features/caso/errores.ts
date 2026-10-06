@@ -1,10 +1,11 @@
 import { ApiError, ContratoError } from '@/shared/api';
+import { ACCION_CONFIRMAR, type AccionResolucion } from '@/shared/dominio';
 
 // Clasificadores propios del detalle: `mensajeDeError` no distingue contrato,
 // no encontrado ni conflicto y sirve a otras pantallas, así que no se toca.
 // Devuelven solo una clase: el texto sale de `textos.ts` y nunca del servidor.
 
-export type AccionCaso = 'confirmar' | 'rechazar';
+export type AccionCaso = AccionResolucion;
 
 export type ErrorLectura =
   'no_encontrado' | 'sin_permiso' | 'contrato' | 'conexion';
@@ -51,7 +52,7 @@ export function clasificarErrorAccion(
     case 400:
       return 'motivo_largo';
     case 403:
-      return accion === 'confirmar' ? 'segregacion' : 'sin_permiso';
+      return accion === ACCION_CONFIRMAR ? 'segregacion' : 'sin_permiso';
     case 404:
       return 'no_encontrado';
     case 409:

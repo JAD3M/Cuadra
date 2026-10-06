@@ -1,6 +1,7 @@
 export * from './tipos';
 export * from './bandeja';
 export * from './reglas';
+export * from './acciones';
 export * from './resolucion';
 export {
   ETIQUETAS_ACCION_BITACORA,

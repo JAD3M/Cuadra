@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { ORIGENES_CONCILIACION } from '@/shared/dominio/tipos';
+import {
+  ORIGENES_CONCILIACION,
+  type EstadoConciliacion,
+} from '@/shared/dominio/tipos';
 import { estadoBandeja } from './bandeja';
 import { montoDecimal } from './montoDecimal';
 
@@ -34,7 +37,10 @@ export const cfdiCaso = z.object({
 export const propuestaCaso = z.object({
   conciliacionId: z.guid(),
   /** Las rechazadas nunca llegan: el backend no las devuelve. */
-  estado: z.enum(['propuesta', 'confirmada']),
+  estado: z.enum([
+    'propuesta',
+    'confirmada',
+  ] as const satisfies readonly EstadoConciliacion[]),
   origen: z.enum(ORIGENES_CONCILIACION),
   score: z.string().nullable(),
   regla,
@@ -87,7 +93,10 @@ export const respuestaCaso = z
 /** `rechazadasAutomaticamente` se lee solo por su largo. */
 export const respuestaResolucion = z.object({
   id: z.guid(),
-  estado: z.enum(['confirmada', 'rechazada']),
+  estado: z.enum([
+    'confirmada',
+    'rechazada',
+  ] as const satisfies readonly EstadoConciliacion[]),
   cfdiId: z.guid(),
   movimientoId: z.guid(),
   motivo: z.string().nullable(),

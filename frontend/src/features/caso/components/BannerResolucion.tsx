@@ -1,10 +1,11 @@
 import type { Ref } from 'react';
+import { ACCION_CONFIRMAR, type AccionResolucion } from '@/shared/dominio';
 import { BANNER } from '@/features/caso/textos';
 import estilos from './BannerResolucion.module.css';
 
 export interface BannerResolucionProps {
   /** La acción que el servidor aceptó. */
-  accion: 'confirmar' | 'rechazar';
+  accion: AccionResolucion;
   /** «{usuario} · {fecha}» del caso vuelto a pedir; `null` si no se conoce. */
   detalle: string | null;
   /** Nota sobre las demás propuestas; `null` si no corresponde. */
@@ -30,11 +31,11 @@ export function BannerResolucion({
       role="status"
       tabIndex={-1}
       className={`${estilos.banner} ${
-        accion === 'confirmar' ? estilos.confirmado : estilos.rechazado
+        accion === ACCION_CONFIRMAR ? estilos.confirmado : estilos.rechazado
       }`}
     >
       <strong className={estilos.titulo}>
-        {accion === 'confirmar' ? BANNER.confirmado : BANNER.rechazado}
+        {accion === ACCION_CONFIRMAR ? BANNER.confirmado : BANNER.rechazado}
       </strong>
       {detalle === null ? null : (
         <span className={estilos.detalle}>{detalle}</span>

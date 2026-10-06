@@ -1,4 +1,9 @@
-import { ETIQUETAS_ACCION_BITACORA } from '@/shared/dominio';
+import {
+  ACCION_CONFIRMAR,
+  ACCION_CREAR,
+  ACCION_RECHAZAR,
+  ETIQUETAS_ACCION_BITACORA,
+} from '@/shared/dominio';
 import type { AccionBitacora } from '@/shared/dominio';
 import { formatearInstante } from '@/features/caso/fecha';
 import { HISTORIAL } from '@/features/caso/textos';
@@ -28,9 +33,9 @@ function tituloDe(accion: string, etiquetaCfdi: string | null): string {
 }
 
 function tonoDe(accion: string): string {
-  if (accion === 'crear') return estilos.propuesta ?? '';
-  if (accion === 'confirmar') return estilos.confirmada ?? '';
-  if (accion === 'rechazar') return estilos.rechazada ?? '';
+  if (accion === ACCION_CREAR) return estilos.propuesta ?? '';
+  if (accion === ACCION_CONFIRMAR) return estilos.confirmada ?? '';
+  if (accion === ACCION_RECHAZAR) return estilos.rechazada ?? '';
   return estilos.neutro ?? '';
 }
 

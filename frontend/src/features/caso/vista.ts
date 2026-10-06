@@ -1,3 +1,8 @@
+import {
+  ACCION_CONFIRMAR,
+  ACCION_RECHAZAR,
+  type EstadoBandeja,
+} from '@/shared/dominio';
 import { clasificarErrorLectura, type AccionCaso } from './errores';
 import { formatearDiaDeInstante } from './fecha';
 import { BANNER } from './textos';
@@ -8,20 +13,21 @@ import { BANNER } from './textos';
 
 /** Lo mínimo del caso que la derivación necesita. */
 export interface CasoDerivable {
-  estado: 'sugerencia' | 'sin_match' | 'conciliado';
+  estado: EstadoBandeja;
   propuestas: readonly unknown[];
 }
 
-export type VistaCargada = 'sugerencia' | 'varias' | 'sin_match' | 'conciliado';
+/** Los estados del servidor más «varias»: sugerencia con 2 o más propuestas. */
+export type VistaCargada = EstadoBandeja | 'varias';
 
 export type VistaLectura =
   'cargando' | 'no_encontrado' | 'sin_permiso' | 'contrato' | 'error';
 
 /** Variante de un caso ya cargado, por el estado derivado del servidor. */
 export function derivarVista(caso: CasoDerivable): VistaCargada {
-  if (caso.estado === 'conciliado') return 'conciliado';
-  if (caso.estado === 'sin_match') return 'sin_match';
-  return caso.propuestas.length >= 2 ? 'varias' : 'sugerencia';
+  if (caso.estado === 'conciliado') return caso.estado;
+  if (caso.estado === 'sin_match') return caso.estado;
+  return caso.propuestas.length >= 2 ? 'varias' : caso.estado;
 }
 
 /**
@@ -74,7 +80,7 @@ export interface ResolucionVigente {
 
 /** Lo que el banner necesita del caso vuelto a pedir. */
 export interface CasoParaBanner {
-  estado: 'sugerencia' | 'sin_match' | 'conciliado';
+  estado: EstadoBandeja;
   propuestas: readonly {
     confirmadaAt: string | null;
     confirmadaPor: { nombre: string } | null;
@@ -113,9 +119,9 @@ export function bannerDe(
   caso: CasoParaBanner | undefined,
   zona?: string,
 ): Banner {
-  if (resolucion.accion === 'rechazar') {
+  if (resolucion.accion === ACCION_RECHAZAR) {
     return {
-      accion: 'rechazar',
+      accion: ACCION_RECHAZAR,
       detalle: null,
       nota: notaDeRechazar(caso),
     };
@@ -131,7 +137,7 @@ export function bannerDe(
       : null,
   ].filter((parte): parte is string => parte !== null);
   return {
-    accion: 'confirmar',
+    accion: ACCION_CONFIRMAR,
     detalle: partes.length === 0 ? null : partes.join(BANNER.separadorDetalle),
     nota: notaDeConfirmar(resolucion.rechazadas),
   };
@@ -147,7 +153,7 @@ export function historialIdDe(
   propuestas: readonly unknown[],
   seleccionada: { conciliacionId: string } | null,
 ): string | null {
-  if (resolucion?.accion === 'rechazar' && propuestas.length === 0) {
+  if (resolucion?.accion === ACCION_RECHAZAR && propuestas.length === 0) {
     return resolucion.conciliacionId;
   }
   return seleccionada?.conciliacionId ?? null;
