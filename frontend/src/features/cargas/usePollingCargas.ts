@@ -109,12 +109,15 @@ export function usePollingCargas(panel: PanelSubida | null) {
       return nueva;
     },
     enabled: epoca !== null && panelConsultable,
-    refetchInterval: (consulta) =>
-      calcularIntervalo(
-        [consulta.state.data ?? panelVigente?.inicial ?? { estado: 'fallida' }],
+    refetchInterval: (consulta) => {
+      // Sin detalle ni POST que mirar no hay nada activo que sondear.
+      const visto = consulta.state.data ?? panelVigente?.inicial;
+      return calcularIntervalo(
+        visto === undefined ? [] : [visto],
         ventana.capada,
         intervaloMs,
-      ),
+      );
+    },
   });
 
   const panelDatos: DetalleCarga | RespuestaCarga | null =
