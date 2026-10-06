@@ -81,7 +81,7 @@ describe('FilaCarga', () => {
     expect(error.className).toContain('contador');
   });
 
-  it.each<EstadoCarga>(['pendiente', 'procesando'])(
+  it.each<EstadoCarga>(['pendiente', 'procesando', 'fallida'])(
     'M12: una carga %s muestra «—» en Válidos y Con error aunque traiga ceros',
     (estado) => {
       const { celdas } = montar(
@@ -92,7 +92,17 @@ describe('FilaCarga', () => {
     },
   );
 
-  it.each<EstadoCarga>(['procesada', 'con_errores', 'fallida'])(
+  it('M12: una carga fallida no resalta Con error aunque traiga un número', () => {
+    const { celdas } = montar(
+      itemCarga(1, { estado: 'fallida', registrosOk: 2, registrosError: 5 }),
+    );
+    expect(celdas[4]?.textContent).toBe('—');
+    expect(celdas[5]?.textContent).toBe('—');
+    const guion = within(celdas[5] as HTMLElement).getByText('—');
+    expect(guion.className).not.toContain('conError');
+  });
+
+  it.each<EstadoCarga>(['procesada', 'con_errores'])(
     'M12: una carga %s muestra los contadores tal como llegaron, incluido 0',
     (estado) => {
       const { celdas } = montar(

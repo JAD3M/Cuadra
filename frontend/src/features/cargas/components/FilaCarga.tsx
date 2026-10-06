@@ -1,6 +1,5 @@
 import { formatearInstante } from '@/features/caso/fecha';
 import {
-  esActiva,
   ETIQUETAS_ESTADO_CARGA,
   ETIQUETAS_TIPO_CARGA,
   type EstadoCarga,
@@ -30,15 +29,27 @@ export interface FilaCargaProps {
 }
 
 /**
- * Fila de solo lectura: no abre ni decide nada. Mientras la carga está activa
- * (pendiente o procesando) los contadores se muestran «—»: el servidor los
- * escribe una sola vez, al terminar (M12). Terminada, salen tal como llegaron.
- * El nombre del archivo es texto plano; el CSS lo trunca a la vista, pero el
- * texto completo sigue en el DOM.
+ * Si la fila muestra los contadores (M12, ajustada al mockup v23). Activa
+ * (pendiente o procesando), el servidor aún no los escribe; fallida, la carga
+ * no se procesó y un «0» sugeriría que se revisó. En los tres casos va «—».
+ */
+const MUESTRA_CONTADORES: Readonly<Record<EstadoCarga, boolean>> = {
+  pendiente: false,
+  procesando: false,
+  procesada: true,
+  con_errores: true,
+  fallida: false,
+};
+
+/**
+ * Fila de solo lectura: no abre ni decide nada. Los contadores salen tal como
+ * llegaron solo en una carga procesada o con errores; en las demás se muestra
+ * «—» (ver `MUESTRA_CONTADORES`). El nombre del archivo es texto plano; el CSS
+ * lo trunca a la vista, pero el texto completo sigue en el DOM.
  */
 export function FilaCarga({ carga }: FilaCargaProps) {
-  const activa = esActiva(carga.estado);
-  const resaltaError = !activa && carga.registrosError > 0;
+  const sinContadores = !MUESTRA_CONTADORES[carga.estado];
+  const resaltaError = !sinContadores && carga.registrosError > 0;
   return (
     <tr>
       <Td>{ETIQUETAS_TIPO_CARGA[carga.tipo]}</Td>
@@ -57,9 +68,9 @@ export function FilaCarga({ carga }: FilaCargaProps) {
       </Td>
       <Td numerica>
         <span
-          className={`${estilos.contador} ${activa ? estilos.atenuado : ''}`}
+          className={`${estilos.contador} ${sinContadores ? estilos.atenuado : ''}`}
         >
-          {activa ? SIN_DATO : carga.registrosOk}
+          {sinContadores ? SIN_DATO : carga.registrosOk}
         </span>
       </Td>
       <Td numerica>
@@ -68,7 +79,7 @@ export function FilaCarga({ carga }: FilaCargaProps) {
             resaltaError ? estilos.conError : estilos.atenuado
           }`}
         >
-          {activa ? SIN_DATO : carga.registrosError}
+          {sinContadores ? SIN_DATO : carga.registrosError}
         </span>
       </Td>
       <Td className={estilos.quien}>{carga.subidoPor ?? SIN_DATO}</Td>
