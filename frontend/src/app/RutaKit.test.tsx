@@ -47,6 +47,7 @@ describe('RutaKit (galería de componentes)', () => {
       'Chips de estado',
       'Tabla con montos',
       'Bandeja',
+      'Caso',
       'Piezas del shell',
     ];
     for (const nombre of secciones) {
@@ -141,6 +142,179 @@ describe('RutaKit (galería de componentes)', () => {
     renderizar();
     const tabla = screen.getByRole('table', { name: 'Movimientos de ejemplo' });
     expect(within(tabla).getByText('$2,150.00 USD')).toBeInTheDocument();
+  });
+
+  describe('sección Caso', () => {
+    const seccion = () => screen.getByRole('region', { name: 'Caso' });
+    const VISTAS = [
+      'sugerencia',
+      'varias',
+      'sin_match',
+      'conciliado',
+      'cargando',
+      'error',
+      'no_encontrado',
+      'contrato',
+      'enviando',
+      'conflicto',
+      'sin_permiso',
+      'rechazo_largo',
+      'confirmado',
+      'rechazado',
+    ] as const;
+
+    /** El bloque de una vista, por el título que lleva en la galería. */
+    function vista(nombre: (typeof VISTAS)[number]): HTMLElement {
+      const titulo = within(seccion()).getByRole('heading', {
+        level: 3,
+        name: `Vista: ${nombre}`,
+      });
+      const bloque = titulo.parentElement;
+      if (!(bloque instanceof HTMLElement)) throw new Error('sin bloque');
+      return bloque;
+    }
+
+    it('muestra cada una de las 14 vistas de la maqueta sin romperse', () => {
+      renderizar();
+      for (const nombre of VISTAS) {
+        expect(vista(nombre)).toBeInTheDocument();
+      }
+      expect(within(seccion()).queryByRole('heading', { level: 1 })).toBeNull();
+    });
+
+    it('sugerencia y varias: propuesta expandida, decisión y, con varias, el aviso y las filas', () => {
+      renderizar();
+      const una = within(vista('sugerencia'));
+      expect(una.getByText('CFDI candidato')).toBeInTheDocument();
+      expect(
+        una.getByRole('button', { name: 'Confirmar conciliación A-1044' }),
+      ).toBeEnabled();
+      expect(una.queryByText(/Este movimiento tiene/)).toBeNull();
+      const varias = within(vista('varias'));
+      expect(
+        varias.getByText(
+          'Este movimiento tiene 3 propuestas. Al confirmar una, las demás se rechazan.',
+        ),
+      ).toBeInTheDocument();
+      expect(
+        varias.getAllByRole('button', { name: /^Ver propuesta/ }),
+      ).toHaveLength(2);
+    });
+
+    it('sin_match y conciliado: solo lectura, sin controles de decisión', () => {
+      renderizar();
+      const sinMatch = within(vista('sin_match'));
+      expect(
+        sinMatch.getByText(
+          'El motor no encontró un CFDI seguro para este movimiento.',
+        ),
+      ).toBeInTheDocument();
+      expect(sinMatch.queryByRole('button', { name: /Confirmar/ })).toBeNull();
+      const conciliado = within(vista('conciliado'));
+      expect(
+        conciliado.getByText('Este caso ya está cerrado y no admite cambios.'),
+      ).toBeInTheDocument();
+      expect(
+        conciliado.queryByRole('button', { name: /Confirmar|Rechazar/ }),
+      ).toBeNull();
+    });
+
+    it('cargando y los errores de lectura traen su copy aprobado', () => {
+      renderizar();
+      expect(
+        vista('cargando').querySelector('[aria-busy="true"]'),
+      ).not.toBeNull();
+      expect(
+        within(vista('error')).getByText(
+          'No se pudo conectar con el servidor.',
+        ),
+      ).toBeInTheDocument();
+      const noEncontrado = within(vista('no_encontrado'));
+      expect(
+        noEncontrado.getByText('No encontramos este caso.'),
+      ).toBeInTheDocument();
+      expect(
+        noEncontrado.getByRole('link', { name: 'Volver a la bandeja' }),
+      ).toHaveAttribute('href', '/bandeja');
+      expect(
+        within(vista('contrato')).getByText('No pudimos mostrar este caso.'),
+      ).toBeInTheDocument();
+    });
+
+    it('enviando bloquea los controles y anuncia el envío', () => {
+      renderizar();
+      const enviando = within(vista('enviando'));
+      expect(
+        enviando.getByRole('button', { name: /Confirmando…/ }),
+      ).toBeDisabled();
+      expect(enviando.getByText('Enviando tu decisión')).toBeInTheDocument();
+    });
+
+    it('conflicto, sin_permiso y rechazo_largo muestran su alerta o su error en la decisión', () => {
+      renderizar();
+      const conflicto = within(vista('conflicto'));
+      expect(conflicto.getByText('Este caso ya cambió.')).toBeInTheDocument();
+      expect(
+        conflicto.getByRole('button', { name: 'Recargar caso' }),
+      ).toBeInTheDocument();
+      expect(
+        within(vista('sin_permiso')).getByText(
+          'No puedes confirmar este caso.',
+        ),
+      ).toBeInTheDocument();
+      const largo = within(vista('rechazo_largo'));
+      expect(largo.getByText('512 / 500')).toBeInTheDocument();
+      expect(
+        largo.getByText('El motivo no puede pasar de 500 caracteres.'),
+      ).toBeInTheDocument();
+      expect(
+        largo.getByLabelText('Motivo del rechazo (opcional)'),
+      ).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('confirmado y rechazado: banner de estado con su nota y sin navegación', () => {
+      renderizar();
+      const confirmado = within(vista('confirmado'));
+      expect(
+        confirmado.getByText(
+          'Conciliación confirmada. El movimiento y el CFDI quedan cerrados.',
+        ),
+      ).toBeInTheDocument();
+      expect(
+        confirmado.getByText(
+          'Las demás propuestas de este movimiento se rechazaron.',
+        ),
+      ).toBeInTheDocument();
+      const rechazado = within(vista('rechazado'));
+      expect(rechazado.getByText('Propuesta rechazada.')).toBeInTheDocument();
+      expect(
+        rechazado.getByText('El movimiento vuelve a sin match.'),
+      ).toBeInTheDocument();
+    });
+
+    it('el historial se ve con eventos, vacío y con error', () => {
+      renderizar();
+      const bloque = (titulo: string) => {
+        const encabezado = within(seccion()).getByRole('heading', {
+          level: 3,
+          name: titulo,
+        });
+        return within(encabezado.parentElement as HTMLElement);
+      };
+      expect(
+        bloque('Historial: con eventos').getAllByRole('listitem').length,
+      ).toBeGreaterThan(1);
+      expect(
+        bloque('Historial: vacío').getByText(
+          'Aún no hay eventos en el historial.',
+        ),
+      ).toBeInTheDocument();
+      expect(
+        bloque('Historial: con error').getByRole('button', {
+          name: 'Reintentar',
+        }),
+      ).toBeInTheDocument();
+    });
   });
 
   describe('sección Bandeja', () => {

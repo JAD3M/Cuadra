@@ -17,6 +17,7 @@ import { EstadoChip, TONOS_ESTADO_CHIP } from '@/shared/ui/EstadoChip';
 import { Monto } from '@/shared/ui/Monto';
 import { Td, Th, Tabla } from '@/shared/ui/Tabla';
 import { SeccionBandeja } from './SeccionBandeja';
+import { SeccionCaso } from './SeccionCaso';
 import estilos from './KitPage.module.css';
 
 /** Empresas de ejemplo del paso 2 del acceso (una con dos roles). */
@@ -346,6 +347,10 @@ export function KitPage({ muestraShell }: KitPageProps) {
 
       <Seccion id="kit-bandeja" titulo="Bandeja">
         <SeccionBandeja />
+      </Seccion>
+
+      <Seccion id="kit-caso" titulo="Caso">
+        <SeccionCaso />
       </Seccion>
 
       {muestraShell && (
