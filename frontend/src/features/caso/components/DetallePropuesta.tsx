@@ -1,3 +1,4 @@
+import { REGLA_REFERENCIA_MONTO_EXACTO } from '@/shared/dominio';
 import { TarjetaCfdi, type CfdiTarjeta } from './TarjetaCfdi';
 import { TarjetaDiferencia } from './TarjetaDiferencia';
 import { TarjetaMotor } from './TarjetaMotor';
@@ -24,7 +25,10 @@ export function DetallePropuesta({
   return (
     <div className={estilos.detalle}>
       <div className={estilos.par}>
-        <TarjetaCfdi cfdi={propuesta.cfdi} />
+        <TarjetaCfdi
+          cfdi={propuesta.cfdi}
+          serieFolioCoincide={propuesta.regla === REGLA_REFERENCIA_MONTO_EXACTO}
+        />
         <TarjetaDiferencia
           diferenciaMonto={propuesta.diferenciaMonto}
           toleranciaMonto={toleranciaMonto}

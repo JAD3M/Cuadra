@@ -90,3 +90,8 @@
 .atenuado {
   color: var(--color-muted);
 }
+
+/* Dato que el servidor confirma que coincide (✓ de la maqueta). */
+.acierto {
+  color: var(--estado-conciliado-text);
+}

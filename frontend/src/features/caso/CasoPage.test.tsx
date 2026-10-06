@@ -163,4 +163,27 @@ describe('CasoPage', () => {
     await screen.findByRole('heading', { level: 2, name: /SPEI/ });
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
   });
+
+  it('B14: con la regla referencia_monto_exacto marca la referencia y la serie-folio', async () => {
+    const base = casoSugerencia();
+    const caso = servir({
+      ...base,
+      propuestas: [
+        {
+          ...(base.propuestas[0] as (typeof base.propuestas)[number]),
+          regla: 'referencia_monto_exacto',
+        },
+      ],
+    });
+    montar(caso.movimiento.id);
+    await screen.findByRole('heading', { level: 2, name: /SPEI/ });
+    expect(screen.getAllByText('✓')).toHaveLength(2);
+  });
+
+  it('B14: con otra regla no hay ninguna ✓', async () => {
+    servir();
+    montar(idDe(1));
+    await screen.findByRole('heading', { level: 2, name: /SPEI/ });
+    expect(screen.queryByText('✓')).toBeNull();
+  });
 });

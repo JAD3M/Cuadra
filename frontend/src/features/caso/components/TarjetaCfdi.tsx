@@ -12,9 +12,6 @@ export interface CfdiTarjeta {
   uuidFiscal: string;
   serie: string | null;
   folio: string | null;
-  nombreEmisor: string | null;
-  rfcReceptor: string;
-  nombreReceptor: string | null;
   fechaEmision: string;
   total: string;
   moneda: string;
@@ -23,6 +20,11 @@ export interface CfdiTarjeta {
 
 export interface TarjetaCfdiProps {
   cfdi: CfdiTarjeta;
+  /**
+   * El servidor dice que la regla de la propuesta es referencia y monto
+   * exactos: serie-folio lleva la ✓ y el color de acierto (B14).
+   */
+  serieFolioCoincide?: boolean;
 }
 
 function serieFolio(cfdi: CfdiTarjeta): string {
@@ -34,10 +36,13 @@ function serieFolio(cfdi: CfdiTarjeta): string {
 
 /**
  * CFDI candidato de la propuesta expandida: total con su moneda, emisión,
- * serie-folio, emisor, receptor y UUID. Los datos que el CFDI no trae se
- * muestran como guion: nada se inventa.
+ * serie-folio y UUID, como en la maqueta (sin emisor ni receptor, B13). Los
+ * datos que el CFDI no trae se muestran como guion: nada se inventa.
  */
-export function TarjetaCfdi({ cfdi }: TarjetaCfdiProps) {
+export function TarjetaCfdi({
+  cfdi,
+  serieFolioCoincide = false,
+}: TarjetaCfdiProps) {
   const titulo = useId();
   const esBase = cfdi.moneda === MONEDA_BASE;
   const subtexto = [esBase ? cfdi.moneda : null, cfdi.metodoPago]
@@ -69,19 +74,19 @@ export function TarjetaCfdi({ cfdi }: TarjetaCfdiProps) {
         </div>
         <div>
           <dt>{CFDI.serieFolio}</dt>
-          <dd className={comunes.mono}>{serieFolio(cfdi)}</dd>
-        </div>
-        <div className={comunes.completa}>
-          <dt>{CFDI.emisor}</dt>
-          <dd className={comunes.texto}>{cfdi.nombreEmisor ?? SIN_DATO}</dd>
-        </div>
-        <div className={comunes.completa}>
-          <dt>{CFDI.receptor}</dt>
-          <dd className={comunes.texto}>
-            {cfdi.nombreReceptor ?? SIN_DATO}
-            <span className={`${comunes.mono} ${estilos.rfc}`}>
-              {cfdi.rfcReceptor}
-            </span>
+          <dd
+            className={`${comunes.mono} ${serieFolioCoincide ? comunes.acierto : ''}`}
+          >
+            {serieFolio(cfdi)}
+            {serieFolioCoincide ? (
+              <>
+                {' '}
+                <span aria-hidden="true">✓</span>
+                <span className="solo-lectores">
+                  {CFDI.coincideConMovimiento}
+                </span>
+              </>
+            ) : null}
           </dd>
         </div>
         <div className={comunes.completa}>

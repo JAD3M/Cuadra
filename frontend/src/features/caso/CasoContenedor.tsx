@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { REGLA_REFERENCIA_MONTO_EXACTO } from '@/shared/dominio';
 import { AvisoVarias } from './components/AvisoVarias';
 import { BloqueMovimiento } from './components/BloqueMovimiento';
 import { DetallePropuesta } from './components/DetallePropuesta';
@@ -51,6 +52,7 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
         referencia={caso.movimiento.referencia}
         monto={caso.movimiento.monto}
         moneda={caso.movimiento.moneda}
+        referenciaCoincide={expandida?.regla === REGLA_REFERENCIA_MONTO_EXACTO}
       />
       {conPropuestas && expandida !== null ? (
         <div className={estilos.propuestas}>

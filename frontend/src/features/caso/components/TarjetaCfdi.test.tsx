@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { TarjetaCfdi, type CfdiTarjeta } from './TarjetaCfdi';
+import { TarjetaCfdi } from './TarjetaCfdi';
 
-const CFDI: CfdiTarjeta = {
+// Sin anotación: lleva campos que el contrato trae y la tarjeta no debe mostrar.
+const CFDI = {
   uuidFiscal: '6F1C2A9E-4B7D-4E21-9C3A-0D8E51B7A044',
   serie: 'A',
   folio: '1044',
@@ -16,12 +17,9 @@ const CFDI: CfdiTarjeta = {
 };
 
 describe('TarjetaCfdi', () => {
-  it('muestra emisor, receptor, UUID, emisión, serie-folio y total', () => {
+  it('muestra UUID, emisión, serie-folio y total', () => {
     render(<TarjetaCfdi cfdi={CFDI} />);
     expect(screen.getByText('CFDI candidato')).toBeInTheDocument();
-    expect(screen.getByText('MATERIALES REYES SA DE CV')).toBeInTheDocument();
-    expect(screen.getByText(/Publico en General/)).toBeInTheDocument();
-    expect(screen.getByText('XAXX010101000')).toBeInTheDocument();
     expect(
       screen.getByText('6F1C2A9E-4B7D-4E21-9C3A-0D8E51B7A044'),
     ).toBeInTheDocument();
@@ -50,20 +48,34 @@ describe('TarjetaCfdi', () => {
     expect(screen.queryByText(/PUE|PPD/)).toBeNull();
   });
 
-  it('los campos opcionales nulos muestran un guion', () => {
-    render(
-      <TarjetaCfdi
-        cfdi={{
-          ...CFDI,
-          serie: null,
-          folio: null,
-          nombreEmisor: null,
-          nombreReceptor: null,
-        }}
-      />,
+  it('B13: no muestra emisor ni receptor (no están en la maqueta)', () => {
+    render(<TarjetaCfdi cfdi={CFDI} />);
+    expect(screen.queryByText('Emisor')).toBeNull();
+    expect(screen.queryByText('Receptor')).toBeNull();
+    expect(screen.queryByText('MATERIALES REYES SA DE CV')).toBeNull();
+    expect(screen.queryByText(/Publico en General/)).toBeNull();
+    expect(screen.queryByText('XAXX010101000')).toBeNull();
+  });
+
+  it('sin serie ni folio muestra un guion', () => {
+    render(<TarjetaCfdi cfdi={{ ...CFDI, serie: null, folio: null }} />);
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
+  it('B14: la marca ✓ de serie-folio solo sale cuando la regla lo indica', () => {
+    const { rerender } = render(<TarjetaCfdi cfdi={CFDI} />);
+    expect(screen.queryByText('✓')).toBeNull();
+    rerender(<TarjetaCfdi cfdi={CFDI} serieFolioCoincide />);
+    expect(screen.getByText('✓')).toBeInTheDocument();
+    expect(screen.getByText('A-1044').closest('dd')).toHaveTextContent(
+      'A-1044 ✓',
     );
-    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(3);
-    expect(screen.getByText('XAXX010101000')).toBeInTheDocument();
+  });
+
+  it('B14: la marca es decorativa y el coincidir queda dicho solo a lectores', () => {
+    render(<TarjetaCfdi cfdi={CFDI} serieFolioCoincide />);
+    expect(screen.getByText('✓')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('coincide con el movimiento')).toBeInTheDocument();
   });
 
   it('serie sin folio muestra solo la parte que existe', () => {

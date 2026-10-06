@@ -16,6 +16,8 @@ export const MOVIMIENTO = {
   referencia: 'Referencia',
   descripcion: 'Descripción',
   sinReferencia: 'sin referencia',
+  /** Solo para lectores de pantalla: la ✓ visible es decorativa. */
+  coincideConCfdi: 'coincide con el CFDI',
 } as const;
 
 /** Tarjeta del CFDI candidato. */
@@ -24,8 +26,8 @@ export const CFDI = {
   emision: 'Emisión',
   serieFolio: 'Serie-folio',
   uuid: 'UUID',
-  emisor: 'Emisor',
-  receptor: 'Receptor',
+  /** Solo para lectores de pantalla: la ✓ visible es decorativa. */
+  coincideConMovimiento: 'coincide con el movimiento',
 } as const;
 
 /** Tarjeta de la diferencia con la tolerancia de la empresa. */

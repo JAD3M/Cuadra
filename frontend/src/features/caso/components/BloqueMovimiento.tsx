@@ -13,6 +13,11 @@ export interface BloqueMovimientoProps {
   /** Decimal en cadena tal como lo envía la API. */
   monto: string;
   moneda: string;
+  /**
+   * El servidor dice que la regla de la propuesta es referencia y monto
+   * exactos: la referencia lleva la ✓ y el color de acierto (B14).
+   */
+  referenciaCoincide?: boolean;
 }
 
 /**
@@ -26,6 +31,7 @@ export function BloqueMovimiento({
   referencia,
   monto,
   moneda,
+  referenciaCoincide = false,
 }: BloqueMovimientoProps) {
   const titulo = useId();
   const esBase = moneda === MONEDA_BASE;
@@ -50,7 +56,20 @@ export function BloqueMovimiento({
           {referencia === null ? (
             <dd className={comunes.atenuado}>{MOVIMIENTO.sinReferencia}</dd>
           ) : (
-            <dd className={`${comunes.mono} ${comunes.texto}`}>{referencia}</dd>
+            <dd
+              className={`${comunes.mono} ${comunes.texto} ${referenciaCoincide ? comunes.acierto : ''}`}
+            >
+              {referencia}
+              {referenciaCoincide ? (
+                <>
+                  {' '}
+                  <span aria-hidden="true">✓</span>
+                  <span className="solo-lectores">
+                    {MOVIMIENTO.coincideConCfdi}
+                  </span>
+                </>
+              ) : null}
+            </dd>
           )}
         </div>
         <div className={comunes.completa}>

@@ -74,4 +74,21 @@ describe('BloqueMovimiento', () => {
     expect(monto.childNodes).toHaveLength(1);
     expect(monto.childNodes[0]?.nodeType).toBe(Node.TEXT_NODE);
   });
+
+  it('B14: la ✓ de la referencia solo sale cuando la regla lo indica', () => {
+    const { unmount } = dibujar();
+    expect(screen.queryByText('✓')).toBeNull();
+    unmount();
+    dibujar({ referenciaCoincide: true });
+    expect(screen.getByText('✓')).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('REF-9').closest('dd')).toHaveTextContent(
+      'REF-9 ✓',
+    );
+    expect(screen.getByText('coincide con el CFDI')).toBeInTheDocument();
+  });
+
+  it('B14: sin referencia no hay ✓ aunque la regla coincida', () => {
+    dibujar({ referencia: null, referenciaCoincide: true });
+    expect(screen.queryByText('✓')).toBeNull();
+  });
 });
