@@ -31,7 +31,7 @@
     cargar, al fallar y en cero. El marcador `PENDIENTES_PLACEHOLDER` se
     retiró. El encabezado recibe el subtítulo desde el `handle` de la ruta.
   - La galería `/__kit` tiene la sección «Bandeja» con cada pieza y estado.
-- **Entrega de CU-22.** Catorce ramas locales apiladas,
+- **Entrega de CU-22.** Catorce ramas locales apiladas (más las dos correcciones de abajo),
   `feat/cu-22-00-api-resumen` a `feat/cu-22-13-kit-docs` (la 13 incluye estos
   documentos). Se partieron en límites de commit; los cortes que pasan de 400
   líneas por las pruebas (S4, S7, S10 y S11) quedan como candidatos a
@@ -45,7 +45,22 @@
   formato, build y `verificar:dist` limpios. En la raíz, typecheck limpio. El
   backend corrió sus 801 pruebas al cerrar S0 (Postgres y Redis activos) y no
   se volvió a correr después, porque S1 a S13 no tocan `src/`.
-- **Enmiendas a la especificación** (A1 a A12, guardadas en Engram como
+- **Correcciones tras la verificación de CU-22.** Dos ramas más sobre la 13:
+  - `feat/cu-22-14-flujos-estables` (70+/2-): carrera real en la guarda de
+    `/empresa`, heredada de CU-21. Si el contexto de la empresa nueva llegaba
+    antes de que el enrutador saliera de `/empresa`, el `ready` se tomaba como
+    abandono del cambio y devolvía a la pantalla anterior en vez de ir a
+    `/bandeja`. Se veía como pruebas de flujo intermitentes (límite de 5 s).
+    Ahora `selecting` expone la época y la guarda solo regresa si no cambió
+    (A13). Prueba de estrés con dos suites en paralelo: 4 de 6 con fallo
+    antes, 0 de 16 después.
+  - `feat/cu-22-15-orden-chips` (49+/25-): chips, indicadores y URL
+    canónica siguen el orden del mockup (sugerencia, sin match, conciliado);
+    el espejo del backend no cambia (A14).
+  - Verificación en `feat/cu-22-15-orden-chips`: en `frontend/`, 106 archivos
+    y 1,811 pruebas en verde; el backend, vuelto a correr sobre la 14, 801
+    pruebas en verde.
+- **Enmiendas a la especificación** (A1 a A15, guardadas en Engram como
   `sdd/cu-22-bandeja/spec-amendments`): la insignia «simulada» exige el
   prefijo completo `Sugerencia de IA: [SIMULADA — no es un modelo real]` y una
   prueba estática lo compara con el backend (A1); `SessionState.ready` suma
