@@ -169,3 +169,10 @@ export const YA_EXISTIA_TERMINADA = [
 export const YA_EXISTIA_EN_COLA = [
   'Este archivo ya se había cargado y se volvió a poner en la cola.',
 ] as const;
+
+/** Alertas de una subida que falla (mockup v23: error_400, error_413, error_subida, sin_permiso_subida). */
+export const ERROR_RECHAZO_CARGA = 'No se pudo procesar la carga.';
+export const ERROR_DEMASIADO_GRANDE = {
+  titulo: 'Los archivos pesan demasiado.',
+  detalle: 'Divide la carga en partes más pequeñas e inténtalo de nuevo.',
+} as const;
