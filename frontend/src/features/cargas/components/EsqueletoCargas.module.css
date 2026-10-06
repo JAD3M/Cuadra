@@ -1,0 +1,13 @@
+/* Carga inicial del historial: filas de relleno del alto de un objetivo táctil. */
+.esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-8) var(--space-16) var(--space-20);
+}
+
+.barra {
+  min-block-size: var(--touch-min);
+  border-radius: var(--radius-sm);
+  background: var(--color-hover-2);
+}

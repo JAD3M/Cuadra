@@ -1,0 +1,4 @@
+/* La alerta del historial queda dentro de la tarjeta, con aire alrededor. */
+.margen {
+  padding: 0 var(--space-16) var(--space-16);
+}
