@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -215,7 +216,7 @@ describe('CasoPage', () => {
       }),
     );
     const router = montar(x.movimiento.id);
-    await router.navigate(`/casos/${y.movimiento.id}`);
+    await act(() => router.navigate(`/casos/${y.movimiento.id}`));
     await screen.findByRole('heading', { level: 2, name: 'CASO Y' });
     await new Promise((r) => setTimeout(r, 90));
     expect(screen.queryByText(x.movimiento.descripcion)).toBeNull();
@@ -563,8 +564,15 @@ describe('CasoPage', () => {
     it('en vuelo no hay optimismo: sigue siendo sugerencia, sin banner y con los botones bloqueados', async () => {
       const caso = servir();
       servirHistorial();
+      // La respuesta queda retenida hasta terminar las comprobaciones: con un
+      // retraso fijo, bajo carga de CPU llegaba antes de mirar el estado en
+      // vuelo y la prueba dependía del reloj.
+      let soltar = () => {};
+      const retenida = new Promise<void>((r) => {
+        soltar = r;
+      });
       servirResolucion(async () => {
-        await delay(80);
+        await retenida;
         return HttpResponse.json(resolucion('confirmada'));
       });
       montar(caso.movimiento.id);
@@ -576,6 +584,7 @@ describe('CasoPage', () => {
       expect(rechazar('A-1001')).toBeDisabled();
       expect(screen.getByText('Sugerencia')).toBeInTheDocument();
       expect(screen.getByText('Enviando tu decisión')).toBeInTheDocument();
+      soltar();
     });
 
     it('tras confirmar y volver a pedir el caso conciliado, desaparecen los controles', async () => {
@@ -835,12 +844,18 @@ describe('CasoPage', () => {
       });
 
       it('un fallo cuya época ya pasó no se muestra', async () => {
+        // La respuesta se suelta después de cambiar de época y se espera a que
+        // la mutación termine: así la prueba no depende de un retraso fijo.
+        let soltar = () => {};
+        const retenida = new Promise<void>((r) => {
+          soltar = r;
+        });
         const caso = casoSugerencia();
         servir(caso);
         servirHistorial();
         servidor.use(
           http.post('/api/conciliaciones/:id/:accion', async () => {
-            await delay(80);
+            await retenida;
             return HttpResponse.json({ statusCode: 409 }, { status: 409 });
           }),
         );
@@ -860,7 +875,8 @@ describe('CasoPage', () => {
         await screen.findByRole('heading', { name: 'Tu decisión' });
         await userEvent.click(confirmar('A-1001'));
         rerender(dibujar(2));
-        await new Promise((r) => setTimeout(r, 160));
+        soltar();
+        await waitFor(() => expect(cliente.isMutating()).toBe(0));
         expect(screen.queryByRole('alert')).toBeNull();
       });
     });
@@ -1148,11 +1164,15 @@ describe('CasoPage', () => {
       });
 
       it('si la época cambió en vuelo no se muestra ningún banner', async () => {
+        let soltar = () => {};
+        const retenida = new Promise<void>((r) => {
+          soltar = r;
+        });
         const caso = casoSugerencia();
         servir(caso);
         servirHistorial();
         servirResolucion(async () => {
-          await delay(80);
+          await retenida;
           return HttpResponse.json(resolucion('confirmada'));
         });
         const router = createMemoryRouter(
@@ -1171,7 +1191,8 @@ describe('CasoPage', () => {
         await screen.findByRole('heading', { name: 'Tu decisión' });
         await userEvent.click(confirmar('A-1001'));
         rerender(dibujar(2));
-        await new Promise((r) => setTimeout(r, 160));
+        soltar();
+        await waitFor(() => expect(cliente.isMutating()).toBe(0));
         expect(screen.queryByText(CONFIRMADA)).toBeNull();
         expect(screen.queryByRole('alert')).toBeNull();
       });

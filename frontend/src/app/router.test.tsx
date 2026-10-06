@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import {
   createMemoryRouter,
   RouterProvider,
@@ -280,7 +280,7 @@ describe('título y anuncio del cambio de página', () => {
     await waitFor(() =>
       expect(document.title).toBe('Bandeja de revisión · Cuadra'),
     );
-    await router.navigate('/casos/7');
+    await act(() => router.navigate('/casos/7'));
     await waitFor(() =>
       expect(document.title).toBe('Detalle del caso · Cuadra'),
     );
