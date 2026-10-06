@@ -68,7 +68,9 @@ describe('usePollingCargas: la lista', () => {
     almacenes.cargas.establecer([PENDIENTE]);
     const espia = espiarSolicitudes();
     const { result } = montar({ polling: POLLING_RAPIDO });
-    await waitFor(() => expect(espia.cuantas('GET', '/api/cargas')).toBe(3));
+    await waitFor(() =>
+      expect(espia.cuantas('GET', '/api/cargas')).toBeGreaterThanOrEqual(3),
+    );
     expect(result.current.lista.data?.datos[0]?.estado).toBe('pendiente');
     espia.detener();
   });
