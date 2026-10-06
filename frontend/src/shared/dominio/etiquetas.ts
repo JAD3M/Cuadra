@@ -1,5 +1,10 @@
 import { type EstadoBandeja } from './bandeja';
-import { ROLES, type Rol } from './tipos';
+import {
+  type AccionBitacora,
+  type OrigenConciliacion,
+  ROLES,
+  type Rol,
+} from './tipos';
 
 /**
  * Texto visible de cada rol. Es un `Record<Rol, string>`: si el backend agrega
@@ -21,6 +26,33 @@ export const ETIQUETAS_ESTADO_BANDEJA: Record<EstadoBandeja, string> = {
   sin_match: 'Sin match',
   conciliado: 'Conciliado',
 };
+
+/**
+ * Texto visible de cada acción de la bitácora en el historial de un caso. Es
+ * un `Record<AccionBitacora, string>`: si el backend agrega una acción, esta
+ * tabla deja de compilar hasta etiquetarla. Una acción desconocida que llegue
+ * en una respuesta se muestra tal cual; esta tabla no la inventa.
+ */
+export const ETIQUETAS_ACCION_BITACORA: Record<AccionBitacora, string> = {
+  crear: 'Propuesta creada',
+  actualizar: 'Actualizada',
+  eliminar: 'Eliminada',
+  cargar: 'Cargada',
+  confirmar: 'Confirmada',
+  rechazar: 'Rechazada',
+  acceso_denegado: 'Acceso denegado',
+};
+
+/**
+ * Texto visible del origen de una conciliación (chip del encabezado del
+ * caso). Compila de forma exhaustiva sobre el espejo.
+ */
+export const ETIQUETAS_ORIGEN_CONCILIACION: Record<OrigenConciliacion, string> =
+  {
+    regla: 'origen: regla',
+    llm: 'origen: IA',
+    manual: 'origen: manual',
+  };
 
 /**
  * Ordena los roles como en `ROLES` (admin, contador, revisor) sin importar el

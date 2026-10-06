@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import * as espejoBandeja from '@/shared/dominio/bandeja';
+import * as espejoResolucion from '@/shared/dominio/resolucion';
 import * as espejo from '@/shared/dominio/tipos';
 import {
   EXCLUIDOS_BACKEND,
@@ -245,5 +246,46 @@ describe('espejo de la bandeja frente al backend (src/bandeja/dto/bandeja.dto.ts
     const problemas = comparar('// vacío');
     expect(problemas[0]).toContain('bandeja.dto.ts');
     expect(problemas[0]).toContain('se encontraron 0 listas');
+  });
+});
+
+describe('espejo de la resolución frente al backend (src/resolucion/dto/resolucion.dto.ts)', () => {
+  const RUTA_DTO = path.resolve(
+    import.meta.dirname,
+    '../../../src/resolucion/dto/resolucion.dto.ts',
+  );
+  const texto = fs.readFileSync(RUTA_DTO, 'utf8');
+  const comparar = (
+    fuente: string,
+    copia: Record<string, unknown> = espejoResolucion,
+  ) =>
+    compararConEspejo(
+      extraerExportsBackend(fuente, RUTA_DTO),
+      copia,
+      RUTA_DTO,
+      {},
+      0,
+    );
+
+  it('encuentra el límite del motivo y no deja nada sin clasificar', () => {
+    const backend = extraerExportsBackend(texto, RUTA_DTO);
+    expect(backend.constantes).toEqual({ MOTIVO_MAXIMO: 500 });
+    expect(backend.desconocidos).toEqual([]);
+  });
+
+  it('el espejo coincide con el backend', () => {
+    expect(comparar(texto)).toEqual([]);
+  });
+
+  it('cambiar el límite en el backend falla', () => {
+    const fuente = texto.replace('MOTIVO_MAXIMO = 500', 'MOTIVO_MAXIMO = 300');
+    expect(fuente).not.toBe(texto);
+    expect(comparar(fuente)[0]).toContain('MOTIVO_MAXIMO: difiere');
+  });
+
+  it('si la extracción no encuentra la constante, el espejo falla nombrándola', () => {
+    const problemas = comparar('// vacío');
+    expect(problemas).toHaveLength(1);
+    expect(problemas[0]).toContain('MOTIVO_MAXIMO: el espejo lo exporta');
   });
 });
