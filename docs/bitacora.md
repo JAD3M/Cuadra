@@ -5,6 +5,142 @@
 
 ### 5 oct 2026
 
+- **CU-23 terminado: detalle y resolución de un caso en pantalla (KAN-101).**
+  Pendiente de integrar a `master`: vive en la cadena local de ramas
+  `feat/cu-23-00-api-caso` a `feat/cu-23-09-kit-docs`, sin push ni PR. Con ella
+  van 23 de 26 historias y 89 de 99 puntos; quedan CU-24 a CU-26 (10 pts) y la
+  épica H. Lo entregado:
+  - API: `GET /casos/:movimientoId`, solo lectura y sin migración. Una sola
+    sentencia SQL (movimiento, tolerancia de la empresa, propuestas vigentes o
+    la confirmada, CFDI y nombre de quien confirmó), filtrada por `company_id`
+    en cada tabla de dominio y con RLS. Un id inexistente y uno de otra
+    empresa dan el mismo 404; un id que no es UUID da 400. Las propuestas van
+    en el mismo orden que usa la bandeja para su mejor propuesta, y todo monto
+    y el `score` salen como cadenas decimales. Está documentada en Swagger.
+  - Pantalla `/casos/:movimientoId` en lugar del marcador, con las 14 `vista`
+    de la maqueta aprobada (versión 20, claro y oscuro): sugerencia, varias,
+    sin match, conciliado, cargando, error, no encontrado, contrato, enviando,
+    conflicto, sin permiso, motivo largo, confirmado y rechazado. Movimiento,
+    CFDI y diferencia con su nota de tolerancia, motivo del motor con la
+    insignia de IA, lista de propuestas colapsadas, «Tu decisión» en línea
+    (confirmar con un clic; rechazar con motivo opcional y contador
+    `{n} / 500`), historial de la propuesta mostrada y banners tras resolver.
+    El cliente no decide nada: confirmar y rechazar son llamadas a la API y el
+    estado, la regla y los permisos salen del servidor y del espejo del
+    dominio.
+  - Tras confirmar o rechazar se invalidan los prefijos `['caso', época]` y
+    `['bandeja', época]`: el caso, el historial, la bandeja y el contador de la
+    barra lateral se refrescan (una sola petición más a `/bandeja/resumen`).
+    Una resolución que termina después de cambiar de empresa o de cerrar
+    sesión no escribe ni muestra nada en la época nueva.
+  - La galería `/__kit` tiene la sección «Caso» con las 14 vistas y las tres
+    formas del historial (con eventos, vacío y con error).
+- **Entrega de CU-23.** Diez ramas locales apiladas (`stacked-to-main`) más
+  una rama por tramo de commits (`feat/cu-23-02a-hooks`, `-03a-helpers`,
+  `-03b-componentes`, `-04a-ajustes-cfdi`, `-04b-tarjetas`, `-05a-motivo`,
+  `-05b-panel`, `-06a-componentes`, `-07a-banner`, `-08a-contenedor` y
+  `-09a-kit`). Se partió en límites de commit; los cortes que pasan de 400
+  líneas por las pruebas quedan como `size:exception` (S0 a S8, en todos más
+  de la mitad son pruebas; el segundo commit de S9, de 448 líneas, pasa por
+  poco y es en buena parte la sección del kit con su prueba). Tamaño real por rama,
+  contra la anterior (`git diff --shortstat`): S0 (781+, 7 archivos, un
+  commit), S1 (958+/2-), S2 (1,500+/14-), S3 (2,216+/19-, en tres commits de
+  430, 1,501 y 285 líneas), S4 (1,160+/77-), S5 (944+/23-), S6 (930+/30-),
+  S7 (896+/17-), S8 (513+, en dos commits de 170 y 343 líneas: pruebas de
+  estructura y flujos de `montarApp`; sin cambios de producción) y S9 (467+/1-
+  de código, en dos commits de 19 y 448 líneas, más estos documentos). Total
+  cercano a 10,400 líneas, contra las 3,600 previstas: la estimación quedó corta
+  porque el trabajo de pruebas (contratos, hooks, componentes, flujos) pesó más
+  de lo calculado.
+- **Verificación de CU-23**, observada en `feat/cu-23-09-kit-docs`: en
+  `frontend/`, 144 archivos y 2,287 pruebas en verde; typecheck, lint, formato,
+  build y `verificar:dist` limpios. En la raíz, typecheck limpio y, con
+  Postgres y Redis activos, 38 suites con 820 pruebas del backend en verde. En
+  S8 (144 archivos y 2,277 pruebas) se corrió la suite completa dos veces en
+  paralelo, cuatro veces seguidas (8 corridas): 0 fallos, sin ninguna prueba
+  intermitente. Lint de la raíz: un error y una advertencia que ya existen en
+  `master` y que esta historia no toca (ver pendientes).
+- **Decisiones de CU-23** (D-01 a D-09, aceptadas por el usuario): un agregado
+  nuevo `GET /casos/:movimientoId` con pruebas de integración (D-01); el rol
+  revisor puede confirmar y rechazar, como permite el backend, sin aviso de
+  solo lectura y con D-08 aplicada por el servidor en cada acción (D-02); se
+  listan todas las propuestas vigentes con la advertencia de que confirmar una
+  rechaza las demás (D-03); `sin_match` y `conciliado` son de solo lectura
+  (D-04); confirmar es un clic, con estado de envío y manejo del 409 (D-05);
+  tras resolver se muestra un banner armado con la respuesta del servidor, la
+  página queda de solo lectura y no navega (D-06); se elimina la línea de
+  banco, cuenta y perfil del encabezado (D-07); el historial muestra solo
+  eventos de conciliación (D-08 de ese documento); los textos y la maqueta se
+  aprueban antes de la primera pantalla (D-09). Correcciones al texto de la
+  propuesta: motivo de rechazo opcional (C1), sin diálogo, el motivo va en
+  línea (C2), texto de D-08 «Quien subió el CFDI o el estado de cuenta no puede
+  confirmarlo» (C3), se conserva el texto que ya tiene la maqueta (C4) y el 409
+  solo recarga al hacer clic (C5). Después se agregó el singular «Queda 1
+  propuesta vigente para este movimiento.» (R3/B11).
+- **Enmiendas a la especificación** (B1 a B15, guardadas en Engram como
+  `sdd/cu-23-detalle-caso/spec-amendments`): la prueba de precisión del backend
+  usa `99999999999999.9999`, el máximo de `numeric(18,4)` (B1); hay un solo
+  `h1` en la página, el del shell, y la descripción del movimiento es un `h2`
+  (B2); la propuesta lleva `origen` (`regla`, `llm` o `manual`) porque la
+  maqueta lo muestra (B3); la maqueta manda en textos y distribución, con la
+  regla en las filas colapsadas y el historial solo con acción, actor y hora
+  (B4); tras rechazar la última propuesta, el historial es el de la rechazada,
+  tomado de la respuesta del POST (B5); API-14 se reduce al espejo de
+  `MOTIVO_MAXIMO`, su prueba de deriva y los mapas de etiquetas (B6); la ruta
+  pasa de `/casos/:id` a `/casos/:movimientoId` y `users` se alcanza por la
+  conciliación filtrada por empresa, porque no tiene `company_id` (B7); el
+  contador muestra el largo bruto y la validación usa el recortado (B8); el
+  caso desactualizado (la relectura falla tras resolver) no tiene pantalla
+  nueva: reutiliza la alerta de conectividad aprobada bajo el banner, con los
+  controles bloqueados (B9); riesgos aceptados: un 403 por pérdida de
+  membresía se muestra con el texto de D-08 y un movimiento descartado abierto
+  por URL muestra el texto de sin match (B10); singular del banner (B11); el
+  orden del DOM sigue la maqueta: propuesta expandida, decisión y filas
+  colapsadas (B12); se quitaron Emisor y Receptor de la tarjeta del CFDI
+  porque la maqueta no los tiene (B13); la ✓ de referencia y de serie-folio
+  solo aparece cuando el servidor devuelve la regla `referencia_monto_exacto`
+  (B14); la frase «El motor y la IA solo proponen…» vive solo en la tarjeta de
+  decisión (B15).
+- **Desviaciones y decisiones de implementación.** Las etiquetas de acciones
+  de la bitácora se alinearon con las de la maqueta («El motor propuso el
+  CFDI…»); las etiquetas «Sin match» y «Conciliado» no llevan punto final, como
+  en la maqueta; la fecha del banner y de la tarjeta de conciliado es el día en
+  la zona del navegador y el historial muestra fecha y hora; los fallos 4xx
+  genéricos de una acción usan el texto de conectividad ya aprobado; el 403 de
+  lectura usa el texto genérico de permiso porque la maqueta no tiene esa
+  pantalla; `proporcionTolerancia` devuelve el entero como cadena porque la
+  regla de dinero prohíbe `Number`; el panel de decisión acepta un
+  `motivoInicial` solo para que la galería muestre el exceso de largo; los
+  manejadores de prueba por defecto exponen sus almacenes (`almacenes`) para
+  que un flujo fije datos o fuerce un fallo. La prueba estática de literales
+  del dominio (`tests/dominio/casoSinLiterales.test.ts`) cubre reglas, roles y
+  el código `acceso_denegado`; los estados y las acciones se comparan contra
+  uniones tipadas del espejo, donde `tsc` falla si el backend cambia un valor.
+  S8 no necesitó cambios de producción ni adaptar pruebas existentes: el
+  contenedor ya estaba completo desde S7 y la suite completa siguió en verde.
+- **Pendiente: integrar a `master`.** Cadena local lista, sin push, PR ni
+  merge; decide el usuario.
+- **Pendiente: comprobaciones manuales en el navegador, contra las maquetas
+  v20** (nadie las ha corrido): cada una de las 14 vistas en ambos temas a
+  1440, 900 y 375 px; el monto con 15 o más dígitos y en otra moneda (no se
+  parte ni se sale de su caja); la diferencia resaltada y la menor a un
+  centavo con su texto oculto; las insignias «IA» y «simulada»; varias
+  propuestas (advertencia, expandir y colapsar, nombre accesible del botón
+  de confirmar); el contador del motivo de 0 a 500 y el exceso; el estado de
+  envío; el 409 que solo recarga al hacer clic; el 403 de D-08 con un segundo
+  usuario real; la fila de la bandeja y el contador de la barra lateral tras
+  confirmar; recorrido solo con teclado (orden, anillo de foco, tamaño de los
+  objetivos); lectura con un lector de pantalla (banner, regiones en vivo,
+  nombre del botón de confirmar).
+- **Pendiente: comprobación en vivo de `GET /casos/:movimientoId`.** Hay que
+  reconstruir el contenedor `api`, que sigue sirviendo el `dist` raíz anterior
+  sin la ruta; con eso se prueba contra el API de desarrollo con los datos de
+  la demo. No se corrió y no se tocó el `dist` raíz.
+- **Pendiente (seguimiento, ya existía en `master`): lint de la raíz.** Un
+  error en `src/auth/auth.service.spec.ts:263` (`no-unsafe-member-access`) y
+  una advertencia en `src/main.ts:34` (`no-floating-promises`). No los
+  introduce esta historia y no cambian respecto de `master`.
+
 - **CU-22 terminado: bandeja de revisión en pantalla (KAN-100). Integrado a
   `master` el 5 oct** por avance rápido de la cadena hasta
   `feat/cu-22-15-orden-chips`, sin push ni PR; quedan 22 de 26 historias y
