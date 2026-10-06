@@ -5,11 +5,11 @@
 
 | | |
 |---|---|
-| **Estado** | Día 8 de 9 · CU-01 a CU-23, más CU-04b · 23 / 26 historias · 89 / 99 pts · Épicas A–F cerradas, G con CU-23 pendiente de integrar a `master` y H pendiente |
+| **Estado** | Día 8 de 9 · CU-01 a CU-23, más CU-04b · 23 / 26 historias · 89 / 99 pts · Épicas A–G cerradas y H pendiente |
 | **Entrega** | 2 de octubre de 2026 (backend, CU-01 a CU-18); el frontend (CU-19 a CU-26) no tiene fecha; CU-24 a CU-26 (10 pts) quedan pendientes |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 26 historias · 99 puntos (69 del backend y 30 de la interfaz) · 9 días hábiles para el backend |
-| **Última actualización** | 5 oct 2026 |
+| **Última actualización** | 6 oct 2026 |
 
 Este archivo es la fuente de verdad del proyecto. Vive en la raíz del repo.
 Si usas un agente de código, apúntalo aquí desde `CLAUDE.md` o `AGENTS.md`
@@ -800,7 +800,7 @@ CU-20 a CU-26 están en Jira; solo CU-19 los lleva en este archivo.
 | ID | Historia | Pts | Día | Jira | Qué entrega |
 |---|---|---|---|---|---|
 | CU-22 | Bandeja de revisión en pantalla | 5 | 5 oct | KAN-100 | La bandeja de revisión (CU-14) en la interfaz, con `GET /bandeja/resumen` para los indicadores y el contador de la barra lateral. Integrada a `master` el 5 oct y probada en el navegador por el usuario |
-| CU-23 | Detalle y resolución de un caso en pantalla | 5 | 5 oct | KAN-101 | El detalle del caso y su resolución (CU-15) en la interfaz, con `GET /casos/:movimientoId` (movimiento, propuestas, CFDI y tolerancia en una sola lectura). Terminada; pendiente de integrar a `master` y de las comprobaciones manuales en el navegador |
+| CU-23 | Detalle y resolución de un caso en pantalla | 5 | 5 oct | KAN-101 | El detalle del caso y su resolución (CU-15) en la interfaz, con `GET /casos/:movimientoId` (movimiento, propuestas, CFDI y tolerancia en una sola lectura). Integrada a `master` el 6 oct; comprobaciones manuales en el navegador pendientes |
 
 ### Épica H · Cargas y control — KAN-106 · 10 pts
 

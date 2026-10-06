@@ -3,13 +3,23 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 6 oct 2026
+
+- **CU-23 integrado a `master`** por avance rápido de la cadena hasta
+  `feat/cu-23-11-ajustes-verificacion` (incluye las ramas 10, pruebas bajo
+  carga, y 11, ajustes de la verificación: valores del dominio tipados desde
+  el espejo con escaneo de literales y la guarda de inyección restaurada),
+  sin push ni PR. KAN-101 pasa a Finalizado. Con CU-22 y CU-23 la épica G
+  queda completa: 23 de 26 historias y 89 de 99 puntos. Siguen pendientes las
+  comprobaciones manuales en el navegador contra la maqueta v20.
+
 ### 5 oct 2026
 
 - **CU-23 terminado: detalle y resolución de un caso en pantalla (KAN-101).**
-  Pendiente de integrar a `master`: vive en la cadena local de ramas
-  `feat/cu-23-00-api-caso` a `feat/cu-23-09-kit-docs`, sin push ni PR. Con ella
-  van 23 de 26 historias y 89 de 99 puntos; quedan CU-24 a CU-26 (10 pts) y la
-  épica H. Lo entregado:
+  Se integró a `master` el 6 oct (ver arriba). Vivía en la cadena local de
+  ramas `feat/cu-23-00-api-caso` a `feat/cu-23-09-kit-docs`. Con ella van 23 de
+  26 historias y 89 de 99 puntos; quedan CU-24 a CU-26 (10 pts) y la épica H.
+  Lo entregado:
   - API: `GET /casos/:movimientoId`, solo lectura y sin migración. Una sola
     sentencia SQL (movimiento, tolerancia de la empresa, propuestas vigentes o
     la confirmada, CFDI y nombre de quien confirmó), filtrada por `company_id`
@@ -137,8 +147,7 @@
   uniones tipadas del espejo, donde `tsc` falla si el backend cambia un valor.
   S8 no necesitó cambios de producción ni adaptar pruebas existentes: el
   contenedor ya estaba completo desde S7 y la suite completa siguió en verde.
-- **Pendiente: integrar a `master`.** Cadena local lista, sin push, PR ni
-  merge; decide el usuario.
+- **Integrado a `master` el 6 oct** (ver la entrada de ese día).
 - **Pendiente: comprobaciones manuales en el navegador, contra las maquetas
   v20** (nadie las ha corrido): cada una de las 14 vistas en ambos temas a
   1440, 900 y 375 px; el monto con 15 o más dígitos y en otra moneda (no se
