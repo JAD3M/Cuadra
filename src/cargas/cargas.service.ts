@@ -13,7 +13,7 @@ import {
   PERFIL_POR_DEFECTO,
   PerfilesBancarios,
 } from '../bancos/perfiles-bancarios';
-import type { TipoCarga } from '../common/entities/tipos';
+import type { EstadoCarga, TipoCarga } from '../common/entities/tipos';
 import { ContextoEmpresa } from '../database/contexto-empresa';
 import { ColaCargas } from './cola-cargas';
 import {
@@ -23,6 +23,7 @@ import {
   SQL_ESTADO,
 } from './estado-de-carga';
 import { violaIndice } from './guardar-cfdi';
+import type { CargaListadaDto } from './dto/lista-cargas.dto';
 
 export type { EstadoDeCarga } from './estado-de-carga';
 
@@ -56,6 +57,26 @@ interface NuevaCarga {
 const LARGO_NOMBRE = 512;
 
 const INDICE_LOTE = 'ux_cargas_company_id_hash_archivo';
+
+/** CU-24: tamaño fijo del historial; sin paginación. */
+export const LIMITE_LISTA_CARGAS = 20;
+
+interface FilaListada {
+  id: string;
+  tipo: TipoCarga;
+  nombre_archivo: string;
+  estado: EstadoCarga;
+  total_registros: number;
+  registros_ok: number;
+  registros_existentes: number;
+  registros_error: number;
+  banco: string | null;
+  perfil: string | null;
+  error_mensaje: string | null;
+  subido_por: string | null;
+  created_at: Date;
+  procesada_at: Date | null;
+}
 
 @Injectable()
 export class CargasService {
@@ -189,6 +210,43 @@ export class CargasService {
     // Ajena o inexistente, la misma respuesta (CU-04).
     if (!fila) throw new NotFoundException();
     return aEstado(fila);
+  }
+
+  /**
+   * CU-24: las últimas 20 cargas de la empresa. Una sola sentencia, solo
+   * lectura. `users` no tiene company_id: el nombre se alcanza a través de la
+   * carga ya filtrada por empresa. `id DESC` desempata `created_at` para que
+   * el orden sea estable.
+   */
+  async listar(companyId: string): Promise<CargaListadaDto[]> {
+    const filas = await this.contexto.manager().query<FilaListada[]>(
+      `SELECT c.id, c.tipo, c.nombre_archivo, c.estado, c.total_registros,
+              c.registros_ok, c.registros_existentes, c.registros_error,
+              c.banco, c.perfil, c.error_mensaje, u.nombre AS subido_por,
+              c.created_at, c.procesada_at
+         FROM cargas c
+         LEFT JOIN users u ON u.id = c.subido_por_id
+        WHERE c.company_id = $1
+        ORDER BY c.created_at DESC, c.id DESC
+        LIMIT ${LIMITE_LISTA_CARGAS}`,
+      [companyId],
+    );
+    return filas.map((f) => ({
+      id: f.id,
+      tipo: f.tipo,
+      nombreArchivo: f.nombre_archivo,
+      estado: f.estado,
+      totalRegistros: f.total_registros,
+      registrosOk: f.registros_ok,
+      registrosExistentes: f.registros_existentes,
+      registrosError: f.registros_error,
+      banco: f.banco,
+      perfil: f.perfil,
+      errorMensaje: f.error_mensaje,
+      subidoPor: f.subido_por,
+      createdAt: f.created_at.toISOString(),
+      procesadaAt: f.procesada_at?.toISOString() ?? null,
+    }));
   }
 
   /**

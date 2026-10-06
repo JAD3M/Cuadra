@@ -11,7 +11,14 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiConsumes } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiForbiddenResponse,
+  ApiOkResponse,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import type { UsuarioAutenticado } from '../auth/tipos';
 import { Roles, UsuarioActual } from '../common/decorators/decoradores';
 import {
@@ -21,6 +28,7 @@ import {
   EstadoDeCuentaGuard,
 } from './archivos.guard';
 import { EstadoCuentaDto } from './dto/estado-cuenta.dto';
+import { RespuestaListaCargasDto } from './dto/lista-cargas.dto';
 import {
   type ArchivoSubido,
   CargasService,
@@ -103,6 +111,22 @@ export class CargasController {
       archivo,
       cuerpo,
     );
+  }
+
+  /**
+   * CU-24. Las últimas 20 cargas de la empresa, para el historial. Sin
+   * `@Roles`: cualquier rol con sesión vigente consulta. La empresa sale del
+   * token; ni `companyId` ni `limite` en la query se leen. Va antes de
+   * `:id`.
+   */
+  @Get()
+  @ApiOkResponse({ type: RespuestaListaCargasDto })
+  @ApiUnauthorizedResponse({ description: 'Sin sesión válida.' })
+  @ApiForbiddenResponse({ description: 'Sin membresía vigente en la empresa.' })
+  async listar(
+    @UsuarioActual() usuario: Sesion,
+  ): Promise<RespuestaListaCargasDto> {
+    return { datos: await this.cargas.listar(usuario.companyId) };
   }
 
   /** La empresa sale del token; un `companyId` en la query no se lee. */
