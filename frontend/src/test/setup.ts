@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll } from 'vitest';
+import { reiniciarHandlers } from '@/test/handlers';
 import { servidor } from '@/test/servidor';
 
 // Con `globals: false` Testing Library no registra su limpieza sola.
@@ -25,6 +26,7 @@ beforeAll(() => {
 });
 afterEach(() => {
   servidor.resetHandlers();
+  reiniciarHandlers();
 });
 afterAll(() => {
   servidor.close();

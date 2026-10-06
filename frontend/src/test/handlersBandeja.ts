@@ -89,6 +89,10 @@ export function crearHandlersBandeja(
     establecer(nuevas: readonly FilaBandeja[]) {
       filas = [...nuevas];
     },
+    /** Devuelve el conjunto de datos al que tenía al crearse. */
+    reiniciar() {
+      filas = [...inicial];
+    },
     filas: () => [...filas],
   };
 }
