@@ -1,6 +1,7 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { focusManager } from '@tanstack/react-query';
+import { afterEach, describe, expect, it } from 'vitest';
 import { almacenes } from '@/test/handlers';
 import { crearCompuerta } from '@/test/compuerta';
 import { LISTA_CINCO_ESTADOS } from '@/test/fixturesCargas';
@@ -8,14 +9,19 @@ import { espiarSolicitudes } from '@/test/handlersAuth';
 import { listaFalla } from '@/test/handlersCargas';
 import { clienteDePruebas } from '@/test/montarBandeja';
 import { envolturaCargas, esperarIntervalos } from '@/test/montarCargas';
+import type { ConfigPolling } from './ContextoPolling';
 import { servidor } from '@/test/servidor';
 import { CargasPage } from './CargasPage';
 
-function montar() {
+function montar(polling?: ConfigPolling) {
   return render(<CargasPage />, {
-    wrapper: envolturaCargas(clienteDePruebas()),
+    wrapper: envolturaCargas(clienteDePruebas(), undefined, polling),
   });
 }
+
+afterEach(() => {
+  focusManager.setFocused(undefined);
+});
 
 describe('CargasPage: historial', () => {
   it('mientras llega la lista muestra el esqueleto y luego la tabla (1.1)', async () => {
@@ -99,5 +105,112 @@ describe('CargasPage: historial', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: 'Cargas recientes' }),
     ).toBeInTheDocument();
+  });
+});
+
+const HOLGADO: ConfigPolling = { intervaloMs: 15, topeMs: 10_000 };
+const CON_TOPE: ConfigPolling = { intervaloMs: 15, topeMs: 120 };
+const LEYENDA = 'Se actualiza sola mientras procesa';
+const SIN_ACTUALIZAR = 'La lista dejó de actualizarse.';
+
+describe('CargasPage: aviso de actualización del historial', () => {
+  it('con cargas activas dice que se actualiza sola y no ofrece «Actualizar» (G13, K5)', async () => {
+    almacenes.cargas.establecer(LISTA_CINCO_ESTADOS);
+    montar(HOLGADO);
+    await screen.findByRole('table');
+    expect(screen.getByText(LEYENDA)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Actualizar' })).toBeNull();
+    expect(screen.queryByText(SIN_ACTUALIZAR)).toBeNull();
+  });
+
+  it('sin cargas activas no hay leyenda ni aviso', async () => {
+    almacenes.cargas.establecer(
+      LISTA_CINCO_ESTADOS.filter((c) => c.estado === 'procesada'),
+    );
+    const espia = espiarSolicitudes();
+    montar(CON_TOPE);
+    await screen.findByRole('table');
+    await esperarIntervalos(5);
+    expect(screen.queryByText(LEYENDA)).toBeNull();
+    expect(screen.queryByText(SIN_ACTUALIZAR)).toBeNull();
+    expect(espia.cuantas('GET', '/api/cargas')).toBe(1);
+    espia.detener();
+  });
+
+  it('el esqueleto, el vacío y el error no llevan leyenda (mockup)', async () => {
+    almacenes.cargas.establecer([]);
+    montar(HOLGADO);
+    await screen.findByText('Aún no hay cargas.');
+    expect(screen.queryByText(LEYENDA)).toBeNull();
+  });
+
+  it('al vencer el tope una fila pendiente sigue ahí, aparece «Actualizar» y no se pide nada más (11.3)', async () => {
+    almacenes.cargas.establecer(LISTA_CINCO_ESTADOS);
+    const espia = espiarSolicitudes();
+    montar(CON_TOPE);
+    await screen.findByRole('table');
+    expect(await screen.findByText(SIN_ACTUALIZAR)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Actualizar' })).toBeEnabled();
+    expect(screen.queryByText(LEYENDA)).toBeNull();
+    // Control positivo: antes del tope la lista se pidió varias veces.
+    expect(espia.cuantas('GET', '/api/cargas')).toBeGreaterThan(2);
+    const pedidas = espia.cuantas('GET', '/api/cargas');
+    await esperarIntervalos(5);
+    expect(espia.cuantas('GET', '/api/cargas')).toBe(pedidas);
+    expect(screen.getByText('Pendiente')).toBeInTheDocument();
+    espia.detener();
+  });
+
+  it('«Actualizar» vuelve a pedir, oculta el aviso y reabre la ventana (11.5)', async () => {
+    almacenes.cargas.establecer(LISTA_CINCO_ESTADOS);
+    const espia = espiarSolicitudes();
+    montar(CON_TOPE);
+    await screen.findByText(SIN_ACTUALIZAR);
+    const antes = espia.cuantas('GET', '/api/cargas');
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }));
+    expect(await screen.findByText(LEYENDA)).toBeInTheDocument();
+    expect(screen.queryByText(SIN_ACTUALIZAR)).toBeNull();
+    await waitFor(() =>
+      expect(espia.cuantas('GET', '/api/cargas')).toBeGreaterThanOrEqual(
+        antes + 3,
+      ),
+    );
+    expect(await screen.findByText(SIN_ACTUALIZAR)).toBeInTheDocument();
+    espia.detener();
+  });
+
+  it('con la pestaña oculta no pide solo y al volver sigue (11.6)', async () => {
+    almacenes.cargas.establecer(LISTA_CINCO_ESTADOS);
+    const espia = espiarSolicitudes();
+    montar(HOLGADO);
+    await screen.findByRole('table');
+    await waitFor(() =>
+      expect(espia.cuantas('GET', '/api/cargas')).toBeGreaterThan(1),
+    );
+    act(() => focusManager.setFocused(false));
+    await esperarIntervalos(3);
+    const congeladas = espia.cuantas('GET', '/api/cargas');
+    await esperarIntervalos(5);
+    expect(espia.cuantas('GET', '/api/cargas')).toBe(congeladas);
+    act(() => focusManager.setFocused(true));
+    await waitFor(() =>
+      expect(espia.cuantas('GET', '/api/cargas')).toBeGreaterThan(congeladas),
+    );
+    espia.detener();
+  });
+
+  it('un sondeo que falla mantiene la tabla y no pinta alerta (11.9)', async () => {
+    almacenes.cargas.establecer(LISTA_CINCO_ESTADOS);
+    const espia = espiarSolicitudes();
+    montar(HOLGADO);
+    await screen.findByRole('table');
+    servidor.use(listaFalla(500));
+    const antes = espia.cuantas('GET', '/api/cargas');
+    await waitFor(() =>
+      expect(espia.cuantas('GET', '/api/cargas')).toBeGreaterThan(antes + 1),
+    );
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+    espia.detener();
   });
 });

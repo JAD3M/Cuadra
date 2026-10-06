@@ -1,6 +1,10 @@
 import { useId } from 'react';
 import { HISTORIAL } from '@/features/cargas/textos';
-import type { VistaHistorial } from '@/features/cargas/vista';
+import type {
+  EstadoActualizacion,
+  VistaHistorial,
+} from '@/features/cargas/vista';
+import { AvisoActualizacion } from './AvisoActualizacion';
 import { ErrorCargas } from './ErrorCargas';
 import { EsqueletoCargas } from './EsqueletoCargas';
 import estilos from './HistorialCargas.module.css';
@@ -12,6 +16,9 @@ export interface HistorialCargasProps {
   vista: VistaHistorial | null;
   cargas: readonly FilaHistorial[];
   onReintentar?: () => void;
+  /** El aviso del polling del encabezado; `null` o ausente = ninguno. */
+  actualizacion?: EstadoActualizacion | null;
+  onActualizar?: () => void;
 }
 
 /** Sección «Cargas recientes»: la tabla o el estado que la sustituye. */
@@ -19,6 +26,8 @@ export function HistorialCargas({
   vista,
   cargas,
   onReintentar,
+  actualizacion = null,
+  onActualizar,
 }: HistorialCargasProps) {
   const idTitulo = useId();
   return (
@@ -27,6 +36,13 @@ export function HistorialCargas({
         <h2 id={idTitulo} className={estilos.titulo}>
           {HISTORIAL.titulo}
         </h2>
+        {actualizacion === null ? null : (
+          <AvisoActualizacion
+            estado={actualizacion}
+            variante="cabecera"
+            onActualizar={onActualizar}
+          />
+        )}
       </div>
       {vista === 'cargando' ? <EsqueletoCargas /> : null}
       {vista === 'vacio' ? <VacioCargas /> : null}

@@ -106,3 +106,28 @@ export function mensajeYaExistia(estado: EstadoCarga): readonly string[] {
     ? YA_EXISTIA_TERMINADA
     : YA_EXISTIA_EN_COLA;
 }
+
+/** Qué dice el aviso del polling junto al historial (G13, K5). */
+export type EstadoActualizacion = 'actualizando' | 'detenida';
+
+export interface EntradaActualizacion {
+  vista: VistaHistorial | null;
+  /** Hay algo que el servidor sigue procesando (lista o panel). */
+  activo: boolean;
+  /** El tope de la ventana de polling ya venció. */
+  capada: boolean;
+}
+
+/**
+ * El aviso del polling. Solo con la tabla a la vista (el mockup no lo pone con
+ * el esqueleto, el vacío ni el error) y solo mientras haya algo activo: sin
+ * nada activo no hay nada que actualizar, aunque el tope haya vencido.
+ */
+export function estadoActualizacion({
+  vista,
+  activo,
+  capada,
+}: EntradaActualizacion): EstadoActualizacion | null {
+  if (vista !== 'tabla' || !activo) return null;
+  return capada ? 'detenida' : 'actualizando';
+}

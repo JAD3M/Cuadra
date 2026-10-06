@@ -176,3 +176,8 @@ export const ERROR_DEMASIADO_GRANDE = {
   titulo: 'Los archivos pesan demasiado.',
   detalle: 'Divide la carga en partes más pequeñas e inténtalo de nuevo.',
 } as const;
+
+/** Aviso del polling: la leyenda mientras corre y el aviso con «Actualizar» tras el tope (K5). */
+export const SE_ACTUALIZA_SOLA = 'Se actualiza sola mientras procesa';
+export const LISTA_SIN_ACTUALIZAR = 'La lista dejó de actualizarse.';
+export const ACTUALIZAR = 'Actualizar';

@@ -141,6 +141,8 @@ export function usePollingCargas(panel: PanelSubida | null) {
     panelDatos,
     ventana: ventana.ventana,
     capada: ventana.capada,
+    /** Hay algo que el servidor sigue procesando (la lista o el panel). */
+    activo,
     iniciarVentana: iniciar,
     actualizar,
   };

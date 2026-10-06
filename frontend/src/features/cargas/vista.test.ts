@@ -3,6 +3,7 @@ import { ApiError, ContratoError, NetworkError } from '@/shared/api';
 import { TIPO_CFDI, TIPO_ESTADO_CUENTA } from '@/shared/dominio';
 import {
   derivarPanel,
+  estadoActualizacion,
   mensajeYaExistia,
   puedeSubir,
   vistaHistorial,
@@ -239,6 +240,41 @@ describe('mensajeYaExistia (K7)', () => {
       expect(mensajeYaExistia(estado)).toEqual([
         'Este archivo ya se había cargado y se volvió a poner en la cola.',
       ]);
+    },
+  );
+});
+
+describe('estadoActualizacion (G13, K5)', () => {
+  it('con la tabla visible y algo activo: se actualiza sola', () => {
+    expect(
+      estadoActualizacion({ vista: 'tabla', activo: true, capada: false }),
+    ).toBe('actualizando');
+  });
+
+  it('con el tope vencido y algo activo: detenida', () => {
+    expect(
+      estadoActualizacion({ vista: 'tabla', activo: true, capada: true }),
+    ).toBe('detenida');
+  });
+
+  it('sin nada activo no hay aviso, aunque el tope haya vencido', () => {
+    expect(
+      estadoActualizacion({ vista: 'tabla', activo: false, capada: false }),
+    ).toBeNull();
+    expect(
+      estadoActualizacion({ vista: 'tabla', activo: false, capada: true }),
+    ).toBeNull();
+  });
+
+  it.each(['cargando', 'vacio', 'fallo', 'sin_permiso', null] as const)(
+    'con la vista %s no hay aviso (el mockup solo lo pone con la tabla)',
+    (vista) => {
+      expect(estadoActualizacion({ vista, activo: true, capada: false })).toBe(
+        null,
+      );
+      expect(estadoActualizacion({ vista, activo: true, capada: true })).toBe(
+        null,
+      );
     },
   );
 });

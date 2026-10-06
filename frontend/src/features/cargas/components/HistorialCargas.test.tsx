@@ -69,4 +69,40 @@ describe('HistorialCargas', () => {
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
   });
+  it('actualizando: la leyenda en el encabezado y ningún botón (G13)', () => {
+    render(
+      <HistorialCargas
+        vista="tabla"
+        cargas={LISTA_CINCO_ESTADOS}
+        actualizacion="actualizando"
+      />,
+    );
+    expect(
+      screen.getByText('Se actualiza sola mientras procesa'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Actualizar' })).toBeNull();
+  });
+
+  it('detenida: el aviso y Actualizar en el encabezado, que llama a onActualizar (11.4)', async () => {
+    const onActualizar = vi.fn();
+    render(
+      <HistorialCargas
+        vista="tabla"
+        cargas={LISTA_CINCO_ESTADOS}
+        actualizacion="detenida"
+        onActualizar={onActualizar}
+      />,
+    );
+    expect(
+      screen.getByText('La lista dejó de actualizarse.'),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }));
+    expect(onActualizar).toHaveBeenCalledTimes(1);
+  });
+
+  it('sin actualización: ni leyenda ni aviso', () => {
+    render(<HistorialCargas vista="tabla" cargas={LISTA_CINCO_ESTADOS} />);
+    expect(screen.queryByText('Se actualiza sola mientras procesa')).toBeNull();
+    expect(screen.queryByText('La lista dejó de actualizarse.')).toBeNull();
+  });
 });
