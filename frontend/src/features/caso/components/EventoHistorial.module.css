@@ -1,0 +1,55 @@
+.evento {
+  display: grid;
+  grid-template-columns: var(--space-20) minmax(min-content, 1fr);
+  gap: var(--space-12);
+  padding-block-end: var(--space-24);
+}
+
+.punto {
+  inline-size: var(--space-12);
+  block-size: var(--space-12);
+  margin-block-start: var(--space-4);
+  border-radius: var(--radius-full);
+}
+
+.propuesta {
+  background: var(--estado-sugerencia-accent);
+}
+
+.confirmada {
+  background: var(--estado-conciliado-accent);
+}
+
+.rechazada {
+  background: var(--color-danger);
+}
+
+/* La maqueta usa un gris sin token propio: decorativo, se atenua con muted. */
+.neutro {
+  background: var(--color-muted);
+}
+
+.cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-inline-size: 0;
+}
+
+.titulo {
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+}
+
+.detalle {
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+  line-height: var(--leading-relaxed);
+  overflow-wrap: anywhere;
+}
+
+.cuando {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}

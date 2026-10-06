@@ -41,6 +41,26 @@ function servir(caso = casoSugerencia()) {
   return caso;
 }
 
+const EVENTOS = [
+  {
+    id: 'e1',
+    accion: 'crear',
+    createdAt: '2026-09-16T15:14:00.000Z',
+    usuario: null,
+  },
+];
+
+/** Historial por conciliación; `eventosPor` decide qué devuelve cada id. */
+function servirHistorial(
+  eventosPor: (id: string) => readonly object[] = () => EVENTOS,
+) {
+  servidor.use(
+    http.get('/api/conciliaciones/:id/historial', ({ params }) =>
+      HttpResponse.json({ datos: eventosPor(String(params.id)) }),
+    ),
+  );
+}
+
 describe('CasoPage', () => {
   it('lee el parámetro movimientoId y pide ese caso', async () => {
     const espia = espiarSolicitudes();
@@ -108,9 +128,14 @@ describe('CasoPage', () => {
       screen.getByRole('button', { name: 'Ver propuesta A-1002' }),
     );
     expect(screen.getByText('A-1002', { selector: 'dd' })).toBeInTheDocument();
-    const lista = screen.getByRole('list');
+    const lista = screen
+      .getByRole('button', { name: 'Ver propuesta A-1001' })
+      .closest('ul');
+    expect(lista).not.toBeNull();
     expect(
-      within(lista).getByRole('button', { name: 'Ver propuesta A-1001' }),
+      within(lista as HTMLElement).getByRole('button', {
+        name: 'Ver propuesta A-1001',
+      }),
     ).toHaveAttribute('aria-expanded', 'false');
   });
 
@@ -211,5 +236,96 @@ describe('CasoPage', () => {
     montar(idDe(1));
     await screen.findByRole('heading', { level: 2, name: /SPEI/ });
     expect(screen.queryByText('✓')).toBeNull();
+  });
+
+  describe('historial', () => {
+    it('una sugerencia pide el historial de la propuesta y muestra «Esperando decisión»', async () => {
+      const espia = espiarSolicitudes();
+      const caso = servir();
+      servirHistorial();
+      montar(caso.movimiento.id);
+      expect(
+        await screen.findByText('El motor propuso el CFDI A-1001'),
+      ).toBeInTheDocument();
+      expect(screen.getByText('Esperando decisión')).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { level: 2, name: 'Historial' }),
+      ).toBeInTheDocument();
+      espia.detener();
+      const primera = caso.propuestas[0];
+      expect(
+        espia.cuantas(
+          'GET',
+          `/api/conciliaciones/${primera?.conciliacionId}/historial`,
+        ),
+      ).toBe(1);
+    });
+
+    it('al expandir otra propuesta pide el historial de la nueva', async () => {
+      const espia = espiarSolicitudes();
+      const caso = servir(casoVarias());
+      servirHistorial();
+      montar(caso.movimiento.id);
+      await screen.findByText(/Este movimiento tiene 3/);
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Ver propuesta A-1002' }),
+      );
+      await screen.findByText('El motor propuso el CFDI A-1002');
+      espia.detener();
+      const segunda = caso.propuestas[1];
+      expect(
+        espia.cuantas(
+          'GET',
+          `/api/conciliaciones/${segunda?.conciliacionId}/historial`,
+        ),
+      ).toBe(1);
+    });
+
+    it('un sin_match no pide historial y dice que no hay eventos', async () => {
+      const espia = espiarSolicitudes();
+      const caso = servir(casoSinMatch());
+      montar(caso.movimiento.id);
+      await screen.findByText('Aún no hay eventos en el historial.');
+      espia.detener();
+      expect(espia.solicitudes.some((s) => s.ruta.includes('historial'))).toBe(
+        false,
+      );
+      expect(screen.queryByText('Esperando decisión')).toBeNull();
+    });
+
+    it('un conciliado muestra los eventos y no la fila pendiente', async () => {
+      const caso = servir(casoConciliado());
+      servirHistorial(() => [
+        ...EVENTOS,
+        {
+          id: 'e2',
+          accion: 'confirmar',
+          createdAt: '2026-10-05T18:00:00.000Z',
+          usuario: { nombre: 'Ana' },
+        },
+      ]);
+      montar(caso.movimiento.id);
+      expect(await screen.findByText('Confirmada')).toBeInTheDocument();
+      expect(screen.queryByText('Esperando decisión')).toBeNull();
+    });
+
+    it('si el historial falla el caso sigue usable y el error trae «Reintentar»', async () => {
+      const caso = servir();
+      servidor.use(
+        http.get('/api/conciliaciones/:id/historial', () =>
+          HttpResponse.json({ statusCode: 500 }, { status: 500 }),
+        ),
+      );
+      montar(caso.movimiento.id);
+      expect(
+        await screen.findByRole('button', { name: 'Reintentar' }),
+      ).toBeInTheDocument();
+      expect(screen.getByText('CFDI candidato')).toBeInTheDocument();
+      servirHistorial();
+      await userEvent.click(screen.getByRole('button', { name: 'Reintentar' }));
+      expect(
+        await screen.findByText('El motor propuso el CFDI A-1001'),
+      ).toBeInTheDocument();
+    });
   });
 });

@@ -28,13 +28,15 @@ export const ETIQUETAS_ESTADO_BANDEJA: Record<EstadoBandeja, string> = {
 };
 
 /**
- * Texto visible de cada acción de la bitácora en el historial de un caso. Es
+ * Texto visible de cada acción de la bitácora en el historial de un caso
+ * (maqueta Detalle.dc.html). `crear` es la propuesta del motor: el historial
+ * le agrega la etiqueta del CFDI. Es
  * un `Record<AccionBitacora, string>`: si el backend agrega una acción, esta
  * tabla deja de compilar hasta etiquetarla. Una acción desconocida que llegue
  * en una respuesta se muestra tal cual; esta tabla no la inventa.
  */
 export const ETIQUETAS_ACCION_BITACORA: Record<AccionBitacora, string> = {
-  crear: 'Propuesta creada',
+  crear: 'El motor propuso el CFDI',
   actualizar: 'Actualizada',
   eliminar: 'Eliminada',
   cargar: 'Cargada',

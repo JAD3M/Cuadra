@@ -17,3 +17,28 @@
   font-size: var(--text-2xl);
   letter-spacing: var(--tracking-tight);
 }
+
+/*
+ * Dos columnas como en la maqueta: lo principal y el historial a la derecha.
+ * Miden al menos su contenido (min-content) para que un monto largo no se
+ * recorte; a 900 px o menos pasan a una sola columna.
+ */
+.columnas {
+  display: grid;
+  grid-template-columns: minmax(min-content, 1fr) 320px;
+  gap: var(--space-28);
+  align-items: start;
+}
+
+.principal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-28);
+  min-inline-size: 0;
+}
+
+@media (max-width: 900px) {
+  .columnas {
+    grid-template-columns: 1fr;
+  }
+}

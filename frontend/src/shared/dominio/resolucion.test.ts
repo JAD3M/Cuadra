@@ -23,6 +23,14 @@ describe('ETIQUETAS_ACCION_BITACORA', () => {
   });
 });
 
+describe('ETIQUETAS_ACCION_BITACORA (textos del historial de la maqueta)', () => {
+  it('usa los textos aprobados para los eventos de una conciliación', () => {
+    expect(ETIQUETAS_ACCION_BITACORA.crear).toBe('El motor propuso el CFDI');
+    expect(ETIQUETAS_ACCION_BITACORA.confirmar).toBe('Confirmada');
+    expect(ETIQUETAS_ACCION_BITACORA.rechazar).toBe('Rechazada');
+  });
+});
+
 describe('ETIQUETAS_ORIGEN_CONCILIACION', () => {
   it('etiqueta cada origen del espejo y nada más', () => {
     expect(Object.keys(ETIQUETAS_ORIGEN_CONCILIACION).sort()).toEqual(

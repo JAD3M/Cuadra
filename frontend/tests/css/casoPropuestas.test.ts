@@ -83,4 +83,26 @@ describe('contrato CSS de las propuestas del caso', () => {
     );
     expect(bloqueCss(fila, '.ver')).toContain('var(--touch-min)');
   });
+
+  it('las dos columnas del caso miden al menos su contenido y colapsan a 900 px', () => {
+    const contenedor = leerModuloCss('features/caso/CasoContenedor.module.css');
+    expect(bloqueCss(contenedor, '.columnas')).toContain(
+      'minmax(min-content, 1fr)',
+    );
+    expect(contenedor).toMatch(/@media \(max-width: 900px\)/);
+  });
+
+  it('el punto del historial es decorativo y usa tokens de estado', () => {
+    const evento = leerModuloCss(
+      'features/caso/components/EventoHistorial.module.css',
+    );
+    expect(bloqueCss(evento, '.propuesta')).toContain(
+      'var(--estado-sugerencia-accent)',
+    );
+    expect(bloqueCss(evento, '.confirmada')).toContain(
+      'var(--estado-conciliado-accent)',
+    );
+    expect(bloqueCss(evento, '.rechazada')).toContain('var(--color-danger)');
+    expect(bloqueCss(evento, '.neutro')).toContain('var(--color-muted)');
+  });
 });

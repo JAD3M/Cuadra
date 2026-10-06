@@ -82,3 +82,19 @@ export const CONCILIADO = {
       .filter((p): p is string => p !== null)
       .join(' ') + '.',
 } as const;
+
+/** Historial de la propuesta, a la derecha en la maqueta. */
+export const HISTORIAL = {
+  titulo: 'Historial',
+  vacio: 'Aún no hay eventos en el historial.',
+  /** Actor de un evento sin usuario. */
+  sistema: 'Sistema',
+  /** La propuesta cuando el CFDI ya no está a la vista (p. ej. rechazada). */
+  propuestaSinCfdi: 'El motor propuso un CFDI',
+  /** Fila derivada del estado del servidor: no es un evento real. */
+  pendiente: {
+    titulo: 'Esperando decisión',
+    detalle: 'Nadie ha confirmado ni rechazado',
+    cuando: '—',
+  },
+} as const;

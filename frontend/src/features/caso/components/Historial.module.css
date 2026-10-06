@@ -1,0 +1,33 @@
+.historial {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-inline-size: 0;
+  padding: var(--space-28);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.titulo {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label-wide);
+  text-transform: uppercase;
+}
+
+.vacio {
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
