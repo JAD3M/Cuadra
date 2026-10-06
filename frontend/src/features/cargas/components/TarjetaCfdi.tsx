@@ -32,6 +32,8 @@ export interface TarjetaCfdiProps {
   regionRef?: Ref<HTMLDivElement>;
   /** El resultado de la carga recién subida de esta tarjeta; lo anuncia la región. */
   resultado?: ReactNode;
+  /** La alerta de una subida que falló en esta tarjeta; fuera de la región de estado, tiene su propio `role="alert"`. */
+  alerta?: ReactNode;
 }
 
 /**
@@ -47,6 +49,7 @@ export function TarjetaCfdi({
   onSubir,
   regionRef,
   resultado,
+  alerta,
 }: TarjetaCfdiProps) {
   const idTitulo = useId();
   const inactiva = deshabilitada || subiendo;
@@ -118,6 +121,7 @@ export function TarjetaCfdi({
       <RegionResultado subiendo={subiendo} regionRef={regionRef}>
         {resultado}
       </RegionResultado>
+      {alerta}
     </section>
   );
 }

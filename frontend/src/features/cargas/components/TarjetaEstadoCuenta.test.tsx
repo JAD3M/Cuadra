@@ -274,4 +274,17 @@ describe('TarjetaEstadoCuenta', () => {
     render(<TarjetaEstadoCuenta {...PROPS_BASE} />);
     expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
+
+  it('la alerta de subida va en la tarjeta, fuera de la región de estado', () => {
+    render(
+      <TarjetaEstadoCuenta
+        {...PROPS_BASE}
+        alerta={<p role="alert">Fallo de prueba</p>}
+      />,
+    );
+    const alerta = screen.getByRole('alert');
+    expect(alerta).toHaveTextContent('Fallo de prueba');
+    expect(screen.getByRole('status')).not.toContainElement(alerta);
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+  });
 });

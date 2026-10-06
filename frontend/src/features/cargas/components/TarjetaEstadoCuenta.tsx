@@ -46,6 +46,8 @@ export interface TarjetaEstadoCuentaProps {
   regionRef?: Ref<HTMLDivElement>;
   /** El resultado de la carga recién subida de esta tarjeta; lo anuncia la región. */
   resultado?: ReactNode;
+  /** La alerta de una subida que falló en esta tarjeta; fuera de la región de estado, tiene su propio `role="alert"`. */
+  alerta?: ReactNode;
 }
 
 /**
@@ -69,6 +71,7 @@ export function TarjetaEstadoCuenta({
   onSubir,
   regionRef,
   resultado,
+  alerta,
 }: TarjetaEstadoCuentaProps) {
   const idTitulo = useId();
   const idBanco = useId();
@@ -144,6 +147,7 @@ export function TarjetaEstadoCuenta({
       <RegionResultado subiendo={subiendo} regionRef={regionRef}>
         {resultado}
       </RegionResultado>
+      {alerta}
       <p className={estilos.nota}>{TARJETA_ESTADO_CUENTA.nota}</p>
     </section>
   );

@@ -22,6 +22,7 @@ import { espiarSolicitudes } from '@/test/handlersAuth';
 import {
   perfilesFalla,
   type ParcheDeCarga,
+  subida413Html,
   subidaFalla,
   subidaRedDeFallo,
 } from '@/test/handlersCargas';
@@ -794,5 +795,223 @@ describe('CargasContenedor: resultados de la carga', () => {
     ).toBeInTheDocument();
     expect(region.querySelector('img')).toBeNull();
     expect(region.querySelector('b')).toBeNull();
+  });
+});
+
+/** La alerta (role=alert) de una tarjeta; `null` si no hay. */
+const sinAlertaEn = (titulo: string) =>
+  within(tarjeta(titulo)).queryByRole('alert');
+
+async function subirCsv() {
+  const u = usuario();
+  await u.upload(screen.getByLabelText('Elegir archivo'), csv('estado.csv'));
+  await u.click(botonCsv());
+}
+
+describe('CargasContenedor: alertas de una subida que falla', () => {
+  it('400: el motivo del servidor como texto, en la tarjeta que subió, con la selección intacta y el foco en la alerta (10.1)', async () => {
+    servidor.use(
+      ...subidaFalla(
+        400,
+        'El encabezado del CSV no coincide con el perfil banco-norte.',
+      ),
+    );
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirCsv();
+    const alerta = await within(tarjeta(CSV)).findByRole('alert');
+    expect(alerta).toHaveTextContent('No se pudo procesar la carga.');
+    expect(alerta).toHaveTextContent(
+      'El encabezado del CSV no coincide con el perfil banco-norte.',
+    );
+    await waitFor(() => expect(alerta).toHaveFocus());
+    expect(botonCsv()).toBeEnabled();
+    expect(screen.getByRole('listitem')).toHaveTextContent('estado.csv');
+    expect(sinAlertaEn(CFDI)).toBeNull();
+    expect(regionDe(CSV)).toBeEmptyDOMElement();
+  });
+
+  it('400 sin motivo: solo el título, sin línea de detalle (10.1)', async () => {
+    servidor.use(...subidaFalla(400, ''));
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirCsv();
+    expect(await within(tarjeta(CSV)).findByRole('alert')).toHaveTextContent(
+      /^No se pudo procesar la carga\.$/,
+    );
+  });
+
+  it('un motivo con marcado queda como texto: no hay elemento script (10.2)', async () => {
+    servidor.use(...subidaFalla(400, '<script>x</script>'));
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirCsv();
+    const alerta = await within(tarjeta(CSV)).findByRole('alert');
+    expect(within(alerta).getByText('<script>x</script>')).toBeInTheDocument();
+    expect(alerta.querySelector('script')).toBeNull();
+  });
+
+  it.each([
+    ['con cuerpo de Nest', () => subidaFalla(413)],
+    ['con el HTML de un proxy', () => subida413Html()],
+  ])(
+    '413 %s: los archivos pesan demasiado, en la tarjeta de CFDI (10.3)',
+    async (_, manejadores) => {
+      servidor.use(...manejadores());
+      montar(['admin'], POLLING_HOLGADO);
+      await esperarPerfiles();
+      await subirXml('a.xml', 'b.xml');
+      const alerta = await within(tarjeta(CFDI)).findByRole('alert');
+      expect(alerta).toHaveTextContent('Los archivos pesan demasiado.');
+      expect(alerta).toHaveTextContent(
+        'Divide la carga en partes más pequeñas e inténtalo de nuevo.',
+      );
+      expect(alerta).not.toHaveTextContent('detalle del servidor');
+      expect(botonCfdi(2)).toBeEnabled();
+      expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    },
+  );
+
+  it('403: el texto de permiso, sin el código del servidor, y la pantalla sigue lista (10.4)', async () => {
+    servidor.use(...subidaFalla(403, 'acceso_denegado'));
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    const alerta = await within(tarjeta(CFDI)).findByRole('alert');
+    expect(alerta).toHaveTextContent('No tienes permiso para esta acción.');
+    expect(alerta).toHaveTextContent(
+      'Si crees que es un error, pide acceso a un administrador de la empresa.',
+    );
+    expect(screen.queryByText(/acceso_denegado/)).toBeNull();
+    expect(botonCfdi(1)).toBeEnabled();
+    expect(
+      screen.queryByText('Tu rol solo permite consultar las cargas.'),
+    ).toBeNull();
+  });
+
+  it('fallo de red: el texto de conectividad, Reintentar vuelve a enviar y la alerta desaparece al enviar (10.5, 10.7)', async () => {
+    const espia = espiarSolicitudes();
+    servidor.use(...subidaRedDeFallo());
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml('a.xml');
+    const alerta = await within(tarjeta(CFDI)).findByRole('alert');
+    expect(alerta).toHaveTextContent('No se pudo conectar con el servidor.');
+    expect(alerta).toHaveTextContent(
+      'Revisa tu conexión e inténtalo de nuevo.',
+    );
+    expect(espia.cuantas('POST', '/api/cargas/cfdi')).toBe(1);
+    servidor.resetHandlers();
+    const compuerta = crearCompuerta();
+    almacenes.cargas.compuertas({ subida: compuerta.promesa });
+    await usuario().click(
+      within(alerta).getByRole('button', { name: REINTENTAR }),
+    );
+    await waitFor(() =>
+      expect(espia.cuantas('POST', '/api/cargas/cfdi')).toBe(2),
+    );
+    // Mientras el reintento vuela la alerta ya no está.
+    expect(sinAlertaEn(CFDI)).toBeNull();
+    compuerta.abrir();
+    expect(
+      await within(regionDe(CFDI)).findByText(PROCESANDO),
+    ).toBeInTheDocument();
+    expect(sinAlertaEn(CFDI)).toBeNull();
+    espia.detener();
+  });
+
+  it('solo la conexión ofrece Reintentar: un 403 no (10.4)', async () => {
+    servidor.use(...subidaFalla(403));
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    const alerta = await within(tarjeta(CFDI)).findByRole('alert');
+    expect(within(alerta).queryByRole('button')).toBeNull();
+  });
+
+  it('un 500 conserva la pantalla pero el mockup v23 no dibuja alerta para él (10.5, pendiente de decisión)', async () => {
+    const espia = espiarSolicitudes();
+    servidor.use(...subidaFalla(500));
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    await waitFor(() =>
+      expect(espia.cuantas('POST', '/api/cargas/cfdi')).toBe(1),
+    );
+    await waitFor(() => expect(botonCfdi(1)).toBeEnabled());
+    await esperarIntervalos(3);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(regionDe(CFDI)).toBeEmptyDOMElement();
+    espia.detener();
+  });
+
+  it('un 401 no pinta mensaje: la capa de sesión decide (10.6)', async () => {
+    const espia = espiarSolicitudes();
+    servidor.use(...subidaFalla(401));
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    // Control positivo: el POST salió y volvió con 401.
+    await waitFor(() =>
+      expect(espia.cuantas('POST', '/api/cargas/cfdi')).toBe(1),
+    );
+    await waitFor(() => expect(botonCfdi(1)).toBeEnabled());
+    await esperarIntervalos(3);
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(regionDe(CFDI)).toBeEmptyDOMElement();
+    espia.detener();
+  });
+
+  it('una subida nueva quita la alerta anterior y, si funciona, no queda rastro del fallo (10.7)', async () => {
+    servidor.use(...subidaFalla(403));
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    await within(tarjeta(CFDI)).findByRole('alert');
+    servidor.resetHandlers();
+    const compuerta = crearCompuerta();
+    almacenes.cargas.compuertas({ subida: compuerta.promesa });
+    await usuario().click(botonCfdi(1));
+    await screen.findByRole('button', { name: 'Subiendo…' });
+    expect(screen.queryByRole('alert')).toBeNull();
+    compuerta.abrir();
+    await within(regionDe(CFDI)).findByText(PROCESANDO);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('un fallo no crea panel de éxito: la región queda vacía (10.7)', async () => {
+    servidor.use(...subidaFalla(413));
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    await within(tarjeta(CFDI)).findByRole('alert');
+    await esperarIntervalos(3);
+    expect(regionDe(CFDI)).toBeEmptyDOMElement();
+  });
+
+  it('un fallo de una tarjeta no toca la otra ni su resultado', async () => {
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirCsv();
+    await within(regionDe(CSV)).findByText(PROCESANDO);
+    servidor.use(...subidaFalla(413));
+    await subirXml();
+    await within(tarjeta(CFDI)).findByRole('alert');
+    expect(sinAlertaEn(CSV)).toBeNull();
+    expect(within(regionDe(CSV)).getByText(PROCESANDO)).toBeInTheDocument();
+  });
+
+  it('si la época cambia la alerta de la anterior no se muestra (CRG-9)', async () => {
+    servidor.use(...subidaFalla(403));
+    let epoca = 1;
+    const sesion = (): SessionState =>
+      ({ ...sesionConRoles(['admin']), epoca }) as SessionState;
+    const { rerender } = montar(['admin'], POLLING_HOLGADO, sesion);
+    await esperarPerfiles();
+    await subirXml();
+    await within(tarjeta(CFDI)).findByRole('alert');
+    epoca = 2;
+    rerender(<CargasContenedor />);
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
   });
 });
