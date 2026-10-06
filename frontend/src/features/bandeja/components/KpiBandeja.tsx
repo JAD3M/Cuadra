@@ -1,7 +1,7 @@
 import { Button } from '@/shared/ui/Button';
 import { Monto } from '@/shared/ui/Monto';
 import type { EstadoBandeja } from '@/shared/dominio/bandeja';
-import { MONEDA_BASE } from '@/features/bandeja/constantes';
+import { MONEDA_BASE, ORDEN_ESTADOS } from '@/features/bandeja/constantes';
 import {
   KPI,
   KPI_MONTO,
@@ -29,11 +29,7 @@ export interface KpiBandejaProps {
 }
 
 /** Los tres conteos, en el orden del mockup. */
-const TILES: readonly EstadoBandeja[] = [
-  'sugerencia',
-  'sin_match',
-  'conciliado',
-];
+const TILES = ORDEN_ESTADOS;
 
 function NoDisponible() {
   return (

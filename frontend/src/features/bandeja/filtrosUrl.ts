@@ -1,13 +1,13 @@
 import {
-  ESTADOS_BANDEJA,
   ESTADOS_POR_DEFECTO,
   type EstadoBandeja,
 } from '@/shared/dominio/bandeja';
+import { ORDEN_ESTADOS } from './constantes';
 
 // Estado de los filtros de la bandeja en la URL (`?estado=…&pagina=N`). La URL
 // es lo que escribe cualquiera: se lee con tolerancia (un valor inválido se
 // descarta, nunca llega a la API) y se escribe en una forma canónica única
-// (los valores por defecto se omiten; los estados van en el orden del espejo).
+// (los valores por defecto se omiten; los estados van en el orden de la pantalla).
 // Así dos URL equivalentes se normalizan a la misma y el contenedor puede
 // reescribir con `replace` sin crear historial.
 
@@ -22,7 +22,7 @@ const PAGINA_VALIDA = /^[1-9]\d{0,5}$/;
 
 /** Estados válidos y únicos en orden canónico; `null` si no queda ninguno. */
 function estadosCanonicos(pedidos: readonly string[]): EstadoBandeja[] | null {
-  const canonicos = ESTADOS_BANDEJA.filter((e) => pedidos.includes(e));
+  const canonicos = ORDEN_ESTADOS.filter((e) => pedidos.includes(e));
   return canonicos.length > 0 ? canonicos : null;
 }
 
@@ -78,7 +78,7 @@ export function alternarEstado(
     ? filtros.estados.filter((e) => e !== estado)
     : [...filtros.estados, estado];
   return {
-    estados: ESTADOS_BANDEJA.filter((e) => siguientes.includes(e)),
+    estados: ORDEN_ESTADOS.filter((e) => siguientes.includes(e)),
     pagina: 1,
   };
 }

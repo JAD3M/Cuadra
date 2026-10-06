@@ -1,5 +1,6 @@
 import { useId } from 'react';
-import { ESTADOS_BANDEJA, type EstadoBandeja } from '@/shared/dominio/bandeja';
+import { type EstadoBandeja } from '@/shared/dominio/bandeja';
+import { ORDEN_ESTADOS } from '@/features/bandeja/constantes';
 import { ETIQUETAS_ESTADO_BANDEJA } from '@/shared/dominio/etiquetas';
 import {
   AVISO_ULTIMO_FILTRO,
@@ -28,7 +29,7 @@ export function FiltrosEstado({ estados, onAlternar }: FiltrosEstadoProps) {
   return (
     <div className={estilos.barra}>
       <div className={estilos.grupo} role="group" aria-label={GRUPO_FILTROS}>
-        {ESTADOS_BANDEJA.map((estado) => {
+        {ORDEN_ESTADOS.map((estado) => {
           const activo = estados.includes(estado);
           const esUltimo = unSoloActivo && activo;
           return (

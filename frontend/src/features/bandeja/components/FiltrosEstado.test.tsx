@@ -20,12 +20,14 @@ function chip(estado: EstadoBandeja): HTMLElement {
 }
 
 describe('FiltrosEstado: estructura', () => {
-  it('agrupa tres chips con la etiqueta del espejo y en su orden', () => {
+  it('agrupa tres chips con la etiqueta del espejo en el orden del mockup', () => {
     montar();
     const grupo = screen.getByRole('group', { name: 'Filtrar por estado' });
     const botones = within(grupo).getAllByRole('button');
     expect(botones.map((b) => b.textContent)).toEqual(
-      ESTADOS_BANDEJA.map((e) => ETIQUETAS_ESTADO_BANDEJA[e]),
+      (['sugerencia', 'sin_match', 'conciliado'] as const).map(
+        (e) => ETIQUETAS_ESTADO_BANDEJA[e],
+      ),
     );
   });
 

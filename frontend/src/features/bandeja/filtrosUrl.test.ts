@@ -23,9 +23,9 @@ describe('leerFiltros', () => {
       'sugerencia',
       'sin_match',
     ]);
-    expect(leer('estado=sin_match&estado=conciliado').estados).toEqual([
-      'conciliado',
+    expect(leer('estado=conciliado&estado=sin_match').estados).toEqual([
       'sin_match',
+      'conciliado',
     ]);
   });
 
@@ -97,13 +97,13 @@ describe('serializar', () => {
   it('escribe estados no por defecto en orden canónico', () => {
     expect(
       serializar({ estados: ['sin_match', 'conciliado'], pagina: 1 }),
-    ).toBe('estado=conciliado&estado=sin_match');
+    ).toBe('estado=sin_match&estado=conciliado');
     expect(
       serializar({
         estados: ['sin_match', 'sugerencia', 'conciliado'],
         pagina: 1,
       }),
-    ).toBe('estado=conciliado&estado=sugerencia&estado=sin_match');
+    ).toBe('estado=sugerencia&estado=sin_match&estado=conciliado');
   });
 
   it('escribe la página solo si pasa de 1', () => {
@@ -127,8 +127,8 @@ describe('serializar', () => {
     const casos: FiltrosBandeja[] = [
       POR_DEFECTO,
       { estados: ['conciliado'], pagina: 1 },
-      { estados: ['conciliado', 'sin_match'], pagina: 7 },
-      { estados: ['conciliado', 'sugerencia', 'sin_match'], pagina: 999999 },
+      { estados: ['sin_match', 'conciliado'], pagina: 7 },
+      { estados: ['sugerencia', 'sin_match', 'conciliado'], pagina: 999999 },
       { estados: ['sugerencia', 'sin_match'], pagina: 2 },
     ];
     for (const f of casos) {
@@ -160,9 +160,9 @@ describe('alternarEstado', () => {
   it('enciende un estado inactivo y lo deja en orden canónico', () => {
     expect(
       alternarEstado({ estados: ['sin_match'], pagina: 3 }, 'conciliado'),
-    ).toEqual({ estados: ['conciliado', 'sin_match'], pagina: 1 });
+    ).toEqual({ estados: ['sin_match', 'conciliado'], pagina: 1 });
     expect(alternarEstado(POR_DEFECTO, 'conciliado')).toEqual({
-      estados: ['conciliado', 'sugerencia', 'sin_match'],
+      estados: ['sugerencia', 'sin_match', 'conciliado'],
       pagina: 1,
     });
   });
@@ -176,7 +176,7 @@ describe('alternarEstado', () => {
   it('con el último estado activo sí deja encender otro', () => {
     expect(
       alternarEstado({ estados: ['conciliado'], pagina: 2 }, 'sin_match'),
-    ).toEqual({ estados: ['conciliado', 'sin_match'], pagina: 1 });
+    ).toEqual({ estados: ['sin_match', 'conciliado'], pagina: 1 });
   });
 
   it('no modifica el objeto recibido', () => {

@@ -98,7 +98,7 @@ describe('BandejaPage: carga y filtros', () => {
     await waitFor(() => expect(ubicacion()).toBe('/bandeja?estado=sugerencia'));
     await usuario.click(chip('Conciliado'));
     await waitFor(() =>
-      expect(ubicacion()).toBe('/bandeja?estado=conciliado&estado=sugerencia'),
+      expect(ubicacion()).toBe('/bandeja?estado=sugerencia&estado=conciliado'),
     );
     espia.detener();
     expect(router.state.historyAction).toBe('REPLACE');

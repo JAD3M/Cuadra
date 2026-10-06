@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 /** Conciliado + sugerencia: 30 filas, dos páginas de 20. */
-const DOS_PAGINAS = '/bandeja?estado=conciliado&estado=sugerencia&pagina=2';
+const DOS_PAGINAS = '/bandeja?estado=sugerencia&estado=conciliado&pagina=2';
 
 const filasDeDatos = () =>
   within(screen.getByRole('table')).getAllByRole('row').slice(1);
