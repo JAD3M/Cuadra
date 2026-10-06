@@ -1,0 +1,17 @@
+.aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-14) var(--space-16);
+  border: 1px solid var(--estado-sugerencia-tile-border);
+  border-radius: var(--radius-md);
+  background: var(--estado-sugerencia-tile-bg);
+  color: var(--color-text);
+  line-height: var(--leading-relaxed);
+}
+
+.icono {
+  flex-shrink: 0;
+  margin-block-start: var(--space-4);
+  color: var(--color-link);
+}

@@ -1,0 +1,46 @@
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12) var(--space-24);
+  padding: var(--space-18) var(--space-24);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.datos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-24);
+  min-inline-size: 0;
+}
+
+.folio {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.emisor {
+  overflow-wrap: anywhere;
+}
+
+.total {
+  font-weight: var(--weight-bold);
+  white-space: nowrap;
+}
+
+.regla {
+  color: var(--color-text-soft);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.ver {
+  min-block-size: var(--touch-min);
+}

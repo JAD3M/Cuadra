@@ -1,0 +1,19 @@
+.detalle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-inline-size: 0;
+}
+
+/* Las dos tarjetas miden al menos su contenido: un monto largo las ensancha. */
+.par {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(min-content, 1fr));
+  gap: var(--space-20);
+}
+
+@media (max-width: 900px) {
+  .par {
+    grid-template-columns: 1fr;
+  }
+}

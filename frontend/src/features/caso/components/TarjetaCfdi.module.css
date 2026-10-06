@@ -1,0 +1,20 @@
+.tarjeta {
+  border-color: var(--estado-sugerencia-tile-border);
+}
+
+.rotulo {
+  color: var(--estado-sugerencia-text);
+}
+
+.uuid {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.rfc {
+  display: block;
+  margin-block-start: var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+}

@@ -1,0 +1,37 @@
+.encabezado {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-14);
+}
+
+.volver {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-block-size: var(--touch-min);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.volver:hover {
+  color: var(--color-text);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-title-lg);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-heading);
+  overflow-wrap: anywhere;
+}

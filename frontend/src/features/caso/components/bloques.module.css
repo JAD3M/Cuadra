@@ -1,0 +1,92 @@
+/*
+ * Piezas comunes de las tarjetas del detalle (Detalle.dc.html). Solo tokens de
+ * rol. Un monto nunca se sale de su contenedor ni se parte: las tarjetas no
+ * recortan (sin overflow, max-width ni text-overflow) y las cuadrículas miden
+ * al menos lo que mide su contenido.
+ */
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-inline-size: 0;
+  padding: var(--space-28);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.rotulo {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label-wide);
+  text-transform: uppercase;
+}
+
+.cifra {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.monto {
+  font-family: var(--font-mono);
+  font-size: var(--text-title-lg);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  white-space: nowrap;
+}
+
+.subtexto {
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(min-content, 1fr));
+  gap: var(--space-20) var(--space-24);
+  margin: 0;
+  padding-top: var(--space-20);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.kv > div {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-inline-size: 0;
+}
+
+.completa {
+  grid-column: 1 / -1;
+}
+
+.kv dt {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.kv dd {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--leading-normal);
+}
+
+.texto {
+  overflow-wrap: anywhere;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.atenuado {
+  color: var(--color-muted);
+}
