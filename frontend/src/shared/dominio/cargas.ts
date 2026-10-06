@@ -1,0 +1,67 @@
+import type { EstadoCarga, Rol, TipoCarga } from './tipos';
+
+// Espejo de lo que el backend define para las cargas fuera de
+// src/common/entities/tipos.ts (CU-24, M9). El frontend no importa código del
+// backend: copia los valores y tests/dominio/cargasEspejo.test.ts falla si el
+// código de allá cambia. Al cambiar el backend, actualiza este archivo.
+
+/** Los dos tipos de carga con nombre, para no escribir el literal en pantalla. */
+export const TIPO_CFDI = 'cfdi' as const satisfies TipoCarga;
+export const TIPO_ESTADO_CUENTA = 'estado_cuenta' as const satisfies TipoCarga;
+
+/**
+ * Activa: el servidor aún trabaja en ella. Concluida: terminó, bien o mal.
+ * Es un `Record` sobre el espejo: un estado nuevo deja de compilar hasta
+ * clasificarlo.
+ */
+export const FASE_CARGA: Readonly<Record<EstadoCarga, 'activa' | 'concluida'>> =
+  {
+    pendiente: 'activa',
+    procesando: 'activa',
+    procesada: 'concluida',
+    con_errores: 'concluida',
+    fallida: 'concluida',
+  };
+
+export const esActiva = (estado: EstadoCarga): boolean =>
+  FASE_CARGA[estado] === 'activa';
+
+export const esConcluida = (estado: EstadoCarga): boolean =>
+  FASE_CARGA[estado] === 'concluida';
+
+/** src/cargas/carga.entity.ts: `ResultadoDeArchivo`, en el orden de la entidad. */
+export const RESULTADOS_ARCHIVO = ['nuevo', 'ya_existia', 'error'] as const;
+export type ResultadoArchivo = (typeof RESULTADOS_ARCHIVO)[number];
+
+/** El resultado de un archivo o una fila que no entró (lleva `motivo`). */
+export const RESULTADO_ERROR = 'error' as const satisfies ResultadoArchivo;
+
+/** Roles que pueden subir cargas: los `@Roles` de los dos POST del backend. */
+export const ROLES_QUE_CARGAN = [
+  'admin',
+  'contador',
+] as const satisfies readonly Rol[];
+
+/** src/bancos/perfiles-bancarios.ts: el perfil si el POST no dice otro. */
+export const PERFIL_POR_DEFECTO = 'cuadra';
+
+const MB = 1024 * 1024;
+
+/**
+ * Límites de src/cargas/archivos.guard.ts y de estado-cuenta.dto.ts. La
+ * pantalla los usa solo como comodidad: el servidor decide.
+ */
+export const LIMITES_CARGA = {
+  cfdi: {
+    extension: '.xml',
+    maxArchivos: 500,
+    maxBytesPorArchivo: 2 * MB,
+    maxBytesTotal: 50 * MB,
+  },
+  estadoCuenta: {
+    extension: '.csv',
+    maxBytesPorArchivo: 10 * MB,
+    maxBanco: 128,
+    maxCuenta: 32,
+  },
+} as const;

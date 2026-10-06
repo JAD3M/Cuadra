@@ -1,6 +1,8 @@
 import { type EstadoBandeja } from './bandeja';
 import {
   type AccionBitacora,
+  type EstadoCarga,
+  type TipoCarga,
   type OrigenConciliacion,
   ROLES,
   type Rol,
@@ -55,6 +57,24 @@ export const ETIQUETAS_ORIGEN_CONCILIACION: Record<OrigenConciliacion, string> =
     llm: 'origen: IA',
     manual: 'origen: manual',
   };
+
+/**
+ * Texto visible de cada estado de una carga (K1: cinco estados, los del
+ * backend). Compila de forma exhaustiva sobre el espejo.
+ */
+export const ETIQUETAS_ESTADO_CARGA: Record<EstadoCarga, string> = {
+  pendiente: 'Pendiente',
+  procesando: 'Procesando',
+  procesada: 'Procesada',
+  con_errores: 'Con errores',
+  fallida: 'Fallida',
+};
+
+/** Texto visible de cada tipo de carga (maqueta Cargas.dc.html). */
+export const ETIQUETAS_TIPO_CARGA: Record<TipoCarga, string> = {
+  cfdi: 'CFDI',
+  estado_cuenta: 'Estado de cuenta',
+};
 
 /**
  * Ordena los roles como en `ROLES` (admin, contador, revisor) sin importar el
