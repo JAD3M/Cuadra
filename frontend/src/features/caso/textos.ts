@@ -145,3 +145,18 @@ export const HISTORIAL = {
     cuando: '—',
   },
 } as const;
+
+/** Banner tras confirmar o rechazar, armado con la respuesta del servidor. */
+export const BANNER = {
+  confirmado:
+    'Conciliación confirmada. El movimiento y el CFDI quedan cerrados.',
+  rechazado: 'Propuesta rechazada.',
+  /** Separador de «{usuario} · {fecha}». */
+  separadorDetalle: ' · ',
+  unaHermana: 'La otra propuesta de este movimiento se rechazó.',
+  variasHermanas: 'Las demás propuestas de este movimiento se rechazaron.',
+  queda: 'Queda 1 propuesta vigente para este movimiento.',
+  quedan: (cantidad: number) =>
+    `Quedan ${cantidad} propuestas vigentes para este movimiento.`,
+  vuelveASinMatch: 'El movimiento vuelve a sin match.',
+} as const;

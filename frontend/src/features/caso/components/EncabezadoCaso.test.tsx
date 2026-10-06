@@ -1,3 +1,4 @@
+import { createRef } from 'react';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
@@ -69,6 +70,24 @@ describe('EncabezadoCaso', () => {
       screen.getByRole('heading', { level: 2, name: 'SPEI MATERIALES REYES' }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+  });
+
+  it('los avisos van entre el enlace de regreso y el encabezado, como en la maqueta', () => {
+    dibujar({ avisos: <div role="status">Aviso de prueba</div> });
+    const enlace = screen.getByRole('link', { name: '← Volver a la bandeja' });
+    const aviso = screen.getByRole('status');
+    const titulo = screen.getByRole('heading', { level: 2 });
+    const despues = Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(enlace.compareDocumentPosition(aviso) & despues).toBeTruthy();
+    expect(aviso.compareDocumentPosition(titulo) & despues).toBeTruthy();
+  });
+
+  it('el h2 de la descripción se puede enfocar desde código con la referencia', () => {
+    const ref = createRef<HTMLHeadingElement>();
+    dibujar({ descripcionRef: ref });
+    const titulo = screen.getByRole('heading', { level: 2 });
+    expect(ref.current).toBe(titulo);
+    expect(titulo).toHaveAttribute('tabindex', '-1');
   });
 
   it('no muestra banco, cuenta, perfil ni aviso de solo lectura', () => {

@@ -1,3 +1,4 @@
+import type { ReactNode, Ref } from 'react';
 import type { EstadoBandeja } from '@/shared/dominio/bandeja';
 import {
   ETIQUETAS_ESTADO_BANDEJA,
@@ -17,6 +18,10 @@ export interface EncabezadoCasoProps {
   /** Origen de la propuesta expandida; `null` si el caso no tiene propuesta. */
   origen: OrigenConciliacion | null;
   descripcion: string;
+  /** Banner y alertas de la resolución: entre el enlace de regreso y el título. */
+  avisos?: ReactNode;
+  /** Para enfocar la descripción tras recargar el caso. */
+  descripcionRef?: Ref<HTMLHeadingElement>;
 }
 
 /**
@@ -29,10 +34,13 @@ export function EncabezadoCaso({
   regla,
   origen,
   descripcion,
+  avisos,
+  descripcionRef,
 }: EncabezadoCasoProps) {
   return (
     <>
       <EnlaceBandeja texto={VOLVER_A_BANDEJA} variante="atras" />
+      {avisos}
       <header className={estilos.encabezado}>
         <div className={estilos.chips}>
           <EstadoChip tono={estado}>
@@ -50,7 +58,9 @@ export function EncabezadoCaso({
             </EstadoChip>
           )}
         </div>
-        <h2 className={estilos.titulo}>{descripcion}</h2>
+        <h2 ref={descripcionRef} tabIndex={-1} className={estilos.titulo}>
+          {descripcion}
+        </h2>
       </header>
     </>
   );

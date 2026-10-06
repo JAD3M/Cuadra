@@ -7,7 +7,14 @@ import {
   casoVarias,
   propuestaCaso,
 } from '@/test/fixturesCaso';
-import { derivarVista, propuestaSeleccionada, vistaDeLectura } from './vista';
+import {
+  bannerDe,
+  derivarVista,
+  historialIdDe,
+  propuestaSeleccionada,
+  vistaDeLectura,
+  type ResolucionVigente,
+} from './vista';
 
 describe('derivarVista (variante cargada)', () => {
   it('una propuesta vigente es sugerencia', () => {
@@ -106,5 +113,118 @@ describe('vistaDeLectura', () => {
     expect(
       vistaDeLectura({ ...sinError, error: new ApiError(401, 'x', []) }),
     ).toBeNull();
+  });
+});
+
+const ZONA = 'UTC';
+const confirmar = (rechazadas: number): ResolucionVigente => ({
+  accion: 'confirmar',
+  conciliacionId: 'c1',
+  rechazadas,
+});
+const rechazar = (conciliacionId = 'c1'): ResolucionVigente => ({
+  accion: 'rechazar',
+  conciliacionId,
+  rechazadas: 0,
+});
+
+describe('bannerDe: confirmar', () => {
+  it('el usuario y la fecha salen del caso vuelto a pedir', () => {
+    const banner = bannerDe(confirmar(0), casoConciliado(), ZONA);
+    expect(banner.accion).toBe('confirmar');
+    expect(banner.detalle).toBe('Ana · 2026-09-03');
+  });
+
+  it('sin el caso (el refetch falló) no hay detalle', () => {
+    expect(bannerDe(confirmar(0), undefined, ZONA).detalle).toBeNull();
+  });
+
+  it('con un caso que aún no es conciliado tampoco hay detalle', () => {
+    expect(bannerDe(confirmar(0), casoSugerencia(), ZONA).detalle).toBeNull();
+  });
+
+  it('si falta el usuario o la fecha se muestra solo lo que hay', () => {
+    const base = casoConciliado();
+    const [propuesta] = base.propuestas;
+    const sinUsuario = casoConciliado({
+      propuestas: [{ ...propuesta!, confirmadaPor: null }],
+    });
+    const sinFecha = casoConciliado({
+      propuestas: [{ ...propuesta!, confirmadaAt: null }],
+    });
+    expect(bannerDe(confirmar(0), sinUsuario, ZONA).detalle).toBe('2026-09-03');
+    expect(bannerDe(confirmar(0), sinFecha, ZONA).detalle).toBe('Ana');
+  });
+
+  it.each([
+    [0, null],
+    [1, 'La otra propuesta de este movimiento se rechazó.'],
+    [2, 'Las demás propuestas de este movimiento se rechazaron.'],
+    [5, 'Las demás propuestas de este movimiento se rechazaron.'],
+  ])('con %i rechazadas automáticamente la nota es %s', (n, nota) => {
+    expect(bannerDe(confirmar(n), casoConciliado(), ZONA).nota).toBe(nota);
+  });
+});
+
+describe('bannerDe: rechazar', () => {
+  it('con dos o más propuestas vigentes dice cuántas quedan', () => {
+    const caso = casoSugerencia({
+      propuestas: [propuestaCaso(2), propuestaCaso(3)],
+    });
+    expect(bannerDe(rechazar(), caso).nota).toBe(
+      'Quedan 2 propuestas vigentes para este movimiento.',
+    );
+  });
+
+  it('con una sola usa el singular aprobado (B11)', () => {
+    expect(bannerDe(rechazar(), casoSugerencia()).nota).toBe(
+      'Queda 1 propuesta vigente para este movimiento.',
+    );
+  });
+
+  it('sin propuestas el movimiento vuelve a sin match', () => {
+    expect(bannerDe(rechazar(), casoSinMatch()).nota).toBe(
+      'El movimiento vuelve a sin match.',
+    );
+  });
+
+  it('sin el caso vuelto a pedir no afirma nada', () => {
+    const banner = bannerDe(rechazar(), undefined);
+    expect(banner.accion).toBe('rechazar');
+    expect(banner.nota).toBeNull();
+    expect(banner.detalle).toBeNull();
+  });
+});
+
+describe('historialIdDe (R5/B5)', () => {
+  const propuestas = [propuestaCaso(1), propuestaCaso(2)];
+  const primera = propuestas[0] ?? null;
+
+  it('sin resolución, el historial es el de la propuesta mostrada', () => {
+    expect(historialIdDe(null, propuestas, primera)).toBe(
+      primera?.conciliacionId,
+    );
+  });
+
+  it('sin propuestas ni resolución no hay historial', () => {
+    expect(historialIdDe(null, [], null)).toBeNull();
+  });
+
+  it('tras rechazar la última propuesta, el de la rechazada (id de la respuesta)', () => {
+    expect(historialIdDe(rechazar('c-rechazada'), [], null)).toBe(
+      'c-rechazada',
+    );
+  });
+
+  it('tras rechazar con propuestas restantes, el de la propuesta mostrada', () => {
+    expect(historialIdDe(rechazar('c-rechazada'), propuestas, primera)).toBe(
+      primera?.conciliacionId,
+    );
+  });
+
+  it('tras confirmar sigue siendo el de la propuesta confirmada', () => {
+    expect(historialIdDe(confirmar(0), propuestas, primera)).toBe(
+      primera?.conciliacionId,
+    );
   });
 });
