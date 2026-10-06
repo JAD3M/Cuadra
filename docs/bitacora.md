@@ -12,6 +12,12 @@
   sin push ni PR. KAN-101 pasa a Finalizado. Con CU-22 y CU-23 la épica G
   queda completa: 23 de 26 historias y 89 de 99 puntos. Siguen pendientes las
   comprobaciones manuales en el navegador contra la maqueta v20.
+- **Comprobación en vivo de `GET /casos/:movimientoId`** contra el API de
+  desarrollo (el contenedor recargó solo con `--watch`), con un usuario de la
+  demo en Ferretería: un caso de la bandeja responde 200 con estado
+  `sugerencia`, montos y `score` como cadenas decimales, `origen` y la
+  tolerancia de la empresa; un UUID ajeno da 404, un id que no es UUID da 400
+  y sin token da 401.
 
 ### 5 oct 2026
 
@@ -160,7 +166,7 @@
   confirmar; recorrido solo con teclado (orden, anillo de foco, tamaño de los
   objetivos); lectura con un lector de pantalla (banner, regiones en vivo,
   nombre del botón de confirmar).
-- **Pendiente: comprobación en vivo de `GET /casos/:movimientoId`.** Hay que
+- **Hecha el 6 oct (ver arriba): comprobación en vivo de `GET /casos/:movimientoId`.** Hay que
   reconstruir el contenedor `api`, que sigue sirviendo el `dist` raíz anterior
   sin la ruta; con eso se prueba contra el API de desarrollo con los datos de
   la demo. No se corrió y no se tocó el `dist` raíz.
