@@ -1,0 +1,19 @@
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-28);
+  min-inline-size: 0;
+}
+
+.propuestas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-inline-size: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-2xl);
+  letter-spacing: var(--tracking-tight);
+}

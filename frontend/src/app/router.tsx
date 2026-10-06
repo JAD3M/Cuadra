@@ -80,7 +80,7 @@ export const rutas: RouteObject[] = [
                 } satisfies ManejadorRuta,
               },
               {
-                path: '/casos/:id',
+                path: '/casos/:movimientoId',
                 element: <CasoPage />,
                 handle: titulo('Detalle del caso'),
               },

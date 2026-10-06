@@ -126,18 +126,23 @@ describe('tabla de rutas', () => {
     expect(screen.queryByRole('complementary')).toBeNull();
   });
 
-  it('/casos/abc muestra el id de la ruta dentro del layout', () => {
+  it('/casos/:movimientoId carga el caso dentro del layout', async () => {
     renderizar('/casos/abc');
     expect(
-      screen.getByRole('heading', { level: 2, name: 'Detalle del caso' }),
+      screen.getByRole('heading', { level: 1, name: 'Detalle del caso' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('abc')).toBeInTheDocument();
-    expect(screen.getByRole('main')).toContainElement(screen.getByText('abc'));
+    expect(screen.getByText('Cargando caso')).toBeInTheDocument();
+    expect(screen.getByRole('main')).toContainElement(
+      screen.getByText('Cargando caso'),
+    );
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    await waitFor(() => expect(screen.queryByText('Cargando caso')).toBeNull());
   });
 
-  it('/casos/:id no interpreta el id como marcado', () => {
+  it('/casos/:movimientoId no interpreta el id como marcado', async () => {
     renderizar('/casos/%3Cb%3Ex%3C%2Fb%3E');
-    expect(screen.getByText('<b>x</b>')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Cargando caso')).toBeNull());
+    expect(screen.queryByText('<b>x</b>')).toBeNull();
     expect(document.querySelector('main b')).toBeNull();
   });
 
@@ -186,7 +191,7 @@ describe('guardas en el árbol de rutas', () => {
     );
     expect(protegida?.children?.[0]?.children?.map((n) => n.path)).toEqual([
       '/bandeja',
-      '/casos/:id',
+      '/casos/:movimientoId',
       '/cargas',
       '/tolerancia',
       '/bitacora',
@@ -279,7 +284,12 @@ describe('título y anuncio del cambio de página', () => {
     await waitFor(() =>
       expect(document.title).toBe('Detalle del caso · Cuadra'),
     );
-    expect(screen.getByRole('status')).toHaveTextContent('Detalle del caso');
+    // El detalle puede sumar su propia región de espera mientras carga.
+    expect(
+      screen
+        .getAllByRole('status')
+        .some((r) => r.textContent === 'Detalle del caso'),
+    ).toBe(true);
   });
 
   it('la región de anuncio no es un landmark', () => {
