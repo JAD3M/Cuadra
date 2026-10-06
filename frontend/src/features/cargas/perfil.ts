@@ -7,8 +7,8 @@ interface PerfilElegible {
 
 /**
  * Perfil que se muestra y se manda. Sin perfiles cargados no hay perfil
- * (`null`): el campo se oculta y el POST no manda `perfil`, así que el servidor
- * usa el suyo. Con perfiles, lo elegido si sigue en la lista; si no, el del
+ * (`null`): el select queda oculto o apagado y el POST no manda `perfil`, así
+ * que el servidor usa el suyo. Con perfiles, lo elegido si sigue en la lista; si no, el del
  * servidor (`cuadra`, M13) y, si tampoco está, el primero en el orden de la API.
  */
 export function perfilVigente(

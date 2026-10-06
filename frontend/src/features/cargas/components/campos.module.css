@@ -61,3 +61,36 @@
   color: var(--estado-sin-match-text);
   font-size: var(--text-sm);
 }
+
+/* Falla de perfiles (mockup perfiles_error): aviso y enlace en una línea que baja si no cabe. */
+.errorPerfiles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-12);
+  color: var(--color-danger-title);
+  font-size: var(--text-sm);
+}
+
+/* Reintentar con aspecto de enlace, como .lnk del mockup; el botón mide 44 px. */
+.enlace {
+  min-block-size: var(--touch-min);
+  padding: 0 var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--color-link);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.enlace:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.enlace:disabled {
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}

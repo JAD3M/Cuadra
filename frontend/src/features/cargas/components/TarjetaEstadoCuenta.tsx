@@ -24,8 +24,10 @@ export interface TarjetaEstadoCuentaProps {
   archivo: File | null;
   banco: string;
   cuenta: string;
-  /** `undefined` si la lista no cargó: el campo de perfil se oculta. */
+  /** `undefined` mientras cargan o si la lista falló. */
   perfiles: readonly { id: string }[] | undefined;
+  /** La lista de perfiles falló: el select queda apagado con Reintentar. */
+  perfilesFallo: boolean;
   /** El perfil elegido, ya resuelto; `null` si no hay perfiles. */
   perfil: string | null;
   /** Rol de solo lectura: todo queda deshabilitado, no oculto. */
@@ -37,6 +39,7 @@ export interface TarjetaEstadoCuentaProps {
   onBanco: (banco: string) => void;
   onCuenta: (cuenta: string) => void;
   onPerfil: (id: string) => void;
+  onReintentarPerfiles: () => void;
   /** Solo si el archivo está aceptado: un rechazado nunca se envía. */
   onSubir: (archivo: File) => void;
   /** Para mover el foco a la región de estado al enviar. */
@@ -53,12 +56,14 @@ export function TarjetaEstadoCuenta({
   cuenta,
   perfiles,
   perfil,
+  perfilesFallo,
   deshabilitada,
   subiendo,
   onSeleccionar,
   onBanco,
   onCuenta,
   onPerfil,
+  onReintentarPerfiles,
   onSubir,
   regionRef,
 }: TarjetaEstadoCuentaProps) {
@@ -98,8 +103,10 @@ export function TarjetaEstadoCuenta({
         <div className={estilos.ancha}>
           <CampoPerfil
             perfiles={perfiles}
+            fallo={perfilesFallo}
             valor={perfil ?? ''}
             onCambiar={onPerfil}
+            onReintentar={onReintentarPerfiles}
             deshabilitado={inactiva}
           />
         </div>

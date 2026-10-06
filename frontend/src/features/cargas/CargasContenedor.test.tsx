@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { REINTENTAR } from '@/features/cargas/textos';
 import { contextoSesion } from '@/shared/api/contratos';
 import type { SessionState } from '@/shared/sesion';
 import { crearCompuerta } from '@/test/compuerta';
@@ -308,20 +309,76 @@ describe('CargasContenedor: subida de estado de cuenta', () => {
     ]);
   });
 
-  it('si los perfiles no cargaron oculta el campo y el POST no manda perfil (4.5)', async () => {
+  it('si los perfiles no cargaron el select queda visible y apagado con aviso y Reintentar, y el POST no manda perfil (mockup)', async () => {
     servidor.use(perfilesFalla(500));
     const espia = espiarSolicitudes();
     montar();
-    await waitFor(() =>
-      expect(espia.cuantas('GET', '/api/bancos/perfiles')).toBe(1),
-    );
+    expect(
+      await screen.findByText('No se pudieron cargar los perfiles.'),
+    ).toBeVisible();
+    // Control positivo: la lectura de perfiles sí salió, una sola vez.
+    expect(espia.cuantas('GET', '/api/bancos/perfiles')).toBe(1);
     await esperarIntervalos(3);
-    expect(screen.queryByLabelText('Perfil de lectura')).toBeNull();
+    expect(espia.cuantas('GET', '/api/bancos/perfiles')).toBe(1);
+    expect(screen.getByLabelText('Perfil de lectura')).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: REINTENTAR }),
+    ).toBeInTheDocument();
     const u = usuario();
     await u.upload(screen.getByLabelText('Elegir archivo'), csv('estado.csv'));
     await u.click(botonCsv());
     await waitFor(() => expect(almacenes.cargas.subidas()).toHaveLength(1));
     expect(almacenes.cargas.subidas()[0]?.campos).toEqual([]);
+    espia.detener();
+  });
+
+  it('Reintentar vuelve a pedir los perfiles y, si llegan, habilita el select con cuadra por omisión (mockup)', async () => {
+    servidor.use(perfilesFalla(500));
+    const espia = espiarSolicitudes();
+    montar();
+    await screen.findByText('No se pudieron cargar los perfiles.');
+    servidor.resetHandlers();
+    await usuario().click(
+      within(tarjeta('Estado de cuenta')).getByRole('button', {
+        name: REINTENTAR,
+      }),
+    );
+    await esperarPerfiles();
+    expect(espia.cuantas('GET', '/api/bancos/perfiles')).toBe(2);
+    const select = screen.getByLabelText('Perfil de lectura');
+    expect(select).toBeEnabled();
+    expect(select).toHaveValue('cuadra');
+    expect(
+      screen.queryByText('No se pudieron cargar los perfiles.'),
+    ).toBeNull();
+    const u = usuario();
+    await u.upload(screen.getByLabelText('Elegir archivo'), csv('estado.csv'));
+    await u.click(botonCsv());
+    await waitFor(() => expect(almacenes.cargas.subidas()).toHaveLength(1));
+    expect(almacenes.cargas.subidas()[0]?.campos).toEqual([
+      ['perfil', 'cuadra'],
+    ]);
+    espia.detener();
+  });
+
+  it('si el reintento de perfiles vuelve a fallar el aviso se mantiene', async () => {
+    servidor.use(perfilesFalla(500));
+    const espia = espiarSolicitudes();
+    montar();
+    await screen.findByText('No se pudieron cargar los perfiles.');
+    await usuario().click(
+      within(tarjeta('Estado de cuenta')).getByRole('button', {
+        name: REINTENTAR,
+      }),
+    );
+    await waitFor(() =>
+      expect(espia.cuantas('GET', '/api/bancos/perfiles')).toBe(2),
+    );
+    await esperarIntervalos(3);
+    expect(
+      screen.getByText('No se pudieron cargar los perfiles.'),
+    ).toBeVisible();
+    expect(screen.getByLabelText('Perfil de lectura')).toBeDisabled();
     espia.detener();
   });
 

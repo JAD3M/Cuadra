@@ -7,7 +7,8 @@ import { VIGENCIA_PERFILES_MS } from './constantes';
 /**
  * `GET /bancos/perfiles`. La lista es estática en el servidor, pero la clave
  * lleva la época como todas las demás. Si falla, `data` queda indefinido: la
- * pantalla oculta el campo y el POST no manda `perfil` (el servidor usa el suyo).
+ * pantalla deja el select apagado con «Reintentar» y el POST no manda `perfil`
+ * (el servidor usa el suyo).
  */
 export function usePerfiles() {
   const epoca = useEpoca();

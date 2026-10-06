@@ -33,11 +33,112 @@ describe('CampoPerfil', () => {
     expect(onCambiar).toHaveBeenCalledWith('banco-sur');
   });
 
-  it('sin perfiles (fallo de carga) el campo no se muestra (4.5, G9)', () => {
+  it('mientras los perfiles cargan el campo no se muestra', () => {
     const { container } = render(
       <CampoPerfil perfiles={undefined} valor="" onCambiar={() => undefined} />,
     );
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('con fallo el select sigue visible pero deshabilitado, con el aviso y Reintentar (mockup)', () => {
+    render(
+      <CampoPerfil
+        perfiles={undefined}
+        fallo
+        valor=""
+        onCambiar={() => undefined}
+        onReintentar={() => undefined}
+      />,
+    );
+    const select = screen.getByLabelText('Perfil de lectura');
+    expect(select).toBeVisible();
+    expect(select).toBeDisabled();
+    expect(
+      screen.getByText('No se pudieron cargar los perfiles.'),
+    ).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeEnabled();
+  });
+
+  it('con fallo el aviso queda ligado al select con aria-describedby', () => {
+    render(
+      <CampoPerfil
+        perfiles={undefined}
+        fallo
+        valor=""
+        onCambiar={() => undefined}
+        onReintentar={() => undefined}
+      />,
+    );
+    expect(
+      screen.getByLabelText('Perfil de lectura'),
+    ).toHaveAccessibleDescription(/No se pudieron cargar los perfiles\./);
+  });
+
+  it('Reintentar llama a onReintentar una vez por clic', async () => {
+    const onReintentar = vi.fn();
+    render(
+      <CampoPerfil
+        perfiles={undefined}
+        fallo
+        valor=""
+        onCambiar={() => undefined}
+        onReintentar={onReintentar}
+      />,
+    );
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(onReintentar).toHaveBeenCalledTimes(1);
+  });
+
+  it('Reintentar es un botón que no envía formularios', () => {
+    render(
+      <CampoPerfil
+        perfiles={undefined}
+        fallo
+        valor=""
+        onCambiar={() => undefined}
+        onReintentar={() => undefined}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toHaveAttribute(
+      'type',
+      'button',
+    );
+  });
+
+  it('sin fallo no hay aviso ni Reintentar y el select no tiene descripción', () => {
+    render(
+      <CampoPerfil
+        perfiles={PERFILES}
+        valor="cuadra"
+        onCambiar={() => undefined}
+        onReintentar={() => undefined}
+      />,
+    );
+    expect(
+      screen.queryByText('No se pudieron cargar los perfiles.'),
+    ).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).toBeNull();
+    expect(screen.getByLabelText('Perfil de lectura')).toBeEnabled();
+    expect(
+      screen.getByLabelText('Perfil de lectura'),
+    ).not.toHaveAccessibleDescription();
+  });
+
+  it('con fallo y rol de solo lectura Reintentar sigue disponible (no sube nada)', () => {
+    render(
+      <CampoPerfil
+        perfiles={undefined}
+        fallo
+        deshabilitado
+        valor=""
+        onCambiar={() => undefined}
+        onReintentar={() => undefined}
+      />,
+    );
+    expect(screen.getByLabelText('Perfil de lectura')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeDisabled();
   });
 
   it('una lista vacía tampoco se muestra', () => {

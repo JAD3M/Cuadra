@@ -94,6 +94,19 @@ describe('contrato CSS de las tarjetas de subida', () => {
     );
   });
 
+  it('el error de perfiles usa el título de peligro y Reintentar parece un enlace de 44 px, sin literales', () => {
+    expect(bloqueCss(css.campos, '.errorPerfiles')).toContain(
+      'var(--color-danger-title)',
+    );
+    const enlace = bloqueCss(css.campos, '.enlace');
+    expect(enlace).toContain('var(--color-link)');
+    expect(enlace).toContain('min-block-size: var(--touch-min)');
+    expect(enlace).toMatch(/white-space:\s*nowrap/);
+    expect(bloqueCss(css.campos, '.enlace:focus-visible')).toContain(
+      'var(--color-accent)',
+    );
+  });
+
   it('los campos usan el fondo hundido y la etiqueta no va en mayúsculas', () => {
     expect(bloqueCss(css.campos, '.control')).toContain('var(--color-inset)');
     expect(bloqueCss(css.campos, '.etiqueta')).not.toMatch(/uppercase/);

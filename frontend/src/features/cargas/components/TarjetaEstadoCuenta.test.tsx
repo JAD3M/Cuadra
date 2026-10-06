@@ -16,6 +16,7 @@ function csv(nombre: string, tamano = 186 * 1024): File {
 interface Opciones {
   inicial?: File | null;
   sinPerfiles?: boolean;
+  perfilesFallo?: boolean;
   deshabilitada?: boolean;
   subiendo?: boolean;
 }
@@ -23,12 +24,14 @@ interface Opciones {
 function montar({
   inicial = null,
   sinPerfiles = false,
+  perfilesFallo = false,
   deshabilitada = false,
   subiendo = false,
 }: Opciones = {}) {
   const perfiles = sinPerfiles ? undefined : PERFILES;
   const onSubir = vi.fn();
   const alPerfil = vi.fn();
+  const alReintentar = vi.fn();
   const regionRef = createRef<HTMLDivElement>();
   function Arnes() {
     const [archivo, setArchivo] = useState<File | null>(inicial);
@@ -44,6 +47,8 @@ function montar({
         cuenta={cuenta}
         perfiles={perfiles}
         perfil={perfil}
+        perfilesFallo={perfilesFallo}
+        onReintentarPerfiles={alReintentar}
         deshabilitada={deshabilitada}
         subiendo={subiendo}
         regionRef={regionRef}
@@ -59,7 +64,7 @@ function montar({
     );
   }
   render(<Arnes />);
-  return { onSubir, alPerfil, regionRef };
+  return { onSubir, alPerfil, alReintentar, regionRef };
 }
 
 const usuario = () => userEvent.setup({ applyAccept: false });
@@ -187,9 +192,20 @@ describe('TarjetaEstadoCuenta', () => {
     expect(alPerfil).toHaveBeenCalledWith('banco-norte');
   });
 
-  it('si los perfiles no cargaron el campo se oculta y el resto sigue (4.5)', () => {
-    montar({ sinPerfiles: true, inicial: csv('estado.csv') });
-    expect(screen.queryByLabelText('Perfil de lectura')).toBeNull();
+  it('si los perfiles fallaron el select queda visible y apagado con Reintentar y el resto sigue (mockup)', async () => {
+    const { alReintentar } = montar({
+      sinPerfiles: true,
+      perfilesFallo: true,
+      inicial: csv('estado.csv'),
+    });
+    expect(screen.getByLabelText('Perfil de lectura')).toBeDisabled();
+    expect(
+      screen.getByText('No se pudieron cargar los perfiles.'),
+    ).toBeVisible();
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(alReintentar).toHaveBeenCalledTimes(1);
     expect(
       screen.getByRole('button', { name: 'Subir estado de cuenta' }),
     ).toBeEnabled();

@@ -116,6 +116,9 @@ export const TARJETA_ESTADO_CUENTA = {
   nota: 'El servidor vuelve a validar cada archivo: extensión, tamaño, que sea texto y que cumpla el formato. Nada de lo que subes se ejecuta.',
 } as const;
 
+/** Falla la lectura de perfiles: el select queda apagado (mockup perfiles_error). */
+export const ERROR_PERFILES = 'No se pudieron cargar los perfiles.';
+
 /** Ayuda del campo Cuenta (K4): no promete enmascarar nada. */
 export const AYUDA_CUENTA =
   'Escribe solo los últimos dígitos. No hace falta el número completo.';

@@ -81,6 +81,8 @@ export function CargasContenedor() {
           cuenta={cuenta}
           perfiles={perfiles.data}
           perfil={perfil}
+          perfilesFallo={perfiles.isError}
+          onReintentarPerfiles={() => void perfiles.refetch()}
           deshabilitada={deshabilitadas}
           subiendo={subiendoCsv}
           regionRef={regionCsv}
