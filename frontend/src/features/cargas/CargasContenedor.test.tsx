@@ -1,7 +1,8 @@
+import { focusManager } from '@tanstack/react-query';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { REINTENTAR } from '@/features/cargas/textos';
 import {
   contextoSesion,
@@ -20,6 +21,7 @@ import {
 import { almacenes } from '@/test/handlers';
 import { espiarSolicitudes } from '@/test/handlersAuth';
 import {
+  detalleFalla,
   perfilesFalla,
   type ParcheDeCarga,
   subida413Html,
@@ -798,6 +800,10 @@ describe('CargasContenedor: resultados de la carga', () => {
   });
 });
 
+afterEach(() => {
+  focusManager.setFocused(undefined);
+});
+
 /** La alerta (role=alert) de una tarjeta; `null` si no hay. */
 const sinAlertaEn = (titulo: string) =>
   within(tarjeta(titulo)).queryByRole('alert');
@@ -1013,5 +1019,170 @@ describe('CargasContenedor: alertas de una subida que falla', () => {
     epoca = 2;
     rerender(<CargasContenedor />);
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  });
+});
+
+/** Tope diminuto: venció tras unos pocos intervalos. */
+const POLLING_CON_TOPE: ConfigPolling = { intervaloMs: 15, topeMs: 120 };
+const SIN_ACTUALIZAR = 'La lista dejó de actualizarse.';
+
+const botonActualizar = () =>
+  within(regionDe(CFDI)).queryByRole('button', { name: 'Actualizar' });
+
+describe('CargasContenedor: tope del polling y Actualizar', () => {
+  it('antes del tope no hay «Actualizar» y el panel sigue pidiendo su detalle (11.4, K5)', async () => {
+    const espia = espiarSolicitudes();
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    const region = regionDe(CFDI);
+    await within(region).findByText(PROCESANDO);
+    // Control positivo: el sondeo del panel está corriendo.
+    await waitFor(() => expect(getDetalle(espia).length).toBeGreaterThan(2));
+    expect(botonActualizar()).toBeNull();
+    expect(within(region).queryByText(SIN_ACTUALIZAR)).toBeNull();
+    espia.detener();
+  });
+
+  it('al vencer el tope una carga pendiente queda como está: aviso con «Actualizar» y ya no pide nada solo (11.3)', async () => {
+    const espia = espiarSolicitudes();
+    montar(['admin'], POLLING_CON_TOPE);
+    await esperarPerfiles();
+    await subirXml();
+    const region = regionDe(CFDI);
+    expect(await within(region).findByText(SIN_ACTUALIZAR)).toBeInTheDocument();
+    expect(botonActualizar()).toBeInTheDocument();
+    // La barra de proceso cede su lugar al aviso (mockup resultado_sin_actualizar).
+    expect(within(region).queryByText(PROCESANDO)).toBeNull();
+    // Control positivo: antes del tope sí hubo sondeo del panel.
+    expect(getDetalle(espia).length).toBeGreaterThan(1);
+    const detalle = getDetalle(espia).length;
+    const lista = espia.cuantas('GET', '/api/cargas');
+    await esperarIntervalos(5);
+    expect(getDetalle(espia)).toHaveLength(detalle);
+    expect(espia.cuantas('GET', '/api/cargas')).toBe(lista);
+    // La carga sigue pendiente: nada la movió.
+    expect(almacenes.cargas.filas()[0]?.estado).toBe('pendiente');
+    espia.detener();
+  });
+
+  it('«Actualizar» vuelve a pedir, oculta el aviso y abre otra ventana de sondeo (11.5)', async () => {
+    const espia = espiarSolicitudes();
+    montar(['admin'], POLLING_CON_TOPE);
+    await esperarPerfiles();
+    await subirXml();
+    const region = regionDe(CFDI);
+    await within(region).findByText(SIN_ACTUALIZAR);
+    const antes = getDetalle(espia).length;
+    await usuario().click(botonActualizar() as HTMLElement);
+    // El aviso se oculta y la carga activa vuelve a verse como en proceso.
+    expect(await within(region).findByText(PROCESANDO)).toBeInTheDocument();
+    expect(within(region).queryByText(SIN_ACTUALIZAR)).toBeNull();
+    // Pidió de inmediato y la ventana nueva sigue sondeando por su cuenta.
+    await waitFor(() =>
+      expect(getDetalle(espia).length).toBeGreaterThanOrEqual(antes + 3),
+    );
+    // La ventana nueva también vence.
+    expect(await within(region).findByText(SIN_ACTUALIZAR)).toBeInTheDocument();
+    espia.detener();
+  });
+
+  it('si la carga termina antes del tope no hay aviso ni botón: manda el resultado (11.4)', async () => {
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    const region = regionDe(CFDI);
+    await within(region).findByText(PROCESANDO);
+    almacenes.cargas.avanzar(
+      idDeLaUltima(),
+      'con_errores',
+      parcheDe(detalleCfdiConErrores()),
+    );
+    await within(region).findByText(
+      resumen('1 nuevos, 1 ya existían, 1 con error.'),
+    );
+    expect(botonActualizar()).toBeNull();
+    expect(within(region).queryByText(SIN_ACTUALIZAR)).toBeNull();
+  });
+
+  it('con la pestaña oculta no pide solo y al volver sigue (11.6)', async () => {
+    const espia = espiarSolicitudes();
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    await within(regionDe(CFDI)).findByText(PROCESANDO);
+    await waitFor(() => expect(getDetalle(espia).length).toBeGreaterThan(1));
+    act(() => focusManager.setFocused(false));
+    // Deja pasar una petición en vuelo antes de medir.
+    await esperarIntervalos(3);
+    const congeladas = getDetalle(espia).length;
+    await esperarIntervalos(5);
+    expect(getDetalle(espia)).toHaveLength(congeladas);
+    act(() => focusManager.setFocused(true));
+    await waitFor(() =>
+      expect(getDetalle(espia).length).toBeGreaterThan(congeladas),
+    );
+    espia.detener();
+  });
+
+  it('un sondeo del panel que falla no borra el panel ni pinta una alerta (11.9)', async () => {
+    servidor.use(detalleFalla(500));
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    const region = regionDe(CFDI);
+    await within(region).findByText(PROCESANDO);
+    await esperarIntervalos(4);
+    expect(within(region).getByText(PROCESANDO)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('desmontado con el panel activo no queda ningún temporizador pidiendo (11.8)', async () => {
+    const espia = espiarSolicitudes();
+    const errores = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const { unmount } = montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    await within(regionDe(CFDI)).findByText(PROCESANDO);
+    await waitFor(() => expect(getDetalle(espia).length).toBeGreaterThan(1));
+    unmount();
+    // Una petición ya en vuelo puede terminar; las siguientes no deben salir.
+    await esperarIntervalos(3);
+    const tras = getDetalle(espia).length;
+    const lista = espia.cuantas('GET', '/api/cargas');
+    await esperarIntervalos(5);
+    expect(getDetalle(espia)).toHaveLength(tras);
+    expect(espia.cuantas('GET', '/api/cargas')).toBe(lista);
+    expect(errores).not.toHaveBeenCalled();
+    errores.mockRestore();
+    espia.detener();
+  });
+
+  it('un sondeo pendiente cuando cambia la época se ignora (11.7)', async () => {
+    const compuerta = crearCompuerta();
+    let epoca = 1;
+    const sesion = (): SessionState =>
+      ({ ...sesionConRoles(['admin']), epoca }) as SessionState;
+    const { rerender } = montar(['admin'], POLLING_HOLGADO, sesion);
+    await esperarPerfiles();
+    await subirXml();
+    await within(regionDe(CFDI)).findByText(PROCESANDO);
+    // El detalle queda retenido: hay un sondeo pendiente al cambiar de época.
+    almacenes.cargas.compuertas({ detalle: compuerta.promesa });
+    await esperarIntervalos(3);
+    epoca = 2;
+    rerender(<CargasContenedor />);
+    await waitFor(() => expect(regionDe(CFDI)).toBeEmptyDOMElement());
+    almacenes.cargas.avanzar(
+      idDeLaUltima(),
+      'con_errores',
+      parcheDe(detalleCfdiConErrores()),
+    );
+    compuerta.abrir();
+    await esperarIntervalos(4);
+    expect(regionDe(CFDI)).toBeEmptyDOMElement();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

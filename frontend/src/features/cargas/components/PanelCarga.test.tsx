@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import { PanelCarga, type PanelCargaProps } from './PanelCarga';
 
 const BASE: PanelCargaProps = {
@@ -129,5 +130,33 @@ describe('PanelCarga', () => {
     );
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
     expect(screen.queryByText('ruido')).toBeNull();
+  });
+  it('en curso con el tope vencido: el aviso con Actualizar reemplaza la barra de proceso (mockup resultado_sin_actualizar)', async () => {
+    const alActualizar = vi.fn();
+    render(
+      <PanelCarga
+        {...BASE}
+        vista="en_curso"
+        resultados={[]}
+        alActualizar={alActualizar}
+      />,
+    );
+    expect(
+      screen.getByText('La lista dejó de actualizarse.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Procesando la carga…')).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Actualizar' }));
+    expect(alActualizar).toHaveBeenCalledTimes(1);
+  });
+
+  it('con el tope vencido pero ya terminada: el resultado manda, sin aviso ni botón', () => {
+    render(<PanelCarga {...BASE} alActualizar={() => undefined} />);
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: 'Actualizar' })).toBeNull();
+  });
+
+  it('en curso sin tope vencido: nunca hay botón Actualizar (K5)', () => {
+    render(<PanelCarga {...BASE} vista="en_curso" resultados={[]} />);
+    expect(screen.queryByRole('button', { name: 'Actualizar' })).toBeNull();
   });
 });

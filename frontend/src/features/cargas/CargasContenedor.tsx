@@ -41,6 +41,9 @@ import { derivarPanel, mensajeYaExistia, puedeSubir } from './vista';
  * para poder reintentar y deja una alerta en la tarjeta que subió, con el foco;
  * un éxito, incluido un lote que ya existía, los limpia. Una subida nueva quita
  * la alerta anterior.
+ *
+ * Al vencer el tope del polling, una carga aún activa cambia su barra de
+ * proceso por el aviso con «Actualizar» (K5).
  */
 export function CargasContenedor() {
   const sesion = useSessionContext();
@@ -50,7 +53,8 @@ export function CargasContenedor() {
   // La carga recién subida: la reemplaza la siguiente subida con éxito y no
   // hay forma de descartarla (M13).
   const [panel, setPanel] = useState<PanelSubida | null>(null);
-  const { panelDatos, iniciarVentana } = usePollingCargas(panel);
+  const { panelDatos, iniciarVentana, capada, actualizar } =
+    usePollingCargas(panel);
   // El último fallo de subida y la tarjeta en que ocurrió. Guarda la época:
   // la alerta de otra sesión no se muestra (CRG-9).
   const [fallo, setFallo] = useState<{
@@ -106,6 +110,7 @@ export function CargasContenedor() {
           error: panelDatos.registrosError,
         }}
         resultados={panelDatos.resultados}
+        alActualizar={capada ? actualizar : undefined}
       />
     );
 
