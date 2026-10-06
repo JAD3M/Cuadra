@@ -800,7 +800,7 @@ CU-20 a CU-26 están en Jira; solo CU-19 los lleva en este archivo.
 | ID | Historia | Pts | Día | Jira | Qué entrega |
 |---|---|---|---|---|---|
 | CU-22 | Bandeja de revisión en pantalla | 5 | 5 oct | KAN-100 | La bandeja de revisión (CU-14) en la interfaz, con `GET /bandeja/resumen` para los indicadores y el contador de la barra lateral. Integrada a `master` el 5 oct y probada en el navegador por el usuario |
-| CU-23 | Detalle y resolución de un caso en pantalla | 5 | 5 oct | KAN-101 | El detalle del caso y su resolución (CU-15) en la interfaz, con `GET /casos/:movimientoId` (movimiento, propuestas, CFDI y tolerancia en una sola lectura). Integrada a `master` el 6 oct; comprobaciones manuales en el navegador pendientes |
+| CU-23 | Detalle y resolución de un caso en pantalla | 5 | 5 oct | KAN-101 | El detalle del caso y su resolución (CU-15) en la interfaz, con `GET /casos/:movimientoId` (movimiento, propuestas, CFDI y tolerancia en una sola lectura). Integrada a `master` el 6 oct y probada en el navegador por el usuario |
 
 ### Épica H · Cargas y control — KAN-106 · 10 pts
 

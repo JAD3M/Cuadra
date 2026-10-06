@@ -10,8 +10,9 @@
   carga, y 11, ajustes de la verificación: valores del dominio tipados desde
   el espejo con escaneo de literales y la guarda de inyección restaurada),
   sin push ni PR. KAN-101 pasa a Finalizado. Con CU-22 y CU-23 la épica G
-  queda completa: 23 de 26 historias y 89 de 99 puntos. Siguen pendientes las
-  comprobaciones manuales en el navegador contra la maqueta v20.
+  queda completa: 23 de 26 historias y 89 de 99 puntos; KAN-105 pasa a
+  Finalizado. El usuario probó el detalle del caso en el navegador y quedó
+  correcto. Arranca la épica H (KAN-106) con CU-24 (KAN-102).
 - **Comprobación en vivo de `GET /casos/:movimientoId`** contra el API de
   desarrollo (el contenedor recargó solo con `--watch`), con un usuario de la
   demo en Ferretería: un caso de la bandeja responde 200 con estado
