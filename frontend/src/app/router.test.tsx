@@ -259,10 +259,14 @@ describe('guardas en el árbol de rutas', () => {
   it('la galería no pasa por ninguna guarda', async () => {
     const router = renderizar('/__kit', rutas, ESTADOS.anonymous);
     expect(
-      await screen.findByRole('heading', {
-        level: 1,
-        name: 'Galería de componentes',
-      }),
+      // La galería se carga con `import()` diferido y arrastra los módulos de
+      // todas las pantallas: la primera importación en el worker es lenta
+      // bajo carga de CPU, aunque la ruta funcione.
+      await screen.findByRole(
+        'heading',
+        { level: 1, name: 'Galería de componentes' },
+        { timeout: 10_000 },
+      ),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/__kit');
   });

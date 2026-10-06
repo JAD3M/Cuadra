@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { expect } from 'vitest';
 import { createMemoryRouter, type InitialEntry } from 'react-router';
 import { App } from '@/App';
 import { rutas } from '@/app/router';
@@ -43,4 +44,17 @@ export async function entrarALaApp(nombre: RegExp | string = /Ferreteria/) {
   await enviarLogin();
   await elegirEmpresaPorNombre(nombre);
   await screen.findByRole('banner');
+}
+
+/**
+ * Espera a que la bandeja termine su primera carga (tabla y resumen). Desde
+ * CU-22 entrar a `/bandeja` dispara peticiones: una prueba que espía las
+ * solicitudes posteriores debe empezar después de ellas, o bajo carga de CPU
+ * las cuenta como si fueran suyas.
+ */
+export async function esperarBandejaCargada() {
+  await screen.findByText(/^Mostrando \d/);
+  await waitFor(() =>
+    expect(document.querySelector('[aria-busy="true"]')).toBeNull(),
+  );
 }

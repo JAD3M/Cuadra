@@ -54,10 +54,14 @@ describe('App', () => {
   it('muestra la galería en /__kit cuando es desarrollo', async () => {
     montar('/__kit');
     expect(
-      await screen.findByRole('heading', {
-        level: 1,
-        name: 'Galería de componentes',
-      }),
+      // La galería se carga con `import()` diferido y arrastra los módulos de
+      // todas las pantallas: la primera importación en el worker es lenta
+      // bajo carga de CPU, aunque la ruta funcione.
+      await screen.findByRole(
+        'heading',
+        { level: 1, name: 'Galería de componentes' },
+        { timeout: 10_000 },
+      ),
     ).toBeInTheDocument();
   });
 });

@@ -20,6 +20,7 @@ import {
   elegirEmpresaPorNombre,
   entrarALaApp,
   enviarLogin,
+  esperarBandejaCargada,
   montarApp,
 } from '@/test/montarApp';
 import { servidor } from '@/test/servidor';
@@ -157,6 +158,7 @@ describe('flujos: fin de sesión', () => {
   it('con la sesión abierta no hay avisos, cuenta regresiva ni renovación tras 14 minutos de inactividad', async () => {
     const { router } = montarApp('/bandeja');
     await entrarALaApp();
+    await esperarBandejaCargada();
     espia = espiarSolicitudes();
 
     vi.useFakeTimers();
@@ -174,6 +176,7 @@ describe('flujos: cerrar sesión', () => {
   it('es local: sin peticiones, sin hablar de revocación y con el aviso', async () => {
     const { router } = montarApp('/bandeja');
     await entrarALaApp();
+    await esperarBandejaCargada();
     espia = espiarSolicitudes();
 
     await userEvent.setup().click(cerrarSesion());
