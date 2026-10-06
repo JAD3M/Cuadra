@@ -13,7 +13,7 @@ import {
   subidaRedDeFallo,
 } from '@/test/handlersCargas';
 import { clienteDePruebas, sesionConEpoca } from '@/test/montarBandeja';
-import { envolturaCargas, esperar } from '@/test/montarCargas';
+import { envolturaCargas, esperarIntervalos } from '@/test/montarCargas';
 import { servidor } from '@/test/servidor';
 import { clavesCargas } from './claves';
 import { useSubirCarga, type PeticionSubida } from './useSubirCarga';
@@ -252,21 +252,29 @@ describe('useSubirCarga', () => {
       enviado = result.current.subir(cfdi());
     });
     expect(enviado).toBe(false);
-    await esperar(30);
+    await esperarIntervalos();
+    expect(result.current.isPending).toBe(false);
     expect(almacenes.cargas.subidas()).toHaveLength(0);
   });
 
   it('tras desmontar no se llama a nada de la pantalla', async () => {
     const compuerta = crearCompuerta();
     almacenes.cargas.compuertas({ subida: compuerta.promesa });
-    const { subir, unmount, alExito } = montar();
+    const { subir, unmount, alExito, cliente } = montar();
     act(() => {
       subir(cfdi());
     });
     await waitFor(() => expect(almacenes.cargas.subidas()).toHaveLength(1));
     unmount();
     compuerta.abrir();
-    await esperar(40);
+    // Control positivo: la mutación SÍ terminó (el servidor respondió y el
+    // cliente la procesó); aun así la pantalla desmontada no se enteró.
+    await waitFor(() =>
+      expect(cliente.getMutationCache().getAll()[0]?.state.status).toBe(
+        'success',
+      ),
+    );
+    await esperarIntervalos();
     expect(alExito).not.toHaveBeenCalled();
   });
 });

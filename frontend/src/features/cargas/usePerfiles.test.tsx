@@ -4,7 +4,7 @@ import { PERFILES } from '@/test/fixturesCargas';
 import { espiarSolicitudes } from '@/test/handlersAuth';
 import { perfilesFalla } from '@/test/handlersCargas';
 import { clienteDePruebas, sesionConEpoca } from '@/test/montarBandeja';
-import { esperar, envolturaCargas } from '@/test/montarCargas';
+import { esperarIntervalos, envolturaCargas } from '@/test/montarCargas';
 import { servidor } from '@/test/servidor';
 import { clavesCargas } from './claves';
 import { VIGENCIA_PERFILES_MS } from './constantes';
@@ -37,7 +37,8 @@ describe('usePerfiles', () => {
     const segundo = renderHook(() => usePerfiles(), {
       wrapper: envolturaCargas(cliente),
     });
-    await esperar(30);
+    await esperarIntervalos();
+    expect(segundo.result.current.isFetching).toBe(false);
     expect(segundo.result.current.data).toEqual(PERFILES);
     expect(espia.cuantas('GET', '/api/bancos/perfiles')).toBe(1);
     espia.detener();
@@ -77,7 +78,7 @@ describe('usePerfiles', () => {
         restaurarOrigen: false,
       })),
     });
-    await esperar(30);
+    await esperarIntervalos();
     expect(result.current.fetchStatus).toBe('idle');
     expect(espia.solicitudes).toHaveLength(0);
     espia.detener();
