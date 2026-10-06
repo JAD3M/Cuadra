@@ -81,12 +81,9 @@ describe('manejadores de lectura de cargas', () => {
   });
 });
 
-// Estas pruebas leen un multipart real con `request.formData()`. En jsdom el
-// `File` del navegador no lo acepta el parser de undici (aserción
-// `webidl.is.File`), así que quedan en pausa hasta el spike de FormData de S2
-// (tarea 2.1), que decide si `setup.ts` restaura `File`/`Blob`/`FormData`
-// nativos. Al resolverlo se cambia `describe.skip` por `describe`.
-describe.skip('POST de subida con estado (requiere el spike de FormData, S2)', () => {
+// Estas pruebas leen un multipart real con `request.formData()`; dependen de
+// que `setup.ts` restaure `File`/`Blob`/`FormData` nativos (spike M18, ADR-6).
+describe('POST de subida con estado', () => {
   it('cfdi nuevo: 202 pendiente, la carga aparece primera en la lista y se registra la subida', async () => {
     const { status, cuerpo } = await pedir('/cargas/cfdi', {
       method: 'POST',

@@ -25,6 +25,41 @@ globalThis.fetch = (entrada, opciones) => {
   return fetchNode(entrada, opciones);
 };
 
+// Spike M18 / ADR-6. El parser multipart de undici (`request.formData()` en los
+// manejadores de MSW) construye sus partes con el `File` global y comprueba su
+// marca; con el `File` de jsdom falla (`webidl.is.File`) y MSW responde 500.
+// Se restauran `File`, `Blob` y `FormData` nativos solo para las pruebas:
+// `File` y `Blob` de `node:buffer` (por `process.getBuiltinModule`, así `src`
+// no necesita los tipos de Node) y `FormData` la clase que produce una
+// `Response` nativa. Los globales de jsdom son accesores que escriben en su
+// `window`, y Vitest usa `window.Blob`/`window.FormData` para reconocer lo que
+// debe convertir; por eso se redefinen como propiedades propias en vez de
+// asignarse. `userEvent.upload` solo necesita un `File`, que el nativo cumple.
+const { Blob: BlobNativo, File: FileNativo } = (
+  globalThis as unknown as {
+    process: {
+      getBuiltinModule(id: 'node:buffer'): {
+        Blob: typeof Blob;
+        File: typeof File;
+      };
+    };
+  }
+).process.getBuiltinModule('node:buffer');
+const formularioNativo = await new Response('a=1', {
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+}).formData();
+for (const [nombre, valor] of [
+  ['Blob', BlobNativo],
+  ['File', FileNativo],
+  ['FormData', formularioNativo.constructor],
+] as const) {
+  Object.defineProperty(globalThis, nombre, {
+    value: valor,
+    writable: true,
+    configurable: true,
+  });
+}
+
 // Toda petición sin manejador falla la prueba: nada sale a la red real.
 beforeAll(() => {
   servidor.listen({ onUnhandledRequest: 'error' });
