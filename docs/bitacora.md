@@ -5,9 +5,10 @@
 
 ### 5 oct 2026
 
-- **CU-22 terminado: bandeja de revisión en pantalla (KAN-100). Pendiente de
-  integrar a `master`:** las ramas siguen apiladas y locales, sin push, sin
-  PR y sin merge; con ella irían 22 de 26 historias y 84 de 99 puntos. Las
+- **CU-22 terminado: bandeja de revisión en pantalla (KAN-100). Integrado a
+  `master` el 5 oct** por avance rápido de la cadena hasta
+  `feat/cu-22-15-orden-chips`, sin push ni PR; quedan 22 de 26 historias y
+  84 de 99 puntos, y KAN-100 pasa a Finalizado. Las
   comprobaciones manuales en el navegador contra los mockups **siguen
   pendientes** (lista abajo); jsdom no mide diseño, desbordes, foco visible ni
   contraste real. Lo entregado:
