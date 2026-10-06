@@ -97,6 +97,19 @@ const PARES: Par[] = [
   // (muted, text y text-secondary sobre surface e inset, danger-text del
   // botón de rechazar) ya están arriba.
   ['--color-danger-title', '--color-surface'],
+  // Detalle del caso (CU-23), banner de la resolución: título y detalle sobre
+  // el fondo de la baldosa de cada estado (confirmado = conciliado, rechazado
+  // = sin match).
+  ['--estado-conciliado-text', '--estado-conciliado-tile-bg'],
+  ['--color-text-secondary', '--estado-conciliado-tile-bg'],
+  ['--estado-sin-match-text', '--estado-sin-match-tile-bg'],
+  ['--color-text-secondary', '--estado-sin-match-tile-bg'],
+  // Alertas y estados de error del caso: título, detalle y texto del bloque
+  // «No encontramos este caso» (la alerta reutiliza AlertaError).
+  ['--color-danger-title', '--color-danger-tint'],
+  ['--color-text-soft', '--color-danger-tint'],
+  ['--color-text', '--color-ground'],
+  ['--color-text-soft', '--color-ground'],
 ];
 
 /** Indicadores no textuales (foco y enlaces): mínimo 3:1. */
@@ -114,6 +127,11 @@ const PARES_NO_TEXTO: Par[] = [
     // fondo del control.
     ['--color-danger-text', '--color-inset'],
     ['--color-accent', '--color-inset'],
+    // Anillo de foco del banner (se enfoca al terminar la resolución) y de la
+    // alerta de error sobre sus fondos propios.
+    ['--color-accent', '--estado-conciliado-tile-bg'],
+    ['--color-accent', '--estado-sin-match-tile-bg'],
+    ['--color-accent', '--color-danger-tint'],
   ]);
 
 const TEMAS: Tema[] = ['dark', 'light'];
