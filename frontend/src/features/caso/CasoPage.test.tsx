@@ -1177,4 +1177,115 @@ describe('CasoPage', () => {
       });
     });
   });
+
+  describe('estructura e inventario de solicitudes', () => {
+    it('los títulos de sección son h2: descripción, Propuestas, Tu decisión e Historial', async () => {
+      const caso = servir(casoVarias());
+      servirHistorial();
+      montar(caso.movimiento.id);
+      await screen.findByRole('heading', { level: 2, name: 'Tu decisión' });
+      const nombres = screen
+        .getAllByRole('heading', { level: 2 })
+        .map((h) => h.textContent);
+      expect(nombres).toEqual([
+        caso.movimiento.descripcion,
+        'Propuestas',
+        'Tu decisión',
+        'Historial',
+      ]);
+      expect(screen.queryByRole('heading', { level: 1 })).toBeNull();
+    });
+
+    it('el historial es una lista ordenada y las propuestas colapsadas una lista', async () => {
+      const caso = servir(casoVarias());
+      servirHistorial();
+      montar(caso.movimiento.id);
+      await screen.findByRole('heading', { level: 2, name: 'Historial' });
+      const lista = await screen.findAllByRole('list');
+      expect(lista.some((l) => l.tagName === 'OL')).toBe(true);
+      expect(lista.some((l) => l.tagName === 'UL')).toBe(true);
+    });
+
+    it('el orden de tabulación sigue la maqueta: enlace, motivo, confirmar, rechazar y filas', async () => {
+      const caso = servir(casoVarias());
+      servirHistorial();
+      montar(caso.movimiento.id);
+      await screen.findByRole('heading', { level: 2, name: 'Tu decisión' });
+      await screen.findByText('Esperando decisión');
+      const usuario = userEvent.setup();
+      const visitados: string[] = [];
+      for (let i = 0; i < 6; i += 1) {
+        await usuario.tab();
+        const activo = document.activeElement;
+        if (!(activo instanceof HTMLElement) || activo === document.body) break;
+        visitados.push(
+          activo instanceof HTMLTextAreaElement
+            ? 'campo del motivo'
+            : (activo.textContent ?? ''),
+        );
+      }
+      expect(visitados).toEqual([
+        '← Volver a la bandeja',
+        'campo del motivo',
+        '✓ Confirmar conciliación A-1001',
+        '✕ Rechazar A-1001',
+        'Ver propuesta A-1002',
+        'Ver propuesta A-1003',
+      ]);
+      // Tras la última fila no queda nada enfocable: el historial sano no
+      // tiene elementos interactivos.
+      await usuario.tab();
+      expect(document.activeElement).toBe(document.body);
+    });
+
+    it('un flujo completo solo pide los cuatro endpoints y el POST es el único no GET', async () => {
+      const caso = servir(casoVarias());
+      servirHistorial();
+      servidor.use(
+        http.post('/api/conciliaciones/:id/:accion', () =>
+          HttpResponse.json({
+            id: idDe(5001),
+            estado: 'confirmada',
+            cfdiId: idDe(7001),
+            movimientoId: caso.movimiento.id,
+            motivo: null,
+            confirmadaAt: '2026-10-05T10:00:00.000Z',
+            rechazadasAutomaticamente: [],
+          }),
+        ),
+      );
+      const espia = espiarSolicitudes();
+      try {
+        montar(caso.movimiento.id);
+        await screen.findByRole('heading', { level: 2, name: 'Tu decisión' });
+        const usuario = userEvent.setup();
+        await usuario.click(
+          screen.getByRole('button', { name: 'Ver propuesta A-1002' }),
+        );
+        await usuario.click(
+          await screen.findByRole('button', {
+            name: 'Confirmar conciliación A-1002',
+          }),
+        );
+        await screen.findByText(
+          'Conciliación confirmada. El movimiento y el CFDI quedan cerrados.',
+        );
+      } finally {
+        espia.detener();
+      }
+      const permitidas = [
+        /^GET \/api\/casos\/[^/]+$/,
+        /^GET \/api\/conciliaciones\/[^/]+\/historial$/,
+        /^POST \/api\/conciliaciones\/[^/]+\/(confirmar|rechazar)$/,
+      ];
+      const vistas = espia.solicitudes.map((s) => `${s.metodo} ${s.ruta}`);
+      expect(vistas.length).toBeGreaterThan(0);
+      for (const v of vistas) {
+        expect(permitidas.some((p) => p.test(v))).toBe(true);
+      }
+      expect(espia.solicitudes.filter((s) => s.metodo !== 'GET')).toHaveLength(
+        1,
+      );
+    });
+  });
 });
