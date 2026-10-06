@@ -24,6 +24,8 @@ export interface PanelDecisionProps {
   motivoLargoServidor?: boolean;
   /** El motivo cambió: el contenedor limpia el 400 del servidor. */
   onEditarMotivo?: () => void;
+  /** Texto con el que arranca el campo (la galería muestra el exceso de largo). */
+  motivoInicial?: string;
 }
 
 /**
@@ -42,8 +44,9 @@ export function PanelDecision({
   deshabilitado = false,
   motivoLargoServidor = false,
   onEditarMotivo,
+  motivoInicial = '',
 }: PanelDecisionProps) {
-  const [motivo, setMotivo] = useState('');
+  const [motivo, setMotivo] = useState(motivoInicial);
   const titulo = useId();
   const campo = useRef<HTMLTextAreaElement>(null);
   const excede = excedeLimite(motivo);

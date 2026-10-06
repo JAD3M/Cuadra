@@ -216,6 +216,21 @@ describe('PanelDecision', () => {
     });
   });
 
+  describe('motivo inicial', () => {
+    it('arranca con el texto dado: el contador lo cuenta y, pasado el límite, el campo es inválido', () => {
+      dibujar({ motivoInicial: 'x'.repeat(512) });
+      expect(campo()).toHaveValue('x'.repeat(512));
+      expect(screen.getByText('512 / 500')).toBeInTheDocument();
+      expect(campo()).toHaveAttribute('aria-invalid', 'true');
+    });
+
+    it('sin motivo inicial el campo arranca vacío', () => {
+      dibujar();
+      expect(campo()).toHaveValue('');
+      expect(screen.getByText('0 / 500')).toBeInTheDocument();
+    });
+  });
+
   it('cualquier usuario ve los controles habilitados: el panel no conoce el rol', () => {
     dibujar();
     expect(confirmar()).toBeEnabled();
