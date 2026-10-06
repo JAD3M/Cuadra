@@ -55,11 +55,30 @@
 - **Verificación de CU-23**, observada en `feat/cu-23-09-kit-docs`: en
   `frontend/`, 144 archivos y 2,287 pruebas en verde; typecheck, lint, formato,
   build y `verificar:dist` limpios. En la raíz, typecheck limpio y, con
-  Postgres y Redis activos, 38 suites con 820 pruebas del backend en verde. En
-  S8 (144 archivos y 2,277 pruebas) se corrió la suite completa dos veces en
-  paralelo, cuatro veces seguidas (8 corridas): 0 fallos, sin ninguna prueba
-  intermitente. Lint de la raíz: un error y una advertencia que ya existen en
-  `master` y que esta historia no toca (ver pendientes).
+  Postgres y Redis activos, 38 suites con 820 pruebas del backend en verde.
+  Lint de la raíz: un error y una advertencia que ya existen en `master` y que
+  esta historia no toca (ver pendientes).
+- **Pruebas intermitentes bajo carga (6 oct), rama
+  `feat/cu-23-10-tiempos-pruebas`.** Con la máquina cargada (carga media de 18
+  a 25 en 12 núcleos), la suite con dos corridas en paralelo fallaba de 9 a 23
+  pruebas por corrida. `master` fallaba igual (8 a 11, las mismas pruebas), así
+  que no lo introdujo CU-23. Causas y arreglos, ninguno en código de
+  producción:
+  - `router.navigate` fuera de `act`: el enrutador aplica la navegación en
+    una transición de React y el sondeo de `waitFor` con `getByText` la dejaba
+    sin turno hasta agotar el tiempo (se vio con sondas). Ahora las
+    navegaciones de las pruebas van dentro de `act` (40df486, e33d7ab).
+  - Retrasos fijos de 80 ms para mirar el estado en vuelo o el cambio de
+    época: la respuesta se retiene a mano y se espera a que la mutación
+    termine (e33d7ab).
+  - Dos flujos de sesión empezaban a espiar peticiones antes de que la bandeja
+    terminara su carga inicial; ahora la esperan. La galería `/__kit`, que se
+    importa diferida, tiene su propio margen de 10 s (c79b52f).
+  - Flujos que montan la app completa: de 1.5 a 2.6 s aislados con la máquina
+    cargada; el límite por prueba sube a 15 s y la espera de `findBy` y
+    `waitFor` a 3 s (ac823b6). Un cuelgue real sigue fallando.
+  - Resultado: 8 corridas (cuatro rondas de dos suites en paralelo) con las
+    2,287 pruebas en verde, con la máquina igual de cargada.
 - **Decisiones de CU-23** (D-01 a D-09, aceptadas por el usuario): un agregado
   nuevo `GET /casos/:movimientoId` con pruebas de integración (D-01); el rol
   revisor puede confirmar y rechazar, como permite el backend, sin aviso de
