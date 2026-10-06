@@ -1,5 +1,12 @@
-import { ROLES_QUE_CARGAN } from '@/shared/dominio';
+import {
+  ROLES_QUE_CARGAN,
+  TIPO_CFDI,
+  esActiva,
+  type EstadoCarga,
+  type TipoCarga,
+} from '@/shared/dominio';
 import { clasificarErrorLectura } from './errores';
+import { YA_EXISTIA_EN_COLA, YA_EXISTIA_TERMINADA } from './textos';
 
 // Derivación pura de lo que la pantalla de cargas muestra. Nada se guarda: la
 // vista sale siempre de lo que respondió el servidor.
@@ -44,3 +51,51 @@ export function vistaHistorial({
  */
 export const puedeSubir = (roles: readonly string[]): boolean =>
   ROLES_QUE_CARGAN.some((rol) => roles.includes(rol));
+
+/**
+ * Qué muestra el panel de la carga recién subida. Los nombres evitan los
+ * literales de dominio que la prueba de espejo prohíbe en el código de la
+ * pantalla.
+ *  - `en_curso`: el servidor aún trabaja (pendiente o procesando).
+ *  - `por_archivo`: terminó un lote de CFDI; se lista cada archivo.
+ *  - `por_fila`: terminó un estado de cuenta; se listan las filas con error.
+ *  - `sin_proceso`: la carga falló; no hay lista.
+ */
+export type VistaPanel =
+  'ninguno' | 'en_curso' | 'por_archivo' | 'por_fila' | 'sin_proceso';
+
+export interface EntradaPanel {
+  /** La carga recién subida; `null` si aún no hay. */
+  panel: { tipo: TipoCarga; epoca: number } | null;
+  /** Lo último que se sabe de esa carga (el detalle o, si no, el POST). */
+  datos: { estado: EstadoCarga } | null;
+  /** La época vigente de la sesión. */
+  epoca: number | null;
+}
+
+/**
+ * Vista del panel de resultado. Un panel de otra época no se muestra: nada de
+ * lo que subió otra empresa o sesión aparece en la actual (CRG-9).
+ */
+export function derivarPanel({
+  panel,
+  datos,
+  epoca,
+}: EntradaPanel): VistaPanel {
+  if (panel === null || datos === null) return 'ninguno';
+  if (epoca === null || panel.epoca !== epoca) return 'ninguno';
+  if (esActiva(datos.estado)) return 'en_curso';
+  if (datos.estado === 'fallida') return 'sin_proceso';
+  return panel.tipo === TIPO_CFDI ? 'por_archivo' : 'por_fila';
+}
+
+/**
+ * K7: qué decir de una carga que ya existía. Lo decide el estado que devolvió
+ * el servidor, no si respondió 200 o 202: terminada, no se duplicó nada; en
+ * cola o fallida, se volvió a poner en la cola.
+ */
+export function mensajeYaExistia(estado: EstadoCarga): readonly string[] {
+  return estado === 'procesada' || estado === 'con_errores'
+    ? YA_EXISTIA_TERMINADA
+    : YA_EXISTIA_EN_COLA;
+}

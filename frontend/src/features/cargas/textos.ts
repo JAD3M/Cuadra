@@ -10,6 +10,7 @@ export {
   ERROR_SIN_PERMISO,
   REINTENTAR,
 } from '@/features/bandeja/textos';
+import type { ResultadoArchivo } from '@/shared/dominio';
 import type { MotivoRechazo } from './seleccion';
 
 export const TITULO_DOCUMENTO = 'Cargas · Cuadra';
@@ -124,3 +125,47 @@ export const AYUDA_CUENTA =
   'Escribe solo los últimos dígitos. No hace falta el número completo.';
 export const AVISO_CUENTA_COMPLETA =
   'Parece un número de cuenta completo. Escribe solo los últimos dígitos.';
+
+/** Resultado de una carga recién subida (mockup v23: resultado_cfdi, resultado_csv, procesando_resultado, resultado_fallida, ya_existia). */
+export const PROCESANDO_CARGA = 'Procesando la carga…';
+
+/** Falla de la carga: el aviso fijo del mockup; el mensaje del servidor va aparte. */
+export const CARGA_FALLIDA =
+  'La carga falló por un problema del sistema. Vuelve a subir el archivo para reintentar.';
+
+/** Resumen de un CFDI: «{ok} nuevos, {existentes} ya existían, {error} con error.» (cifras aparte). */
+export const RESUMEN_CFDI = {
+  nuevos: 'nuevos,',
+  existentes: 'ya existían,',
+  conError: 'con error.',
+} as const;
+
+/** Resumen de un estado de cuenta: «{ok} registros cargados, {error} con error.» */
+export const RESUMEN_ESTADO_CUENTA = {
+  registros: 'registros cargados,',
+  conError: 'con error.',
+} as const;
+
+/** Nombres accesibles de las listas del resultado. */
+export const LISTA_RESULTADO_ARCHIVOS = 'Resultado por archivo';
+export const LISTA_FILAS_CON_ERROR = 'Filas con error';
+
+/** Estado de cada archivo en el resultado de un CFDI (texto, nunca solo color). */
+export const ESTADO_DE_ARCHIVO = {
+  nuevo: 'Nuevo',
+  ya_existia: 'Ya existía',
+  error: 'Con error',
+} as const satisfies Record<ResultadoArchivo, string>;
+
+/** «Fila 14: motivo». `fila` es la línea física del archivo (el encabezado es la 1). */
+export const textoDeFila = (fila: number, motivo: string): string =>
+  `Fila ${fila}: ${motivo}`;
+
+/** K7: una carga que ya existía; la frase depende del estado devuelto. */
+export const YA_EXISTIA_TERMINADA = [
+  'Este archivo ya se había cargado.',
+  'No se duplicó nada.',
+] as const;
+export const YA_EXISTIA_EN_COLA = [
+  'Este archivo ya se había cargado y se volvió a poner en la cola.',
+] as const;
