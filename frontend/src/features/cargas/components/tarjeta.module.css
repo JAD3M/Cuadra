@@ -1,0 +1,86 @@
+/* Tarjeta de subida (Cargas.dc.html: .card, .lbl, .hint). Solo tokens de rol. */
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-18);
+  min-inline-size: 0;
+  padding: var(--space-24);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+}
+
+.rotulo {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label-wide);
+  text-transform: uppercase;
+}
+
+.rotuloCfdi {
+  color: var(--color-link);
+}
+
+.rotuloCsv {
+  color: var(--estado-sin-match-text);
+}
+
+.icono {
+  color: var(--color-accent);
+}
+
+.zonaTitulo {
+  color: var(--color-text);
+  font-size: var(--text-xl);
+}
+
+.zonaDetalle {
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+}
+
+.ayuda {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.resumen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4) var(--space-12);
+  color: var(--color-text-soft);
+  font-size: var(--text-md);
+}
+
+.rejilla {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-14);
+}
+
+.ancha {
+  grid-column: span 2;
+}
+
+.elegir {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+}
+
+.nota {
+  margin: auto 0 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
