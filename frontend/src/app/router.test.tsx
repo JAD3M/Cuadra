@@ -60,6 +60,15 @@ function renderizar(
   return router;
 }
 
+/** El anuncio del cambio de página: la región de estado fuera de `main`. */
+function anuncioDeRuta(): HTMLElement {
+  const fuera = screen
+    .getAllByRole('status')
+    .filter((region) => region.closest('main') === null);
+  expect(fuera).toHaveLength(1);
+  return fuera[0] as HTMLElement;
+}
+
 describe('tabla de rutas', () => {
   it('/bandeja muestra la pantalla real con su título y subtítulo', () => {
     renderizar('/bandeja');
@@ -142,8 +151,10 @@ describe('tabla de rutas', () => {
   it('/casos/:movimientoId no interpreta el id como marcado', async () => {
     renderizar('/casos/%3Cb%3Ex%3C%2Fb%3E');
     await waitFor(() => expect(screen.queryByText('Cargando caso')).toBeNull());
-    expect(screen.queryByText('<b>x</b>')).toBeNull();
-    expect(document.querySelector('main b')).toBeNull();
+    // El id nunca llega al DOM: ni como texto ni como un elemento inyectado.
+    expect(document.body.querySelector('b')).toBeNull();
+    expect(document.body.innerHTML).not.toContain('<b>');
+    expect(document.body.textContent).not.toContain('x</b>');
   });
 
   it('/ redirige a /bandeja', () => {
@@ -288,12 +299,9 @@ describe('título y anuncio del cambio de página', () => {
     await waitFor(() =>
       expect(document.title).toBe('Detalle del caso · Cuadra'),
     );
-    // El detalle puede sumar su propia región de espera mientras carga.
-    expect(
-      screen
-        .getAllByRole('status')
-        .some((r) => r.textContent === 'Detalle del caso'),
-    ).toBe(true);
+    // El detalle suma su propia región de espera dentro de main; el anuncio
+    // del cambio de página es la única región de estado fuera de él.
+    expect(anuncioDeRuta()).toHaveTextContent(/^Detalle del caso$/);
   });
 
   it('la región de anuncio no es un landmark', () => {
