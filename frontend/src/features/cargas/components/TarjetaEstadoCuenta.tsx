@@ -1,4 +1,4 @@
-import { useId, type Ref } from 'react';
+import { useId, type ReactNode, type Ref } from 'react';
 import {
   REGLAS_ESTADO_CUENTA,
   evaluarSeleccion,
@@ -14,7 +14,7 @@ import { Button } from '@/shared/ui/Button';
 import { CampoCuenta } from './CampoCuenta';
 import { CampoPerfil } from './CampoPerfil';
 import { ListaArchivos } from './ListaArchivos';
-import { RegionSubida } from './RegionSubida';
+import { RegionResultado } from './RegionResultado';
 import { SelectorArchivos } from './SelectorArchivos';
 import campos from './campos.module.css';
 import estilos from './tarjeta.module.css';
@@ -44,6 +44,8 @@ export interface TarjetaEstadoCuentaProps {
   onSubir: (archivo: File) => void;
   /** Para mover el foco a la región de estado al enviar. */
   regionRef?: Ref<HTMLDivElement>;
+  /** El resultado de la carga recién subida de esta tarjeta; lo anuncia la región. */
+  resultado?: ReactNode;
 }
 
 /**
@@ -66,6 +68,7 @@ export function TarjetaEstadoCuenta({
   onReintentarPerfiles,
   onSubir,
   regionRef,
+  resultado,
 }: TarjetaEstadoCuentaProps) {
   const idTitulo = useId();
   const idBanco = useId();
@@ -138,7 +141,9 @@ export function TarjetaEstadoCuenta({
           {subiendo ? SUBIENDO : TARJETA_ESTADO_CUENTA.subir}
         </Button>
       </div>
-      <RegionSubida subiendo={subiendo} regionRef={regionRef} />
+      <RegionResultado subiendo={subiendo} regionRef={regionRef}>
+        {resultado}
+      </RegionResultado>
       <p className={estilos.nota}>{TARJETA_ESTADO_CUENTA.nota}</p>
     </section>
   );

@@ -50,6 +50,14 @@ function montar({
 /** El selector del sistema filtra por `accept`; aquí hay que dejar pasar todo. */
 const usuario = () => userEvent.setup({ applyAccept: false });
 
+const PROPS_BASE = {
+  archivos: [],
+  deshabilitada: false,
+  subiendo: false,
+  onSeleccionar: () => undefined,
+  onSubir: () => undefined,
+};
+
 const MEZCLA = () => [
   archivo('factura-A-1044.xml', 14 * 1024),
   archivo('factura-A-1045.xml', 12 * 1024),
@@ -281,5 +289,18 @@ describe('TarjetaCfdi', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       'Subiendo tus archivos',
     );
+  });
+  it('el resultado que recibe va dentro de la región de estado de la tarjeta', () => {
+    render(
+      <TarjetaCfdi {...PROPS_BASE} resultado={<p>Resultado de prueba</p>} />,
+    );
+    expect(screen.getByRole('status')).toContainElement(
+      screen.getByText('Resultado de prueba'),
+    );
+  });
+
+  it('sin resultado la región de estado queda vacía', () => {
+    render(<TarjetaCfdi {...PROPS_BASE} />);
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
 });

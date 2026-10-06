@@ -10,7 +10,7 @@ const MODULOS = {
   campos: 'features/cargas/components/campos.module.css',
   revisor: 'features/cargas/components/AvisoRevisor.module.css',
   tarjeta: 'features/cargas/components/tarjeta.module.css',
-  region: 'features/cargas/components/RegionSubida.module.css',
+  region: 'features/cargas/components/RegionResultado.module.css',
   contenedor: 'features/cargas/CargasContenedor.module.css',
 } as const;
 

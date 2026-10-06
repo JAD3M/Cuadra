@@ -1,4 +1,4 @@
-import type { Ref } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { REGLAS_CFDI, evaluarSeleccion } from '@/features/cargas/seleccion';
 import {
   ELEGIR_ARCHIVOS,
@@ -11,7 +11,7 @@ import {
 } from '@/features/cargas/textos';
 import { Button } from '@/shared/ui/Button';
 import { ListaArchivos } from './ListaArchivos';
-import { RegionSubida } from './RegionSubida';
+import { RegionResultado } from './RegionResultado';
 import { SelectorArchivos } from './SelectorArchivos';
 import { ZonaSoltar } from './ZonaSoltar';
 import estilos from './tarjeta.module.css';
@@ -30,6 +30,8 @@ export interface TarjetaCfdiProps {
   onSubir: (archivos: File[]) => void;
   /** Para mover el foco a la región de estado al enviar. */
   regionRef?: Ref<HTMLDivElement>;
+  /** El resultado de la carga recién subida de esta tarjeta; lo anuncia la región. */
+  resultado?: ReactNode;
 }
 
 /**
@@ -44,6 +46,7 @@ export function TarjetaCfdi({
   onSeleccionar,
   onSubir,
   regionRef,
+  resultado,
 }: TarjetaCfdiProps) {
   const idTitulo = useId();
   const inactiva = deshabilitada || subiendo;
@@ -112,7 +115,9 @@ export function TarjetaCfdi({
           {subiendo ? SUBIENDO : botonSubirCfdi(listos)}
         </Button>
       </div>
-      <RegionSubida subiendo={subiendo} regionRef={regionRef} />
+      <RegionResultado subiendo={subiendo} regionRef={regionRef}>
+        {resultado}
+      </RegionResultado>
     </section>
   );
 }

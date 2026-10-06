@@ -69,6 +69,23 @@ function montar({
 
 const usuario = () => userEvent.setup({ applyAccept: false });
 
+const PROPS_BASE = {
+  archivo: null,
+  banco: '',
+  cuenta: '',
+  perfiles: PERFILES,
+  perfil: 'cuadra',
+  perfilesFallo: false,
+  deshabilitada: false,
+  subiendo: false,
+  onSeleccionar: () => undefined,
+  onBanco: () => undefined,
+  onCuenta: () => undefined,
+  onPerfil: () => undefined,
+  onReintentarPerfiles: () => undefined,
+  onSubir: () => undefined,
+};
+
 describe('TarjetaEstadoCuenta', () => {
   it('encabezado, campos, límites y nota del mockup', () => {
     montar();
@@ -240,5 +257,21 @@ describe('TarjetaEstadoCuenta', () => {
     expect(region).toBe(regionRef.current);
     expect(region).toHaveAttribute('tabindex', '-1');
     expect(region).toBeEmptyDOMElement();
+  });
+  it('el resultado que recibe va dentro de la región de estado de la tarjeta', () => {
+    render(
+      <TarjetaEstadoCuenta
+        {...PROPS_BASE}
+        resultado={<p>Resultado de prueba</p>}
+      />,
+    );
+    expect(screen.getByRole('status')).toContainElement(
+      screen.getByText('Resultado de prueba'),
+    );
+  });
+
+  it('sin resultado la región de estado queda vacía', () => {
+    render(<TarjetaEstadoCuenta {...PROPS_BASE} />);
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
 });
