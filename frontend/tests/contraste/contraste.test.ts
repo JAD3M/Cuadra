@@ -92,6 +92,11 @@ const PARES: Par[] = [
   ['--color-ia', '--color-hover'],
   // Indicadores de la bandeja: «Reintentar» (enlace) en el tile de monto.
   ['--color-link', '--color-surface-raised'],
+  // Detalle del caso (CU-23), campo del motivo: el mensaje de exceso y el
+  // contador en peligro sobre la tarjeta. El resto de los pares de la tarjeta
+  // (muted, text y text-secondary sobre surface e inset, danger-text del
+  // botón de rechazar) ya están arriba.
+  ['--color-danger-title', '--color-surface'],
 ];
 
 /** Indicadores no textuales (foco y enlaces): mínimo 3:1. */
@@ -99,10 +104,17 @@ const PARES_NO_TEXTO: Par[] = [
   '--color-ground',
   '--color-surface',
   '--color-sidebar',
-].flatMap((f): Par[] => [
-  ['--color-link', f],
-  ['--color-accent', f],
-]);
+]
+  .flatMap((f): Par[] => [
+    ['--color-link', f],
+    ['--color-accent', f],
+  ])
+  .concat([
+    // Campo del motivo del rechazo: borde inválido y anillo de foco sobre el
+    // fondo del control.
+    ['--color-danger-text', '--color-inset'],
+    ['--color-accent', '--color-inset'],
+  ]);
 
 const TEMAS: Tema[] = ['dark', 'light'];
 

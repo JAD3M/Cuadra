@@ -7,12 +7,14 @@ import { DetallePropuesta } from './components/DetallePropuesta';
 import { EncabezadoCaso } from './components/EncabezadoCaso';
 import { Historial } from './components/Historial';
 import { ListaPropuestas } from './components/ListaPropuestas';
+import { PanelDecision } from './components/PanelDecision';
 import { TarjetaConciliado } from './components/TarjetaConciliado';
 import { TarjetaSinMatch } from './components/TarjetaSinMatch';
 import estilos from './CasoContenedor.module.css';
 import { CARGANDO_CASO, PROPUESTAS } from './textos';
 import { useCaso } from './useCaso';
 import { useHistorial } from './useHistorial';
+import { useResolverCaso } from './useResolverCaso';
 import { derivarVista, propuestaSeleccionada, vistaDeLectura } from './vista';
 
 export interface CasoContenedorProps {
@@ -22,8 +24,9 @@ export interface CasoContenedorProps {
 /**
  * Contenedor del detalle: lee el caso, deriva la vista del estado que devolvió
  * el servidor y compone los componentes de presentación. Por ahora cubre la
- * carga, las variantes con propuestas, las de solo lectura y el historial; las
- * demás vistas se agregan por rebanadas.
+ * carga, las variantes con propuestas, las de solo lectura, el historial y la
+ * decisión (confirmar y rechazar siempre actúan sobre la propuesta expandida);
+ * los errores y los banners se agregan por rebanadas.
  */
 export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
   const consulta = useCaso(movimientoId);
@@ -35,6 +38,11 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
       : propuestaSeleccionada(caso.propuestas, seleccion);
   // El historial es el de la propuesta mostrada; un sin_match no tiene.
   const historial = useHistorial(expandida?.conciliacionId ?? null);
+  const resolucion = useResolverCaso();
+  const enviando =
+    resolucion.isPending && resolucion.variables !== undefined
+      ? resolucion.variables.accion
+      : null;
 
   if (vistaDeLectura(consulta) === 'cargando') {
     return (
@@ -75,6 +83,24 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
               <DetallePropuesta
                 propuesta={expandida}
                 toleranciaMonto={caso.toleranciaMonto}
+              />
+              <PanelDecision
+                key={expandida.conciliacionId}
+                etiquetaCfdi={etiquetaCfdi(expandida.cfdi)}
+                enviando={enviando}
+                onConfirmar={() =>
+                  resolucion.resolver({
+                    accion: 'confirmar',
+                    conciliacionId: expandida.conciliacionId,
+                  })
+                }
+                onRechazar={(motivo) =>
+                  resolucion.resolver({
+                    accion: 'rechazar',
+                    conciliacionId: expandida.conciliacionId,
+                    motivo,
+                  })
+                }
               />
               <ListaPropuestas
                 propuestas={caso.propuestas}

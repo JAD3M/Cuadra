@@ -1,7 +1,13 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { SessionStateProvider } from '@/shared/sesion';
@@ -59,6 +65,11 @@ function servirHistorial(
       HttpResponse.json({ datos: eventosPor(String(params.id)) }),
     ),
   );
+}
+
+/** Las ✓ de coincidencia (datos), sin la del botón de confirmar. */
+function marcasDeCoincidencia() {
+  return screen.queryAllByText('✓').filter((el) => el.closest('dd') !== null);
 }
 
 describe('CasoPage', () => {
@@ -228,14 +239,14 @@ describe('CasoPage', () => {
     });
     montar(caso.movimiento.id);
     await screen.findByRole('heading', { level: 2, name: /SPEI/ });
-    expect(screen.getAllByText('✓')).toHaveLength(2);
+    expect(marcasDeCoincidencia()).toHaveLength(2);
   });
 
   it('B14: con otra regla no hay ninguna ✓', async () => {
     servir();
     montar(idDe(1));
     await screen.findByRole('heading', { level: 2, name: /SPEI/ });
-    expect(screen.queryByText('✓')).toBeNull();
+    expect(marcasDeCoincidencia()).toHaveLength(0);
   });
 
   describe('historial', () => {
@@ -326,6 +337,235 @@ describe('CasoPage', () => {
       expect(
         await screen.findByText('El motor propuso el CFDI A-1001'),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe('decisión', () => {
+    interface Pedido {
+      ruta: string;
+      cuerpo: string;
+    }
+
+    /** Registra los POST de resolución y responde `respuesta`. */
+    function servirResolucion(
+      respuesta: () => Response | Promise<Response> = () =>
+        HttpResponse.json(resolucion('confirmada')),
+    ) {
+      const pedidos: Pedido[] = [];
+      servidor.use(
+        http.post('/api/conciliaciones/:id/:accion', async ({ request }) => {
+          pedidos.push({
+            ruta: new URL(request.url).pathname,
+            cuerpo: await request.text(),
+          });
+          return respuesta();
+        }),
+      );
+      return pedidos;
+    }
+
+    function resolucion(estado: 'confirmada' | 'rechazada') {
+      return {
+        id: idDe(5001),
+        estado,
+        cfdiId: idDe(7001),
+        movimientoId: idDe(1),
+        motivo: null,
+        confirmadaAt:
+          estado === 'confirmada' ? '2026-10-05T10:00:00.000Z' : null,
+        rechazadasAutomaticamente: [],
+      };
+    }
+
+    const confirmar = (cfdi: string) =>
+      screen.getByRole('button', { name: `Confirmar conciliación ${cfdi}` });
+    const rechazar = (cfdi: string) =>
+      screen.getByRole('button', { name: `Rechazar ${cfdi}` });
+    const campo = () => screen.getByLabelText('Motivo del rechazo (opcional)');
+
+    it('una sugerencia muestra «Tu decisión» con los controles habilitados', async () => {
+      const caso = servir();
+      servirHistorial();
+      montar(caso.movimiento.id);
+      expect(
+        await screen.findByRole('heading', { level: 2, name: 'Tu decisión' }),
+      ).toBeInTheDocument();
+      expect(confirmar('A-1001')).toBeEnabled();
+      expect(rechazar('A-1001')).toBeEnabled();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('sin_match y conciliado no tienen panel de decisión', async () => {
+      const sinMatch = servir(casoSinMatch());
+      montar(sinMatch.movimiento.id);
+      await screen.findByRole('heading', { level: 3, name: 'Sin match' });
+      expect(screen.queryByText('Tu decisión')).toBeNull();
+    });
+
+    it('B12: el orden del DOM es la propuesta expandida, la decisión y las filas colapsadas', async () => {
+      const caso = servir(casoVarias());
+      servirHistorial();
+      montar(caso.movimiento.id);
+      const cfdi = await screen.findByText('CFDI candidato');
+      const decision = screen.getByRole('heading', { name: 'Tu decisión' });
+      const fila = screen.getByRole('button', { name: 'Ver propuesta A-1002' });
+      const despues = Node.DOCUMENT_POSITION_FOLLOWING;
+      expect(cfdi.compareDocumentPosition(decision) & despues).toBeTruthy();
+      expect(decision.compareDocumentPosition(fila) & despues).toBeTruthy();
+    });
+
+    it('confirmar envía un único POST a la propuesta expandida, sin cuerpo', async () => {
+      const caso = servir(casoVarias());
+      servirHistorial();
+      const pedidos = servirResolucion();
+      montar(caso.movimiento.id);
+      await screen.findByText(/Este movimiento tiene 3/);
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Ver propuesta A-1002' }),
+      );
+      await userEvent.click(confirmar('A-1002'));
+      await waitFor(() => expect(pedidos).toHaveLength(1));
+      expect(pedidos[0]).toEqual({
+        ruta: `/api/conciliaciones/${caso.propuestas[1]?.conciliacionId}/confirmar`,
+        cuerpo: '',
+      });
+    });
+
+    it('un doble clic o Enter envía una sola solicitud', async () => {
+      const caso = servir();
+      servirHistorial();
+      const pedidos = servirResolucion(async () => {
+        await delay(60);
+        return HttpResponse.json(resolucion('confirmada'));
+      });
+      montar(caso.movimiento.id);
+      await screen.findByRole('heading', { name: 'Tu decisión' });
+      const boton = confirmar('A-1001');
+      fireEvent.click(boton);
+      fireEvent.click(boton);
+      fireEvent.keyDown(boton, { key: 'Enter' });
+      await waitFor(() => expect(pedidos).toHaveLength(1));
+      await new Promise((r) => setTimeout(r, 120));
+      expect(pedidos).toHaveLength(1);
+    });
+
+    it('en vuelo no hay optimismo: sigue siendo sugerencia, sin banner y con los botones bloqueados', async () => {
+      const caso = servir();
+      servirHistorial();
+      servirResolucion(async () => {
+        await delay(80);
+        return HttpResponse.json(resolucion('confirmada'));
+      });
+      montar(caso.movimiento.id);
+      await screen.findByRole('heading', { name: 'Tu decisión' });
+      await userEvent.click(confirmar('A-1001'));
+      expect(
+        await screen.findByRole('button', { name: /^Confirmando…/ }),
+      ).toBeDisabled();
+      expect(rechazar('A-1001')).toBeDisabled();
+      expect(screen.getByText('Sugerencia')).toBeInTheDocument();
+      expect(screen.getByText('Enviando tu decisión')).toBeInTheDocument();
+    });
+
+    it('tras confirmar y volver a pedir el caso conciliado, desaparecen los controles', async () => {
+      let confirmado = false;
+      const base = casoSugerencia();
+      servidor.use(
+        http.get('/api/casos/:id', () =>
+          HttpResponse.json(
+            confirmado ? casoConciliado({ movimiento: base.movimiento }) : base,
+          ),
+        ),
+      );
+      servirHistorial();
+      servirResolucion(() => {
+        confirmado = true;
+        return HttpResponse.json(resolucion('confirmada'));
+      });
+      montar(base.movimiento.id);
+      await screen.findByRole('heading', { name: 'Tu decisión' });
+      await userEvent.click(confirmar('A-1001'));
+      expect(
+        await screen.findByRole('heading', { level: 3, name: 'Conciliado' }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Tu decisión' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /Confirmar/ })).toBeNull();
+    });
+
+    it('rechazar sin motivo envía un objeto vacío, sin clave motivo', async () => {
+      const caso = servir();
+      servirHistorial();
+      const pedidos = servirResolucion(() =>
+        HttpResponse.json(resolucion('rechazada')),
+      );
+      montar(caso.movimiento.id);
+      await screen.findByRole('heading', { name: 'Tu decisión' });
+      await userEvent.type(campo(), '   ');
+      await userEvent.click(rechazar('A-1001'));
+      await waitFor(() => expect(pedidos).toHaveLength(1));
+      expect(pedidos[0]?.ruta).toBe(
+        `/api/conciliaciones/${caso.propuestas[0]?.conciliacionId}/rechazar`,
+      );
+      expect(JSON.parse(pedidos[0]?.cuerpo ?? '')).toEqual({});
+    });
+
+    it('rechazar con motivo lo envía recortado', async () => {
+      const caso = servir();
+      servirHistorial();
+      const pedidos = servirResolucion(() =>
+        HttpResponse.json(resolucion('rechazada')),
+      );
+      montar(caso.movimiento.id);
+      await screen.findByRole('heading', { name: 'Tu decisión' });
+      await userEvent.type(campo(), '  Monto no corresponde  ');
+      await userEvent.click(rechazar('A-1001'));
+      await waitFor(() => expect(pedidos).toHaveLength(1));
+      expect(JSON.parse(pedidos[0]?.cuerpo ?? '')).toEqual({
+        motivo: 'Monto no corresponde',
+      });
+    });
+
+    it('con más de 500 caracteres no se envía nada', async () => {
+      const caso = servir();
+      servirHistorial();
+      const pedidos = servirResolucion();
+      montar(caso.movimiento.id);
+      await screen.findByRole('heading', { name: 'Tu decisión' });
+      fireEvent.change(campo(), { target: { value: 'a'.repeat(501) } });
+      await userEvent.click(rechazar('A-1001'));
+      await new Promise((r) => setTimeout(r, 60));
+      expect(pedidos).toHaveLength(0);
+      expect(
+        screen.getByText('El motivo no puede pasar de 500 caracteres.'),
+      ).toBeInTheDocument();
+    });
+
+    it('un motivo de exactamente 500 caracteres sí se envía', async () => {
+      const caso = servir();
+      servirHistorial();
+      const pedidos = servirResolucion(() =>
+        HttpResponse.json(resolucion('rechazada')),
+      );
+      montar(caso.movimiento.id);
+      await screen.findByRole('heading', { name: 'Tu decisión' });
+      fireEvent.change(campo(), { target: { value: 'a'.repeat(500) } });
+      await userEvent.click(rechazar('A-1001'));
+      await waitFor(() => expect(pedidos).toHaveLength(1));
+    });
+
+    it('al expandir otra propuesta el motivo escrito no viaja con ella', async () => {
+      const caso = servir(casoVarias());
+      servirHistorial();
+      montar(caso.movimiento.id);
+      await screen.findByRole('heading', { name: 'Tu decisión' });
+      await userEvent.type(campo(), 'motivo de la primera');
+      await userEvent.click(
+        screen.getByRole('button', { name: 'Ver propuesta A-1002' }),
+      );
+      await screen.findByRole('button', {
+        name: 'Rechazar A-1002',
+      });
+      expect(campo()).toHaveValue('');
     });
   });
 });
