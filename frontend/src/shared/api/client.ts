@@ -23,7 +23,10 @@ export interface OpcionesCliente extends ConfiguracionCliente {
 
 export interface OpcionesApi<T> {
   method?: 'GET' | 'POST';
-  /** Se envía como JSON. */
+  /**
+   * Un `FormData` se envía tal cual, sin `Content-Type`: el navegador fija el
+   * multipart con su frontera. Cualquier otro valor se envía como JSON.
+   */
   body?: unknown;
   /** Si se da, la respuesta se valida y un fallo es `ContratoError`. */
   schema?: ZodType<T>;
@@ -78,8 +81,10 @@ export function crearClienteApi(opciones: OpcionesCliente = {}): ClienteApi {
     const delProveedor = o.token === undefined;
     const token = delProveedor ? (proveedorToken?.() ?? null) : o.token;
     if (token) headers.set('Authorization', `Bearer ${token}`);
-    let body: string | undefined;
-    if (o.body !== undefined) {
+    let body: string | FormData | undefined;
+    if (o.body instanceof FormData) {
+      body = o.body;
+    } else if (o.body !== undefined) {
       headers.set('Content-Type', 'application/json');
       body = JSON.stringify(o.body);
     }

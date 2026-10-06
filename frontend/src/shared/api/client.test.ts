@@ -524,3 +524,127 @@ describe('cancelación (AbortSignal bajo jsdom + MSW)', () => {
     ).toEqual(CONTEXTO_SESION);
   });
 });
+
+describe('cuerpo FormData (API-17)', () => {
+  /** Doble de `fetch` que registra la última petición y responde `{}`. */
+  function dobleFetch() {
+    const llamadas: Array<{ url: string; init: RequestInit }> = [];
+    const fetchImpl: typeof fetch = (entrada, init) => {
+      llamadas.push({ url: String(entrada), init: init ?? {} });
+      return Promise.resolve(
+        new Response('{}', {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    };
+    return { fetchImpl, llamadas };
+  }
+
+  it('17.1: no fija Content-Type, el cuerpo es la misma instancia y Accept se conserva', async () => {
+    const { fetchImpl, llamadas } = dobleFetch();
+    const form = new FormData();
+    form.append('archivos', new File(['<x/>'], 'a.xml'));
+    await crearClienteApi({ fetchImpl }).fetch('/cargas/cfdi', {
+      method: 'POST',
+      body: form,
+    });
+    const headers = llamadas[0]?.init.headers as Headers;
+    expect(headers.has('Content-Type')).toBe(false);
+    expect(headers.get('Accept')).toBe('application/json');
+    expect(llamadas[0]?.init.body).toBe(form);
+  });
+
+  it('17.2: un cuerpo JSON sigue enviándose como application/json y sin cuerpo no hay Content-Type', async () => {
+    const { fetchImpl, llamadas } = dobleFetch();
+    const cliente = crearClienteApi({ fetchImpl });
+    await cliente.fetch('/x', { method: 'POST', body: { a: 1 } });
+    await cliente.fetch('/x');
+    const conCuerpo = llamadas[0]?.init;
+    expect((conCuerpo?.headers as Headers).get('Content-Type')).toBe(
+      'application/json',
+    );
+    expect(conCuerpo?.body).toBe('{"a":1}');
+    const sinCuerpo = llamadas[1]?.init;
+    expect((sinCuerpo?.headers as Headers).has('Content-Type')).toBe(false);
+    expect(sinCuerpo?.body).toBeUndefined();
+  });
+
+  it('17.3: envía Authorization: Bearer con un cuerpo FormData', async () => {
+    const { fetchImpl, llamadas } = dobleFetch();
+    await crearClienteApi({ fetchImpl, proveedorToken: () => 'tok' }).fetch(
+      '/cargas/cfdi',
+      { method: 'POST', body: new FormData() },
+    );
+    expect((llamadas[0]?.init.headers as Headers).get('Authorization')).toBe(
+      'Bearer tok',
+    );
+  });
+
+  it('17.4: un 401 con el token vigente termina la sesión con sesion_expirada y lanza ApiError 401', async () => {
+    servidor.use(
+      http.post('/api/cargas/cfdi', () =>
+        HttpResponse.json(
+          { statusCode: 401, error: 'Unauthorized', message: 'No autorizado' },
+          { status: 401 },
+        ),
+      ),
+    );
+    const alTerminarSesion = vi.fn();
+    const cliente = crearClienteApi({
+      proveedorToken: () => 'vigente',
+      alTerminarSesion,
+    });
+    const error = await cliente
+      .fetch('/cargas/cfdi', { method: 'POST', body: new FormData() })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).statusCode).toBe(401);
+    expect(alTerminarSesion).toHaveBeenCalledExactlyOnceWith('sesion_expirada');
+  });
+
+  it('17.5: una señal cancelada se propaga y no se vuelve NetworkError', async () => {
+    const controlador = new AbortController();
+    const fetchImpl: typeof fetch = (_entrada, init) =>
+      new Promise((_resolver, rechazar) => {
+        init?.signal?.addEventListener('abort', () =>
+          rechazar(new DOMException('cancelada', 'AbortError')),
+        );
+      });
+    const pendiente = crearClienteApi({ fetchImpl }).fetch('/cargas/cfdi', {
+      method: 'POST',
+      body: new FormData(),
+      signal: controlador.signal,
+    });
+    controlador.abort();
+    const error = await pendiente.catch((e: unknown) => e);
+    expect(error).not.toBeInstanceOf(NetworkError);
+    expect((error as Error).name).toBe('AbortError');
+  });
+
+  it('de extremo a extremo: el manejador lee las partes y el Content-Type multipart con frontera', async () => {
+    let tipo: string | null = null;
+    const vistos: Array<[string, string]> = [];
+    servidor.use(
+      http.post('/api/cargas/cfdi', async ({ request }) => {
+        tipo = request.headers.get('Content-Type');
+        for (const [campo, valor] of (await request.formData()).entries()) {
+          vistos.push([
+            campo,
+            typeof valor === 'string' ? valor : `archivo:${valor.name}`,
+          ]);
+        }
+        return HttpResponse.json({ ok: true });
+      }),
+    );
+    const form = new FormData();
+    form.append('archivos', new File(['<x/>'], 'a.xml'));
+    form.append('banco', 'BBVA');
+    await api.fetch('/cargas/cfdi', { method: 'POST', body: form });
+    expect(tipo).toMatch(/^multipart\/form-data; boundary=/);
+    expect(vistos).toEqual([
+      ['archivos', 'archivo:a.xml'],
+      ['banco', 'BBVA'],
+    ]);
+  });
+});
