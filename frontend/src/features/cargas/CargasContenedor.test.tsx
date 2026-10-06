@@ -1,15 +1,27 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import { REINTENTAR } from '@/features/cargas/textos';
-import { contextoSesion } from '@/shared/api/contratos';
+import {
+  contextoSesion,
+  type DetalleCarga,
+  type RespuestaCarga,
+} from '@/shared/api/contratos';
 import type { SessionState } from '@/shared/sesion';
 import { crearCompuerta } from '@/test/compuerta';
 import { CONTEXTO_SESION, SESION_LISTA } from '@/test/fixtures';
+import {
+  detalleCarga,
+  detalleCfdiConErrores,
+  detalleCsvConErrores,
+  respuestaYaExistia,
+} from '@/test/fixturesCargas';
 import { almacenes } from '@/test/handlers';
 import { espiarSolicitudes } from '@/test/handlersAuth';
 import {
   perfilesFalla,
+  type ParcheDeCarga,
   subidaFalla,
   subidaRedDeFallo,
 } from '@/test/handlersCargas';
@@ -17,6 +29,7 @@ import { clienteDePruebas } from '@/test/montarBandeja';
 import { envolturaCargas, esperarIntervalos } from '@/test/montarCargas';
 import { servidor } from '@/test/servidor';
 import { CargasContenedor } from './CargasContenedor';
+import type { ConfigPolling } from './ContextoPolling';
 
 function sesionConRoles(roles: string[]): SessionState {
   return {
@@ -25,12 +38,18 @@ function sesionConRoles(roles: string[]): SessionState {
   } as SessionState;
 }
 
-function montar(roles: string[] = ['admin', 'contador']) {
-  const estado = sesionConRoles(roles);
+function montar(
+  roles: string[] = ['admin', 'contador'],
+  polling?: ConfigPolling,
+  estado: () => SessionState = () => sesionConRoles(roles),
+) {
   return render(<CargasContenedor />, {
-    wrapper: envolturaCargas(clienteDePruebas(), () => estado),
+    wrapper: envolturaCargas(clienteDePruebas(), estado, polling),
   });
 }
+
+/** Constantes diminutas, con un tope que no vence antes de que la prueba avance la carga. */
+const POLLING_HOLGADO: ConfigPolling = { intervaloMs: 15, topeMs: 10_000 };
 
 /** El selector del sistema filtra por `accept`; aquí hay que dejar pasar todo. */
 const usuario = () => userEvent.setup({ applyAccept: false });
@@ -458,5 +477,316 @@ describe('CargasContenedor: ciclo de vida', () => {
     });
     expect(errores).not.toHaveBeenCalled();
     errores.mockRestore();
+  });
+});
+
+/** Un párrafo cuyo texto completo es `texto` (las cifras van en sus propios spans). */
+const resumen = (texto: string) => (_: string, el: Element | null) =>
+  el?.tagName === 'P' && el.textContent === texto;
+
+const CFDI = 'CFDI · XML';
+const CSV = 'Estado de cuenta';
+const PROCESANDO = 'Procesando la carga…';
+
+/** El POST de CFDI responde `cuerpo` con `status` (para los lotes que ya existían). */
+function cfdiResponde(cuerpo: RespuestaCarga, status = 200) {
+  servidor.use(
+    http.post('/api/cargas/cfdi', () => HttpResponse.json(cuerpo, { status })),
+  );
+}
+
+async function subirXml(...nombres: string[]) {
+  const u = usuario();
+  await u.upload(
+    screen.getByLabelText('Elegir archivos'),
+    (nombres.length > 0 ? nombres : ['a.xml']).map(xml),
+  );
+  await u.click(botonCfdi(Math.max(nombres.length, 1)));
+}
+
+/** Lo que `avanzar` puede reemplazar de un detalle, sin su id (el de la carga ya creada manda). */
+const parcheDe = (d: DetalleCarga): ParcheDeCarga => ({
+  totalRegistros: d.totalRegistros,
+  registrosOk: d.registrosOk,
+  registrosExistentes: d.registrosExistentes,
+  registrosError: d.registrosError,
+  resultados: d.resultados,
+  errorMensaje: d.errorMensaje,
+});
+
+/** Id de la carga más nueva del almacén (la que acaba de crear el POST). */
+const idDeLaUltima = () => almacenes.cargas.filas()[0]?.id ?? '';
+
+const getDetalle = (espia: ReturnType<typeof espiarSolicitudes>) =>
+  espia.solicitudes.filter(
+    (s) => s.metodo === 'GET' && /^\/api\/cargas\/[^/]+$/.test(s.ruta),
+  );
+
+describe('CargasContenedor: resultados de la carga', () => {
+  it('un CFDI nuevo: procesando, luego el resumen con una entrada por archivo y el motivo (8.1, M3)', async () => {
+    const espia = espiarSolicitudes();
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml('a.xml', 'b.xml', 'c.xml');
+    const region = regionDe(CFDI);
+    expect(await within(region).findByText(PROCESANDO)).toBeInTheDocument();
+    // Control positivo: el panel sí consulta GET /cargas/:id mientras está activa.
+    await waitFor(() => expect(getDetalle(espia).length).toBeGreaterThan(0));
+    const id = idDeLaUltima();
+    almacenes.cargas.avanzar(id, 'procesando');
+    const consultas = getDetalle(espia).length;
+    await waitFor(() =>
+      expect(getDetalle(espia).length).toBeGreaterThan(consultas),
+    );
+    expect(within(region).getByText(PROCESANDO)).toBeInTheDocument();
+    expect(within(region).queryByRole('list')).toBeNull();
+    const parche = parcheDe(detalleCfdiConErrores());
+    almacenes.cargas.avanzar(id, 'con_errores', parche);
+    expect(
+      await within(region).findByText(
+        resumen('1 nuevos, 1 ya existían, 1 con error.'),
+      ),
+    ).toBeInTheDocument();
+    const filas = within(region).getAllByRole('listitem');
+    expect(filas).toHaveLength(3);
+    expect(filas[0]).toHaveTextContent('a.xml');
+    expect(filas[0]).toHaveTextContent('Nuevo');
+    expect(filas[1]).toHaveTextContent('Ya existía');
+    expect(filas[2]).toHaveTextContent('c.xml');
+    expect(filas[2]).toHaveTextContent('Con error');
+    expect(filas[2]).toHaveTextContent('XML mal formado');
+    expect(within(region).queryByText(PROCESANDO)).toBeNull();
+    espia.detener();
+  });
+
+  it('el resultado de un CFDI vive en la tarjeta del CFDI y no en la del CSV', async () => {
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    await within(regionDe(CFDI)).findByText(PROCESANDO);
+    expect(regionDe(CSV)).toBeEmptyDOMElement();
+  });
+
+  it('un estado de cuenta terminado: filas 4 y 17 y el resumen de registros (8.2)', async () => {
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    const u = usuario();
+    await u.upload(screen.getByLabelText('Elegir archivo'), csv('estado.csv'));
+    await u.click(botonCsv());
+    const region = regionDe(CSV);
+    await within(region).findByText(PROCESANDO);
+    const parche = parcheDe(detalleCsvConErrores());
+    almacenes.cargas.avanzar(idDeLaUltima(), 'con_errores', parche);
+    expect(
+      await within(region).findByText(
+        resumen('98 registros cargados, 2 con error.'),
+      ),
+    ).toBeInTheDocument();
+    const filas = within(region).getAllByRole('listitem');
+    expect(filas.map((f) => f.textContent?.replace('✕', ''))).toEqual([
+      'Fila 4: Monto inválido',
+      'Fila 17: Fecha vacía',
+    ]);
+    expect(regionDe(CFDI)).toBeEmptyDOMElement();
+    // La cuenta nunca se muestra, ni escrita ni en el resultado.
+    expect(region).not.toHaveTextContent('1234');
+  });
+
+  it.each([
+    ['procesada', '0 nuevos, 2 ya existían, 0 con error.'],
+    ['con_errores', '1 nuevos, 1 ya existían, 1 con error.'],
+  ] as const)(
+    'ya existía y terminó (%s): mensaje de K7 y resultados, sin pedir GET /cargas/:id (8.3, 8.4)',
+    async (estado, texto) => {
+      const espia = espiarSolicitudes();
+      cfdiResponde(respuestaYaExistia(estado));
+      montar(['admin'], POLLING_HOLGADO);
+      await esperarPerfiles();
+      await subirXml();
+      const region = regionDe(CFDI);
+      expect(
+        await within(region).findByText(resumen(texto)),
+      ).toBeInTheDocument();
+      expect(
+        within(region).getByText('Este archivo ya se había cargado.'),
+      ).toBeInTheDocument();
+      expect(
+        within(region).getByText('No se duplicó nada.'),
+      ).toBeInTheDocument();
+      expect(within(region).queryByText(/puso en la cola/)).toBeNull();
+      // Control positivo: la lista sí se volvió a pedir tras el POST.
+      await waitFor(() =>
+        expect(espia.cuantas('GET', '/api/cargas')).toBeGreaterThanOrEqual(2),
+      );
+      await esperarIntervalos(4);
+      expect(getDetalle(espia)).toHaveLength(0);
+      espia.detener();
+    },
+  );
+
+  it('ya existía y estaba pendiente: primero «se volvió a poner en la cola», luego el sondeo y los resultados (8.5)', async () => {
+    const espia = espiarSolicitudes();
+    const respuesta = respuestaYaExistia('pendiente');
+    cfdiResponde(respuesta);
+    almacenes.cargas.establecerDetalle(
+      detalleCarga(1, { estado: 'pendiente' }),
+    );
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    const region = regionDe(CFDI);
+    const frase =
+      'Este archivo ya se había cargado y se volvió a poner en la cola.';
+    expect(await within(region).findByText(frase)).toBeInTheDocument();
+    expect(within(region).getByText(PROCESANDO)).toBeInTheDocument();
+    expect(within(region).queryByText('No se duplicó nada.')).toBeNull();
+    await waitFor(() => expect(getDetalle(espia).length).toBeGreaterThan(0));
+    almacenes.cargas.avanzar(respuesta.id, 'procesando');
+    almacenes.cargas.avanzar(respuesta.id, 'procesada', {
+      registrosOk: 2,
+      resultados: [
+        { archivo: 'a.xml', resultado: 'nuevo' },
+        { archivo: 'b.xml', resultado: 'nuevo' },
+      ],
+    });
+    expect(
+      await within(region).findByText(
+        resumen('2 nuevos, 0 ya existían, 0 con error.'),
+      ),
+    ).toBeInTheDocument();
+    expect(within(region).queryByText(PROCESANDO)).toBeNull();
+    // El aviso lo decide lo que respondió el POST, no el estado de ahora.
+    expect(within(region).getByText(frase)).toBeInTheDocument();
+    espia.detener();
+  });
+
+  it('una carga fallida: el estado de falla, el sondeo se detiene y no hay lista de archivos (8.6)', async () => {
+    const espia = espiarSolicitudes();
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    const region = regionDe(CFDI);
+    await within(region).findByText(PROCESANDO);
+    await waitFor(() => expect(getDetalle(espia).length).toBeGreaterThan(0));
+    almacenes.cargas.avanzar(idDeLaUltima(), 'fallida', {
+      errorMensaje: 'Falló el worker',
+    });
+    expect(await within(region).findByText('Fallida')).toBeInTheDocument();
+    expect(within(region).getByText('Falló el worker')).toBeInTheDocument();
+    expect(within(region).queryByRole('list')).toBeNull();
+    expect(within(region).queryByText(PROCESANDO)).toBeNull();
+    const consultas = getDetalle(espia).length;
+    await esperarIntervalos(4);
+    expect(getDetalle(espia)).toHaveLength(consultas);
+    espia.detener();
+  });
+
+  it('las filas del historial nunca piden GET /cargas/:id (8.8)', async () => {
+    const espia = espiarSolicitudes();
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    // Control positivo: la lectura de la lista sí salió y trajo filas.
+    await waitFor(() =>
+      expect(espia.cuantas('GET', '/api/cargas')).toBeGreaterThanOrEqual(1),
+    );
+    expect(almacenes.cargas.filas().length).toBeGreaterThan(0);
+    await esperarIntervalos(4);
+    expect(getDetalle(espia)).toHaveLength(0);
+    expect(regionDe(CFDI)).toBeEmptyDOMElement();
+    expect(regionDe(CSV)).toBeEmptyDOMElement();
+    espia.detener();
+  });
+
+  it('una segunda subida con éxito reemplaza el panel (8.9)', async () => {
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml('a.xml');
+    const region = regionDe(CFDI);
+    await within(region).findByText(PROCESANDO);
+    const parche = parcheDe(detalleCfdiConErrores());
+    almacenes.cargas.avanzar(idDeLaUltima(), 'con_errores', parche);
+    await within(region).findByText(
+      resumen('1 nuevos, 1 ya existían, 1 con error.'),
+    );
+    await subirXml('z.xml');
+    expect(await within(region).findByText(PROCESANDO)).toBeInTheDocument();
+    expect(
+      within(region).queryByText(
+        resumen('1 nuevos, 1 ya existían, 1 con error.'),
+      ),
+    ).toBeNull();
+    expect(within(region).queryByRole('list')).toBeNull();
+  });
+
+  it('la región de estado es la misma antes y después del resultado', async () => {
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    const antes = regionDe(CFDI);
+    await subirXml();
+    await within(regionDe(CFDI)).findByText(PROCESANDO);
+    expect(regionDe(CFDI)).toBe(antes);
+  });
+
+  it('si la época cambia con la subida en vuelo no aparece nada en la nueva (9.2)', async () => {
+    const espia = espiarSolicitudes();
+    const compuerta = crearCompuerta();
+    almacenes.cargas.compuertas({ subida: compuerta.promesa });
+    let epoca = 1;
+    const sesion = (): SessionState =>
+      ({ ...sesionConRoles(['admin']), epoca }) as SessionState;
+    const { rerender } = montar(['admin'], POLLING_HOLGADO, sesion);
+    await esperarPerfiles();
+    await subirXml();
+    await waitFor(() => expect(almacenes.cargas.subidas()).toHaveLength(1));
+    epoca = 2;
+    rerender(<CargasContenedor />);
+    compuerta.abrir();
+    // Control positivo: el POST sí terminó y el servidor creó la carga.
+    await waitFor(() => expect(almacenes.cargas.filas()[0]?.id).toBeTruthy());
+    await esperarIntervalos(4);
+    expect(within(regionDe(CFDI)).queryByText(PROCESANDO)).toBeNull();
+    expect(regionDe(CFDI)).toBeEmptyDOMElement();
+    expect(getDetalle(espia)).toHaveLength(0);
+    espia.detener();
+  });
+
+  it('un panel de una época anterior desaparece al cambiar la sesión (9.2)', async () => {
+    let epoca = 1;
+    const sesion = (): SessionState =>
+      ({ ...sesionConRoles(['admin']), epoca }) as SessionState;
+    const { rerender } = montar(['admin'], POLLING_HOLGADO, sesion);
+    await esperarPerfiles();
+    await subirXml();
+    await within(regionDe(CFDI)).findByText(PROCESANDO);
+    epoca = 2;
+    rerender(<CargasContenedor />);
+    await waitFor(() => expect(regionDe(CFDI)).toBeEmptyDOMElement());
+  });
+
+  it('un texto con marcado que manda el servidor se queda como texto (8.7)', async () => {
+    const respuesta: RespuestaCarga = {
+      ...respuestaYaExistia('con_errores'),
+      resultados: [
+        {
+          archivo: '<b>x</b>.xml',
+          resultado: 'error',
+          motivo: '<img src=x onerror=alert(1)>',
+        },
+      ],
+      registrosError: 1,
+      registrosOk: 0,
+      registrosExistentes: 0,
+    };
+    cfdiResponde(respuesta);
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    const region = regionDe(CFDI);
+    expect(await within(region).findByText('<b>x</b>.xml')).toBeInTheDocument();
+    expect(
+      within(region).getByText('<img src=x onerror=alert(1)>'),
+    ).toBeInTheDocument();
+    expect(region.querySelector('img')).toBeNull();
+    expect(region.querySelector('b')).toBeNull();
   });
 });
