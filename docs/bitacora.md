@@ -8,10 +8,10 @@
 - **CU-22 terminado: bandeja de revisión en pantalla (KAN-100). Integrado a
   `master` el 5 oct** por avance rápido de la cadena hasta
   `feat/cu-22-15-orden-chips`, sin push ni PR; quedan 22 de 26 historias y
-  84 de 99 puntos, y KAN-100 pasa a Finalizado. Las
-  comprobaciones manuales en el navegador contra los mockups **siguen
-  pendientes** (lista abajo); jsdom no mide diseño, desbordes, foco visible ni
-  contraste real. Lo entregado:
+  84 de 99 puntos, y KAN-100 pasa a Finalizado. El usuario probó en el
+  navegador la bandeja y los flujos de CU-20 y CU-21 (la lista de abajo) y
+  todo quedó correcto; con eso se dan por buenos también los textos de
+  `features/bandeja/textos.ts`. Lo entregado:
   - API: `GET /bandeja/resumen` con los conteos por estado y el monto por
     revisar por moneda, con el mismo predicado que la tabla de
     `GET /bandeja`, filtrado por `company_id`, solo lectura y sin migración.
