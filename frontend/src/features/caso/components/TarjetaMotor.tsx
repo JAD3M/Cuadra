@@ -15,7 +15,8 @@ export interface TarjetaMotorProps {
 /**
  * «Por qué el motor lo propone»: regla y motivo tal cual, con la insignia de
  * IA solo para `llm_sugerencia` («simulada» solo con el prefijo completo al
- * inicio del motivo) y el recordatorio de que solo una persona cierra un caso.
+ * inicio del motivo). La frase de que solo una persona cierra un caso vive en
+ * la tarjeta de decisión, como en la maqueta.
  */
 export function TarjetaMotor({ regla, motivo }: TarjetaMotorProps) {
   const titulo = useId();
@@ -36,7 +37,6 @@ export function TarjetaMotor({ regla, motivo }: TarjetaMotorProps) {
         </div>
       )}
       {motivo === null ? null : <p className={estilos.motivo}>{motivo}</p>}
-      <span className={estilos.aviso}>{MOTOR.soloProponen}</span>
     </section>
   );
 }

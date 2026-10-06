@@ -53,13 +53,9 @@ describe('TarjetaMotor', () => {
     expect(screen.queryByText('IA · simulada')).toBeNull();
   });
 
-  it('incluye el párrafo de que solo una persona cierra un caso', () => {
+  it('B15: la frase «solo una persona cierra un caso» no está aquí, vive en la decisión', () => {
     render(<TarjetaMotor regla="referencia_exacta" motivo="x" />);
-    expect(
-      screen.getByText(
-        'El motor y la IA solo proponen. Solo una persona cierra un caso.',
-      ),
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/Solo una persona cierra un caso/)).toBeNull();
   });
 
   it('sin regla ni motivo no muestra huecos ni errores', () => {

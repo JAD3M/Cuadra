@@ -41,6 +41,25 @@ export const DIFERENCIA = {
 /** Tarjeta de por qué el motor propone el CFDI. */
 export const MOTOR = {
   titulo: 'Por qué el motor lo propone',
+} as const;
+
+/** Tarjeta «Tu decisión»: confirmar con un clic y rechazar con motivo opcional. */
+export const DECISION = {
+  titulo: 'Tu decisión',
+  /** Glifos decorativos: el texto lleva el significado. */
+  glifoConfirmar: '✓',
+  glifoRechazar: '✕',
+  confirmar: 'Confirmar conciliación',
+  confirmando: 'Confirmando…',
+  rechazar: 'Rechazar',
+  rechazando: 'Rechazando…',
+  /** Región en vivo (solo lectores) mientras la decisión viaja al servidor. */
+  enviando: 'Enviando tu decisión',
+  motivoEtiqueta: 'Motivo del rechazo (opcional)',
+  motivoEjemplo: 'Ej. el CFDI corresponde a otra obra',
+  motivoLargo: 'El motivo no puede pasar de 500 caracteres.',
+  /** Contador en enteros: largo bruto sobre el máximo. */
+  contador: (largo: number, maximo: number) => `${largo} / ${maximo}`,
   soloProponen:
     'El motor y la IA solo proponen. Solo una persona cierra un caso.',
 } as const;

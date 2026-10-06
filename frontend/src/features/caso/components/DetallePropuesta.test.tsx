@@ -36,4 +36,14 @@ describe('DetallePropuesta', () => {
     );
     expect(screen.getByText('✓')).toBeInTheDocument();
   });
+
+  it('B15: no repite la frase de que solo una persona cierra un caso', () => {
+    render(
+      <DetallePropuesta
+        propuesta={propuestaCaso(1)}
+        toleranciaMonto="0.5000"
+      />,
+    );
+    expect(screen.queryByText(/Solo una persona cierra un caso/)).toBeNull();
+  });
 });

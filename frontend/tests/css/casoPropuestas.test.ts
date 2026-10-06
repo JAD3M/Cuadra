@@ -105,4 +105,28 @@ describe('contrato CSS de las propuestas del caso', () => {
     expect(bloqueCss(evento, '.rechazada')).toContain('var(--color-danger)');
     expect(bloqueCss(evento, '.neutro')).toContain('var(--color-muted)');
   });
+
+  it('los botones de decisión miden 52 px y ganan al Button base', () => {
+    const panel = leerModuloCss(
+      'features/caso/components/PanelDecision.module.css',
+    );
+    expect(panel).toMatch(
+      /\.acciones \.accion\s*\{[^}]*min-block-size:\s*52px/,
+    );
+  });
+
+  it('el campo del motivo usa los tokens de campo y de peligro', () => {
+    const campo = leerModuloCss(
+      'features/caso/components/CampoMotivo.module.css',
+    );
+    const control = bloqueCss(campo, '.control');
+    expect(control).toContain('var(--color-inset)');
+    expect(control).toContain('var(--color-border-strong)');
+    expect(campo).toContain('outline: 2px solid var(--color-accent)');
+    expect(campo).toContain('var(--color-danger-text)');
+    expect(bloqueCss(campo, '.contadorPeligro')).toContain(
+      'var(--color-danger-title)',
+    );
+    expect(bloqueCss(campo, '.contador')).toMatch(/white-space:\s*nowrap/);
+  });
 });
