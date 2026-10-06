@@ -1,4 +1,10 @@
-import { configure, screen, waitFor, within } from '@testing-library/react';
+import {
+  act,
+  configure,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -80,7 +86,10 @@ describe('flujos de la bandeja', () => {
       expect(router.state.location.pathname).toMatch(/^\/casos\//),
     );
 
-    await router.navigate(-1);
+    // Dentro de `act`: el router actualiza su estado en una transición de
+    // React; sin `act`, el sondeo de `waitFor` (cada intento fallido arma
+    // un error con el DOM completo) le quita el turno bajo carga de CPU.
+    await act(() => router.navigate(-1));
     await screen.findByText('Mostrando 21–30 de 30');
     expect(router.state.location.pathname + router.state.location.search).toBe(
       DOS_PAGINAS,
