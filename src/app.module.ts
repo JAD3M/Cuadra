@@ -8,6 +8,7 @@ import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { BancosModule } from './bancos/bancos.module';
 import { BandejaModule } from './bandeja/bandeja.module';
+import { CasosModule } from './casos/casos.module';
 import { BitacoraModule } from './bitacora/bitacora.module';
 import { CargasModule } from './cargas/cargas.module';
 import { CompaniesModule } from './companies/companies.module';
@@ -40,6 +41,7 @@ import { ContextoEmpresaModule } from './database/contexto-empresa.module';
     BancosModule,
     CompaniesModule,
     BandejaModule,
+    CasosModule,
     BitacoraModule,
     ResolucionModule,
   ],

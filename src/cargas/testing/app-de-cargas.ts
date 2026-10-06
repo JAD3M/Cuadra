@@ -12,6 +12,7 @@ import { DataSource } from 'typeorm';
 import { AuthModule } from '../../auth/auth.module';
 import { BandejaModule } from '../../bandeja/bandeja.module';
 import { BitacoraModule } from '../../bitacora/bitacora.module';
+import { CasosModule } from '../../casos/casos.module';
 import type { JwtPayload } from '../../auth/tipos';
 import { ColasModule } from '../../colas/colas.module';
 import { CompaniesModule } from '../../companies/companies.module';
@@ -135,6 +136,7 @@ export async function levantarAppDeCargas(
       CompaniesModule,
       BandejaModule,
       BitacoraModule,
+      CasosModule,
       ResolucionModule,
     ],
   });
