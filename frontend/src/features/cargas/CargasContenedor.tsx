@@ -5,6 +5,7 @@ import {
   type TipoCarga,
 } from '@/shared/dominio';
 import type { RespuestaCarga } from '@/shared/api/contratos';
+import { esActiva } from '@/shared/dominio';
 import { useSessionContext } from '@/shared/sesion';
 import { useEpoca } from './claves';
 import { AvisoRevisor } from './components/AvisoRevisor';
@@ -56,7 +57,19 @@ export function CargasContenedor() {
   const subiendoCsv = isPending && variables?.tipo === TIPO_ESTADO_CUENTA;
   const perfil = perfilVigente(perfiles.data, perfilElegido);
 
-  const vistaPanel = derivarPanel({ panel, datos: panelDatos, epoca });
+  const vistaPanel = derivarPanel({
+    panel:
+      panel === null
+        ? null
+        : {
+            tipo: panel.tipo,
+            epoca: panel.epoca,
+            // Un yaExistia que ya había terminado: solo el aviso (mockup v23).
+            soloAviso: panel.yaExistia && !esActiva(panel.inicial.estado),
+          },
+    datos: panelDatos,
+    epoca,
+  });
   const resultado =
     panel === null || panelDatos === null || vistaPanel === 'ninguno' ? null : (
       <PanelCarga
@@ -70,7 +83,6 @@ export function CargasContenedor() {
           error: panelDatos.registrosError,
         }}
         resultados={panelDatos.resultados}
-        errorMensaje={panelDatos.errorMensaje}
       />
     );
 

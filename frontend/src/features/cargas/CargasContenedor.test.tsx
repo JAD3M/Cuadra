@@ -596,7 +596,7 @@ describe('CargasContenedor: resultados de la carga', () => {
     ['procesada', '0 nuevos, 2 ya existían, 0 con error.'],
     ['con_errores', '1 nuevos, 1 ya existían, 1 con error.'],
   ] as const)(
-    'ya existía y terminó (%s): mensaje de K7 y resultados, sin pedir GET /cargas/:id (8.3, 8.4)',
+    'ya existía y terminó (%s): solo el aviso de K7 (mockup v23), sin resultados ni GET /cargas/:id (8.3)',
     async (estado, texto) => {
       const espia = espiarSolicitudes();
       cfdiResponde(respuestaYaExistia(estado));
@@ -605,11 +605,12 @@ describe('CargasContenedor: resultados de la carga', () => {
       await subirXml();
       const region = regionDe(CFDI);
       expect(
-        await within(region).findByText(resumen(texto)),
+        await within(region).findByText('Este archivo ya se había cargado.'),
       ).toBeInTheDocument();
-      expect(
-        within(region).getByText('Este archivo ya se había cargado.'),
-      ).toBeInTheDocument();
+      // Desvío de CRG-8.4 decidido por el usuario: el mockup v23 no los muestra.
+      expect(within(region).queryByText(resumen(texto))).toBeNull();
+      expect(within(region).queryByRole('list')).toBeNull();
+      expect(within(region).queryByRole('region')).toBeNull();
       expect(
         within(region).getByText('No se duplicó nada.'),
       ).toBeInTheDocument();
@@ -660,7 +661,7 @@ describe('CargasContenedor: resultados de la carga', () => {
     espia.detener();
   });
 
-  it('una carga fallida: el estado de falla, el sondeo se detiene y no hay lista de archivos (8.6)', async () => {
+  it('una carga fallida: solo el aviso del mockup, el sondeo se detiene y no hay lista de archivos (8.6)', async () => {
     const espia = espiarSolicitudes();
     montar(['admin'], POLLING_HOLGADO);
     await esperarPerfiles();
@@ -671,8 +672,14 @@ describe('CargasContenedor: resultados de la carga', () => {
     almacenes.cargas.avanzar(idDeLaUltima(), 'fallida', {
       errorMensaje: 'Falló el worker',
     });
-    expect(await within(region).findByText('Fallida')).toBeInTheDocument();
-    expect(within(region).getByText('Falló el worker')).toBeInTheDocument();
+    expect(
+      await within(region).findByText(
+        'La carga falló por un problema del sistema. Vuelve a subir el archivo para reintentar.',
+      ),
+    ).toBeInTheDocument();
+    // Desvío de CRG-8.6 decidido por el usuario: sin etiqueta ni errorMensaje.
+    expect(within(region).queryByText('Fallida')).toBeNull();
+    expect(within(region).queryByText('Falló el worker')).toBeNull();
     expect(within(region).queryByRole('list')).toBeNull();
     expect(within(region).queryByText(PROCESANDO)).toBeNull();
     const consultas = getDetalle(espia).length;
@@ -764,8 +771,15 @@ describe('CargasContenedor: resultados de la carga', () => {
   });
 
   it('un texto con marcado que manda el servidor se queda como texto (8.7)', async () => {
-    const respuesta: RespuestaCarga = {
-      ...respuestaYaExistia('con_errores'),
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    await subirXml();
+    const region = regionDe(CFDI);
+    await within(region).findByText(PROCESANDO);
+    almacenes.cargas.avanzar(idDeLaUltima(), 'con_errores', {
+      registrosError: 1,
+      registrosOk: 0,
+      registrosExistentes: 0,
       resultados: [
         {
           archivo: '<b>x</b>.xml',
@@ -773,15 +787,7 @@ describe('CargasContenedor: resultados de la carga', () => {
           motivo: '<img src=x onerror=alert(1)>',
         },
       ],
-      registrosError: 1,
-      registrosOk: 0,
-      registrosExistentes: 0,
-    };
-    cfdiResponde(respuesta);
-    montar(['admin'], POLLING_HOLGADO);
-    await esperarPerfiles();
-    await subirXml();
-    const region = regionDe(CFDI);
+    });
     expect(await within(region).findByText('<b>x</b>.xml')).toBeInTheDocument();
     expect(
       within(region).getByText('<img src=x onerror=alert(1)>'),

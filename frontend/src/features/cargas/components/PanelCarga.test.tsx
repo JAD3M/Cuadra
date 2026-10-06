@@ -11,7 +11,6 @@ const BASE: PanelCargaProps = {
     { archivo: 'b.xml', resultado: 'ya_existia' },
     { archivo: 'c.xml', resultado: 'error', motivo: 'XML mal formado' },
   ],
-  errorMensaje: null,
 };
 
 describe('PanelCarga', () => {
@@ -50,18 +49,35 @@ describe('PanelCarga', () => {
     expect(screen.queryByRole('list')).toBeNull();
   });
 
-  it('sin proceso: la falla y su mensaje, sin lista de archivos', () => {
-    render(
+  it('sin proceso: solo el aviso de falla, sin etiqueta, mensaje ni lista', () => {
+    const { container } = render(
+      <PanelCarga {...BASE} vista="sin_proceso" resultados={[]} />,
+    );
+    expect(
+      screen.getByText(
+        'La carga falló por un problema del sistema. Vuelve a subir el archivo para reintentar.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Fallida')).toBeNull();
+    expect(screen.queryByRole('list')).toBeNull();
+    expect(container.textContent).not.toContain('Falló el worker');
+  });
+
+  it('solo aviso: el aviso de K7 sin resumen ni lista de resultados', () => {
+    const { container } = render(
       <PanelCarga
         {...BASE}
-        vista="sin_proceso"
-        resultados={[]}
-        errorMensaje="Falló el worker"
+        vista="solo_aviso"
+        frasesYaExistia={[
+          'Este archivo ya se había cargado.',
+          'No se duplicó nada.',
+        ]}
       />,
     );
-    expect(screen.getByText('Fallida')).toBeInTheDocument();
-    expect(screen.getByText('Falló el worker')).toBeInTheDocument();
+    expect(screen.getByText('No se duplicó nada.')).toBeInTheDocument();
     expect(screen.queryByRole('list')).toBeNull();
+    expect(screen.queryByRole('region')).toBeNull();
+    expect(container.textContent).not.toMatch(/nuevos|con error/);
   });
 
   it('con yaExistia muestra el aviso antes del contenido', () => {

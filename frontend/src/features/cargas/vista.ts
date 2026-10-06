@@ -60,13 +60,19 @@ export const puedeSubir = (roles: readonly string[]): boolean =>
  *  - `por_archivo`: terminó un lote de CFDI; se lista cada archivo.
  *  - `por_fila`: terminó un estado de cuenta; se listan las filas con error.
  *  - `sin_proceso`: la carga falló; no hay lista.
+ *  - `solo_aviso`: un yaExistia que ya había terminado; solo el aviso de K7.
  */
 export type VistaPanel =
-  'ninguno' | 'en_curso' | 'por_archivo' | 'por_fila' | 'sin_proceso';
+  | 'ninguno'
+  | 'en_curso'
+  | 'por_archivo'
+  | 'por_fila'
+  | 'sin_proceso'
+  | 'solo_aviso';
 
 export interface EntradaPanel {
   /** La carga recién subida; `null` si aún no hay. */
-  panel: { tipo: TipoCarga; epoca: number } | null;
+  panel: { tipo: TipoCarga; epoca: number; soloAviso: boolean } | null;
   /** Lo último que se sabe de esa carga (el detalle o, si no, el POST). */
   datos: { estado: EstadoCarga } | null;
   /** La época vigente de la sesión. */
@@ -86,6 +92,7 @@ export function derivarPanel({
   if (epoca === null || panel.epoca !== epoca) return 'ninguno';
   if (esActiva(datos.estado)) return 'en_curso';
   if (datos.estado === 'fallida') return 'sin_proceso';
+  if (panel.soloAviso) return 'solo_aviso';
   return panel.tipo === TIPO_CFDI ? 'por_archivo' : 'por_fila';
 }
 

@@ -80,12 +80,11 @@ describe('contrato CSS de los paneles de resultado', () => {
     const fallido = bloqueCss(css.fallido, '.fallido');
     expect(fallido).toContain('var(--color-danger-tint)');
     expect(fallido).toContain('var(--color-danger-border)');
-    expect(bloqueCss(css.fallido, '.etiqueta')).toContain(
+    expect(bloqueCss(css.fallido, '.aviso')).toContain(
       'var(--color-danger-title)',
     );
-    expect(bloqueCss(css.fallido, '.detalle')).toContain(
-      'var(--color-text-soft)',
-    );
+    expect(css.fallido).not.toContain('.etiqueta');
+    expect(css.fallido).not.toContain('.detalle');
   });
 
   it('la barra del panel conserva la animación y la apaga con prefers-reduced-motion', () => {
@@ -110,7 +109,6 @@ const PARES_DEL_PANEL: readonly (readonly [string, string])[] = [
   ['--color-text', '--estado-sugerencia-tile-bg'],
   ['--color-danger-title', '--color-danger-tint'],
   ['--color-danger-text', '--color-danger-tint'],
-  ['--color-text-soft', '--color-danger-tint'],
 ];
 
 describe.each<Tema>(['dark', 'light'])(

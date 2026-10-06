@@ -22,19 +22,17 @@ export interface PanelCargaProps {
   frasesYaExistia: readonly string[] | null;
   conteo: { ok: number; existentes: number; error: number };
   resultados: readonly EntradaResultado[];
-  errorMensaje: string | null;
 }
 
 /**
  * El panel de la carga recién subida: el aviso de K7 (si aplica) y el cuerpo
- * que toca según la vista. Solo presentación; el contenedor decide la vista.
+ * que toca según la vista (`solo_aviso` no tiene cuerpo). Solo presentación; el contenedor decide la vista.
  */
 export function PanelCarga({
   vista,
   frasesYaExistia,
   conteo,
   resultados,
-  errorMensaje,
 }: PanelCargaProps) {
   return (
     <>
@@ -42,9 +40,7 @@ export function PanelCarga({
         <AvisoYaExistia frases={frasesYaExistia} />
       )}
       {vista === 'en_curso' ? <ResultadoProcesando /> : null}
-      {vista === 'sin_proceso' ? (
-        <ResultadoFallido errorMensaje={errorMensaje} />
-      ) : null}
+      {vista === 'sin_proceso' ? <ResultadoFallido /> : null}
       {vista === 'por_archivo' ? (
         <ResultadoCfdi
           nuevos={conteo.ok}

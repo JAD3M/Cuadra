@@ -15,24 +15,8 @@
   color: var(--color-danger-text);
 }
 
-.texto {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  min-inline-size: 0;
-}
-
-.etiqueta {
-  color: var(--color-danger-title);
-}
-
 .aviso {
+  min-inline-size: 0;
   color: var(--color-danger-title);
   font-size: var(--text-md);
-}
-
-.detalle {
-  color: var(--color-text-soft);
-  font-size: var(--text-md);
-  overflow-wrap: anywhere;
 }
