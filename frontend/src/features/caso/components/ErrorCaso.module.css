@@ -1,0 +1,24 @@
+/* Estado no_encontrado de Detalle.dc.html: bloque centrado. Solo tokens. */
+.vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-48) var(--space-16);
+  text-align: center;
+}
+
+.vacio:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.titulo {
+  color: var(--color-text);
+  font-size: var(--text-xl);
+}
+
+.detalle {
+  color: var(--color-text-soft);
+  font-size: var(--text-md);
+}

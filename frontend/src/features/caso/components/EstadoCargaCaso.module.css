@@ -1,0 +1,40 @@
+/* Esqueleto de Detalle.dc.html (vista cargando). Solo tokens. */
+.esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+}
+
+.titulo,
+.tarjeta,
+.ancha {
+  background: var(--color-hover-2);
+}
+
+.titulo {
+  block-size: 40px;
+  inline-size: 60%;
+  border-radius: var(--radius-sm);
+}
+
+.par {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(min-content, 1fr));
+  gap: var(--space-20);
+}
+
+.tarjeta {
+  block-size: 220px;
+  border-radius: var(--radius-2xl);
+}
+
+.ancha {
+  block-size: 180px;
+  border-radius: var(--radius-2xl);
+}
+
+@media (max-width: 900px) {
+  .par {
+    grid-template-columns: 1fr;
+  }
+}

@@ -8,6 +8,34 @@
 export const TITULO_DOCUMENTO = 'Detalle del caso · Cuadra';
 export const VOLVER_A_BANDEJA = '← Volver a la bandeja';
 export const CARGANDO_CASO = 'Cargando caso';
+export const VOLVER_A_BANDEJA_ACCION = 'Volver a la bandeja';
+export const RECARGAR_CASO = 'Recargar caso';
+
+/**
+ * Fallos propios del caso. El de conectividad y el de permiso genérico son
+ * los de la bandeja (`@/features/bandeja/textos`) y no se repiten aquí.
+ */
+export const ERRORES = {
+  contrato: {
+    titulo: 'No pudimos mostrar este caso.',
+    detalle:
+      'El servidor respondió con datos inesperados. Inténtalo de nuevo más tarde.',
+  },
+  noEncontrado: {
+    titulo: 'No encontramos este caso.',
+    detalle: 'Puede que no exista o que pertenezca a otra empresa.',
+  },
+  segregacion: {
+    titulo: 'No puedes confirmar este caso.',
+    detalle:
+      'Quien subió el CFDI o el estado de cuenta no puede confirmarlo. Pide a otra persona de la empresa que lo revise.',
+  },
+  conflicto: {
+    titulo: 'Este caso ya cambió.',
+    detalle:
+      'Otra persona lo resolvió o la propuesta ya no está vigente. Recarga para ver su estado actual.',
+  },
+} as const;
 
 /** Movimiento bancario. */
 export const MOVIMIENTO = {

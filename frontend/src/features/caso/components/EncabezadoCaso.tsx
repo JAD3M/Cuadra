@@ -1,4 +1,3 @@
-import { Link } from 'react-router';
 import type { EstadoBandeja } from '@/shared/dominio/bandeja';
 import {
   ETIQUETAS_ESTADO_BANDEJA,
@@ -7,6 +6,7 @@ import {
 import type { OrigenConciliacion } from '@/shared/dominio';
 import { EstadoChip } from '@/shared/ui/EstadoChip';
 import { GLIFOS_ESTADO, VOLVER_A_BANDEJA } from '@/features/caso/textos';
+import { EnlaceBandeja } from './EnlaceBandeja';
 import estilos from './EncabezadoCaso.module.css';
 
 export interface EncabezadoCasoProps {
@@ -32,9 +32,7 @@ export function EncabezadoCaso({
 }: EncabezadoCasoProps) {
   return (
     <>
-      <Link className={estilos.volver} to="/bandeja">
-        {VOLVER_A_BANDEJA}
-      </Link>
+      <EnlaceBandeja texto={VOLVER_A_BANDEJA} variante="atras" />
       <header className={estilos.encabezado}>
         <div className={estilos.chips}>
           <EstadoChip tono={estado}>
