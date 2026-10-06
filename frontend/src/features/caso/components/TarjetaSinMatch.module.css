@@ -1,0 +1,26 @@
+.tarjeta {
+  border-color: var(--estado-sin-match-tile-border);
+}
+
+.rotulo {
+  color: var(--estado-sin-match-text);
+}
+
+.parrafo {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: var(--leading-support);
+}
+
+.nota {
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.regla {
+  color: var(--color-text-soft);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}

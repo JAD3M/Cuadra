@@ -60,3 +60,25 @@ export const GLIFOS_ESTADO = {
   sin_match: '○',
   conciliado: '✓',
 } as const;
+
+/** Variante de solo lectura: el motor no propuso nada. */
+export const SIN_MATCH = {
+  titulo: 'Sin match',
+  principal: 'El motor no encontró un CFDI seguro para este movimiento.',
+  secundaria: 'Este caso no tiene propuestas que confirmar.',
+} as const;
+
+/** Variante de solo lectura: un humano ya confirmó. */
+export const CONCILIADO = {
+  titulo: 'Conciliado',
+  cerrado: 'Este caso ya está cerrado y no admite cambios.',
+  /** Pieza a pieza: el servidor puede no traer el usuario o la fecha. */
+  confirmado: (usuario: string | null, fecha: string | null) =>
+    [
+      'Confirmado',
+      usuario === null ? null : `por ${usuario}`,
+      fecha === null ? null : `el ${fecha}`,
+    ]
+      .filter((p): p is string => p !== null)
+      .join(' ') + '.',
+} as const;

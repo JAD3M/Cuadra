@@ -5,6 +5,8 @@ import { BloqueMovimiento } from './components/BloqueMovimiento';
 import { DetallePropuesta } from './components/DetallePropuesta';
 import { EncabezadoCaso } from './components/EncabezadoCaso';
 import { ListaPropuestas } from './components/ListaPropuestas';
+import { TarjetaConciliado } from './components/TarjetaConciliado';
+import { TarjetaSinMatch } from './components/TarjetaSinMatch';
 import estilos from './CasoContenedor.module.css';
 import { CARGANDO_CASO, PROPUESTAS } from './textos';
 import { useCaso } from './useCaso';
@@ -68,6 +70,24 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
             onSeleccionar={setSeleccion}
           />
         </div>
+      ) : null}
+      {vista === 'sin_match' ? (
+        <TarjetaSinMatch
+          regla={caso.sinMatch?.regla ?? null}
+          motivo={caso.sinMatch?.motivo ?? null}
+        />
+      ) : null}
+      {vista === 'conciliado' && expandida !== null ? (
+        <>
+          <DetallePropuesta
+            propuesta={expandida}
+            toleranciaMonto={caso.toleranciaMonto}
+          />
+          <TarjetaConciliado
+            usuario={expandida.confirmadaPor?.nombre ?? null}
+            confirmadaAt={expandida.confirmadaAt}
+          />
+        </>
       ) : null}
     </div>
   );

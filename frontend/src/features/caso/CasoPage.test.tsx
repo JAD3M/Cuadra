@@ -123,6 +123,32 @@ describe('CasoPage', () => {
     expect(screen.queryByRole('heading', { name: 'Propuestas' })).toBeNull();
   });
 
+  it('un sin_match muestra la tarjeta de solo lectura con el motivo del servidor', async () => {
+    const caso = servir(casoSinMatch());
+    montar(caso.movimiento.id);
+    expect(
+      await screen.findByRole('heading', { level: 3, name: 'Sin match' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Hay varios CFDI con el mismo monto.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('un conciliado muestra el CFDI confirmado y la tarjeta de cierre, sin controles', async () => {
+    const caso = servir(casoConciliado());
+    montar(caso.movimiento.id);
+    expect(
+      await screen.findByRole('heading', { level: 3, name: 'Conciliado' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^Confirmado por Ana el /)).toBeInTheDocument();
+    expect(screen.getByText('CFDI candidato')).toBeInTheDocument();
+    expect(
+      screen.getByText('Este caso ya está cerrado y no admite cambios.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
   it('un caso conciliado tampoco lista propuestas', async () => {
     const caso = servir(casoConciliado());
     montar(caso.movimiento.id);
