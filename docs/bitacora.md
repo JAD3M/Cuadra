@@ -5,9 +5,18 @@
 
 ### 7 oct 2026
 
+- **CU-25 integrado a `master`** por avance rápido de la cadena hasta
+  `feat/cu-25-09-kit-docs` (b8c57af), sin push ni PR. Sobre `master` pasan el
+  typecheck de la raíz, las 3522 pruebas del frontend (218 archivos) y las 836
+  del backend (39 suites, con Postgres y Redis arriba). El usuario aprobó las
+  vistas de error de lectura de la versión 31 de la maqueta
+  (`error_lectura_permiso` y `error_lectura_otro`) y los estados sin permiso y
+  de error genérico de la tarjeta «Cambios recientes», que la maqueta no trae.
+  KAN-103 pasa a Finalizado. Sigue pendiente la revisión manual en el
+  navegador y los cuatro puntos abiertos de la entrada de abajo.
 - **CU-25 terminado: tolerancia desde la interfaz (KAN-103).** Con ella van 25
-  de 26 historias y 96 de 99 puntos; queda CU-26 (3 pts). **Pendiente de
-  integrar a `master`.** Vive en la cadena local de ramas
+  de 26 historias y 96 de 99 puntos; queda CU-26 (3 pts). Se integró a
+  `master` el 7 oct (ver arriba). Vivía en la cadena local de ramas
   `feat/cu-25-01-logica` a `feat/cu-25-09-kit-docs`, sin push ni PR, y no toca
   el backend. Lo entregado:
   - Pantalla `/tolerancia` en lugar del marcador, con la maqueta aprobada
@@ -161,7 +170,7 @@
      contra `--color-inset` da 1.57:1 en oscuro y 1.48:1 en claro, por debajo
      de 3:1 para elementos no textuales (lo comparten `Campo` y el formulario de
      tolerancia). No se corrigió en CU-25.
-- **Pendiente de aprobación del usuario** (no aprobado): de la versión 31 de la
+- **Aprobado por el usuario al integrar** (antes pendiente): de la versión 31 de la
   maqueta, las vistas de error de lectura `error_lectura_permiso` y
   `error_lectura_otro` (ya construidas, en S2a); y los estados de la tarjeta
   «Cambios recientes» sin permiso y de error genérico, que exige la
