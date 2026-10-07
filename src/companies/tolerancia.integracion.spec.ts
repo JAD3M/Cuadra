@@ -11,6 +11,7 @@ import {
   LUIS,
   TRANSPORTES,
 } from '../cargas/testing/app-de-cargas';
+import { ENTIDADES_BITACORA } from '../common/entities/tipos';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import { filas, una } from '../database/testing/base-de-pruebas';
 
@@ -191,6 +192,10 @@ describe('PUT /empresa/tolerancia: efecto y bitácora', () => {
     await put(ANA, FERRETERIA, { toleranciaMonto: '3' });
 
     expect(await tolerancia(A)).toBe('3.0000');
+    // ENT-1: la entidad que escribe el emisor pertenece a la lista canónica.
+    for (const fila of await bitacora('actualizar')) {
+      expect(ENTIDADES_BITACORA).toContain(fila.entidad);
+    }
     expect(await bitacora('actualizar')).toEqual([
       {
         company_id: A,

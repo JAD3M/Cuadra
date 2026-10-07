@@ -97,6 +97,15 @@ export const ACCIONES_BITACORA = [
 ] as const;
 export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 
+/**
+ * Entidades que la aplicación escribe hoy en la bitácora: 'conciliaciones'
+ * (crear, confirmar y rechazar) y 'companies' (actualizar la tolerancia y
+ * acceso_denegado). Es la lista para la interfaz y la documentación; GET
+ * /bitacora sigue aceptando cualquier `entidad` de hasta 64 caracteres.
+ */
+export const ENTIDADES_BITACORA = ['conciliaciones', 'companies'] as const;
+export type EntidadBitacora = (typeof ENTIDADES_BITACORA)[number];
+
 /** `'a' | 'b'` -> `'a', 'b'`, para escribir los CHECK sin repetir literales. */
 export function listaSql(valores: readonly string[]): string {
   return valores.map((v) => `'${v}'`).join(', ');

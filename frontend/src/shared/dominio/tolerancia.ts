@@ -1,4 +1,4 @@
-import type { AccionBitacora, Rol } from './tipos';
+import type { AccionBitacora, EntidadBitacora, Rol } from './tipos';
 
 // Espejo de lo que el backend define para la tolerancia de monto fuera de
 // src/common/entities/tipos.ts (CU-25). El frontend no importa código del
@@ -20,6 +20,6 @@ export const ROLES_QUE_EDITAN_TOLERANCIA = [
 ] as const satisfies readonly Rol[];
 
 /** Lo que audita src/companies/tolerancia.service.ts en la bitácora. */
-export const ENTIDAD_EMPRESA = 'companies';
+export const ENTIDAD_EMPRESA = 'companies' as const satisfies EntidadBitacora;
 export const ACCION_ACTUALIZAR = 'actualizar' as const satisfies AccionBitacora;
 export const CAMPO_TOLERANCIA = 'tolerancia_monto';

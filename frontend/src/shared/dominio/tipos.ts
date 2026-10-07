@@ -73,3 +73,6 @@ export const ACCIONES_BITACORA = [
   'acceso_denegado',
 ] as const;
 export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
+
+export const ENTIDADES_BITACORA = ['conciliaciones', 'companies'] as const;
+export type EntidadBitacora = (typeof ENTIDADES_BITACORA)[number];

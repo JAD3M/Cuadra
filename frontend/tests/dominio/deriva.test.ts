@@ -22,8 +22,8 @@ describe('espejo del dominio frente al backend (src/common/entities/tipos.ts)', 
   const texto = fs.readFileSync(RUTA_BACKEND, 'utf8');
   const backend = extraerExportsBackend(texto, RUTA_BACKEND);
 
-  it('encuentra las once listas y la constante de la regla del LLM', () => {
-    expect(Object.keys(backend.arreglos)).toHaveLength(11);
+  it('encuentra las doce listas y la constante de la regla del LLM', () => {
+    expect(Object.keys(backend.arreglos)).toHaveLength(12);
     expect(backend.constantes).toEqual({
       REGLA_LLM_SUGERENCIA: 'llm_sugerencia',
     });

@@ -10,6 +10,7 @@ import {
   LUIS,
   TRANSPORTES,
 } from '../cargas/testing/app-de-cargas';
+import { ENTIDADES_BITACORA } from '../common/entities/tipos';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import { una } from '../database/testing/base-de-pruebas';
 
@@ -236,6 +237,9 @@ describe('GET /conciliaciones/:id/historial (AU-10 a AU-14)', () => {
 
     const c = eventosDe(deConfirmar).find((e) => e.accion === 'confirmar');
     const r = eventosDe(deRechazar).find((e) => e.accion === 'rechazar');
+    // ENT-1: las filas de confirmar y rechazar usan una entidad de la lista.
+    expect(ENTIDADES_BITACORA).toContain(c?.entidad);
+    expect(ENTIDADES_BITACORA).toContain(r?.entidad);
     expect(c?.datos).toEqual((await filaDe(confirmada.id, 'confirmar')).datos);
     expect(c?.datos).toMatchObject({
       cfdi: { id: confirmada.cfdiId },
@@ -453,6 +457,16 @@ describe('GET /bitacora (AU-20 a AU-26)', () => {
     const res = await bitacora(
       `?entidad=nada&entidadId=${randomUUID()}&userId=${randomUUID()}`,
     ).expect(200);
+    expect(paginaDe(res)).toMatchObject({ datos: [], total: 0 });
+  });
+
+  it('ENT-1: la lista canónica de entidades es conciliaciones y companies', () => {
+    expect([...ENTIDADES_BITACORA]).toEqual(['conciliaciones', 'companies']);
+  });
+
+  it('ENT-2: GET /bitacora no valida entidad: una fuera de la lista es 200 vacío', async () => {
+    await evento();
+    const res = await bitacora('?entidad=cargas').expect(200);
     expect(paginaDe(res)).toMatchObject({ datos: [], total: 0 });
   });
 
