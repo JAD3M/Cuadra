@@ -153,6 +153,10 @@ const PARES_NO_TEXTO: Par[] = [
     ['--estado-conciliado-accent', '--color-border-subtle'],
     ['--estado-sin-match-accent', '--color-border-subtle'],
     ['--color-danger', '--color-border-subtle'],
+    // Tolerancia (CU-25, S2a): borde del campo inválido sobre el fondo del
+    // control (WCAG 1.4.11, componente de interfaz: 3:1). El mensaje de error
+    // (danger-text) y el resto de los pares de la tarjeta ya están arriba.
+    ['--color-danger', '--color-inset'],
   ]);
 
 const TEMAS: Tema[] = ['dark', 'light'];
