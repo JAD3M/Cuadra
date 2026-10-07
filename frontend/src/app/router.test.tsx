@@ -96,19 +96,22 @@ describe('tabla de rutas', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
-  it.each([['/bitacora', 'Bitácora']])(
-    '%s muestra su marcador dentro del layout',
-    (ruta, nombre) => {
-      renderizar(ruta);
-      expect(
-        screen.getByRole('heading', { level: 2, name: nombre }),
-      ).toBeInTheDocument();
-      expect(screen.getByText(/Pantalla en construcción/)).toBeInTheDocument();
-      expect(screen.getByRole('main')).toContainElement(
-        screen.getByRole('heading', { level: 2, name: nombre }),
-      );
-    },
-  );
+  it('/bitacora muestra su pantalla dentro del layout, ya no el marcador', () => {
+    renderizar('/bitacora');
+    const filtros = screen.getByRole('form', {
+      name: 'Filtros de la bitácora',
+    });
+    expect(screen.getByRole('main')).toContainElement(filtros);
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Bitácora' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Quién hizo qué y cuándo. Solo lectura, nadie la edita.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Pantalla en construcción/)).toBeNull();
+  });
 
   it('/tolerancia muestra su pantalla dentro del layout, ya no el marcador', () => {
     renderizar('/tolerancia');

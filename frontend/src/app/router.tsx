@@ -4,6 +4,10 @@ import { LoginPage } from '@/features/auth/LoginPage';
 import { BandejaPage } from '@/features/bandeja/BandejaPage';
 import { SUBTITULO, TITULO } from '@/features/bandeja/textos';
 import { BitacoraPage } from '@/features/bitacora/BitacoraPage';
+import {
+  SUBTITULO_PAGINA as SUBTITULO_BITACORA,
+  TITULO_PAGINA as TITULO_BITACORA,
+} from '@/features/bitacora/textos';
 import { CargasPage } from '@/features/cargas/CargasPage';
 import { SUBTITULO_CARGAS } from '@/features/cargas/textos';
 import { CasoPage } from '@/features/caso/CasoPage';
@@ -110,7 +114,10 @@ export const rutas: RouteObject[] = [
               {
                 path: '/bitacora',
                 element: <BitacoraPage />,
-                handle: titulo('Bitácora'),
+                handle: {
+                  titulo: TITULO_BITACORA,
+                  subtitulo: SUBTITULO_BITACORA,
+                } satisfies ManejadorRuta,
               },
             ],
           },

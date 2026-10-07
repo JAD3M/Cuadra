@@ -1,0 +1,19 @@
+/* Composición de la bitácora (Bitacora.dc.html). Solo tokens de rol. */
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+  min-inline-size: 0;
+}
+
+.tarjeta {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+}
+
+/* Destino del foco tras elegir una página: sin anillo, no es un control. */
+.resultados:focus {
+  outline: none;
+}
