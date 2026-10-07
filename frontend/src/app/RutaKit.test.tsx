@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { ThemeProvider } from '@/shared/tema';
+import seccionCargasFuente from '@/features/kit/SeccionCargas.tsx?raw';
 import { RutaKit } from './RutaKit';
 
 function renderizar() {
@@ -48,6 +49,7 @@ describe('RutaKit (galería de componentes)', () => {
       'Tabla con montos',
       'Bandeja',
       'Caso',
+      'Cargas',
       'Piezas del shell',
     ];
     for (const nombre of secciones) {
@@ -401,6 +403,290 @@ describe('RutaKit (galería de componentes)', () => {
       expect(
         within(bandeja).getByText('No tienes permiso para esta acción.'),
       ).toBeInTheDocument();
+    });
+  });
+
+  describe('sección Cargas', () => {
+    const seccion = () => screen.getByRole('region', { name: 'Cargas' });
+    // Las 22 vistas de la maqueta v25 que se pueden fijar con datos estáticos.
+    // `arrastrando` queda fuera: es el estado interno de la zona de soltar y
+    // solo se produce con eventos de arrastre, no con props.
+    const VISTAS = [
+      'normal',
+      'cargando',
+      'vacio',
+      'error',
+      'revisor',
+      'subiendo',
+      'resultado_cfdi',
+      'resultado_csv',
+      'ya_existia',
+      'error_400',
+      'error_413',
+      'sin_actualizar',
+      'cuenta_completa',
+      'sin_seleccion',
+      'procesando_resultado',
+      'resultado_fallida',
+      'resultado_sin_actualizar',
+      'error_subida',
+      'sin_permiso_subida',
+      'error_otro',
+      'perfiles_error',
+      'limites',
+    ] as const;
+
+    /** El bloque de una vista, por el título que lleva en la galería. */
+    function vista(nombre: (typeof VISTAS)[number]): HTMLElement {
+      const titulo = within(seccion()).getByRole('heading', {
+        level: 3,
+        name: `Vista: ${nombre}`,
+      });
+      const bloque = titulo.parentElement;
+      if (!(bloque instanceof HTMLElement)) throw new Error('sin bloque');
+      return bloque;
+    }
+
+    it('muestra cada una de las 22 vistas representables sin romperse', () => {
+      renderizar();
+      for (const nombre of VISTAS) {
+        expect(vista(nombre)).toBeInTheDocument();
+      }
+      expect(within(seccion()).queryByRole('heading', { level: 1 })).toBeNull();
+    });
+
+    it('normal: archivos rechazados en las dos tarjetas y las cinco cargas del historial', () => {
+      renderizar();
+      const normal = within(vista('normal'));
+      expect(
+        normal.getByText('Solo se aceptan archivos .xml'),
+      ).toBeInTheDocument();
+      expect(normal.getByText('El archivo pasa de 2 MB')).toBeInTheDocument();
+      expect(
+        normal.getByText('Solo se aceptan archivos .csv'),
+      ).toBeInTheDocument();
+      expect(
+        normal.getByText('2 de 4 listos. Los rechazados no se suben.'),
+      ).toBeInTheDocument();
+      expect(
+        normal.getByRole('button', { name: 'Quitar rechazados' }),
+      ).toBeEnabled();
+      // Cabecera + cinco cargas.
+      expect(normal.getAllByRole('row')).toHaveLength(6);
+      // La carga fallida muestra «—» en Válidos y en Con error (decisión #187).
+      const fallida = normal.getByRole('row', { name: /estado-jul-2026\.csv/ });
+      expect(within(fallida).getAllByText('—')).toHaveLength(2);
+    });
+
+    it('cargando, vacio y error: lo que sustituye a la tabla', () => {
+      renderizar();
+      expect(
+        within(vista('cargando')).getByText('Cargando cargas'),
+      ).toBeInTheDocument();
+      expect(within(vista('cargando')).queryByRole('table')).toBeNull();
+      expect(
+        within(vista('vacio')).getByText('Aún no hay cargas.'),
+      ).toBeInTheDocument();
+      const error = within(vista('error'));
+      expect(error.getByRole('alert')).toBeInTheDocument();
+      expect(
+        error.getByRole('button', { name: 'Reintentar' }),
+      ).toBeInTheDocument();
+    });
+
+    it('revisor: el aviso y todo apagado, sin ocultar nada', () => {
+      renderizar();
+      const revisor = within(vista('revisor'));
+      expect(
+        revisor.getByText('Tu rol solo permite consultar las cargas.'),
+      ).toBeInTheDocument();
+      expect(
+        revisor.getByRole('button', { name: 'Subir 2 archivos' }),
+      ).toBeDisabled();
+      expect(
+        revisor.getByRole('button', { name: 'Subir estado de cuenta' }),
+      ).toBeDisabled();
+      expect(revisor.getByLabelText('Cuenta')).toBeDisabled();
+    });
+
+    it('subiendo: la tarjeta de CFDI se apaga y la otra sigue disponible', () => {
+      renderizar();
+      const subiendo = within(vista('subiendo'));
+      expect(
+        subiendo.getByRole('button', { name: 'Subiendo…' }),
+      ).toBeDisabled();
+      expect(subiendo.getByText('Subiendo tus archivos')).toBeInTheDocument();
+      expect(
+        subiendo.getByRole('button', { name: 'Subir estado de cuenta' }),
+      ).toBeEnabled();
+    });
+
+    it('resultado_cfdi y resultado_csv: resumen y detalle de lo que respondió el servidor', () => {
+      renderizar();
+      const cfdi = within(vista('resultado_cfdi'));
+      expect(
+        cfdi.getByRole('region', { name: 'Resultado por archivo' }),
+      ).toBeInTheDocument();
+      expect(
+        cfdi.getByText(
+          'El XML no es un CFDI 4.0 válido: falta el atributo Version.',
+        ),
+      ).toBeInTheDocument();
+      const csv = within(vista('resultado_csv'));
+      expect(
+        csv.getByRole('region', { name: 'Filas con error' }),
+      ).toBeInTheDocument();
+      expect(
+        csv.getByText('Fila 14: la fecha no tiene el formato AAAA-MM-DD.'),
+      ).toBeInTheDocument();
+      expect(
+        csv.getByText('Fila 87: el monto no es un número válido.'),
+      ).toBeInTheDocument();
+    });
+
+    it('ya_existia: terminada solo avisa; en cola avisa y sigue procesando', () => {
+      renderizar();
+      const ya = within(vista('ya_existia'));
+      expect(ya.getByText('Este archivo ya se había cargado.')).toBeVisible();
+      expect(ya.getByText('No se duplicó nada.')).toBeVisible();
+      expect(
+        ya.getByText(
+          'Este archivo ya se había cargado y se volvió a poner en la cola.',
+        ),
+      ).toBeVisible();
+      // Solo la que está en cola muestra la barra de proceso.
+      expect(ya.getAllByText('Procesando la carga…')).toHaveLength(1);
+      expect(
+        ya.queryByRole('region', { name: 'Resultado por archivo' }),
+      ).toBeNull();
+    });
+
+    it('las alertas de subida usan el texto del mockup', () => {
+      renderizar();
+      const e400 = within(vista('error_400'));
+      expect(e400.getByRole('alert')).toBeInTheDocument();
+      expect(e400.getByText('No se pudo procesar la carga.')).toBeVisible();
+      expect(
+        e400.getByText(
+          'El encabezado del CSV no coincide con el perfil banco-norte.',
+        ),
+      ).toBeVisible();
+      expect(
+        within(vista('error_413')).getByText('Los archivos pesan demasiado.'),
+      ).toBeVisible();
+      const conexion = within(vista('error_subida'));
+      expect(
+        conexion.getByText('No se pudo conectar con el servidor.'),
+      ).toBeVisible();
+      expect(
+        conexion.getByRole('button', { name: 'Reintentar' }),
+      ).toBeEnabled();
+      expect(
+        within(vista('sin_permiso_subida')).getByText(
+          'No tienes permiso para esta acción.',
+        ),
+      ).toBeVisible();
+      const otro = within(vista('error_otro'));
+      expect(
+        otro.getByText('No se pudo completar la solicitud.'),
+      ).toBeVisible();
+      expect(
+        otro.getByText(
+          'Tus archivos siguen seleccionados. Inténtalo de nuevo en unos minutos.',
+        ),
+      ).toBeVisible();
+      // El error inesperado no ofrece reintento (mockup v25).
+      expect(otro.queryByRole('button', { name: 'Reintentar' })).toBeNull();
+    });
+
+    it('sin_actualizar y resultado_sin_actualizar: el aviso con «Actualizar»', () => {
+      renderizar();
+      for (const nombre of [
+        'sin_actualizar',
+        'resultado_sin_actualizar',
+      ] as const) {
+        const bloque = within(vista(nombre));
+        expect(
+          bloque.getByText(/La lista dejó de actualizarse\./),
+        ).toBeVisible();
+        expect(
+          bloque.getByRole('button', { name: 'Actualizar' }),
+        ).toBeEnabled();
+      }
+    });
+
+    it('cuenta_completa: avisa sin bloquear y la cuenta solo está en el campo', () => {
+      renderizar();
+      const cuenta = within(vista('cuenta_completa'));
+      expect(
+        cuenta.getByText(
+          'Parece un número de cuenta completo. Escribe solo los últimos dígitos.',
+        ),
+      ).toBeVisible();
+      expect(cuenta.getByLabelText('Cuenta')).toHaveValue('012345678901234567');
+    });
+
+    it('sin_seleccion: nada elegido y los botones de subir apagados', () => {
+      renderizar();
+      const vacia = within(vista('sin_seleccion'));
+      expect(
+        vacia.queryByRole('region', { name: 'Archivos elegidos' }),
+      ).toBeNull();
+      expect(
+        vacia.getByRole('button', { name: 'Subir archivos' }),
+      ).toBeDisabled();
+      expect(
+        vacia.getByRole('button', { name: 'Subir estado de cuenta' }),
+      ).toBeDisabled();
+    });
+
+    it('procesando_resultado y resultado_fallida: la carga en curso y la que falló', () => {
+      renderizar();
+      expect(
+        within(vista('procesando_resultado')).getByText('Procesando la carga…'),
+      ).toBeVisible();
+      const fallida = within(vista('resultado_fallida'));
+      expect(
+        fallida.getByText(
+          'La carga falló por un problema del sistema. Vuelve a subir el archivo para reintentar.',
+        ),
+      ).toBeVisible();
+      // Solo el aviso del mockup: sin etiqueta «Fallida» ni mensaje del servidor.
+      expect(fallida.queryByText('Fallida')).toBeNull();
+    });
+
+    it('perfiles_error: el select apagado con su mensaje y «Reintentar»', () => {
+      renderizar();
+      const perfiles = within(vista('perfiles_error'));
+      expect(
+        perfiles.getByText('No se pudieron cargar los perfiles.'),
+      ).toBeVisible();
+      expect(
+        perfiles.getByRole('button', { name: 'Reintentar' }),
+      ).toBeEnabled();
+      expect(perfiles.getByLabelText('Perfil de lectura')).toBeDisabled();
+    });
+
+    it('limites: avisa una sola vez de cada tope del lote', () => {
+      renderizar();
+      const limites = within(vista('limites'));
+      expect(
+        limites.getByText(
+          'Son más de 500 archivos. Divide la carga en partes más pequeñas.',
+        ),
+      ).toBeVisible();
+      expect(
+        limites.getByText(
+          'La selección pasa de 50 MB. Divide la carga en partes más pequeñas.',
+        ),
+      ).toBeVisible();
+    });
+
+    it('los componentes se alimentan con datos estáticos: la sección no importa de @/shared/api', () => {
+      expect(seccionCargasFuente).not.toMatch(/from\s+['"]@\/shared\/api/);
+      expect(seccionCargasFuente).not.toMatch(
+        /from\s+['"]@\/features\/cargas\/use/,
+      );
     });
   });
 

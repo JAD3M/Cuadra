@@ -17,6 +17,7 @@ import { EstadoChip, TONOS_ESTADO_CHIP } from '@/shared/ui/EstadoChip';
 import { Monto } from '@/shared/ui/Monto';
 import { Td, Th, Tabla } from '@/shared/ui/Tabla';
 import { SeccionBandeja } from './SeccionBandeja';
+import { SeccionCargas } from './SeccionCargas';
 import { SeccionCaso } from './SeccionCaso';
 import estilos from './KitPage.module.css';
 
@@ -351,6 +352,10 @@ export function KitPage({ muestraShell }: KitPageProps) {
 
       <Seccion id="kit-caso" titulo="Caso">
         <SeccionCaso />
+      </Seccion>
+
+      <Seccion id="kit-cargas" titulo="Cargas">
+        <SeccionCargas />
       </Seccion>
 
       {muestraShell && (
