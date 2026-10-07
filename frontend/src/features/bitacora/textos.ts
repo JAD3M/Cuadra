@@ -44,3 +44,30 @@ export const RANGO_INVERTIDO = '«Desde» no puede ser posterior a «Hasta».';
 
 /** Aviso bajo «Usuario» cuando la lista de personas no se pudo leer. */
 export const USUARIOS_ERROR = 'No se pudo cargar la lista de usuarios.';
+
+/** La empresa aún no tiene eventos (sin filtros). */
+export const VACIO = {
+  titulo: 'Aún no hay eventos en la bitácora.',
+  detalle:
+    'Aquí aparecerá cada confirmación, rechazo, cambio de tolerancia y acceso denegado de la empresa.',
+} as const;
+
+/** Ningún evento cumple los filtros. */
+export const VACIO_CON_FILTROS = {
+  titulo: 'No hay eventos con estos filtros.',
+  detalle: 'Prueba con otra entidad, acción, usuario o rango de fechas.',
+  accion: 'Restablecer filtros',
+} as const;
+
+// Los avisos compartidos de conectividad y de permiso, y «Reintentar», son los
+// de la bandeja (M10), igual que en Cargas y Tolerancia.
+export {
+  ERROR_CONEXION,
+  ERROR_SIN_PERMISO,
+  REINTENTAR,
+} from '@/features/bandeja/textos';
+
+/** Cualquier otro fallo de la lectura: copy fijo, nunca el texto del servidor. */
+export const ERROR_OTRO = {
+  titulo: 'No se pudo completar la solicitud.',
+} as const;
