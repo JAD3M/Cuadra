@@ -1,8 +1,18 @@
 import { Button } from '@/shared/ui/Button';
-import { paginaMaxima } from '@/features/bandeja/filtrosUrl';
-import { ventanaDePaginas } from '@/features/bandeja/paginas';
-import { PAGINACION } from '@/features/bandeja/textos';
+import { paginaMaxima, ventanaDePaginas } from '@/shared/ui/paginas';
 import estilos from './Paginacion.module.css';
+
+/**
+ * Textos del paginador. Viven aquí y no en el feature que lo usa: `shared`
+ * no puede importar de `features`, y el paginador es de todas las pantallas.
+ */
+const PAGINACION = {
+  nombre: 'Paginación',
+  anterior: 'Página anterior',
+  siguiente: 'Página siguiente',
+  mostrando: 'Mostrando',
+  sinResultados: 'Sin resultados',
+} as const;
 
 export interface PaginacionProps {
   /** Página actual, desde 1. */
@@ -16,7 +26,7 @@ export interface PaginacionProps {
 }
 
 /**
- * Paginación de la bandeja. El rango visible («21–39 de 39») es decorativo
+ * Paginación de las listas. El rango visible («21–39 de 39») es decorativo
  * (`aria-hidden`) y un `role="status"` cortés lo anuncia completo
  * («Mostrando 21–39 de 39»). Con una sola página o sin resultados no hay
  * botones de página.

@@ -2,19 +2,15 @@ import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { mensajeDeError } from '@/shared/api';
 import type { EstadoBandeja } from '@/shared/dominio/bandeja';
+import { Paginacion } from '@/shared/ui/Paginacion';
+import { paginaMaxima } from '@/shared/ui/paginas';
 import { EstadoVacio } from './components/EstadoVacio';
 import { ErrorBandeja } from './components/ErrorBandeja';
 import { FiltrosEstado } from './components/FiltrosEstado';
 import { KpiBandeja } from './components/KpiBandeja';
-import { Paginacion } from './components/Paginacion';
 import { TablaBandeja } from './components/TablaBandeja';
 import { LIMITE_PAGINA } from './constantes';
-import {
-  alternarEstado,
-  leerFiltros,
-  paginaMaxima,
-  serializar,
-} from './filtrosUrl';
+import { alternarEstado, leerFiltros, serializar } from './filtrosUrl';
 import { ERROR_CONEXION, detallePorTipo } from './textos';
 import { useBandeja } from './useBandeja';
 import { useResumenBandeja } from './useResumenBandeja';

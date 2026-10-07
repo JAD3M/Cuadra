@@ -3,13 +3,13 @@ import { EstadoVacio } from '@/features/bandeja/components/EstadoVacio';
 import { ErrorBandeja } from '@/features/bandeja/components/ErrorBandeja';
 import { FiltrosEstado } from '@/features/bandeja/components/FiltrosEstado';
 import { KpiBandeja } from '@/features/bandeja/components/KpiBandeja';
-import { Paginacion } from '@/features/bandeja/components/Paginacion';
 import {
   TablaBandeja,
   type FilaTabla,
 } from '@/features/bandeja/components/TablaBandeja';
 import { PREFIJO_MOTIVO_SIMULADO } from '@/features/bandeja/ia';
 import { ERROR_CONEXION, ERROR_SIN_PERMISO } from '@/features/bandeja/textos';
+import { Paginacion } from '@/shared/ui/Paginacion';
 import estilos from './KitPage.module.css';
 
 const SIN_ACCION = () => {};

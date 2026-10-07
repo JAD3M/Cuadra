@@ -70,15 +70,6 @@ export const detallePorTipo: Partial<Record<TipoMensaje, string>> = {
   sin_permiso: ERROR_SIN_PERMISO.detalle,
 };
 
-/** Paginación. */
-export const PAGINACION = {
-  nombre: 'Paginación',
-  anterior: 'Página anterior',
-  siguiente: 'Página siguiente',
-  mostrando: 'Mostrando',
-  sinResultados: 'Sin resultados',
-} as const;
-
 /** Celdas de la tabla. */
 export const COLUMNAS = {
   fecha: 'Fecha',

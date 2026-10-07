@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { bloqueCss, leerModuloCss, LITERAL_DE_COLOR } from './leerCss';
 
-const css = leerModuloCss('features/bandeja/components/Paginacion.module.css');
+const css = leerModuloCss('shared/ui/Paginacion.module.css');
 
 describe('contrato CSS de la paginación', () => {
   it('cada control mide al menos un objetivo táctil', () => {

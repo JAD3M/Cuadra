@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   alternarEstado,
   leerFiltros,
-  paginaMaxima,
   serializar,
   type FiltrosBandeja,
 } from './filtrosUrl';
@@ -189,20 +188,5 @@ describe('alternarEstado', () => {
       estados: ['sugerencia', 'sin_match'],
       pagina: 2,
     });
-  });
-});
-
-describe('paginaMaxima', () => {
-  it.each([
-    [0, 20, 1],
-    [1, 20, 1],
-    [20, 20, 1],
-    [21, 20, 2],
-    [39, 20, 2],
-    [40, 20, 2],
-    [41, 20, 3],
-    [999999, 20, 50000],
-  ])('total %i con límite %i da %i', (total, limite, esperada) => {
-    expect(paginaMaxima(total, limite)).toBe(esperada);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ventanaDePaginas } from './paginas';
+import { paginaMaxima, ventanaDePaginas } from './paginas';
 
 const E = null;
 
@@ -50,5 +50,20 @@ describe('ventanaDePaginas', () => {
     for (let actual = 1; actual <= 100; actual++) {
       expect(ventanaDePaginas(actual, 100)).toHaveLength(7);
     }
+  });
+});
+
+describe('paginaMaxima', () => {
+  it.each([
+    [0, 20, 1],
+    [1, 20, 1],
+    [20, 20, 1],
+    [21, 20, 2],
+    [39, 20, 2],
+    [40, 20, 2],
+    [41, 20, 3],
+    [999999, 20, 50000],
+  ])('total %i con límite %i da %i', (total, limite, esperada) => {
+    expect(paginaMaxima(total, limite)).toBe(esperada);
   });
 });

@@ -23,3 +23,8 @@ export function ventanaDePaginas(
   }
   return [1, null, actual - 1, actual, actual + 1, null, totalPaginas];
 }
+
+/** Última página que existe para `total` filas; nunca menos de 1. */
+export function paginaMaxima(total: number, limite: number): number {
+  return Math.max(1, Math.floor((total + limite - 1) / limite));
+}
