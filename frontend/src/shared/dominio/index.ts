@@ -14,3 +14,4 @@ export {
   ordenarRoles,
 } from './etiquetas';
 export { iniciales } from './iniciales';
+export * from './tolerancia';
