@@ -3,6 +3,189 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 7 oct 2026
+
+- **CU-24 terminado: cargas desde la interfaz (KAN-102).** Con ella van 24 de
+  26 historias y 94 de 99 puntos; quedan CU-25 y CU-26 (5 pts). Vive en la
+  cadena local de ramas `feat/cu-24-00-api-cargas` a `feat/cu-24-09-kit-docs`
+  y está **pendiente de integrar a `master`** (sin push ni PR). Lo entregado:
+  - API: `GET /cargas`, solo lectura y sin migración. Devuelve `{datos: [...]}`
+    con las últimas 20 cargas de la empresa, de la más nueva a la más antigua
+    (empate por `id`), con el nombre de quien subió (o `null`). Filtra por
+    `company_id` y la puede leer cualquier rol.
+  - Pantalla `/cargas` en lugar del marcador, con la maqueta aprobada (versión
+    25, solo oscuro; el claro sale de los mismos roles de color y del control
+    de tema). Dos tarjetas de subida: CFDI (varios `.xml`, hasta 500 archivos,
+    2 MB cada uno y 50 MB en total) y estado de cuenta (un `.csv` de hasta
+    10 MB, con banco, cuenta y perfil de lectura). La validación local es una
+    comodidad y el servidor decide. Cada subida abre un panel de resultado en
+    su tarjeta: por archivo (CFDI), por fila con error (CSV), «Procesando la
+    carga…», la falla fija del mockup y el aviso de «ya existía» (K7). El
+    historial «Cargas recientes» muestra la tabla con la barra «Avance»
+    derivada solo del estado, sin porcentajes, y sus estados de carga, vacío,
+    error y sin permiso.
+  - Sondeo cada 3 s mientras haya una carga pendiente o procesando, con tope de
+    5 min; al vencer aparece «Actualizar» y el sondeo se reabre. Un solo
+    observador alimenta el historial y las tarjetas. Al pasar una carga de
+    activa a terminal se invalidan también los datos de la bandeja (M17).
+  - El cliente de API ganó la rama `FormData` (sin `Content-Type` propio, sin
+    serializar el cuerpo) y un clasificador de errores de subida: 400 con el
+    motivo del servidor como texto plano, 413, 403, conexión y fallo
+    inesperado. Nada de lo que manda el servidor se pinta como marcado.
+  - La galería `/__kit` tiene la sección «Cargas» con 22 de las 23 vistas de la
+    maqueta, el historial sin permiso y las filas rechazadas. Falta
+    `arrastrando`: es el estado interno de la zona de soltar y solo lo produce
+    un arrastre real; la cubren las pruebas de `ZonaSoltar`, no la galería. El
+    tope de cantidad y el de total se muestran con dos entradas ya evaluadas
+    (500 filas aceptadas llenarían la galería sin enseñar nada nuevo).
+- **Entrega de CU-24.** Diez ramas locales apiladas (`stacked-to-main`, `S0` a
+  `S9`) y 37 commits en `master..HEAD` (35 hasta S8, el del kit y el de estos
+  documentos, que es el último). Se partió en límites de commit y los cortes que
+  pasan de 400 líneas por las pruebas quedan como `size:exception`; las
+  pruebas nunca se recortaron para entrar en el presupuesto. Tamaño real por
+  rama contra la anterior (`git diff --shortstat`, líneas escritas a mano, sin
+  archivos generados) y, entre paréntesis, las líneas de cada commit
+  (altas más bajas, que pueden sumar más que la rama cuando un commit reescribe
+  lo anterior):
+
+  | Rama | Tamaño de la rama | Commits | Prueba de cierre |
+  |---|---|---|---|
+  | S0 `00-api-cargas` | 540+/2-, 4 archivos | `a4ad69b` (542) | typecheck y Jest de la raíz; sin conteo anotado |
+  | S1 `01-contratos` | 1,668+/3-, 14 archivos | `425c0e5` (495), `2fd6aca` (1,176) | 2,356 en verde y 5 omitidas |
+  | S2 `02-cliente` | 518+/9-, 9 archivos | `6f82f01` (100), `4e765b4` (135), `fe24e0d` (292) | 2,386 |
+  | S3 `03-datos` | 1,564+, 17 archivos | `b97b5f5` (1,058), `4d3eb68` (385), `441ecfa` (4), `2f35a56` (197) | 2,450 |
+  | S4 `04-historial` | 1,493+/3-, 34 archivos | `c146288` (372), `3408bd8` (323), `0860d0a` (780), `3ff984a` (47) | 2,567 |
+  | S5 `05-tarjetas` | 3,395+/2-, 42 archivos | `cfab0f8` (340), `fb55596` (740), `46c5308` (605), `de90b57` (921), `a15cff6` (533), `c38840e` (302) | 2,737 |
+  | S6 `06-resultados` | 1,886+/49-, 31 archivos | `971e440` (206), `dbc430e` (479), `41989ba` (296), `a1521c5` (315), `2a1b6e1` (213), `f616e90` (402), `e0d2352` (218) | 2,836 |
+  | S7 `07-errores` | 1,169+/18-, 22 archivos | `5a567c9` (179), `6247c6b` (341), `b7e6c5e` (412), `007a632` (232), `93b10bc` (51) | 2,906 |
+  | S8 `08-pagina` | 1,084+/62-, 11 archivos | `9276aef` (111), `e246038` (586), `f16c147` (449) | 2,951 |
+  | S9 `09-kit-docs` | 739+, 4 archivos, más estos documentos | `9f23912` (739: 453 de código y 286 de pruebas) | 2,966 |
+
+  - Commits de más de 400 líneas: `a4ad69b`, `425c0e5`, `2fd6aca`, `b97b5f5`,
+    `0860d0a`, `fb55596`, `46c5308`, `de90b57`, `a15cff6`, `dbc430e`,
+    `f616e90`, `b7e6c5e`, `e246038`, `f16c147` y `9f23912`. En todos menos el
+    último el código de producción cabe en 400 líneas (el mayor, 397) y el
+    exceso son las pruebas, entre el 41 % y el 100 % de cada commit.
+    `9f23912` es la excepción: sus 453 líneas de código ya pasan de 400, de las
+    cuales 432 son la propia sección del kit (datos de ejemplo y 23 bloques);
+    no se partió porque es una galería que se lee de una vez.
+  - Total de `master` a la rama del kit: 13,927 líneas añadidas y 19 quitadas
+    en 146 archivos, de las cuales 4,726 son de código y 9,201 de pruebas
+    y sus ayudas (incluidas las de CSS y contraste). La previsión era de unas 3,400 (de
+    3,000 a 4,300): salió unas cuatro veces mayor. El backend pesó lo previsto
+    (unas 540); el resto es frontend, donde las pruebas de hooks, componentes,
+    contraste y flujos pesaron mucho más que el cálculo. S1 a S9 se
+    cerraron con typecheck, lint, formato, build y `verificar:dist` en 0, el
+    typecheck de la raíz en 0 y dos corridas completas de `vitest` en paralelo
+    sin fallos; S0 se cerró con el typecheck y el Jest de la raíz.
+- **Verificación de S9**, observada en `feat/cu-24-09-kit-docs`: en
+  `frontend/`, typecheck, lint, formato, build y `verificar:dist` terminan con
+  código 0; dos corridas completas de `vitest` en paralelo (cada una con su
+  `TMPDIR`) dan 198 archivos y 2,966 pruebas en verde, 15 más que en S8. En la
+  raíz, typecheck con código 0. No se volvió a correr `npm test` de la raíz:
+  el backend no cambia desde S0.
+- **Decisiones de CU-24** (aceptadas por el usuario): se agrega `GET /cargas`
+  (1); no hay maqueta clara, el tema claro sale de los roles de color y del
+  control de tema (2); «Avance» solo por estado, sin porcentajes (3); el motivo
+  de cada archivo, de cada fila y del 400 se muestra como texto plano (4); el
+  revisor ve la tabla y las tarjetas quedan apagadas con una explicación (5);
+  sin progreso en bytes, el botón dice «Subiendo…» (6); sondeo de 3 s con tope
+  de 5 min y «Actualizar» (7); la cuenta lleva el marcador `****1234` y un
+  aviso que no bloquea (8); últimas 20 cargas, sin paginar y con fecha (9); sin
+  detalle por fila del historial (10). Correcciones del orquestador a la
+  propuesta: K1 a K7 (cinco estados, columnas del mockup más Fecha, botones del
+  mockup, el aviso de cuenta no promete enmascarar, «Actualizar» solo tras el
+  tope, barra llena con el color del estado y el texto de «ya existía» según el
+  estado devuelto). Enmiendas a la especificación M1 a M19 (más M20, la
+  aprobación de la versión 23 de la maqueta), guardadas en Engram como
+  `sdd/cu-24-cargas/spec-amendments`; M7 no se tocó (ver pendientes).
+- **Cambios por decisión del usuario sobre el mockup** (la pantalla sigue al
+  mockup, aun contra la especificación):
+  - Una carga `fallida` muestra «—» en Válidos y en Con error, sin resaltar
+    (decisión 187; enmienda de M12; `3ff984a`).
+  - Si fallan los perfiles, el campo «Perfil de lectura» sigue visible pero
+    apagado, con «No se pudieron cargar los perfiles.» y «Reintentar» (decisión
+    188; reemplaza lo previsto en la tarea 5.3, que lo ocultaba; `c38840e`).
+  - Los paneles de resultado se recortan al mockup (decisión 189; se aparta de
+    CRG-8.4 y CRG-8.6): la carga fallida muestra solo la caja de aviso fija,
+    sin la etiqueta «Fallida» ni el `errorMensaje`; un «ya existía» que ya
+    había terminado muestra solo el aviso, sin resultados (`e0d2352`).
+  - El mockup recibió la vista `error_otro` (versión 25) para el fallo
+    inesperado al subir, y se implementó: «No se pudo completar la solicitud.»,
+    la selección se conserva y no hay «Reintentar» (decisión 190; `93b10bc`).
+- **Resultado del experimento de `FormData` en jsdom (S2).** Falló tal como se
+  temía: undici exige que el cuerpo sea un `FormData` y un `File` nativos y
+  rechazaba los de jsdom (el servidor de pruebas respondía 500). Se restauraron
+  `Blob`, `File` y `FormData` nativos en `frontend/src/test/setup.ts`
+  (`node:buffer` para `File` y `Blob`, y el `FormData` de una `Response`
+  nativa), instalados con `Object.defineProperty` porque la asignación simple
+  rompía la `Request` de compatibilidad de Vitest. `userEvent.upload` sigue
+  funcionando con archivos nativos. La prueba se conserva en
+  `src/shared/api/formdata.test.tsx` (`6f82f01`), y las 5 pruebas multipart
+  que S1 dejó omitidas pasaron a activas y en verde.
+- **Corrección de pruebas en S3 (`2f35a56`).** Las pruebas del sondeo usaban
+  una espera fija de milisegundos (`esperar(ms)`) para demostrar que el sondeo
+  se detiene. Se reemplazó en 17 sitios por un testigo de intervalos
+  independiente (`esperarIntervalos`, con al menos 3 ticks medidos contra el
+  reloj) y controles positivos. Se comprobó con mutaciones, revertidas: ignorar
+  el tope hace fallar la prueba del tope, seguir sondeando filas terminadas
+  hace fallar cuatro, y `refetchIntervalInBackground` hace fallar la de la
+  pestaña oculta. Antes, `441ecfa` cambió un conteo exacto de sondeos (igual a 3)
+  por «al menos 3»: había fallado en una de las primeras corridas en paralelo.
+- **Riesgos aceptados.** El sondeo cuenta también el tiempo con la pestaña
+  oculta y una subida nueva abre otra ventana de 5 min; un servidor caído se
+  sondea cada 3 s hasta el tope, sin retroceso. Si falla la lectura del panel,
+  se queda el último dato hasta el tope. Un CSV con miles de filas con error se
+  pinta completo en una región con desplazamiento, sin ventanas virtuales. Un
+  CSV de 10 a 11 MB da 400 y de más de 11 MB da 413; se clasifica por estado.
+  Las pruebas que aterrizan en `/cargas` ahora hacen peticiones y dependen de
+  los manejadores por defecto (se adaptaron `router.test.tsx` y dos
+  afirmaciones del contenedor y de la página, cada una probada con una corrida
+  que falla).
+- **Pendientes de CU-24:**
+  - **Integrar la cadena a `master`**: avance rápido hasta
+    `feat/cu-24-09-kit-docs`, o por rama, a decisión del usuario. Nada se
+    empujó ni se abrió como PR.
+  - **M7**: ni la entidad ni el DTO enmascaran `cuenta`, pero sus comentarios
+    dicen «enmascarada». Corregirlos queda fuera de CU-24 hasta que el usuario
+    lo pida.
+  - **Adiciones al mockup sin aprobar**, hoy fuera de la pantalla: la etiqueta
+    «Fallida» y el `errorMensaje` de una carga fallida, y los resultados bajo
+    un «ya existía» que ya había terminado. Relacionado: un «ya existía» que se
+    vuelve a poner en la cola y luego termina sí muestra sus resultados tras el
+    sondeo, y eso no está en el mockup (las dos situaciones esperan el
+    mismo acuerdo).
+  - **Doble invalidación de la bandeja (M17)**: la lista y el panel observan la
+    misma transición de activa a terminal, así que se piden 2 veces
+    `GET /bandeja/resumen` de más. Es inofensivo y una prueba lo fija; no se
+    cambió.
+  - **Monto de la galería con «0123456789»**: el monto de ejemplo
+    `12345678901234567890.12` de `KitPage.tsx` contiene esa secuencia. Es previo
+    a CU-24 y queda fuera de `features/cargas`, donde la prueba de CRG-6 busca.
+- **Revisión manual en el navegador: PENDIENTE.** Nadie la ha corrido y no se
+  arrancó ningún servidor de desarrollo; las pruebas automáticas no la
+  sustituyen. Contra la maqueta aprobada (versión 25), con el API de desarrollo
+  y datos sembrados, y los servidores que se arranquen se detienen por PID:
+  - [ ] Cada `vista` en oscuro y en claro (el claro con el control de tema de
+    la propia pantalla, porque no hay maqueta clara), a 1440, 900 y 375 px.
+  - [ ] Revisor: tarjetas apagadas y aviso, con la tabla visible.
+  - [ ] Subiendo: botón «Subiendo…», lista atenuada, la otra tarjeta disponible.
+  - [ ] Sondeo a la vista: «Avance» indeterminado y, con «reducir movimiento»,
+    sin animación.
+  - [ ] Tope y «Actualizar» tras 5 minutos (o con una ventana corta de
+    desarrollo), en la cabecera y dentro de la tarjeta.
+  - [ ] Resultados con cientos de archivos o de filas: desplazamiento, sin
+    recortes.
+  - [ ] 400 y 413 con subidas reales: más de 50 MB y una extensión incorrecta;
+    un CSV de entre 10 y 11 MB (400) y otro de más de 11 MB (413).
+  - [ ] Cuenta: el aviso al escribir un número completo, sin bloquear.
+  - [ ] Pestaña oculta: el sondeo se pausa y se reanuda al volver.
+  - [ ] Los contadores y los montos no se parten ni se salen de su caja.
+  - [ ] Solo teclado: elegir archivos, quitar rechazados, subir y leer los
+    resultados; foco visible y objetivos de al menos 44 px.
+  - [ ] Revisión con lector de pantalla: aviso al subir, resultado y alertas.
+  - [ ] `GET /cargas` real contra el API de desarrollo con datos sembrados.
+
 ### 6 oct 2026
 
 - **CU-23 integrado a `master`** por avance rápido de la cadena hasta

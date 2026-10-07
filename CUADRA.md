@@ -5,11 +5,11 @@
 
 | | |
 |---|---|
-| **Estado** | Día 8 de 9 · CU-01 a CU-23, más CU-04b · 23 / 26 historias · 89 / 99 pts · Épicas A–G cerradas y H pendiente |
-| **Entrega** | 2 de octubre de 2026 (backend, CU-01 a CU-18); el frontend (CU-19 a CU-26) no tiene fecha; CU-24 a CU-26 (10 pts) quedan pendientes |
+| **Estado** | Día 8 de 9 · CU-01 a CU-24, más CU-04b · 24 / 26 historias · 94 / 99 pts · Épicas A–G cerradas y H en curso (CU-24 hecha, pendiente de integrar a `master`) |
+| **Entrega** | 2 de octubre de 2026 (backend, CU-01 a CU-18); el frontend (CU-19 a CU-26) no tiene fecha; CU-25 y CU-26 (5 pts) quedan pendientes |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 26 historias · 99 puntos (69 del backend y 30 de la interfaz) · 9 días hábiles para el backend |
-| **Última actualización** | 6 oct 2026 |
+| **Última actualización** | 7 oct 2026 |
 
 Este archivo es la fuente de verdad del proyecto. Vive en la raíz del repo.
 Si usas un agente de código, apúntalo aquí desde `CLAUDE.md` o `AGENTS.md`
@@ -806,7 +806,7 @@ CU-20 a CU-26 están en Jira; solo CU-19 los lleva en este archivo.
 
 | ID | Historia | Pts | Día | Jira | Qué entrega |
 |---|---|---|---|---|---|
-| CU-24 | Cargas desde la interfaz | 5 | sin fecha | KAN-102 | Subida de CFDI y estados de cuenta y su seguimiento |
+| CU-24 | Cargas desde la interfaz | 5 | 6 oct | KAN-102 | Subida de CFDI y estados de cuenta y su seguimiento en pantalla, con `GET /cargas` (las últimas 20 cargas de la empresa) para el historial. Hecha en la cadena local `feat/cu-24-00-api-cargas` a `feat/cu-24-09-kit-docs`, pendiente de integrar a `master`; la revisión manual en el navegador sigue pendiente |
 | CU-25 | Tolerancia desde la interfaz | 2 | sin fecha | KAN-103 | Consulta y cambio de la tolerancia (CU-12) |
 | CU-26 | Bitácora en pantalla | 3 | sin fecha | KAN-104 | Consulta de la bitácora de auditoría (CU-16) |
 
