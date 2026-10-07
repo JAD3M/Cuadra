@@ -8,6 +8,11 @@ import { CargasPage } from '@/features/cargas/CargasPage';
 import { SUBTITULO_CARGAS } from '@/features/cargas/textos';
 import { CasoPage } from '@/features/caso/CasoPage';
 import { NoEncontradaPage } from '@/features/NoEncontradaPage';
+import {
+  subtituloPagina,
+  TITULO_DOCUMENTO as TITULO_DOCUMENTO_TOLERANCIA,
+  TITULO_PAGINA as TITULO_TOLERANCIA,
+} from '@/features/tolerancia/textos';
 import { TolerPage } from '@/features/tolerancia/TolerPage';
 import { ShellLayout } from './shell/ShellLayout';
 import type { ManejadorRuta } from './manejadorRuta';
@@ -96,7 +101,11 @@ export const rutas: RouteObject[] = [
               {
                 path: '/tolerancia',
                 element: <TolerPage />,
-                handle: titulo('Tolerancia'),
+                handle: {
+                  titulo: TITULO_TOLERANCIA,
+                  subtituloConEmpresa: subtituloPagina,
+                  tituloDocumento: TITULO_DOCUMENTO_TOLERANCIA,
+                } satisfies ManejadorRuta,
               },
               {
                 path: '/bitacora',

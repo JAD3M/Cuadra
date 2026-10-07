@@ -132,7 +132,7 @@ describe('tabla de rutas', () => {
     renderizar('/tolerancia');
     const h1 = screen.getByRole('heading', {
       level: 1,
-      name: /^Tolerancia/,
+      name: 'Tolerancia de monto',
     });
     const h2 = screen.getByRole('heading', { level: 2, name: 'Valor actual' });
     expect(

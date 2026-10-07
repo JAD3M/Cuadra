@@ -25,6 +25,10 @@ export {
 export const TITULO_DOCUMENTO = 'Tolerancia · Cuadra';
 export const TITULO_PAGINA = 'Tolerancia de monto';
 
+/** Subtítulo del encabezado: lleva el nombre de la empresa activa (decisión Q8). */
+export const subtituloPagina = (empresa: string): string =>
+  `${empresa} · aplica a movimientos y CFDI en MXN`;
+
 /** Tarjeta del valor vigente. */
 export const VALOR_ACTUAL = 'Valor actual';
 export const MONEDA = 'MXN';

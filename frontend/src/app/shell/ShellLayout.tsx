@@ -120,7 +120,7 @@ export function ShellLayout() {
   const { usuario, empresa, roles } = contexto;
   const manejador = coincidencias.at(-1)?.handle;
   const titulo = tituloDeRuta(manejador) ?? 'Cuadra';
-  const subtitulo = subtituloDeRuta(manejador);
+  const subtitulo = subtituloDeRuta(manejador, empresa.razonSocial);
 
   async function cambiarEmpresa() {
     if (cambiando) return;

@@ -1,20 +1,22 @@
 import { useEffect } from 'react';
 import { Outlet, useMatches } from 'react-router';
-import { tituloDeRuta } from './manejadorRuta';
+import { tituloDeRuta, tituloDocumentoDeRuta } from './manejadorRuta';
 
 /**
  * Raíz del árbol de rutas. En cada cambio de ruta pone el título del
- * documento (`<titulo> · Cuadra`) y lo anuncia en una región `status` solo
+ * documento (`<titulo> · Cuadra`, o el `tituloDocumento` de la ruta) y lo anuncia en una región `status` solo
  * para lectores de pantalla, de modo que el cambio de página no pase en
  * silencio. No declara landmarks.
  */
 export function RutaRaiz() {
   const coincidencias = useMatches();
-  const titulo = tituloDeRuta(coincidencias.at(-1)?.handle);
+  const manejador = coincidencias.at(-1)?.handle;
+  const titulo = tituloDeRuta(manejador);
+  const tituloDocumento = tituloDocumentoDeRuta(manejador);
 
   useEffect(() => {
-    if (titulo) document.title = `${titulo} · Cuadra`;
-  }, [titulo]);
+    if (tituloDocumento) document.title = tituloDocumento;
+  }, [tituloDocumento]);
 
   return (
     <>
