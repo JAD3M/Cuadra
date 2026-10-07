@@ -809,7 +809,7 @@ CU-20 a CU-26 están en Jira; solo CU-19 los lleva en este archivo.
 |---|---|---|---|---|---|
 | CU-24 | Cargas desde la interfaz | 5 | 6 oct | KAN-102 | Subida de CFDI y estados de cuenta y su seguimiento en pantalla, con `GET /cargas` (las últimas 20 cargas de la empresa) para el historial. Integrada a `master` el 7 oct; el usuario la recorrió en el navegador y falta probar una subida real de archivos |
 | CU-25 | Tolerancia desde la interfaz | 2 | 7 oct | KAN-103 | Consulta y cambio de la tolerancia (CU-12) en pantalla: valor exacto de hasta 4 decimales, formulario solo para el administrador y los últimos 5 cambios. Solo frontend, sin cambios en el backend. Integrada a `master` el 7 oct; falta la revisión manual en el navegador |
-| CU-26 | Bitácora en pantalla | 3 | 7 oct | KAN-104 | Consulta de la bitácora de auditoría (CU-16) en pantalla: tabla paginada con fecha, usuario, acción, entidad y detalle exacto; filtros por entidad, acción, usuario y fechas en la URL; accesos denegados resaltados y solo lectura. Suma `GET /bitacora/usuarios`. Integrada a `master` el 7 oct; falta correr el backend con Postgres 18 y la revisión manual en el navegador |
+| CU-26 | Bitácora en pantalla | 3 | 7 oct | KAN-104 | Consulta de la bitácora de auditoría (CU-16) en pantalla: tabla paginada con fecha, usuario, acción, entidad y detalle exacto; filtros por entidad, acción, usuario y fechas en la URL; accesos denegados resaltados y solo lectura. Suma `GET /bitacora/usuarios`. Integrada a `master` el 7 oct; backend verificado con Postgres 18 (852 pruebas) y frontend con 3,946; falta la revisión manual en el navegador |
 
 ### Carga por día
 

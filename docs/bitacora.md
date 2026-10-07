@@ -5,6 +5,23 @@
 
 ### 7 oct 2026
 
+- **Backend verificado con Postgres 18 en el equipo del usuario: 39 suites y
+  852 pruebas en verde**, incluidas las dos guardas de esquema que exigen
+  PG18 (en la nube fallaban con PG16) y las de la bitácora. Se corrió en un
+  contenedor desechable `node:24-alpine` con el código, los `node_modules` y la
+  red del `api` (`docker run --volumes-from cuadra-api-1 --network
+  cuadra_default ...`), porque dentro del `api` (Node 22) 18 suites no
+  arrancan: Jest 30 no carga `@nestjs/bullmq`, `config`, `jwt` ni `typeorm`,
+  que en las versiones instaladas son solo ESM y piden Node 24.9 o más. CU-26
+  no tocó dependencias ni Docker; el problema es del entorno y queda como
+  pendiente aparte.
+- **Pendientes fuera de CU-26:**
+  1. **Node 24 para las pruebas del backend**: subir `Dockerfile.dev` a
+     `node:24-alpine` (o fijar las versiones CommonJS de los paquetes de Nest)
+     y anotar en el README la versión mínima.
+  2. **Jest no termina solo** («did not exit one second after the test run»):
+     queda algún recurso abierto al final de la suite; revisar con
+     `--detectOpenHandles`.
 - **CU-26 integrado a `master`** en el repo del usuario por avance rápido de
   `446d9da` a `dbbca02`, desde un bundle de git (la sesión en la nube no tiene
   remoto). En su equipo, el frontend da 239 archivos y 3,941 pruebas en verde,
@@ -118,7 +135,7 @@
   3. **El enlace «Ver en la bitácora» de la tolerancia** (pendiente 2 de
      CU-25) sigue sin ponerse: cambiaría la tarjeta de cambios y sus pruebas,
      y el criterio fijo de esta entrega era no tocar las de tolerancia.
-  4. **Correr el backend con Postgres 18** (Docker del usuario).
+  4. ~~Correr el backend con Postgres 18~~: 852 de 852 en verde (ver arriba).
   5. **Revisión manual en el navegador**, contra `Bitacora.dc.html`: cada
      vista, los tres roles, ambos temas, 1440, 900 y 375 px, y los montos
      largos del detalle sin partirse.
