@@ -1,0 +1,73 @@
+/* Filtros de la bitácora (Bitacora.dc.html, .filtros y .fld). Solo tokens. */
+.filtros {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-12);
+  padding: var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-inline-size: 0;
+}
+
+.campo label {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.control {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: var(--touch-min);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-inset);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-base);
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.control[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.fecha {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.error {
+  color: var(--color-danger-text);
+  font-size: var(--text-sm);
+}
+
+/* El aviso del rango ocupa toda la fila, bajo los cinco campos. */
+.rango {
+  grid-column: 1 / -1;
+  color: var(--color-danger-text);
+  font-size: var(--text-md);
+}
+
+@media (max-width: 900px) {
+  .filtros {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .filtros {
+    grid-template-columns: 1fr;
+  }
+}
