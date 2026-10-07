@@ -1,0 +1,106 @@
+/*
+ * Formulario de cambio de Tolerancia.dc.html. Solo tokens de rol.
+ *
+ * El campo y «Guardar» comparten fila (flex-wrap: en pantallas angostas el
+ * botón cae debajo) y la ayuda o el error van debajo de toda la fila, por eso
+ * no se usa el `Campo` compartido, que apila etiqueta, control y ayuda.
+ */
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-14);
+  padding-block-start: var(--space-8);
+  border-block-start: 1px solid var(--color-border-subtle);
+}
+
+.etiqueta {
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+}
+
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.campo {
+  box-sizing: border-box;
+  inline-size: 200px;
+  max-inline-size: 100%;
+  min-block-size: var(--control-height-lg);
+  padding: 0 var(--space-16);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-inset);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xl);
+}
+
+.campo:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.campo[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.campo:disabled {
+  border-style: dashed;
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
+
+/* «Guardar» mide 52 px de alto en la maqueta; el botón base mide 44. */
+.fila .guardar {
+  min-block-size: var(--control-height-lg);
+  padding-inline: var(--space-24);
+}
+
+/* Ayuda o error: un solo párrafo, el que describe al campo. */
+.descripcion {
+  margin: 0;
+}
+
+.ayuda {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.igual {
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+
+.error {
+  color: var(--color-danger-text);
+  font-size: var(--text-md);
+}
+
+/*
+ * La región de estado va siempre montada y vacía para que sus cambios se
+ * anuncien; sin contenido no pinta nada ni abre un hueco en la columna.
+ */
+.region {
+  display: contents;
+}
+
+.exito {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-14) var(--space-16);
+  border: 1px solid var(--estado-conciliado-tile-border);
+  border-radius: var(--radius-md);
+  background: var(--estado-conciliado-tile-bg);
+  color: var(--estado-conciliado-text);
+  font-size: var(--text-md);
+}
+
+.iconoExito {
+  flex-shrink: 0;
+  margin-block-start: 2px;
+  color: var(--estado-conciliado-accent);
+}

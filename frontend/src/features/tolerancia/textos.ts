@@ -1,3 +1,4 @@
+import { ERROR_CONEXION, ERROR_SIN_PERMISO } from '@/features/bandeja/textos';
 import type { MotivoInvalido } from './validarTolerancia';
 
 // Textos de la pantalla de Tolerancia, centralizados para que el copy no se
@@ -45,4 +46,41 @@ export const AVISO_SOLO_ADMIN =
  */
 export const ERROR_LECTURA_OTRO = {
   titulo: 'No se pudo completar la solicitud.',
+} as const;
+
+/** Formulario de cambio (solo administradores). */
+export const ETIQUETA_CAMPO = 'Nuevo valor (0 a 100, hasta 4 decimales)';
+export const AYUDA_NORMAL =
+  'El cambio queda en la bitácora con el valor anterior y el nuevo. Solo afecta corridas futuras del motor.';
+export const AYUDA_MISMO_VALOR =
+  'Es el valor actual. Escribe otro para guardar.';
+export const GUARDAR = 'Guardar';
+export const GUARDANDO = 'Guardando…';
+/** Texto solo para lectores de pantalla mientras el PUT está en curso. */
+export const GUARDANDO_ESTADO = 'Guardando la tolerancia';
+export const EXITO_GUARDADO =
+  'Tolerancia guardada. Aplica desde la próxima corrida del motor.';
+
+/**
+ * Alertas de un guardado fallido, por clase. Nunca llevan texto del servidor:
+ * el 400 de Nest nombra `toleranciaMonto` y es para quien desarrolla. Todas
+ * menos «sin permiso» dicen que el valor escrito sigue en el campo. El rechazo
+ * (400) es una sola frase, sin detalle.
+ */
+export const ERROR_GUARDADO = {
+  rechazo: {
+    titulo:
+      'El servidor no aceptó el valor. Escribe un número entre 0 y 100, con hasta 4 decimales.',
+  },
+  sin_permiso: ERROR_SIN_PERMISO,
+  conexion: {
+    titulo: ERROR_CONEXION.titulo,
+    detalle:
+      'Revisa tu conexión e inténtalo de nuevo. El valor que escribiste sigue en el campo.',
+  },
+  otro: {
+    titulo: ERROR_LECTURA_OTRO.titulo,
+    detalle:
+      'El valor que escribiste sigue en el campo. Inténtalo de nuevo en unos minutos.',
+  },
 } as const;

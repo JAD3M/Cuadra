@@ -16,11 +16,17 @@ const tarjeta = sinComentarios(
 const aviso = sinComentarios(
   leerModuloCss('features/tolerancia/components/AvisoSoloAdmin.module.css'),
 );
+const formulario = sinComentarios(
+  leerModuloCss(
+    'features/tolerancia/components/FormularioTolerancia.module.css',
+  ),
+);
 
 /** Módulos de la pantalla de Tolerancia que ya existen en esta rebanada. */
 const MODULOS: readonly (readonly [string, string])[] = [
   ['TarjetaValor', tarjeta],
   ['AvisoSoloAdmin', aviso],
+  ['FormularioTolerancia', formulario],
 ];
 
 describe.each(MODULOS)('contrato CSS de %s', (_nombre, css) => {
@@ -83,6 +89,76 @@ describe('contrato CSS del aviso de solo administrador', () => {
   });
 });
 
+describe('contrato CSS del formulario', () => {
+  it('el campo es mono, grande y de 52 px como mínimo (TOL-11)', () => {
+    const campo = bloqueCss(formulario, '.campo');
+    expect(campo).toContain('var(--font-mono)');
+    expect(campo).toContain('var(--text-2xl)');
+    expect(campo).toMatch(/min-block-size:\s*var\(--control-height-lg\)/);
+  });
+
+  it('el campo vive sobre el fondo hundido con borde y texto de rol', () => {
+    const campo = bloqueCss(formulario, '.campo');
+    expect(campo).toContain('var(--color-inset)');
+    expect(campo).toContain('var(--color-border-strong)');
+    expect(campo).toContain('var(--color-text)');
+  });
+
+  it('el campo inválido cambia el borde a danger, además del mensaje', () => {
+    expect(bloqueCss(formulario, ".campo[aria-invalid='true']")).toContain(
+      'var(--color-danger)',
+    );
+  });
+
+  it('el foco del campo se ve: anillo de acento', () => {
+    const foco = bloqueCss(formulario, '.campo:focus-visible');
+    expect(foco).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+  });
+
+  it('el campo deshabilitado no depende solo del color: borde discontinuo', () => {
+    const apagado = bloqueCss(formulario, '.campo:disabled');
+    expect(apagado).toMatch(/border-style:\s*dashed/);
+    expect(apagado).toContain('var(--color-text-secondary)');
+  });
+
+  it('«Guardar» mide 52 px como mínimo con mayor especificidad que el botón base', () => {
+    const guardar = bloqueCss(formulario, '.fila .guardar');
+    expect(guardar).toMatch(/min-block-size:\s*var\(--control-height-lg\)/);
+  });
+
+  it('el campo y el botón comparten fila y caen en pantallas angostas', () => {
+    expect(bloqueCss(formulario, '.fila')).toMatch(/flex-wrap:\s*wrap/);
+  });
+
+  it('cada ayuda usa su rol: normal muted, igual secundario, error danger-text', () => {
+    expect(bloqueCss(formulario, '.ayuda')).toContain('var(--color-muted)');
+    expect(bloqueCss(formulario, '.igual')).toContain(
+      'var(--color-text-secondary)',
+    );
+    expect(bloqueCss(formulario, '.error')).toContain(
+      'var(--color-danger-text)',
+    );
+  });
+
+  it('el éxito usa los roles del estado conciliado, no el texto del tema', () => {
+    const exito = bloqueCss(formulario, '.exito');
+    expect(exito).toContain('var(--estado-conciliado-tile-bg)');
+    expect(exito).toContain('var(--estado-conciliado-tile-border)');
+    expect(exito).toContain('var(--estado-conciliado-text)');
+    expect(bloqueCss(formulario, '.iconoExito')).toContain(
+      'var(--estado-conciliado-accent)',
+    );
+  });
+
+  it('la región de estado vacía no abre hueco en la columna', () => {
+    expect(bloqueCss(formulario, '.region')).toMatch(/display:\s*contents/);
+  });
+
+  it('nada del formulario recorta contenido con overflow hidden', () => {
+    expect(formulario).not.toMatch(/overflow(-x|-y)?:\s*hidden/);
+  });
+});
+
 describe('token del monto grande', () => {
   it('--text-display-xl vale 88px y se declara una vez', () => {
     const base = fs
@@ -122,6 +198,44 @@ describe.each<Tema>(['dark', 'light'])(
   'contraste de la tarjeta del valor y del aviso, tema %s',
   (tema) => {
     it.each(PARES)('%s sobre %s alcanza 4.5:1', (fg, bg) => {
+      const tokens = leerColores()[tema];
+      const primero = tokens[fg];
+      const segundo = tokens[bg];
+      if (!primero || !segundo) throw new Error(`Falta ${fg} o ${bg}`);
+      const r = razonContraste(primero, segundo);
+      expect(
+        r,
+        `tema ${tema}: ${fg} sobre ${bg} mide ${r.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(4.5);
+    });
+  },
+);
+
+/**
+ * Pares del formulario. Ninguno es nuevo (están en `contraste.test.ts`); este
+ * contrato falla si el módulo pasa a un par que nadie midió.
+ *  - etiqueta y «es el valor actual»: text-secondary sobre surface
+ *  - ayuda normal: muted sobre surface
+ *  - mensaje de validación: danger-text sobre surface
+ *  - texto del campo: text sobre inset; deshabilitado: text-secondary sobre inset
+ *  - éxito: conciliado-text y conciliado-accent (icono) sobre su baldosa
+ * El borde del campo (border-strong) y el relleno del botón deshabilitado son
+ * decorativos o exentos y quedan fuera, igual que en el `Campo` compartido.
+ */
+const PARES_FORMULARIO: readonly (readonly [string, string])[] = [
+  ['--color-text-secondary', '--color-surface'],
+  ['--color-muted', '--color-surface'],
+  ['--color-danger-text', '--color-surface'],
+  ['--color-text', '--color-inset'],
+  ['--color-text-secondary', '--color-inset'],
+  ['--estado-conciliado-text', '--estado-conciliado-tile-bg'],
+  ['--estado-conciliado-accent', '--estado-conciliado-tile-bg'],
+];
+
+describe.each<Tema>(['dark', 'light'])(
+  'contraste del formulario de tolerancia, tema %s',
+  (tema) => {
+    it.each(PARES_FORMULARIO)('%s sobre %s alcanza 4.5:1', (fg, bg) => {
       const tokens = leerColores()[tema];
       const primero = tokens[fg];
       const segundo = tokens[bg];
