@@ -5,6 +5,110 @@
 
 ### 7 oct 2026
 
+- **CU-26 terminado: bitácora en pantalla (KAN-104).** Con ella van 26 de 26
+  historias y 99 de 99 puntos. Vive en la cadena local de ramas
+  `feat/cu-26-06-claves-hooks` a `feat/cu-26-11-kit-docs` (U1 a U5 están en
+  la base de la primera), sin push ni PR, y **no está integrada a `master`**:
+  falta la revisión del usuario. Lo entregado:
+  - Pantalla `/bitacora` en lugar del marcador, con la maqueta aprobada
+    (`Bitacora.dc.html`, solo oscuro; el claro sale de los mismos roles de
+    color). Encabezado «Bitácora» con el subtítulo «Quién hizo qué y cuándo.
+    Solo lectura, nadie la edita.».
+  - Tabla con Cuándo (día y hora locales, el instante exacto en `<time>`),
+    Usuario («Sistema» atenuado sin autor), Acción (chip con el valor de la
+    API y el tono de la maqueta), Entidad con su id y Detalle. Los montos del
+    detalle salen de `detalleEvento` como texto exacto, sin flotantes, y no
+    se parten. Paginación de 50 con el paginador compartido.
+  - Filtros por entidad, acción (valores de la API, sin traducir), usuario
+    (`GET /bitacora/usuarios`) y rango de fechas en días locales; viven en la
+    URL, se normalizan con `replace` y un cambio vuelve a la página 1. Con
+    «Desde» posterior a «Hasta» se avisa y no se envía nada; el mismo día en
+    ambos lados es un día completo.
+  - El acceso denegado se distingue a simple vista: la fila lleva
+    `--color-danger-row` y el chip `--color-danger-chip`, los dos tokens
+    nuevos, que solo consume la tabla de la bitácora.
+  - Estados de la maqueta: carga, vacío sin filtros, vacío con filtros (con
+    «Restablecer filtros»), error de conexión y otro (con «Reintentar»), sin
+    permiso (sin reintento) y fallo de la lista de usuarios (los eventos se
+    siguen viendo). Copy fijo, nunca el texto del servidor.
+  - Solo lectura: la pantalla solo hace GET y no ofrece editar ni borrar.
+  - La galería `/__kit` tiene la sección «Bitácora» con las nueve vistas de la
+    maqueta.
+- **Unidades de CU-26.** La especificación SDD vive en engram, local del
+  usuario, y no viajó a la sesión en la nube donde se hicieron U6 a U11. El
+  usuario aprobó continuar con el alcance reconstruido desde U1–U5 y la
+  maqueta, con tres criterios fijos: montos como texto exacto, las pruebas de
+  tolerancia sin tocar y los tokens nuevos aislados. Commits de U6 en
+  adelante:
+
+  | Unidad | Rama | Commits |
+  |---|---|---|
+  | U6 claves y hooks | `06-claves-hooks` | `1828dc4` |
+  | U7 tabla y tokens | `07-tabla` | `22de501`, `aaaa797`, `2bf387d` |
+  | U8 filtros | `08-filtros` | `29125ca` |
+  | U9 vacío y errores | `09-estados` | `c11162d` |
+  | U10 pantalla y flujos | `10-pantalla` | `d28a7ea` |
+  | U11 galería y documentos | `11-kit-docs` | `6ffa8a2` y el de estos documentos |
+
+  - Total de CU-26 desde la integración de CU-25 (`446d9da`) hasta la galería:
+    78 archivos, 6,338 líneas añadidas y 160 quitadas; del backend, 6
+    archivos y 313 líneas (U1, la lista canónica de entidades y
+    `GET /bitacora/usuarios`).
+- **Verificación**, observada en `feat/cu-26-11-kit-docs`: en `frontend/`,
+  typecheck, lint, formato, build y `verificar:dist` terminan con código 0, y
+  `vitest` da 239 archivos y 3,941 pruebas en verde. Las 21 suites de
+  tolerancia dan 521 pruebas, las mismas que antes de U6, y ningún archivo de
+  tolerancia cambió (el usuario mencionó 574; el recuento por archivos con
+  «toler» en el nombre da 521 antes y después). En la raíz, typecheck con
+  código 0 y `npm test`: 38 de 39 suites y 850 de 852 pruebas en verde.
+  - Esa corrida del backend se hizo en la sesión en la nube **sin Docker**:
+    Postgres 16 local con una función `uuidv7()` agregada solo en
+    `template1` de un clúster temporal, y Node 24 para Jest, porque
+    `@nestjs/typeorm` 12 es solo ESM y Jest 30 no lo carga en Node 22. Las 2
+    pruebas que fallan son las guardas de esquema que exigen Postgres 18
+    (versión >= 18 y `uuid_extract_version`): fallan a propósito y confirman
+    que el ajuste no se hace pasar por PG18. Ni las migraciones ni el código
+    cambiaron: siguen llamando a `uuidv7()` nativo. Falta repetir la corrida
+    con el Docker del usuario (Postgres 18).
+- **Decisiones y notas de CU-26 (U6 a U11):**
+  - Las claves de la lista llevan la época de la sesión y la consulta tal
+    como se envía; la página anterior solo se conserva como provisional
+    dentro de la misma época, y nunca bajo un rango invertido.
+  - El texto rosado del chip de la maqueta (`#FF9AA8`) se sirve con
+    `--color-danger-text`, como en Cargas y Tolerancia; por eso los tokens
+    nuevos son dos. Valores claros elegidos aquí (no hay maqueta clara):
+    `#fff5f6` y `#fbdde2`, con contraste mínimo de 5.02:1.
+  - El chip de acción es propio de la tabla (en mono, como la maqueta) y no
+    toca `EstadoChip`.
+  - Un usuario de la URL que la lista no trae se conserva como opción con su
+    id, para que el select no diga «Todos» mientras la consulta filtra. La
+    maqueta no tiene ese caso.
+  - Errores: red, contrato roto y 5xx son conexión; 403 es sin permiso; el
+    resto (un 400, por ejemplo) es el genérico.
+  - Escaneo estático `tests/dominio/bitacoraAislamiento.test.ts`: sin
+    flotantes en la feature (`Number(` solo en `fechas.ts` y `filtrosUrl.ts`,
+    que no tocan montos), los tokens nuevos solo en la tabla y nada de ip,
+    agente de usuario ni correo (D8).
+  - La prueba del marcador de `/bitacora` en `router.test.tsx` pasó a probar
+    la pantalla real. Las pruebas de la sección del kit van en
+    `RutaKitBitacora.test.tsx` para no editar `RutaKit.test.tsx`.
+  - Mutaciones comprobadas (rojo observado y revertido desde una copia):
+    quitar la guarda de época del dato provisional, invertir la fila
+    denegada, usar un token nuevo fuera de la tabla, un `parseFloat` en la
+    tabla, quitar la corrección de página fuera de rango e invertir el vacío
+    con filtros.
+- **Pendientes abiertos de CU-26:**
+  1. **Revisión del usuario e integración a `master`.**
+  2. **Contrastar U6 a U11 con la especificación de engram**, que no estuvo
+     disponible en la sesión.
+  3. **El enlace «Ver en la bitácora» de la tolerancia** (pendiente 2 de
+     CU-25) sigue sin ponerse: cambiaría la tarjeta de cambios y sus pruebas,
+     y el criterio fijo de esta entrega era no tocar las de tolerancia.
+  4. **Correr el backend con Postgres 18** (Docker del usuario).
+  5. **Revisión manual en el navegador**, contra `Bitacora.dc.html`: cada
+     vista, los tres roles, ambos temas, 1440, 900 y 375 px, y los montos
+     largos del detalle sin partirse.
+
 - **CU-25 integrado a `master`** por avance rápido de la cadena hasta
   `feat/cu-25-09-kit-docs` (b8c57af), sin push ni PR. Sobre `master` pasan el
   typecheck de la raíz, las 3522 pruebas del frontend (218 archivos) y las 836

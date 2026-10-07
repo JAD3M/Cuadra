@@ -5,8 +5,8 @@
 
 | | |
 |---|---|
-| **Estado** | Día 8 de 9 · CU-01 a CU-25, más CU-04b · 25 / 26 historias · 96 / 99 pts · Épicas A–G cerradas y H en curso (CU-24 integrada; CU-25 integrada; queda CU-26) |
-| **Entrega** | 2 de octubre de 2026 (backend, CU-01 a CU-18); el frontend (CU-19 a CU-26) no tiene fecha; solo queda pendiente CU-26 (3 pts) |
+| **Estado** | CU-01 a CU-26, más CU-04b · 26 / 26 historias · 99 / 99 pts · Épicas A–G cerradas y H terminada (CU-24 y CU-25 integradas; CU-26 terminada, pendiente de revisión e integración) |
+| **Entrega** | 2 de octubre de 2026 (backend, CU-01 a CU-18); el frontend (CU-19 a CU-26) no tiene fecha; CU-26 espera la revisión del usuario para integrarse |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 26 historias · 99 puntos (69 del backend y 30 de la interfaz) · 9 días hábiles para el backend |
 | **Última actualización** | 7 oct 2026 |
@@ -809,7 +809,7 @@ CU-20 a CU-26 están en Jira; solo CU-19 los lleva en este archivo.
 |---|---|---|---|---|---|
 | CU-24 | Cargas desde la interfaz | 5 | 6 oct | KAN-102 | Subida de CFDI y estados de cuenta y su seguimiento en pantalla, con `GET /cargas` (las últimas 20 cargas de la empresa) para el historial. Integrada a `master` el 7 oct; el usuario la recorrió en el navegador y falta probar una subida real de archivos |
 | CU-25 | Tolerancia desde la interfaz | 2 | 7 oct | KAN-103 | Consulta y cambio de la tolerancia (CU-12) en pantalla: valor exacto de hasta 4 decimales, formulario solo para el administrador y los últimos 5 cambios. Solo frontend, sin cambios en el backend. Integrada a `master` el 7 oct; falta la revisión manual en el navegador |
-| CU-26 | Bitácora en pantalla | 3 | sin fecha | KAN-104 | Consulta de la bitácora de auditoría (CU-16) |
+| CU-26 | Bitácora en pantalla | 3 | 7 oct | KAN-104 | Consulta de la bitácora de auditoría (CU-16) en pantalla: tabla paginada con fecha, usuario, acción, entidad y detalle exacto; filtros por entidad, acción, usuario y fechas en la URL; accesos denegados resaltados y solo lectura. Suma `GET /bitacora/usuarios`. Terminada en ramas locales; falta la revisión del usuario, la integración a `master` y la prueba en el navegador |
 
 ### Carga por día
 
