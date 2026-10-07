@@ -1,0 +1,123 @@
+/* Celdas de la tabla de la bitácora (Bitacora.dc.html). Solo tokens de rol. */
+
+/* Las celdas se alinean arriba: el detalle puede ocupar varios renglones. */
+.fila > td {
+  vertical-align: top;
+}
+
+.cuando {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.quien {
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+/* Un evento sin usuario lo hizo el sistema: se atenúa. */
+.sistema {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-4) var(--space-10);
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.conciliado {
+  background: var(--estado-conciliado-tint);
+  color: var(--estado-conciliado-text);
+}
+
+.sin_match {
+  background: var(--estado-sin-match-tint);
+  color: var(--estado-sin-match-text);
+}
+
+.sugerencia {
+  background: var(--estado-sugerencia-tint);
+  color: var(--estado-sugerencia-text);
+}
+
+.ia {
+  background: var(--color-ia-tint);
+  color: var(--color-ia);
+}
+
+.neutral {
+  background: var(--color-chip-neutral);
+  color: var(--color-text-soft);
+}
+
+.denegado {
+  background: var(--color-danger-chip);
+  color: var(--color-danger-text);
+}
+
+/* Fila de un acceso denegado: todas sus celdas sobre el fondo de peligro. */
+.filaDenegada > td {
+  background: var(--color-danger-row);
+}
+
+.entidad {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+}
+
+/* El id es largo y sin espacios: se parte antes que ensanchar la tabla. */
+.entidadId {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+/* Un detalle largo se parte; los montos dentro de él, nunca. */
+.detalle {
+  color: var(--color-text-soft);
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.monto {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Carga inicial: filas de relleno del alto de un objetivo táctil. */
+.esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-20) var(--space-16);
+}
+
+.barra {
+  min-block-size: var(--touch-min);
+  border-radius: var(--radius-md);
+  background: var(--color-border-subtle);
+}
+
+.ocultoVisual {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
