@@ -570,6 +570,20 @@ describe('cuerpo FormData (API-17)', () => {
     expect(sinCuerpo?.body).toBeUndefined();
   });
 
+  it('17.2b: un PUT con cuerpo JSON usa el método PUT y envía la cadena sin convertirla', async () => {
+    const { fetchImpl, llamadas } = dobleFetch();
+    await crearClienteApi({ fetchImpl }).fetch('/empresa/tolerancia', {
+      method: 'PUT',
+      body: { toleranciaMonto: '0.0050' },
+    });
+    const init = llamadas[0]?.init;
+    expect(init?.method).toBe('PUT');
+    expect((init?.headers as Headers).get('Content-Type')).toBe(
+      'application/json',
+    );
+    expect(init?.body).toBe('{"toleranciaMonto":"0.0050"}');
+  });
+
   it('17.3: envía Authorization: Bearer con un cuerpo FormData', async () => {
     const { fetchImpl, llamadas } = dobleFetch();
     await crearClienteApi({ fetchImpl, proveedorToken: () => 'tok' }).fetch(
