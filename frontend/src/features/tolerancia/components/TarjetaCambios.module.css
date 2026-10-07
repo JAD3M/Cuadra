@@ -1,0 +1,107 @@
+/*
+ * Tarjeta «Cambios recientes» de Tolerancia.dc.html. Solo tokens de rol.
+ *
+ * Los montos y la fecha no se parten (nowrap) y nada se recorta; el nombre de
+ * quien hizo el cambio sí se parte (overflow-wrap) para que un nombre largo no
+ * rompa la tarjeta. Las filas crecen con su contenido.
+ */
+.tarjeta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-18);
+  min-inline-size: 0;
+  padding: var(--space-28);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.titulo {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label-wide);
+  text-transform: uppercase;
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fila {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-block-end: var(--space-16);
+  border-block-end: 1px solid var(--color-border-subtle);
+}
+
+.importes {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-lead);
+  white-space: nowrap;
+}
+
+.antes {
+  color: var(--color-text-secondary);
+}
+
+.despues {
+  color: var(--color-text-soft);
+}
+
+.despuesReciente {
+  color: var(--estado-sin-match-accent);
+}
+
+.detalle {
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+}
+
+.autor {
+  overflow-wrap: anywhere;
+}
+
+.fecha {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.vacio {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-block: var(--space-8);
+}
+
+.vacioTitulo {
+  font-weight: var(--weight-semibold);
+}
+
+.vacioDetalle {
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+}
+
+/* Carga: tres filas decorativas. */
+.esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.barra {
+  block-size: var(--control-height);
+  border-radius: var(--radius-sm);
+  background: var(--color-border-subtle);
+}

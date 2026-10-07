@@ -1,7 +1,11 @@
+import { formatearInstante } from '@/features/caso/fecha';
+import type { CambioTolerancia } from '@/shared/api/contratos';
 import { formatearDecimalExacto } from '@/shared/dinero';
 import { ROLES_QUE_EDITAN_TOLERANCIA } from '@/shared/dominio';
+import type { EstadoCambios, FilaCambio } from './components/TarjetaCambios';
 import type { EstadoValor } from './components/TarjetaValor';
 import { clasificarErrorGuardado } from './errores';
+import { SIN_AUTOR } from './textos';
 import {
   esMismoValor,
   validarTolerancia,
@@ -117,4 +121,55 @@ export function vistaValor({ data, error }: EntradaValor): EstadoValor {
     tipo: 'error',
     clase: clase === 'rechazo' ? 'otro' : clase,
   };
+}
+
+/** `$` y el decimal exacto; el valor crudo es solo una red, el contrato ya lo valida. */
+const montoExacto = (valor: string): string =>
+  `$${formatearDecimalExacto(valor) ?? valor}`;
+
+/**
+ * Filas de la lista de cambios, en el orden que dio el servidor (más nuevo
+ * primero). Los montos van exactos y sin redondear; sin usuario, el autor es
+ * una raya; la fecha es `YYYY-MM-DD HH:mm` del instante (`zona` la inyectan las
+ * pruebas). Solo la primera fila es la reciente.
+ */
+export function filasDeCambios(
+  cambios: readonly CambioTolerancia[],
+  zona?: string,
+): FilaCambio[] {
+  return cambios.map((cambio, indice) => ({
+    id: cambio.id,
+    antes: montoExacto(cambio.datos.antes),
+    despues: montoExacto(cambio.datos.despues),
+    quien: cambio.usuario?.nombre ?? SIN_AUTOR,
+    fecha: formatearInstante(cambio.createdAt, zona),
+    reciente: indice === 0,
+  }));
+}
+
+export interface EntradaCambios {
+  data: readonly CambioTolerancia[] | undefined;
+  error: unknown;
+}
+
+/**
+ * Qué muestra la tarjeta de cambios. Con datos siempre hay algo que mostrar: un
+ * fallo de segundo plano no esconde la lista. Sin datos, el fallo se clasifica
+ * como el del valor (red -> conexión, 403 -> sin permiso, lo demás el
+ * genérico); un 401 o una cancelación no dicen nada y la tarjeta sigue en
+ * carga. Una lista vacía tras filtrar es el estado vacío.
+ */
+export function vistaCambios(
+  { data, error }: EntradaCambios,
+  zona?: string,
+): EstadoCambios {
+  if (data !== undefined) {
+    return data.length === 0
+      ? { tipo: 'vacio' }
+      : { tipo: 'lista', filas: filasDeCambios(data, zona) };
+  }
+  if (error === null || error === undefined) return { tipo: 'cargando' };
+  const clase = clasificarErrorGuardado(error);
+  if (clase === null) return { tipo: 'cargando' };
+  return { tipo: 'error', clase: clase === 'rechazo' ? 'otro' : clase };
 }

@@ -21,6 +21,9 @@ const formulario = sinComentarios(
     'features/tolerancia/components/FormularioTolerancia.module.css',
   ),
 );
+const cambios = sinComentarios(
+  leerModuloCss('features/tolerancia/components/TarjetaCambios.module.css'),
+);
 const contenedor = sinComentarios(
   leerModuloCss('features/tolerancia/ToleranciaContenedor.module.css'),
 );
@@ -30,6 +33,7 @@ const MODULOS: readonly (readonly [string, string])[] = [
   ['TarjetaValor', tarjeta],
   ['AvisoSoloAdmin', aviso],
   ['FormularioTolerancia', formulario],
+  ['TarjetaCambios', cambios],
   ['ToleranciaContenedor', contenedor],
 ];
 
@@ -240,6 +244,85 @@ describe.each<Tema>(['dark', 'light'])(
   'contraste del formulario de tolerancia, tema %s',
   (tema) => {
     it.each(PARES_FORMULARIO)('%s sobre %s alcanza 4.5:1', (fg, bg) => {
+      const tokens = leerColores()[tema];
+      const primero = tokens[fg];
+      const segundo = tokens[bg];
+      if (!primero || !segundo) throw new Error(`Falta ${fg} o ${bg}`);
+      const r = razonContraste(primero, segundo);
+      expect(
+        r,
+        `tema ${tema}: ${fg} sobre ${bg} mide ${r.toFixed(2)}:1`,
+      ).toBeGreaterThanOrEqual(4.5);
+    });
+  },
+);
+
+describe('contrato CSS de la tarjeta de cambios (TOL-10.5)', () => {
+  it('el importe de cada fila no se parte en dos líneas', () => {
+    expect(bloqueCss(cambios, '.importes')).toMatch(/white-space:\s*nowrap/);
+  });
+
+  it('la fecha no se parte en dos líneas', () => {
+    expect(bloqueCss(cambios, '.fecha')).toMatch(/white-space:\s*nowrap/);
+  });
+
+  it('el nombre de quien cambió sí se parte, sin romper la tarjeta', () => {
+    expect(bloqueCss(cambios, '.autor')).toMatch(/overflow-wrap:\s*anywhere/);
+  });
+
+  it('nada recorta el contenido: ningún overflow hidden ni nowrap en el autor', () => {
+    expect(cambios).not.toMatch(/overflow(-x|-y)?:\s*hidden/);
+    expect(bloqueCss(cambios, '.autor')).not.toMatch(/nowrap/);
+  });
+
+  it('los importes van en mono; el nuevo más reciente con el acento, el resto atenuado (TOL-10.12)', () => {
+    expect(bloqueCss(cambios, '.importes')).toContain('var(--font-mono)');
+    expect(bloqueCss(cambios, '.antes')).toContain(
+      'var(--color-text-secondary)',
+    );
+    expect(bloqueCss(cambios, '.despues')).toContain('var(--color-text-soft)');
+    expect(bloqueCss(cambios, '.despuesReciente')).toContain(
+      'var(--estado-sin-match-accent)',
+    );
+  });
+
+  it('la línea del autor y la fecha usa el color secundario', () => {
+    expect(bloqueCss(cambios, '.detalle')).toContain(
+      'var(--color-text-secondary)',
+    );
+  });
+
+  it('la tarjeta usa las superficies de las otras tarjetas y el divisor sutil', () => {
+    const bloque = bloqueCss(cambios, '.tarjeta');
+    expect(bloque).toContain('var(--color-surface)');
+    expect(bloque).toContain('var(--color-border)');
+    expect(bloqueCss(cambios, '.fila')).toContain('var(--color-border-subtle)');
+  });
+});
+
+/**
+ * Pares texto-sobre-fondo de la tarjeta de cambios. Ninguno es nuevo (están en
+ * `contraste.test.ts`); este contrato falla si el módulo pasa a un par que
+ * nadie midió.
+ *  - título de la tarjeta: muted sobre surface
+ *  - «antes», autor y fecha, detalle del vacío: text-secondary sobre surface
+ *  - «después» atenuado: text-soft sobre surface
+ *  - «después» reciente: sin-match-accent sobre surface
+ *  - «Aún no hay cambios.»: text sobre surface
+ * El divisor y las barras del esqueleto (border-subtle) son decorativos.
+ */
+const PARES_CAMBIOS: readonly (readonly [string, string])[] = [
+  ['--color-muted', '--color-surface'],
+  ['--color-text-secondary', '--color-surface'],
+  ['--color-text-soft', '--color-surface'],
+  ['--estado-sin-match-accent', '--color-surface'],
+  ['--color-text', '--color-surface'],
+];
+
+describe.each<Tema>(['dark', 'light'])(
+  'contraste de la tarjeta de cambios, tema %s',
+  (tema) => {
+    it.each(PARES_CAMBIOS)('%s sobre %s alcanza 4.5:1', (fg, bg) => {
       const tokens = leerColores()[tema];
       const primero = tokens[fg];
       const segundo = tokens[bg];

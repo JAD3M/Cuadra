@@ -88,3 +88,21 @@ export const ERROR_GUARDADO = {
       'El valor que escribiste sigue en el campo. Inténtalo de nuevo en unos minutos.',
   },
 } as const;
+
+/** Tarjeta de cambios recientes (sin enlace a la bitácora hasta CU-26). */
+export const CAMBIOS_RECIENTES = 'Cambios recientes';
+export const ULTIMOS_CAMBIOS = 'Últimos 5 cambios';
+export const SIN_CAMBIOS = {
+  titulo: 'Aún no hay cambios.',
+  detalle: 'Cuando un administrador cambie la tolerancia, aparecerá aquí.',
+} as const;
+/** Quien cambió el valor cuando el evento no trae usuario. */
+export const SIN_AUTOR = '—';
+/**
+ * Fallo de lectura de los cambios por conexión: título propio y el detalle
+ * compartido de «revisa tu conexión».
+ */
+export const ERROR_CAMBIOS = {
+  titulo: 'No se pudieron cargar los cambios.',
+  detalle: 'Revisa tu conexión e inténtalo de nuevo.',
+} as const;
