@@ -23,7 +23,10 @@ export class EstadoCuentaDto {
   @Matches(SIN_NULOS, { message: 'banco no puede traer bytes nulos' })
   banco?: string;
 
-  /** Enmascarada: solo los últimos dígitos, nunca la CLABE completa. */
+  /**
+   * Se guarda tal como llega: el cliente pide solo los últimos dígitos, pero
+   * el servidor no la enmascara ni la valida.
+   */
   @ApiPropertyOptional({ example: '****1234', maxLength: 32 })
   @IsOptional()
   @IsString()

@@ -102,7 +102,10 @@ export class Carga extends EntidadBase {
   @Column({ type: 'varchar', length: 128, nullable: true })
   banco: string | null;
 
-  /** Cuenta enmascarada, como en `movimientos.cuenta`. */
+  /**
+   * Cuenta tal como llegó, igual que en `movimientos.cuenta`. El cliente pide
+   * solo los últimos dígitos, pero el servidor no la enmascara ni la valida.
+   */
   @Column({ type: 'varchar', length: 32, nullable: true })
   cuenta: string | null;
 

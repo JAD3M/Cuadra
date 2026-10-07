@@ -99,7 +99,10 @@ export class Movimiento extends EntidadBase {
   @Column({ type: 'varchar', length: 128, nullable: true })
   banco: string | null;
 
-  /** Cuenta enmascarada: solo los últimos dígitos, nunca la CLABE completa. */
+  /**
+   * Cuenta tal como llegó en la carga (`cargas.cuenta`). El cliente pide solo
+   * los últimos dígitos, pero el servidor no la enmascara ni la valida.
+   */
   @Column({ type: 'varchar', length: 32, nullable: true })
   cuenta: string | null;
 
