@@ -5,6 +5,19 @@
 
 ### 7 oct 2026
 
+- **CU-26 integrado a `master`** en el repo del usuario por avance rápido de
+  `446d9da` a `dbbca02`, desde un bundle de git (la sesión en la nube no tiene
+  remoto). En su equipo, el frontend da 239 archivos y 3,941 pruebas en verde,
+  igual que en la nube. Falta correr el backend con su Docker (Postgres 18) y
+  la revisión manual en el navegador.
+- **Ajuste a la especificación (BIT-10).** El usuario tenía, sin commit, su
+  versión de `claves.ts` y `errores.ts` de la bitácora; se movieron a un
+  respaldo antes del merge y se compararon. `claves.ts` era equivalente (solo
+  cambiaban comentarios); de sus pruebas se suma la que arma la clave con el
+  `armarConsulta` real y la referencia a BIT-1.5. `errores.ts` se reemplaza por
+  su versión, que sigue BIT-10: un 401 no muestra mensaje (lo atiende la
+  sesión) y una respuesta fuera de contrato es «otro», no «conexión»; nunca lee
+  `mensajes` del servidor. 239 archivos y 3,946 pruebas en verde.
 - **CU-26 terminado: bitácora en pantalla (KAN-104).** Con ella van 26 de 26
   historias y 99 de 99 puntos. Vive en la cadena local de ramas
   `feat/cu-26-06-claves-hooks` a `feat/cu-26-11-kit-docs` (U1 a U5 están en
@@ -83,8 +96,9 @@
   - Un usuario de la URL que la lista no trae se conserva como opción con su
     id, para que el select no diga «Todos» mientras la consulta filtra. La
     maqueta no tiene ese caso.
-  - Errores: red, contrato roto y 5xx son conexión; 403 es sin permiso; el
-    resto (un 400, por ejemplo) es el genérico.
+  - Errores (corregido después a BIT-10, ver arriba): red y 5xx son
+    conexión; 403 es sin permiso; 401 y cancelación no muestran nada; el resto,
+    incluido un contrato roto, es el genérico.
   - Escaneo estático `tests/dominio/bitacoraAislamiento.test.ts`: sin
     flotantes en la feature (`Number(` solo en `fechas.ts` y `filtrosUrl.ts`,
     que no tocan montos), los tokens nuevos solo en la tabla y nada de ip,
@@ -98,9 +112,9 @@
     tabla, quitar la corrección de página fuera de rango e invertir el vacío
     con filtros.
 - **Pendientes abiertos de CU-26:**
-  1. **Revisión del usuario e integración a `master`.**
+  1. ~~Revisión del usuario e integración a `master`.~~ Integrado (ver arriba).
   2. **Contrastar U6 a U11 con la especificación de engram**, que no estuvo
-     disponible en la sesión.
+     disponible en la sesión (claves y errores ya se contrastaron).
   3. **El enlace «Ver en la bitácora» de la tolerancia** (pendiente 2 de
      CU-25) sigue sin ponerse: cambiaría la tarjeta de cambios y sus pruebas,
      y el criterio fijo de esta entrega era no tocar las de tolerancia.

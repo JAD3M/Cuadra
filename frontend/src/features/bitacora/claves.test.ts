@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { clavesBitacora, useEpoca } from './claves';
-import type { ConsultaBitacora } from './consulta';
+import { armarConsulta, type ConsultaBitacora } from './consulta';
+import { leerFiltros } from './filtrosUrl';
 
 const CONSULTA: ConsultaBitacora = { accion: 'crear', pagina: 1, limite: 50 };
 
 describe('claves de la bitácora', () => {
-  it('la época va en la posición 1 y no hay token en ninguna clave', () => {
+  it('la época va en la posición 1 y no hay token en ninguna clave (BIT-1.5)', () => {
     expect(clavesBitacora.todas(3)).toEqual(['bitacora', 3]);
     expect(clavesBitacora.lista(3, CONSULTA)).toEqual([
       'bitacora',
@@ -14,6 +15,20 @@ describe('claves de la bitácora', () => {
       CONSULTA,
     ]);
     expect(clavesBitacora.usuarios(3)).toEqual(['bitacora', 3, 'usuarios']);
+  });
+
+  it('la lista incluye exactamente la consulta que se envía', () => {
+    const pedida = armarConsulta(
+      leerFiltros(
+        new URLSearchParams('entidad=companies&accion=actualizar&pagina=2'),
+      ),
+    );
+    expect(clavesBitacora.lista(1, pedida)).toEqual([
+      'bitacora',
+      1,
+      'lista',
+      { entidad: 'companies', accion: 'actualizar', pagina: 2, limite: 50 },
+    ]);
   });
 
   it('todas(e) es prefijo de la lista y de los usuarios de esa época', () => {
