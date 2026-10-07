@@ -113,6 +113,14 @@
   min-inline-size: 0;
 }
 
+/* La tarjeta de eventos de la bitácora, como la dispone su pantalla. */
+.tarjetaBitacora {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+}
+
 @media (max-width: 900px) {
   .parejaTolerancia {
     grid-template-columns: 1fr;

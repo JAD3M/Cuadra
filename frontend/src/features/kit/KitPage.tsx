@@ -17,6 +17,7 @@ import { EstadoChip, TONOS_ESTADO_CHIP } from '@/shared/ui/EstadoChip';
 import { Monto } from '@/shared/ui/Monto';
 import { Td, Th, Tabla } from '@/shared/ui/Tabla';
 import { SeccionBandeja } from './SeccionBandeja';
+import { SeccionBitacora } from './SeccionBitacora';
 import { SeccionCargas } from './SeccionCargas';
 import { SeccionCaso } from './SeccionCaso';
 import { SeccionTolerancia } from './SeccionTolerancia';
@@ -361,6 +362,10 @@ export function KitPage({ muestraShell }: KitPageProps) {
 
       <Seccion id="kit-tolerancia" titulo="Tolerancia">
         <SeccionTolerancia />
+      </Seccion>
+
+      <Seccion id="kit-bitacora" titulo="Bitácora">
+        <SeccionBitacora />
       </Seccion>
 
       {muestraShell && (
