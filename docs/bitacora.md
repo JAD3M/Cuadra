@@ -5,6 +5,14 @@
 
 ### 7 oct 2026
 
+- **Seguimiento de CU-24 integrado a `master`** por avance rápido de
+  `fix/cu-24-seguimientos` (6 commits: comentarios de M7, bandeja invalidada
+  una vez por transición, reencolado de una carga fallida y maqueta v27), sin
+  push ni PR. Sobre `master` pasan el typecheck de la raíz, las 2968 pruebas
+  del frontend y las 836 del backend (39 suites). Sin pendientes abiertos de
+  CU-24 salvo la prueba manual de una subida real en el navegador, que debe
+  incluir resubir un archivo cuya carga falló y ver que la bandeja se
+  actualiza al terminar.
 - **Reencolado y maqueta v27 de cargas, en `fix/cu-24-seguimientos`** (local,
   sin push ni PR). Dos commits de código:
   - Error en el aviso a la bandeja: la deduplicación de la doble invalidación
