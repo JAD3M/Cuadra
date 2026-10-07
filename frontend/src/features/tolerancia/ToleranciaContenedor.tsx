@@ -2,12 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { useSessionContext } from '@/shared/sesion';
 import { AvisoSoloAdmin } from './components/AvisoSoloAdmin';
 import { FormularioTolerancia } from './components/FormularioTolerancia';
+import { TarjetaCambios } from './components/TarjetaCambios';
 import { TarjetaValor } from './components/TarjetaValor';
 import { clasificarErrorGuardado, type ClaseErrorGuardado } from './errores';
 import estilos from './ToleranciaContenedor.module.css';
+import { useCambiosTolerancia } from './useCambiosTolerancia';
 import { useGuardarTolerancia } from './useGuardarTolerancia';
 import { useTolerancia } from './useTolerancia';
-import { derivarFormulario, puedeEditar, vistaValor } from './vista';
+import {
+  derivarFormulario,
+  puedeEditar,
+  vistaCambios,
+  vistaValor,
+} from './vista';
 
 /**
  * Contenedor de la pantalla de Tolerancia: la tarjeta del valor con el
@@ -28,11 +35,14 @@ import { derivarFormulario, puedeEditar, vistaValor } from './vista';
  * 401 o una cancelación no muestran nada y el foco vuelve al campo. Un campo
  * apagado no puede recibirlo: se espera a que `guardando` baje.
  *
- * La tarjeta de cambios recientes se monta en una rebanada posterior.
+ * Las dos lecturas son independientes: la tarjeta del valor y la de cambios
+ * tienen cada una su carga, su error y su Reintentar. El orden del teclado es
+ * el del DOM: tarjeta del valor con su formulario, luego los cambios.
  */
 export function ToleranciaContenedor() {
   const sesion = useSessionContext();
   const valor = useTolerancia();
+  const cambios = useCambiosTolerancia();
   const { guardar, isPending: guardando } = useGuardarTolerancia();
   const [borrador, setBorrador] = useState<string | null>(null);
   const [exito, setExito] = useState(false);
@@ -61,6 +71,10 @@ export function ToleranciaContenedor() {
   if (sesion.status !== 'ready') return null;
 
   const estado = vistaValor({ data: valor.data, error: valor.error });
+  const estadoCambios = vistaCambios({
+    data: cambios.data,
+    error: cambios.error,
+  });
   const actual = valor.data?.toleranciaMonto;
   const formulario = derivarFormulario({
     borrador,
@@ -123,6 +137,10 @@ export function ToleranciaContenedor() {
           <AvisoSoloAdmin />
         )}
       </TarjetaValor>
+      <TarjetaCambios
+        estado={estadoCambios}
+        onReintentar={() => void cambios.refetch()}
+      />
     </div>
   );
 }

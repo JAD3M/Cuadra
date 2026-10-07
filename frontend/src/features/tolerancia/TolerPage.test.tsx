@@ -8,6 +8,7 @@ import {
   sesionConEpoca,
 } from '@/test/montarBandeja';
 import { TolerPage } from './TolerPage';
+import { esperarValor } from '@/test/tarjetaValor';
 
 describe('TolerPage: el contenedor se reinicia con la época (ADR-4, TOL-9.5)', () => {
   it('un borrador escrito en una época no sobrevive al cambio de época', async () => {
@@ -27,7 +28,7 @@ describe('TolerPage: el contenedor se reinicia con la época (ADR-4, TOL-9.5)', 
     estado = sesionConEpoca(2);
     rerender(<TolerPage />);
     // Control positivo: la época nueva volvió a leer el valor y pintó el campo.
-    await screen.findByText('$0.50');
+    await esperarValor('$0.50');
     expect(await campo()).toHaveValue('0.50');
   });
 });

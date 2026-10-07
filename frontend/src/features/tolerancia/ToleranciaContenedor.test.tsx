@@ -12,6 +12,7 @@ import {
 import { clienteDePruebas, envoltura } from '@/test/montarBandeja';
 import { esperarIntervalos } from '@/test/montarCargas';
 import { servidor } from '@/test/servidor';
+import { esperarValor } from '@/test/tarjetaValor';
 import { ToleranciaContenedor } from './ToleranciaContenedor';
 
 // Pruebas del contenedor con el cliente SIN reintentos: el de la app reintenta
@@ -46,7 +47,7 @@ describe('ToleranciaContenedor: lectura del valor', () => {
     // El siguiente intento usa el manejador por defecto.
     servidor.resetHandlers();
     await usuario().click(screen.getByRole('button', { name: 'Reintentar' }));
-    expect(await screen.findByText('$0.50')).toBeInTheDocument();
+    expect(await esperarValor('$0.50')).toBeInTheDocument();
     expect(campo()).toHaveValue('0.50');
     expect(screen.queryByRole('alert')).toBeNull();
   });
@@ -90,12 +91,12 @@ describe('ToleranciaContenedor: lectura del valor', () => {
 describe('ToleranciaContenedor: el foco al terminar de guardar', () => {
   it('tras un éxito el foco vuelve al campo, que ya muestra el valor del servidor', async () => {
     montar();
-    await screen.findByText('$0.50');
+    await esperarValor('$0.50');
     const u = usuario();
     await u.clear(campo());
     await u.type(campo(), '1');
     await u.click(screen.getByRole('button', { name: 'Guardar' }));
-    await screen.findByText('$1.00');
+    await esperarValor('$1.00');
     await waitFor(() => expect(campo()).toHaveFocus());
     expect(campo()).toHaveValue('1.00');
   });
@@ -103,7 +104,7 @@ describe('ToleranciaContenedor: el foco al terminar de guardar', () => {
   it('un 401 no muestra nada y el foco vuelve al campo con el texto escrito', async () => {
     servidor.use(guardarFalla(401));
     montar();
-    await screen.findByText('$0.50');
+    await esperarValor('$0.50');
     const u = usuario();
     await u.clear(campo());
     await u.type(campo(), '1');

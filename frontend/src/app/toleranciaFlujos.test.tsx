@@ -40,6 +40,11 @@ import {
 } from '@/test/montarApp';
 import { esperarIntervalos } from '@/test/montarCargas';
 import { servidor } from '@/test/servidor';
+import {
+  esperarValor,
+  valorEnTarjeta,
+  valorAusente,
+} from '@/test/tarjetaValor';
 
 // Montar la app completa y teclear el login tarda más que una pantalla suelta.
 beforeAll(() => configure({ asyncUtilTimeout: 5000 }));
@@ -92,7 +97,7 @@ const guardados = () =>
 async function abrir(entrada = '/tolerancia') {
   const montada = montarApp(entrada);
   await entrarALaApp();
-  await screen.findByText('$0.50');
+  await esperarValor('$0.50');
   return montada;
 }
 
@@ -167,7 +172,7 @@ describe('flujos de tolerancia: la pantalla y el administrador', () => {
     const cuerpo = guardados()[0]!.cuerpo as { toleranciaMonto: unknown };
     expect(cuerpo).toEqual({ toleranciaMonto: '0.0050' });
     expect(typeof cuerpo.toleranciaMonto).toBe('string');
-    expect(screen.getByText('$0.005')).toBeInTheDocument();
+    expect(valorEnTarjeta('$0.005')).toBeInTheDocument();
     expect(campo()).toHaveValue('0.005');
     expect(botonGuardar()).toBeDisabled();
     // Como en el mockup (vista «guardado»): el campo vuelve a seguir al valor
@@ -181,7 +186,7 @@ describe('flujos de tolerancia: la pantalla y el administrador', () => {
     await abrir();
     await escribir('1');
     await usuario().click(botonGuardar());
-    await screen.findByText('$1.00');
+    await esperarValor('$1.00');
     expect(campo()).toHaveValue('1.00');
   });
 
@@ -198,10 +203,10 @@ describe('flujos de tolerancia: la pantalla y el administrador', () => {
     expect(
       within(regionDeEstado()).getByText('Guardando la tolerancia'),
     ).toBeInTheDocument();
-    expect(screen.getByText('$0.50')).toBeInTheDocument();
+    expect(valorEnTarjeta('$0.50')).toBeInTheDocument();
     expect(screen.queryByText(EXITO)).toBeNull();
     compuerta.abrir();
-    await screen.findByText('$0.75');
+    await esperarValor('$0.75');
     expect(screen.queryByText('Guardando la tolerancia')).toBeNull();
   });
 
@@ -224,7 +229,7 @@ describe('flujos de tolerancia: la pantalla y el administrador', () => {
     await act(() => router.navigate('/bandeja'));
     await screen.findByRole('heading', { level: 1, name: /^Bandeja/ });
     await act(() => router.navigate('/tolerancia'));
-    await screen.findByText('$0.75');
+    await esperarValor('$0.75');
     expect(screen.queryByText(EXITO)).toBeNull();
     expect(campo()).toHaveValue('0.75');
   });
@@ -243,7 +248,7 @@ describe('flujos de tolerancia: la pantalla y el administrador', () => {
     tolerancia.establecer('0.0050');
     montarApp('/tolerancia');
     await entrarALaApp();
-    await screen.findByText('$0.005');
+    await esperarValor('$0.005');
     await escribir('0.005');
     expect(screen.getByText(AYUDA_IGUAL)).toBeInTheDocument();
     expect(botonGuardar()).toBeDisabled();
@@ -291,7 +296,7 @@ describe('flujos de tolerancia: la pantalla y el administrador', () => {
     await esperarIntervalos(4);
     expect(guardados()).toHaveLength(1);
     compuerta.abrir();
-    await screen.findByText('$0.75');
+    await esperarValor('$0.75');
     expect(guardados()).toHaveLength(1);
   });
 
@@ -326,7 +331,7 @@ describe('flujos de tolerancia: errores al guardar (TOL-7)', () => {
     expect(campo()).toHaveValue(texto);
     expect(campo()).toBeEnabled();
     expect(botonGuardar()).toBeEnabled();
-    expect(screen.getByText('$0.50')).toBeInTheDocument();
+    expect(valorEnTarjeta('$0.50')).toBeInTheDocument();
     expect(screen.queryByText(EXITO)).toBeNull();
     return alerta;
   }
@@ -434,7 +439,7 @@ describe('flujos de tolerancia: roles (TOL-8)', () => {
     contextoConRoles(['contador']);
     montarApp('/tolerancia');
     await entrarALaApp();
-    await screen.findByText('$0.50');
+    await esperarValor('$0.50');
     expect(screen.getByRole('note')).toHaveTextContent(AVISO);
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: /Guardar/ })).toBeNull();
@@ -446,7 +451,7 @@ describe('flujos de tolerancia: roles (TOL-8)', () => {
     contextoPorToken(idB);
     montarApp('/tolerancia');
     await entrarALaApp(/Abarrotes/);
-    await screen.findByText('$0.50');
+    await esperarValor('$0.50');
     expect(screen.getByRole('note')).toHaveTextContent(AVISO);
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(screen.queryByRole('button', { name: /Guardar/ })).toBeNull();
@@ -458,7 +463,7 @@ describe('flujos de tolerancia: roles (TOL-8)', () => {
     contextoConRoles(['contador', 'admin']);
     montarApp('/tolerancia');
     await entrarALaApp();
-    await screen.findByText('$0.50');
+    await esperarValor('$0.50');
     expect(campo()).toBeInTheDocument();
     expect(screen.queryByRole('note')).toBeNull();
   });
@@ -495,13 +500,13 @@ describe('flujos de tolerancia: época y salidas con un PUT en vuelo (TOL-9)', (
     await usuario().click(botonGuardar());
     await screen.findByRole('button', { name: 'Guardando…' });
     await cambiarAEmpresaB();
-    await screen.findByText('$2.50');
+    await esperarValor('$2.50');
     compuerta.abrir();
     // Control positivo: el PUT de A sí se aplicó en el servidor.
     await waitFor(() => expect(tolerancia.valor()).toBe('0.7500'));
     await esperarIntervalos(5);
-    expect(screen.getByText('$2.50')).toBeInTheDocument();
-    expect(screen.queryByText('$0.75')).toBeNull();
+    expect(valorEnTarjeta('$2.50')).toBeInTheDocument();
+    expect(valorAusente('$0.75')).toBeNull();
     expect(screen.queryByText(EXITO)).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(campo()).toHaveValue('2.50');
@@ -523,11 +528,11 @@ describe('flujos de tolerancia: época y salidas con un PUT en vuelo (TOL-9)', (
     await usuario().click(botonGuardar());
     await screen.findByRole('button', { name: 'Guardando…' });
     await cambiarAEmpresaB();
-    await screen.findByText('$2.50');
+    await esperarValor('$2.50');
     compuerta.abrir();
     // Control positivo: la respuesta retenida ya se soltó; se espera al temporizador.
     await esperarIntervalos(5);
-    expect(screen.getByText('$2.50')).toBeInTheDocument();
+    expect(valorEnTarjeta('$2.50')).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.queryByText(GENERICO)).toBeNull();
     expect(
@@ -547,7 +552,7 @@ describe('flujos de tolerancia: época y salidas con un PUT en vuelo (TOL-9)', (
     await escribir('9.9');
     expect(campo()).toHaveValue('9.9');
     await cambiarAEmpresaB();
-    await screen.findByText('$2.50');
+    await esperarValor('$2.50');
     expect(campo()).toHaveValue('2.50');
     expect(screen.queryByText(EXITO)).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
@@ -594,7 +599,7 @@ describe('flujos de tolerancia: época y salidas con un PUT en vuelo (TOL-9)', (
     expect(screen.queryByText(EXITO)).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
     await act(() => router.navigate('/tolerancia'));
-    await screen.findByText('$0.75');
+    await esperarValor('$0.75');
     expect(screen.queryByText(EXITO)).toBeNull();
   });
 });
@@ -624,7 +629,7 @@ describe('flujos de tolerancia: lectura del valor (TOL-2)', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).toBeNull();
     compuerta.abrir();
-    await screen.findByText('$0.50');
+    await esperarValor('$0.50');
   });
 });
 

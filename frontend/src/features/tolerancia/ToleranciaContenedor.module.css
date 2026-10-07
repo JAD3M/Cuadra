@@ -1,7 +1,18 @@
-/* Disposición de la pantalla de Tolerancia (Tolerancia.dc.html). Solo tokens de rol. */
+/*
+ * Disposición de la pantalla de Tolerancia (Tolerancia.dc.html): dos tarjetas,
+ * el valor más ancho (1.2fr) y los cambios (1fr), alineadas arriba. A 900 px o
+ * menos pasan a una sola columna, con el valor primero. Solo tokens de rol.
+ */
 .contenedor {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: start;
   gap: var(--space-20);
   min-inline-size: 0;
+}
+
+@media (max-width: 900px) {
+  .contenedor {
+    grid-template-columns: 1fr;
+  }
 }

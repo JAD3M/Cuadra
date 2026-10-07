@@ -257,6 +257,26 @@ describe.each<Tema>(['dark', 'light'])(
   },
 );
 
+describe('contrato CSS de la disposición de la pantalla (TOL-11)', () => {
+  it('son dos columnas, el valor más ancho, alineadas arriba y sin desbordar', () => {
+    const base = bloqueCss(contenedor, '.contenedor');
+    expect(base).toMatch(/display:\s*grid/);
+    expect(base).toMatch(
+      /grid-template-columns:\s*minmax\(0,\s*1\.2fr\)\s*minmax\(0,\s*1fr\)/,
+    );
+    expect(base).toMatch(/align-items:\s*start/);
+    expect(base).toMatch(/min-inline-size:\s*0/);
+  });
+
+  it('a 900 px o menos pasa a una sola columna', () => {
+    const consulta = contenedor.match(
+      /@media\s*\(max-width:\s*900px\)\s*\{([\s\S]*?\})\s*\}/,
+    );
+    expect(consulta).not.toBeNull();
+    expect(consulta![1]).toMatch(/grid-template-columns:\s*1fr/);
+  });
+});
+
 describe('contrato CSS de la tarjeta de cambios (TOL-10.5)', () => {
   it('el importe de cada fila no se parte en dos líneas', () => {
     expect(bloqueCss(cambios, '.importes')).toMatch(/white-space:\s*nowrap/);
