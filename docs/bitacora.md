@@ -5,10 +5,18 @@
 
 ### 7 oct 2026
 
+- **CU-24 integrado a `master`** por avance rápido de la cadena hasta
+  `feat/cu-24-09-kit-docs`, sin push ni PR. Sobre `master` pasan el typecheck
+  de la raíz, las 2966 pruebas del frontend y las 836 del backend (39 suites,
+  con Postgres y Redis arriba). El usuario recorrió la pantalla en el navegador
+  y la dio por buena; falta probar una subida real de archivos. Siguen
+  abiertos: agregar a la maqueta la etiqueta «Fallida», el mensaje del
+  servidor y los resultados bajo «ya existía»; el seguimiento M7; y la doble
+  invalidación de la bandeja.
 - **CU-24 terminado: cargas desde la interfaz (KAN-102).** Con ella van 24 de
-  26 historias y 94 de 99 puntos; quedan CU-25 y CU-26 (5 pts). Vive en la
-  cadena local de ramas `feat/cu-24-00-api-cargas` a `feat/cu-24-09-kit-docs`
-  y está **pendiente de integrar a `master`** (sin push ni PR). Lo entregado:
+  26 historias y 94 de 99 puntos; quedan CU-25 y CU-26 (5 pts). Se integró a
+  `master` el 7 oct (ver arriba). Vivía en la cadena local de ramas
+  `feat/cu-24-00-api-cargas` a `feat/cu-24-09-kit-docs`. Lo entregado:
   - API: `GET /cargas`, solo lectura y sin migración. Devuelve `{datos: [...]}`
     con las últimas 20 cargas de la empresa, de la más nueva a la más antigua
     (empate por `id`), con el nombre de quien subió (o `null`). Filtra por
@@ -162,9 +170,9 @@
   - **Monto de la galería con «0123456789»**: el monto de ejemplo
     `12345678901234567890.12` de `KitPage.tsx` contiene esa secuencia. Es previo
     a CU-24 y queda fuera de `features/cargas`, donde la prueba de CRG-6 busca.
-- **Revisión manual en el navegador: PENDIENTE.** Nadie la ha corrido y no se
-  arrancó ningún servidor de desarrollo; las pruebas automáticas no la
-  sustituyen. Contra la maqueta aprobada (versión 25), con el API de desarrollo
+- **Revisión manual en el navegador: PARCIAL.** El 7 oct el usuario recorrió
+  la pantalla y la dio por buena; falta una subida real de archivos y el resto
+  de esta lista. Las pruebas automáticas no la sustituyen. Contra la maqueta aprobada (versión 25), con el API de desarrollo
   y datos sembrados, y los servidores que se arranquen se detienen por PID:
   - [ ] Cada `vista` en oscuro y en claro (el claro con el control de tema de
     la propia pantalla, porque no hay maqueta clara), a 1440, 900 y 375 px.
