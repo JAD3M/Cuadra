@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import {
   TIPO_CFDI,
@@ -7,7 +8,7 @@ import {
 import type { RespuestaCarga } from '@/shared/api/contratos';
 import { esActiva } from '@/shared/dominio';
 import { useSessionContext } from '@/shared/sesion';
-import { useEpoca } from './claves';
+import { clavesCargas, useEpoca } from './claves';
 import { AlertaSubida, type FalloSubida } from './components/AlertaSubida';
 import { AvisoRevisor } from './components/AvisoRevisor';
 import { HistorialCargas } from './components/HistorialCargas';
@@ -61,6 +62,7 @@ export function CargasContenedor() {
   const perfiles = usePerfiles();
   const { subir, isPending, variables } = useSubirCarga();
   const epoca = useEpoca();
+  const cliente = useQueryClient();
   // La carga recién subida: la reemplaza la siguiente subida con éxito y no
   // hay forma de descartarla (M13).
   const [panel, setPanel] = useState<PanelSubida | null>(null);
@@ -129,6 +131,12 @@ export function CargasContenedor() {
   /** Deja la respuesta del POST como el panel de su tarjeta y abre una ventana de sondeo. */
   function mostrarPanel(respuesta: RespuestaCarga, tipo: TipoCarga) {
     if (epoca === null) return;
+    // Resubir un lote fallido lo reencola con el mismo id: el detalle que
+    // quedó en caché es de la corrida anterior y taparía la nueva.
+    void cliente.resetQueries({
+      queryKey: clavesCargas.detalle(epoca, respuesta.id),
+      exact: true,
+    });
     setPanel({
       id: respuesta.id,
       tipo,

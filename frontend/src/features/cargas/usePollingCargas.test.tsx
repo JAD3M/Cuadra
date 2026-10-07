@@ -417,6 +417,34 @@ describe('usePollingCargas: la bandeja se entera de lo que termina (M17)', () =>
     expect(deBandeja).toHaveLength(1);
   });
 
+  it('una carga fallida que se reencola y vuelve a terminar invalida la bandeja otra vez', async () => {
+    almacenes.cargas.establecer([PENDIENTE]);
+    const { result, invalidar } = montar({
+      polling: { intervaloMs: 15, topeMs: 60_000 },
+    });
+    const deBandeja = () =>
+      invalidar.mock.calls.filter(
+        ([filtros]) =>
+          JSON.stringify(filtros?.queryKey) === JSON.stringify(['bandeja', 1]),
+      ).length;
+    await waitFor(() => expect(result.current.lista.isSuccess).toBe(true));
+    almacenes.cargas.avanzar(PENDIENTE.id, 'fallida');
+    await waitFor(() => expect(deBandeja()).toBe(1));
+    // Resubir el archivo la devuelve a `pendiente` (el backend la reencola).
+    almacenes.cargas.avanzar(PENDIENTE.id, 'pendiente');
+    act(() => {
+      void result.current.actualizar();
+    });
+    await waitFor(() =>
+      expect(result.current.lista.data?.datos[0]?.estado).toBe('pendiente'),
+    );
+    almacenes.cargas.avanzar(PENDIENTE.id, 'procesada', { registrosOk: 2 });
+    // La transición nueva pendiente -> procesada vuelve a avisar a la bandeja.
+    await waitFor(() => expect(deBandeja()).toBe(2));
+    await esperarIntervalos();
+    expect(deBandeja()).toBe(2);
+  });
+
   it('una fila que ya llegó terminada no invalida nada', async () => {
     const { result, invalidar, cliente } = montar({
       polling: { intervaloMs: 15, topeMs: 60_000 },

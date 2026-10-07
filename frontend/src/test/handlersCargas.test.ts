@@ -121,6 +121,33 @@ describe('POST de subida con estado', () => {
     expect(repetida.id).toBe(respuestaCarga.parse(primero.cuerpo).id);
   });
 
+  it('resubir un lote fallido lo reencola: 200 yaExistia en pendiente y sin resultados', async () => {
+    const primero = respuestaCarga.parse(
+      (
+        await pedir('/cargas/cfdi', {
+          method: 'POST',
+          body: formulario([['archivos', 'a.xml']]),
+        })
+      ).cuerpo,
+    );
+    cargas.avanzar(primero.id, 'fallida', {
+      errorMensaje: 'La carga falló por un problema del sistema.',
+    });
+    const { status, cuerpo } = await pedir('/cargas/cfdi', {
+      method: 'POST',
+      body: formulario([['archivos', 'a.xml']]),
+    });
+    expect(status).toBe(200);
+    const repetida = respuestaCarga.parse(cuerpo);
+    expect(repetida.yaExistia).toBe(true);
+    expect(repetida.estado).toBe('pendiente');
+    expect(repetida.errorMensaje).toBeNull();
+    const lista = respuestaListaCargas.parse((await pedir('/cargas')).cuerpo);
+    expect(lista.datos.find((f) => f.id === primero.id)?.estado).toBe(
+      'pendiente',
+    );
+  });
+
   it('cfdi valida como el servidor: sin archivos o con extensión ajena responde 400', async () => {
     const vacio = await pedir('/cargas/cfdi', {
       method: 'POST',

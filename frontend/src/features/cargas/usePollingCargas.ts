@@ -43,8 +43,14 @@ export function usePollingCargas(panel: PanelSubida | null) {
   const ventana = useEstadoVentana();
 
   // La lista y el panel pueden ver terminar la misma carga: la bandeja se
-  // invalida una vez por carga y época, no una por observador.
+  // invalida una vez por transición a terminal, no una por observador. Una
+  // carga fallida que se resube vuelve a `pendiente` (el backend la
+  // reencola), así que al verla activa de nuevo se olvida su aviso: su
+  // siguiente cierre es otra transición y debe avisar otra vez.
   const avisadas = useRef(new Set<string>());
+  const reabrirAvisos = (ep: number, ids: readonly string[]) => {
+    for (const id of ids) avisadas.current.delete(`${ep}:${id}`);
+  };
   const avisarBandeja = (ep: number, ids: readonly string[]) => {
     const nuevas = ids.filter((id) => !avisadas.current.has(`${ep}:${id}`));
     if (nuevas.length === 0) return;
@@ -64,6 +70,10 @@ export function usePollingCargas(panel: PanelSubida | null) {
       });
       // M17: al terminar una carga el motor pudo producir propuestas.
       if (epoca !== null && epoca === epocaActual.current) {
+        reabrirAvisos(
+          epoca,
+          nueva.datos.filter((f) => esActiva(f.estado)).map((f) => f.id),
+        );
         avisarBandeja(epoca, cargasTerminadas(previa?.datos, nueva.datos));
       }
       return nueva;
@@ -98,6 +108,13 @@ export function usePollingCargas(panel: PanelSubida | null) {
       const estabaActiva = esActiva(
         (previa ?? inicial)?.estado ?? nueva.estado,
       );
+      if (
+        epoca !== null &&
+        epoca === epocaActual.current &&
+        esActiva(nueva.estado)
+      ) {
+        reabrirAvisos(epoca, [id]);
+      }
       if (
         epoca !== null &&
         epoca === epocaActual.current &&

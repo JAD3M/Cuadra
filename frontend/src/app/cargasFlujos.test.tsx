@@ -267,6 +267,27 @@ describe('flujos de cargas: subir', () => {
     await screen.findByText('Mostrando 1–20 de 40');
     expect(listasBandeja()).toBe(listasAntes + 1);
   });
+  it('una carga fallida que se resube y termina vuelve a avisar a la bandeja: otra lectura del resumen (M17)', async () => {
+    espia = espiarSolicitudes();
+    await abrirCargas();
+    const resumenes = () => espia?.cuantas('GET', '/api/bandeja/resumen') ?? 0;
+    await subirXml();
+    await within(regionDe(CFDI)).findByText(PROCESANDO);
+    const inicio = resumenes();
+    almacenes.cargas.avanzar(idDeLaUltima(), 'fallida');
+    // Control positivo: la primera terminación sí invalida la bandeja.
+    await waitFor(() => expect(resumenes()).toBe(inicio + 1));
+    await esperarIntervalos(5);
+    expect(resumenes()).toBe(inicio + 1);
+    // El mismo archivo: el servidor lo reencola (POST 200 yaExistia).
+    await subirXml();
+    await within(regionDe(CFDI)).findByText(PROCESANDO);
+    expect(almacenes.cargas.subidas()).toHaveLength(2);
+    almacenes.cargas.avanzar(idDeLaUltima(), 'procesada', { registrosOk: 1 });
+    await waitFor(() => expect(resumenes()).toBe(inicio + 2));
+    await esperarIntervalos(5);
+    expect(resumenes()).toBe(inicio + 2);
+  });
 });
 
 describe('flujos de cargas: sesión y empresa', () => {

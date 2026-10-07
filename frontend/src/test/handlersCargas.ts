@@ -148,6 +148,24 @@ export function crearHandlersCargas(
   ): Response {
     const existente = lotes.get(huella);
     if (existente !== undefined) {
+      // Como el backend: resubir un lote fallido lo reencola desde cero.
+      if (detalleDe(existente)?.estado === 'fallida') {
+        items = items.map((i) =>
+          i.id === existente
+            ? { ...i, estado: 'pendiente', registrosOk: 0, registrosError: 0 }
+            : i,
+        );
+        detalles.set(existente, {
+          ...(detalleDe(existente) as DetalleCarga),
+          estado: 'pendiente',
+          totalRegistros: 0,
+          registrosOk: 0,
+          registrosExistentes: 0,
+          registrosError: 0,
+          resultados: [],
+          errorMensaje: null,
+        });
+      }
       const actual = detalleDe(existente);
       if (actual) {
         const cuerpo: RespuestaCarga = { ...actual, yaExistia: true };
