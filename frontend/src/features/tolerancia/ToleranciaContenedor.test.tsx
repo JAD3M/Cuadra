@@ -3,9 +3,13 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import type { SessionState } from '@/shared/sesion';
+import { crearCompuerta } from '@/test/compuerta';
 import { almacenes } from '@/test/handlers';
 import {
+  cambiosFalla,
+  cambiosFueraDeContrato,
   guardarFalla,
+  cambiosRedDeFallo,
   valorFalla,
   valorRedDeFallo,
 } from '@/test/handlersTolerancia';
@@ -117,5 +121,94 @@ describe('ToleranciaContenedor: el foco al terminar de guardar', () => {
     await esperarIntervalos(4);
     expect(screen.queryByRole('alert')).toBeNull();
     expect(campo()).toHaveValue('1');
+  });
+});
+
+describe('ToleranciaContenedor: cambios recientes', () => {
+  const TITULO = 'Últimos 5 cambios';
+  const lista = () => screen.getByRole('list', { name: TITULO });
+  const bitacoras = () =>
+    tolerancia.peticiones().filter((p) => p.ruta === '/api/bitacora');
+  const valores = () =>
+    tolerancia.peticiones().filter((p) => p.ruta === '/api/empresa/tolerancia');
+
+  it('mientras los cambios cargan, el valor y el formulario ya están y la lista aparece al abrir la compuerta (TOL-10.10)', async () => {
+    const compuerta = crearCompuerta();
+    tolerancia.compuertas({ cambios: compuerta.promesa });
+    montar();
+    await esperarValor('$0.50');
+    expect(campo()).toBeEnabled();
+    expect(screen.getByText('Cargando los cambios')).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: TITULO })).toBeNull();
+    compuerta.abrir();
+    await screen.findByRole('list', { name: TITULO });
+    expect(screen.queryByText('Cargando los cambios')).toBeNull();
+  });
+
+  it('un fallo de red en los cambios no toca el valor ni el formulario; Reintentar pide solo la bitácora (TOL-10.9, 10.10)', async () => {
+    servidor.use(cambiosRedDeFallo());
+    montar();
+    const alerta = await screen.findByRole('alert');
+    expect(alerta).toHaveTextContent('No se pudieron cargar los cambios.');
+    expect(alerta).toHaveTextContent(
+      'Revisa tu conexión e inténtalo de nuevo.',
+    );
+    expect(await esperarValor('$0.50')).toBeInTheDocument();
+    expect(campo()).toBeEnabled();
+    const valoresAntes = valores().length;
+    const bitacorasAntes = bitacoras().length;
+    servidor.resetHandlers();
+    await usuario().click(screen.getByRole('button', { name: 'Reintentar' }));
+    await screen.findByRole('list', { name: TITULO });
+    expect(bitacoras()).toHaveLength(bitacorasAntes + 1);
+    expect(valores()).toHaveLength(valoresAntes);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('un 403 en los cambios muestra el copy compartido sin Reintentar, y el valor sigue (TOL-10.9)', async () => {
+    servidor.use(cambiosFalla(403));
+    montar();
+    const alerta = await screen.findByRole('alert');
+    expect(alerta).toHaveTextContent('No tienes permiso para esta acción.');
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).toBeNull();
+    expect(await esperarValor('$0.50')).toBeInTheDocument();
+  });
+
+  it('un sobre fuera de contrato en los cambios muestra el genérico y nunca texto del servidor', async () => {
+    servidor.use(cambiosFueraDeContrato());
+    montar();
+    const alerta = await screen.findByRole('alert');
+    expect(alerta).toHaveTextContent('No se pudo completar la solicitud.');
+    expect(await esperarValor('$0.50')).toBeInTheDocument();
+  });
+
+  it('si el valor falla, la lista se pinta y cada Reintentar toca solo lo suyo (TOL-2.5)', async () => {
+    servidor.use(valorRedDeFallo());
+    montar();
+    await screen.findByRole('list', { name: TITULO });
+    expect(lista()).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudo conectar con el servidor.',
+    );
+    const bitacorasAntes = bitacoras().length;
+    servidor.resetHandlers();
+    await usuario().click(screen.getByRole('button', { name: 'Reintentar' }));
+    await esperarValor('$0.50');
+    await esperarIntervalos(4);
+    expect(bitacoras()).toHaveLength(bitacorasAntes);
+  });
+
+  it('el orden del teclado es el campo, Guardar y luego Reintentar de los cambios', async () => {
+    servidor.use(cambiosRedDeFallo());
+    montar();
+    await screen.findByRole('alert');
+    await esperarValor('$0.50');
+    const u = usuario();
+    await u.click(campo());
+    await u.type(campo(), '1');
+    await u.tab();
+    expect(screen.getByRole('button', { name: 'Guardar' })).toHaveFocus();
+    await u.tab();
+    expect(screen.getByRole('button', { name: 'Reintentar' })).toHaveFocus();
   });
 });

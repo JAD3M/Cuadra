@@ -249,6 +249,11 @@ export function cambiosFalla(status: number) {
   );
 }
 
+/** Corta la conexión de `GET /bitacora` (fallo de red). */
+export function cambiosRedDeFallo() {
+  return http.get('/api/bitacora', () => HttpResponse.error());
+}
+
 /** `GET /bitacora` responde 200 con un sobre sin el arreglo `datos`. */
 export function cambiosFueraDeContrato() {
   return http.get('/api/bitacora', () =>

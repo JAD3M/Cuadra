@@ -18,16 +18,29 @@ import {
   vi,
 } from 'vitest';
 import { AVISOS } from '@/features/auth/components/textos';
+import { formatearInstante } from '@/features/caso/fecha';
+import { CAMPO_TOLERANCIA } from '@/shared/dominio';
 import { CLAVE_TEMA } from '@/shared/tema/tipos';
 import { crearCompuerta } from '@/test/compuerta';
 import {
   CONTEXTO_SESION,
   CONTEXTO_SESION_B,
   EMPRESAS_DISPONIBLES,
+  USUARIO,
 } from '@/test/fixtures';
+import { casoDeFila } from '@/test/fixturesCaso';
+import { FILAS_DEMO } from '@/test/fixturesBandeja';
+import {
+  eventoAjeno,
+  eventoHeredado,
+  eventoTolerancia,
+  hace,
+} from '@/test/fixturesTolerancia';
 import { almacenes } from '@/test/handlers';
 import { contextoPorToken, espiarSolicitudes } from '@/test/handlersAuth';
 import {
+  cambiosFalla,
+  cambiosFueraDeContrato,
   guardarFalla,
   guardarFueraDeContrato,
   guardarRedDeFallo,
@@ -665,5 +678,307 @@ describe('flujos de tolerancia: encabezado con la empresa activa (Q8)', () => {
       ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/aplica a movimientos y CFDI/)).toBeNull();
+  });
+});
+
+// --- Cambios recientes (TOL-10), cableado y caché (TOL-9, CAS-TOL-1) ---
+
+const TITULO_LISTA = 'Últimos 5 cambios';
+const SIN_CAMBIOS_TITULO = 'Aún no hay cambios.';
+const ERROR_CAMBIOS = 'No se pudieron cargar los cambios.';
+const FECHA = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}/;
+
+const lista = () => screen.getByRole('list', { name: TITULO_LISTA });
+const filas = () => within(lista()).getAllByRole('listitem');
+const bitacoras = () =>
+  tolerancia.peticiones().filter((p) => p.ruta === '/api/bitacora');
+const valores = () =>
+  tolerancia
+    .peticiones()
+    .filter((p) => p.ruta === '/api/empresa/tolerancia' && p.metodo === 'GET');
+
+/** Un cambio de tolerancia con montos reconocibles: `n.0000 -> n.5000`. */
+const cambio = (n: number) =>
+  eventoTolerancia(n, {
+    datos: {
+      campo: CAMPO_TOLERANCIA,
+      antes: `${n}.0000`,
+      despues: `${n}.5000`,
+    },
+  });
+
+/** Otro campo de la misma empresa, con montos que se verían si se colaran. */
+const ajeno = (n: number) =>
+  eventoAjeno(n, {
+    datos: { campo: 'razon_social', antes: '7.7777', despues: '8.8888' },
+  });
+
+async function abrirConLista() {
+  const montada = await abrir();
+  await screen.findByRole('list', { name: TITULO_LISTA });
+  return montada;
+}
+
+describe('flujos de tolerancia: cambios recientes (TOL-10)', () => {
+  it('la consulta lleva la entidad, la acción y el límite de 50 (TOL-10.1)', async () => {
+    await abrirConLista();
+    expect(bitacoras()[0]!.consulta).toEqual({
+      entidad: 'companies',
+      accion: 'actualizar',
+      limite: '50',
+    });
+    expect(bitacoras()[0]!.metodo).toBe('GET');
+  });
+
+  it('de 12 eventos con 3 ajenos intercalados muestra los primeros 5 de tolerancia en el orden del servidor (TOL-10.2)', async () => {
+    tolerancia.establecerCambios([
+      cambio(1),
+      ajeno(2),
+      cambio(3),
+      cambio(4),
+      ajeno(5),
+      cambio(6),
+      cambio(7),
+      ajeno(8),
+      cambio(9),
+      cambio(10),
+      cambio(11),
+      cambio(12),
+    ]);
+    await abrirConLista();
+    const items = filas();
+    expect(items).toHaveLength(5);
+    const esperados = ['$1.50', '$3.50', '$4.50', '$6.50', '$7.50'];
+    items.forEach((item, i) => {
+      expect(within(item).getByText(esperados[i]!)).toBeInTheDocument();
+    });
+    await esperarIntervalos(4);
+    expect(screen.queryByText('$8.8888')).toBeNull();
+    expect(screen.queryByText('$7.7777')).toBeNull();
+    expect(screen.queryByText('$9.50')).toBeNull();
+    expect(filas()).toHaveLength(5);
+  });
+
+  it('cada fila lleva el monto anterior, el nuevo, quien lo cambió y la fecha (TOL-10.3)', async () => {
+    tolerancia.establecerCambios([
+      eventoTolerancia(1, {
+        datos: { campo: CAMPO_TOLERANCIA, antes: '0.0050', despues: '0.5000' },
+      }),
+    ]);
+    await abrirConLista();
+    const [fila] = filas();
+    expect(within(fila!).getByText('$0.005')).toBeInTheDocument();
+    expect(within(fila!).getByText('$0.50')).toBeInTheDocument();
+    expect(fila).toHaveTextContent(/Ana Mendoza · /);
+    expect(fila).toHaveTextContent(FECHA);
+    expect(fila).toHaveTextContent(formatearInstante(hace(1)));
+  });
+
+  it('un cambio sin usuario muestra la raya en lugar de quien lo hizo (TOL-10.4)', async () => {
+    tolerancia.establecerCambios([eventoTolerancia(1, { usuario: null })]);
+    await abrirConLista();
+    expect(filas()[0]).toHaveTextContent(/— · /);
+  });
+
+  it('una carga mezclada pinta las filas válidas y no muestra error (TOL-10.7)', async () => {
+    tolerancia.establecerCambios([
+      cambio(1),
+      eventoTolerancia(2, { datos: null }),
+      eventoTolerancia(3, {
+        datos: { campo: CAMPO_TOLERANCIA, antes: 5, despues: '1.0000' },
+      }),
+      eventoHeredado(4),
+      cambio(5),
+    ]);
+    await abrirConLista();
+    expect(filas()).toHaveLength(2);
+    expect(within(filas()[0]!).getByText('$1.50')).toBeInTheDocument();
+    expect(within(filas()[1]!).getByText('$5.50')).toBeInTheDocument();
+    await esperarIntervalos(4);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('sin cambios muestra el estado vacío y la tarjeta del valor no se afecta (TOL-10.8)', async () => {
+    tolerancia.establecerCambios([ajeno(1), eventoHeredado(2)]);
+    await abrir();
+    expect(await screen.findByText(SIN_CAMBIOS_TITULO)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Cuando un administrador cambie la tolerancia, aparecerá aquí.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('list', { name: TITULO_LISTA })).toBeNull();
+    expect(valorEnTarjeta('$0.50')).toBeInTheDocument();
+    expect(campo()).toHaveValue('0.50');
+  });
+
+  it('si la lista falla, Reintentar vuelve a pedir solo la bitácora (TOL-10.9)', async () => {
+    servidor.use(cambiosFueraDeContrato());
+    await abrir();
+    const alerta = await screen.findByText(GENERICO);
+    expect(alerta).toBeInTheDocument();
+    const valoresAntes = valores().length;
+    const bitacorasAntes = bitacoras().length;
+    servidor.resetHandlers();
+    await usuario().click(screen.getByRole('button', { name: 'Reintentar' }));
+    await screen.findByRole('list', { name: TITULO_LISTA });
+    expect(bitacoras()).toHaveLength(bitacorasAntes + 1);
+    expect(valores()).toHaveLength(valoresAntes);
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('mientras la lista falla, el valor carga y el formulario guarda (TOL-10.10)', async () => {
+    servidor.use(cambiosFalla(404));
+    const compuerta = crearCompuerta();
+    tolerancia.compuertas({ valor: compuerta.promesa });
+    montarApp('/tolerancia');
+    await entrarALaApp();
+    expect(await screen.findByText(GENERICO)).toBeInTheDocument();
+    expect(screen.getByText('Cargando la tolerancia')).toBeInTheDocument();
+    compuerta.abrir();
+    await esperarValor('$0.50');
+    await escribir('0.75');
+    await usuario().click(botonGuardar());
+    await screen.findByText(EXITO);
+    expect(guardados()).toHaveLength(1);
+    expect(valorEnTarjeta('$0.75')).toBeInTheDocument();
+  });
+
+  it('si el valor no se lee, la lista se pinta con normalidad (TOL-2.5)', async () => {
+    servidor.use(valorFalla(403));
+    montarApp('/tolerancia');
+    await entrarALaApp();
+    const lista403 = await screen.findByRole('list', { name: TITULO_LISTA });
+    expect(within(lista403).getAllByRole('listitem')).toHaveLength(2);
+    expect(await screen.findByText(SIN_PERMISO_TITULO)).toBeInTheDocument();
+    expect(screen.queryByText(ERROR_CAMBIOS)).toBeNull();
+  });
+
+  it.each([['admin'], ['contador'], ['revisor']])(
+    'el rol %s ve la misma lista (TOL-10.14)',
+    async (rol) => {
+      contextoConRoles([rol]);
+      montarApp('/tolerancia');
+      await entrarALaApp();
+      await esperarValor('$0.50');
+      const items = within(
+        await screen.findByRole('list', { name: TITULO_LISTA }),
+      ).getAllByRole('listitem');
+      expect(items).toHaveLength(2);
+      expect(within(items[0]!).getByText('$0.50')).toBeInTheDocument();
+    },
+  );
+
+  it('no hay enlace a la bitácora en la pantalla (TOL-10.11)', async () => {
+    await abrirConLista();
+    // El menú lateral sí tiene su entrada; la pantalla no agrega ninguna.
+    const pantalla = within(screen.getByRole('main'));
+    expect(pantalla.queryByRole('link', { name: /bit[aá]cora/i })).toBeNull();
+    expect(
+      pantalla.queryByRole('button', { name: /Ver en la bit/ }),
+    ).toBeNull();
+  });
+});
+
+describe('flujos de tolerancia: guardar actualiza la lista y la caché (TOL-9, CAS-TOL-1)', () => {
+  it('tras guardar, la fila nueva aparece primero y el valor sale de la respuesta del PUT sin otro GET (TOL-9.1, 9.2)', async () => {
+    await abrirConLista();
+    const valoresAntes = valores().length;
+    const bitacorasAntes = bitacoras().length;
+    await escribir('0.75');
+    await usuario().click(botonGuardar());
+    await screen.findByText(EXITO);
+    await waitFor(() => expect(bitacoras()).toHaveLength(bitacorasAntes + 1));
+    await waitFor(() =>
+      expect(within(filas()[0]!).getByText('$0.75')).toBeInTheDocument(),
+    );
+    expect(within(filas()[0]!).getByText('$0.50')).toBeInTheDocument();
+    expect(filas()[0]).toHaveTextContent(`${USUARIO.nombre} · `);
+    await esperarIntervalos(5);
+    expect(valores()).toHaveLength(valoresAntes);
+    expect(valorEnTarjeta('$0.75')).toBeInTheDocument();
+  });
+
+  it('guardar no invalida ni vuelve a pedir la bandeja (TOL-9.8)', async () => {
+    espia = espiarSolicitudes();
+    await abrirConLista();
+    await screen.findByRole('link', { name: /^Bandeja \d+ pendientes?$/ });
+    const deBandeja = () =>
+      espia!.solicitudes.filter((s) => s.ruta.startsWith('/api/bandeja'));
+    const antes = deBandeja().length;
+    await escribir('0.75');
+    await usuario().click(botonGuardar());
+    await screen.findByText(EXITO);
+    // Control positivo: la fila nueva llegó, así que el refetch de cambios ya ocurrió.
+    await waitFor(() =>
+      expect(within(filas()[0]!).getByText('$0.75')).toBeInTheDocument(),
+    );
+    await esperarIntervalos(5);
+    expect(deBandeja()).toHaveLength(antes);
+  });
+
+  /** El detalle del caso con la tolerancia que tenga el almacén en ese momento. */
+  function casoConToleranciaVigente() {
+    const base = casoDeFila(FILAS_DEMO.find((f) => f.estado === 'sugerencia')!);
+    servidor.use(
+      http.get('/api/casos/:movimientoId', () =>
+        HttpResponse.json({
+          ...base,
+          toleranciaMonto: tolerancia.valor(),
+        }),
+      ),
+    );
+    return base.movimiento.id;
+  }
+
+  const casosPedidos = () =>
+    espia!.solicitudes.filter(
+      (s) => s.metodo === 'GET' && s.ruta.startsWith('/api/casos/'),
+    ).length;
+
+  it('guardar marca viejo el caso en caché: al reabrirlo pide el detalle y muestra la tolerancia nueva (CAS-TOL-1.1)', async () => {
+    espia = espiarSolicitudes();
+    const id = casoConToleranciaVigente();
+    const { router } = montarApp(`/casos/${encodeURIComponent(id)}`);
+    await entrarALaApp();
+    await screen.findByRole('heading', { level: 2, name: 'Tu decisión' });
+    expect(screen.getByText(/^tolerancia/).textContent).toContain('$0.50');
+    expect(casosPedidos()).toBe(1);
+
+    await usuario().click(screen.getByRole('link', { name: /^Tolerancia/ }));
+    await esperarValor('$0.50');
+    await escribir('0.75');
+    await usuario().click(botonGuardar());
+    await screen.findByText(EXITO);
+    // Con el caso inactivo, marcarlo viejo no lo pide todavía.
+    await waitFor(() =>
+      expect(within(filas()[0]!).getByText('$0.75')).toBeInTheDocument(),
+    );
+    await esperarIntervalos(4);
+    expect(casosPedidos()).toBe(1);
+
+    await act(() => router.navigate(`/casos/${encodeURIComponent(id)}`));
+    await waitFor(() =>
+      expect(screen.getByText(/^tolerancia/).textContent).toContain('$0.75'),
+    );
+    expect(casosPedidos()).toBe(2);
+  });
+
+  it('un PUT fallido no toca el caso: no se vuelve a pedir (CAS-TOL-1.3)', async () => {
+    espia = espiarSolicitudes();
+    const id = casoConToleranciaVigente();
+    montarApp(`/casos/${encodeURIComponent(id)}`);
+    await entrarALaApp();
+    await screen.findByRole('heading', { level: 2, name: 'Tu decisión' });
+    await usuario().click(screen.getByRole('link', { name: /^Tolerancia/ }));
+    await esperarValor('$0.50');
+    servidor.use(guardarFalla(500));
+    await escribir('0.75');
+    await usuario().click(botonGuardar());
+    // Control positivo: el fallo llegó a la pantalla.
+    await screen.findByText(GENERICO_GUARDADO);
+    const antes = casosPedidos();
+    await esperarIntervalos(5);
+    expect(casosPedidos()).toBe(antes);
   });
 });
