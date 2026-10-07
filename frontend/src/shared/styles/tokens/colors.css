@@ -44,6 +44,8 @@
   --color-danger-title: #ffc2cb;
   --color-danger-tint: #1e1014;
   --color-danger-border: #5a2a33;
+  --color-danger-row: #1a0e12;
+  --color-danger-chip: #3a121c;
 
   --color-ia: #c9b5ff;
   --color-ia-tint: #221a3a;
@@ -106,6 +108,8 @@
   --color-danger-title: #8e1b2d;
   --color-danger-tint: #fdecef;
   --color-danger-border: #f2b8c1;
+  --color-danger-row: #fff5f6;
+  --color-danger-chip: #fbdde2;
 
   --color-ia: #5b3fc4;
   --color-ia-tint: #eee8ff;

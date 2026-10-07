@@ -123,6 +123,13 @@ const PARES: Par[] = [
   ['--color-text', '--color-danger-tint'],
   ['--color-text-secondary', '--color-danger-tint'],
   ['--color-text-soft', '--estado-sugerencia-tile-bg'],
+  // Bitácora (CU-26, U7): la fila de un acceso denegado pinta sus celdas con
+  // --color-danger-row; sobre ella van la fecha y «Sistema» (text-secondary),
+  // el autor (text), el detalle (text-soft) y el id de la entidad (muted). El
+  // chip `acceso_denegado` lleva danger-text sobre --color-danger-chip. Los
+  // demás chips de acción reutilizan pares de tono ya declarados arriba.
+  ...NIVELES_TEXTO.map((t): Par => [t, '--color-danger-row']),
+  ['--color-danger-text', '--color-danger-chip'],
 ];
 
 /** Indicadores no textuales (foco y enlaces): mínimo 3:1. */
@@ -157,6 +164,10 @@ const PARES_NO_TEXTO: Par[] = [
     // control (WCAG 1.4.11, componente de interfaz: 3:1). El mensaje de error
     // (danger-text) y el resto de los pares de la tarjeta ya están arriba.
     ['--color-danger', '--color-inset'],
+    // Bitácora (CU-26, U7): el anillo de foco de la tabla desplazable y el
+    // de un enlace pueden caer sobre la fila de un acceso denegado.
+    ['--color-accent', '--color-danger-row'],
+    ['--color-link', '--color-danger-row'],
   ]);
 
 const TEMAS: Tema[] = ['dark', 'light'];
