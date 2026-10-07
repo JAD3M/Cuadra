@@ -600,7 +600,7 @@ describe('CargasContenedor: resultados de la carga', () => {
     ['procesada', '0 nuevos, 2 ya existían, 0 con error.'],
     ['con_errores', '1 nuevos, 1 ya existían, 1 con error.'],
   ] as const)(
-    'ya existía y terminó (%s): solo el aviso de K7 (mockup v23), sin resultados ni GET /cargas/:id (8.3)',
+    'ya existía y terminó (%s): el aviso de K7 y debajo los resultados del POST, sin GET /cargas/:id (8.3, 8.4)',
     async (estado, texto) => {
       const espia = espiarSolicitudes();
       cfdiResponde(respuestaYaExistia(estado));
@@ -611,10 +611,12 @@ describe('CargasContenedor: resultados de la carga', () => {
       expect(
         await within(region).findByText('Este archivo ya se había cargado.'),
       ).toBeInTheDocument();
-      // Desvío de CRG-8.4 decidido por el usuario: el mockup v23 no los muestra.
-      expect(within(region).queryByText(resumen(texto))).toBeNull();
-      expect(within(region).queryByRole('list')).toBeNull();
-      expect(within(region).queryByRole('region')).toBeNull();
+      // Mockup v27: bajo el aviso va el resultado de esa carga, del cuerpo del POST.
+      expect(within(region).getByText(resumen(texto))).toBeInTheDocument();
+      expect(
+        within(region).getByRole('region', { name: 'Resultado por archivo' }),
+      ).toBeInTheDocument();
+      expect(within(region).getAllByRole('listitem').length).toBeGreaterThan(0);
       expect(
         within(region).getByText('No se duplicó nada.'),
       ).toBeInTheDocument();
@@ -665,7 +667,7 @@ describe('CargasContenedor: resultados de la carga', () => {
     espia.detener();
   });
 
-  it('una carga fallida: solo el aviso del mockup, el sondeo se detiene y no hay lista de archivos (8.6)', async () => {
+  it('una carga fallida: el chip Fallida y el aviso del mockup v27, el sondeo se detiene y no hay lista de archivos (8.6)', async () => {
     const espia = espiarSolicitudes();
     montar(['admin'], POLLING_HOLGADO);
     await esperarPerfiles();
@@ -681,8 +683,8 @@ describe('CargasContenedor: resultados de la carga', () => {
         'La carga falló por un problema del sistema. Vuelve a subir el archivo para reintentar.',
       ),
     ).toBeInTheDocument();
-    // Desvío de CRG-8.6 decidido por el usuario: sin etiqueta ni errorMensaje.
-    expect(within(region).queryByText('Fallida')).toBeNull();
+    expect(within(region).getByText('Fallida')).toBeInTheDocument();
+    // El backend escribe siempre un mensaje fijo: el mockup v27 no lo muestra.
     expect(within(region).queryByText('Falló el worker')).toBeNull();
     expect(within(region).queryByRole('list')).toBeNull();
     expect(within(region).queryByText(PROCESANDO)).toBeNull();

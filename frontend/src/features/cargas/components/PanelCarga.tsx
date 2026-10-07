@@ -32,7 +32,7 @@ export interface PanelCargaProps {
 
 /**
  * El panel de la carga recién subida: el aviso de K7 (si aplica) y el cuerpo
- * que toca según la vista (`solo_aviso` no tiene cuerpo). Solo presentación;
+ * que toca según la vista ; un `yaExistia` terminado muestra el resultado bajo el aviso. Solo presentación;
  * el contenedor decide la vista.
  */
 export function PanelCarga({

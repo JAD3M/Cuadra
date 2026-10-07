@@ -1,9 +1,13 @@
 import { CARGA_FALLIDA } from '@/features/cargas/textos';
+import { ETIQUETAS_ESTADO_CARGA } from '@/shared/dominio';
+import { EstadoChip } from '@/shared/ui/EstadoChip';
+import { TONO_ESTADO_CARGA } from '@/features/cargas/tonos';
 import estilos from './ResultadoFallido.module.css';
 
 /**
- * La carga falló: solo el aviso fijo del mockup v23 con su icono. Sin etiqueta,
- * sin mensaje del servidor y sin lista de archivos. No abre un `role="alert"`
+ * La carga falló (mockup v27): el chip Fallida sobre el aviso fijo, con su
+ * icono. Sin el mensaje del servidor (el backend escribe siempre uno fijo, así
+ * que repetiría el aviso) y sin lista de archivos. No abre un `role="alert"`
  * propio: anidaría una región viva dentro de la región de estado de la tarjeta,
  * que ya lo anuncia.
  */
@@ -24,7 +28,12 @@ export function ResultadoFallido() {
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7v6M12 16.5v.5" />
       </svg>
-      <span className={estilos.aviso}>{CARGA_FALLIDA}</span>
+      <div className={estilos.texto}>
+        <EstadoChip tono={TONO_ESTADO_CARGA.fallida}>
+          {ETIQUETAS_ESTADO_CARGA.fallida}
+        </EstadoChip>
+        <span className={estilos.aviso}>{CARGA_FALLIDA}</span>
+      </div>
     </div>
   );
 }

@@ -126,7 +126,6 @@ describe('derivarPanel', () => {
   const panel = (tipo: typeof TIPO_CFDI | typeof TIPO_ESTADO_CUENTA) => ({
     tipo,
     epoca: 3,
-    soloAviso: false,
   });
 
   it('sin panel no hay nada', () => {
@@ -178,31 +177,6 @@ describe('derivarPanel', () => {
         }),
       ).toBe('sin_proceso');
     }
-  });
-
-  it.each(['procesada', 'con_errores'] as const)(
-    'un yaExistia ya terminado (%s): solo el aviso, sin resultados',
-    (estado) => {
-      for (const tipo of [TIPO_CFDI, TIPO_ESTADO_CUENTA]) {
-        expect(
-          derivarPanel({
-            panel: { ...panel(tipo), soloAviso: true },
-            datos: { estado },
-            epoca: 3,
-          }),
-        ).toBe('solo_aviso');
-      }
-    },
-  );
-
-  it('un yaExistia fallido sigue mostrando la falla, y uno activo el proceso', () => {
-    const p = { ...panel(TIPO_CFDI), soloAviso: true };
-    expect(
-      derivarPanel({ panel: p, datos: { estado: 'fallida' }, epoca: 3 }),
-    ).toBe('sin_proceso');
-    expect(
-      derivarPanel({ panel: p, datos: { estado: 'pendiente' }, epoca: 3 }),
-    ).toBe('en_curso');
   });
 
   it('un panel de otra época no se muestra', () => {

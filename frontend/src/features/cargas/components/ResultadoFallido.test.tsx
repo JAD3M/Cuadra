@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ResultadoFallido } from './ResultadoFallido';
 
 describe('ResultadoFallido', () => {
-  it('muestra solo el aviso fijo de falla del mockup, con su icono', () => {
+  it('muestra el aviso fijo de falla del mockup, con su icono', () => {
     const { container } = render(<ResultadoFallido />);
     expect(
       screen.getByText(
@@ -13,13 +13,18 @@ describe('ResultadoFallido', () => {
     expect(container.querySelector('svg')).not.toBeNull();
   });
 
-  it('no lleva la etiqueta Fallida ni más texto que el aviso', () => {
+  it('lleva el chip Fallida en tono peligro sobre el aviso y no más texto', () => {
     const { container } = render(<ResultadoFallido />);
-    expect(screen.queryByText('Fallida')).toBeNull();
-    expect(container.querySelectorAll('strong')).toHaveLength(0);
+    const chip = screen.getByText('Fallida');
+    expect(chip).toHaveAttribute('data-tono', 'peligro');
     expect(container.textContent).toBe(
-      'La carga falló por un problema del sistema. Vuelve a subir el archivo para reintentar.',
+      'Fallida' +
+        'La carga falló por un problema del sistema. Vuelve a subir el archivo para reintentar.',
     );
+    const aviso = screen.getByText(/^La carga falló/);
+    expect(
+      chip.compareDocumentPosition(aviso) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('no lista archivos ni ofrece botones', () => {

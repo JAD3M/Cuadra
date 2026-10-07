@@ -544,7 +544,7 @@ describe('RutaKit (galería de componentes)', () => {
       ).toBeInTheDocument();
     });
 
-    it('ya_existia: terminada solo avisa; en cola avisa y sigue procesando', () => {
+    it('ya_existia: terminada avisa y muestra el resultado; en cola avisa y sigue procesando', () => {
       renderizar();
       const ya = within(vista('ya_existia'));
       expect(ya.getByText('Este archivo ya se había cargado.')).toBeVisible();
@@ -556,9 +556,10 @@ describe('RutaKit (galería de componentes)', () => {
       ).toBeVisible();
       // Solo la que está en cola muestra la barra de proceso.
       expect(ya.getAllByText('Procesando la carga…')).toHaveLength(1);
+      // Mockup v27: la terminada trae debajo el resultado de esa carga.
       expect(
-        ya.queryByRole('region', { name: 'Resultado por archivo' }),
-      ).toBeNull();
+        ya.getAllByRole('region', { name: 'Resultado por archivo' }),
+      ).toHaveLength(1);
     });
 
     it('las alertas de subida usan el texto del mockup', () => {
@@ -651,8 +652,8 @@ describe('RutaKit (galería de componentes)', () => {
           'La carga falló por un problema del sistema. Vuelve a subir el archivo para reintentar.',
         ),
       ).toBeVisible();
-      // Solo el aviso del mockup: sin etiqueta «Fallida» ni mensaje del servidor.
-      expect(fallida.queryByText('Fallida')).toBeNull();
+      // Mockup v27: el chip Fallida sobre el aviso; sin mensaje del servidor.
+      expect(fallida.getByText('Fallida')).toBeVisible();
     });
 
     it('perfiles_error: el select apagado con su mensaje y «Reintentar»', () => {

@@ -436,7 +436,7 @@ describe('CargasPage: las 13 vistas de la pantalla completa', () => {
     expect(regionDe(CFDI)).toBeEmptyDOMElement();
   });
 
-  it('ya_existia: el aviso de lote ya cargado, sin resultados (vista ya_existia)', async () => {
+  it('ya_existia: el aviso de lote ya cargado y debajo su resultado (vista ya_existia)', async () => {
     servidor.use(
       http.post('/api/cargas/cfdi', () =>
         HttpResponse.json(respuestaYaExistia('procesada'), { status: 200 }),
@@ -451,7 +451,10 @@ describe('CargasPage: las 13 vistas de la pantalla completa', () => {
       await within(region).findByText('Este archivo ya se había cargado.'),
     ).toBeInTheDocument();
     expect(within(region).getByText('No se duplicó nada.')).toBeInTheDocument();
-    expect(within(region).queryByRole('list')).toBeNull();
+    expect(
+      within(region).getByRole('region', { name: 'Resultado por archivo' }),
+    ).toBeInTheDocument();
+    expect(within(region).getAllByRole('listitem').length).toBeGreaterThan(0);
   });
 
   it('error_400: el motivo del servidor en la tarjeta del estado de cuenta (vista error_400)', async () => {

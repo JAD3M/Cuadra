@@ -6,7 +6,6 @@ import {
   type TipoCarga,
 } from '@/shared/dominio';
 import type { RespuestaCarga } from '@/shared/api/contratos';
-import { esActiva } from '@/shared/dominio';
 import { useSessionContext } from '@/shared/sesion';
 import { clavesCargas, useEpoca } from './claves';
 import { AlertaSubida, type FalloSubida } from './components/AlertaSubida';
@@ -99,15 +98,7 @@ export function CargasContenedor() {
 
   const vista = vistaHistorial(lista);
   const vistaPanel = derivarPanel({
-    panel:
-      panel === null
-        ? null
-        : {
-            tipo: panel.tipo,
-            epoca: panel.epoca,
-            // Un yaExistia que ya había terminado: solo el aviso (mockup v23).
-            soloAviso: panel.yaExistia && !esActiva(panel.inicial.estado),
-          },
+    panel: panel === null ? null : { tipo: panel.tipo, epoca: panel.epoca },
     datos: panelDatos,
     epoca,
   });

@@ -295,10 +295,10 @@ export function SeccionCargas() {
             archivos={[]}
             resultado={
               <PanelCarga
-                vista="solo_aviso"
+                vista="por_archivo"
                 frasesYaExistia={YA_EXISTIA_TERMINADA}
-                conteo={SIN_CONTEO}
-                resultados={[]}
+                conteo={{ ok: 2, existentes: 1, error: 1 }}
+                resultados={RESULTADOS_CFDI}
               />
             }
           />
