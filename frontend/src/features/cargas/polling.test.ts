@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { EstadoCarga } from '@/shared/dominio';
-import { calcularIntervalo, hayActivas, terminoAlgunaCarga } from './polling';
+import {
+  calcularIntervalo,
+  cargasTerminadas,
+  hayActivas,
+  terminoAlgunaCarga,
+} from './polling';
 
 const fila = (id: string, estado: EstadoCarga) => ({ id, estado });
 
@@ -71,5 +76,30 @@ describe('terminoAlgunaCarga', () => {
 
   it('una carga que sale de la lista no cuenta como terminada', () => {
     expect(terminoAlgunaCarga([fila('a', 'procesando')], [])).toBe(false);
+  });
+});
+
+describe('cargasTerminadas', () => {
+  it('devuelve los ids de las que pasaron de activas a terminadas, y solo esas', () => {
+    expect(
+      cargasTerminadas(
+        [
+          fila('a', 'pendiente'),
+          fila('b', 'procesando'),
+          fila('c', 'procesada'),
+          fila('d', 'pendiente'),
+        ],
+        [
+          fila('a', 'procesada'),
+          fila('b', 'procesando'),
+          fila('c', 'procesada'),
+          fila('d', 'fallida'),
+        ],
+      ),
+    ).toEqual(['a', 'd']);
+  });
+
+  it('sin lectura previa no hay ninguna', () => {
+    expect(cargasTerminadas(undefined, [fila('a', 'procesada')])).toEqual([]);
   });
 });

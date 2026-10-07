@@ -258,9 +258,9 @@ describe('flujos de cargas: subir', () => {
       await screen.findByRole('link', { name: 'Bandeja 40 pendientes' }),
     ).toBeInTheDocument();
     await esperarIntervalos(5);
-    // La lista y el panel ven el mismo paso a terminal y cada uno invalida la
-    // bandeja: dos lecturas del resumen, ni una más.
-    expect(resumenes()).toBe(resumenesAntes + 2);
+    // La lista y el panel ven el mismo paso a terminal, pero la bandeja se
+    // invalida una sola vez: una lectura del resumen, ni una más.
+    expect(resumenes()).toBe(resumenesAntes + 1);
     // La lista de la bandeja no está montada: no se pide hasta que se abre.
     expect(listasBandeja()).toBe(listasAntes);
     await act(() => router.navigate('/bandeja'));

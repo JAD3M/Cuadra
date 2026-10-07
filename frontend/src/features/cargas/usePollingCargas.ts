@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/shared/api';
 import {
@@ -11,7 +12,7 @@ import { esActiva, type TipoCarga } from '@/shared/dominio';
 import { clavesBandeja } from '@/features/bandeja/claves';
 import { clavesCargas, useEpoca } from './claves';
 import { useConfigPolling } from './ContextoPolling';
-import { calcularIntervalo, hayActivas, terminoAlgunaCarga } from './polling';
+import { calcularIntervalo, cargasTerminadas, hayActivas } from './polling';
 import { useEpocaVigente } from './useEpocaVigente';
 import { useEstadoVentana, useVigilarVentana } from './useVentanaPolling';
 
@@ -41,6 +42,16 @@ export function usePollingCargas(panel: PanelSubida | null) {
 
   const ventana = useEstadoVentana();
 
+  // La lista y el panel pueden ver terminar la misma carga: la bandeja se
+  // invalida una vez por carga y época, no una por observador.
+  const avisadas = useRef(new Set<string>());
+  const avisarBandeja = (ep: number, ids: readonly string[]) => {
+    const nuevas = ids.filter((id) => !avisadas.current.has(`${ep}:${id}`));
+    if (nuevas.length === 0) return;
+    for (const id of nuevas) avisadas.current.add(`${ep}:${id}`);
+    void cliente.invalidateQueries({ queryKey: clavesBandeja.todas(ep) });
+  };
+
   const lista = useQuery({
     queryKey: clavesCargas.lista(epoca),
     queryFn: async ({ signal }) => {
@@ -52,14 +63,8 @@ export function usePollingCargas(panel: PanelSubida | null) {
         signal,
       });
       // M17: al terminar una carga el motor pudo producir propuestas.
-      if (
-        epoca !== null &&
-        epoca === epocaActual.current &&
-        terminoAlgunaCarga(previa?.datos, nueva.datos)
-      ) {
-        void cliente.invalidateQueries({
-          queryKey: clavesBandeja.todas(epoca),
-        });
+      if (epoca !== null && epoca === epocaActual.current) {
+        avisarBandeja(epoca, cargasTerminadas(previa?.datos, nueva.datos));
       }
       return nueva;
     },
@@ -102,9 +107,7 @@ export function usePollingCargas(panel: PanelSubida | null) {
         // La tabla coincide en una petición en vez de esperar al siguiente
         // sondeo, y la bandeja se entera de lo que el motor produjo.
         void cliente.invalidateQueries({ queryKey: clavesCargas.lista(epoca) });
-        void cliente.invalidateQueries({
-          queryKey: clavesBandeja.todas(epoca),
-        });
+        avisarBandeja(epoca, [id]);
       }
       return nueva;
     },

@@ -25,14 +25,24 @@ export function calcularIntervalo(
   return capada || !hayActivas(filas) ? false : intervalo;
 }
 
+/** Las cargas que estaban activas en la lectura previa y en la nueva ya terminaron. */
+export function cargasTerminadas(
+  previas: readonly ConIdYEstado[] | undefined,
+  nuevas: readonly ConIdYEstado[],
+): string[] {
+  if (previas === undefined) return [];
+  const activas = new Set(
+    previas.filter((f) => esActiva(f.estado)).map((f) => f.id),
+  );
+  return nuevas
+    .filter((f) => activas.has(f.id) && !esActiva(f.estado))
+    .map((f) => f.id);
+}
+
 /** Alguna carga estaba activa en la lectura previa y en la nueva ya terminó. */
 export function terminoAlgunaCarga(
   previas: readonly ConIdYEstado[] | undefined,
   nuevas: readonly ConIdYEstado[],
 ): boolean {
-  if (previas === undefined) return false;
-  const activas = new Set(
-    previas.filter((f) => esActiva(f.estado)).map((f) => f.id),
-  );
-  return nuevas.some((f) => activas.has(f.id) && !esActiva(f.estado));
+  return cargasTerminadas(previas, nuevas).length > 0;
 }

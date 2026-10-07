@@ -389,6 +389,34 @@ describe('usePollingCargas: la bandeja se entera de lo que termina (M17)', () =>
     expect(invalidar).toHaveBeenCalledWith({ queryKey: ['bandeja', 1] });
   });
 
+  it('la lista y el panel ven terminar la misma carga y la bandeja se invalida una sola vez', async () => {
+    almacenes.cargas.establecerDetalle(detalleCarga(50));
+    almacenes.cargas.establecer([itemCarga(50, { estado: 'pendiente' })]);
+    const { result, invalidar } = montar({
+      panel: panelDe(),
+      polling: { intervaloMs: 15, topeMs: 60_000 },
+    });
+    await waitFor(() =>
+      expect(result.current.consultaPanel.data?.id).toBe(ID_PANEL),
+    );
+    await waitFor(() => expect(result.current.lista.isSuccess).toBe(true));
+    almacenes.cargas.establecerDetalle(
+      detalleCarga(50, { estado: 'procesada' }),
+    );
+    almacenes.cargas.avanzar(ID_PANEL, 'procesada', { registrosOk: 1 });
+    // Control positivo: ambos observadores terminaron de ver el cambio.
+    await waitFor(() => {
+      expect(result.current.consultaPanel.data?.estado).toBe('procesada');
+      expect(result.current.lista.data?.datos[0]?.estado).toBe('procesada');
+    });
+    await esperarIntervalos();
+    const deBandeja = invalidar.mock.calls.filter(
+      ([filtros]) =>
+        JSON.stringify(filtros?.queryKey) === JSON.stringify(['bandeja', 1]),
+    );
+    expect(deBandeja).toHaveLength(1);
+  });
+
   it('una fila que ya llegó terminada no invalida nada', async () => {
     const { result, invalidar, cliente } = montar({
       polling: { intervaloMs: 15, topeMs: 60_000 },
