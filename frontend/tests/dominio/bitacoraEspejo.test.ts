@@ -8,6 +8,10 @@ import {
   ROLES,
 } from '@/shared/dominio';
 import { LIMITE_PAGINA } from '@/features/bitacora/constantes';
+import {
+  respuestaUsuariosBitacora,
+  usuarioBitacora,
+} from '@/shared/api/contratos';
 
 // Deriva de los espejos de la bitácora (CU-26) contra el backend. Mismo patrón
 // que toleranciaEspejo.test.ts: el espejo coincide con el código, y cambiar el
@@ -46,6 +50,21 @@ function motivosDeAcceso(
   );
   if (encontrada === null) return undefined;
   return { sinMembresia: encontrada[1]!, rolInsuficiente: encontrada[2]! };
+}
+
+/** Las propiedades de `class <nombre> { ... }`, en orden; `undefined` si no existe. */
+function clavesDeClase(fuente: string, nombre: string): string[] | undefined {
+  const cuerpo = new RegExp(`class ${nombre}\\s*\\{([\\s\\S]*?)\\n\\}`).exec(
+    fuente,
+  );
+  if (cuerpo === null) return undefined;
+  const sinDecoradores = (cuerpo[1] ?? '').replace(
+    /@\w+\((?:[^()]|\([^()]*\))*\)/g,
+    '',
+  );
+  return [...sinDecoradores.matchAll(/(\w+)[?!]?:\s*[^;]+;/g)].map(
+    (m) => m[1]!,
+  );
 }
 
 describe('roles de GET /bitacora/usuarios (src/bitacora/bitacora.controller.ts)', () => {
@@ -132,5 +151,32 @@ describe('límite de página (src/bandeja/dto/bandeja.dto.ts)', () => {
         'LIMITE_MAXIMO',
       ),
     ).toBeUndefined();
+  });
+});
+
+describe('respuesta de GET /bitacora/usuarios (src/bitacora/dto/bitacora.dto.ts)', () => {
+  const dto = leer('bitacora/dto/bitacora.dto.ts');
+
+  it('UsuarioListadoDto declara solo id y nombre, igual que el contrato', () => {
+    expect(clavesDeClase(dto, 'UsuarioListadoDto')).toEqual(['id', 'nombre']);
+    expect(Object.keys(usuarioBitacora.shape)).toEqual(['id', 'nombre']);
+    expect(Object.keys(respuestaUsuariosBitacora.shape)).toEqual(['datos']);
+  });
+
+  it('agregar el correo al DTO en el backend falla', () => {
+    const fuente = dto.replace(
+      '  @ApiProperty() nombre: string;\n}\n\nexport class RespuestaUsuariosBitacoraDto',
+      '  @ApiProperty() nombre: string;\n  @ApiProperty() email: string;\n}\n\nexport class RespuestaUsuariosBitacoraDto',
+    );
+    expect(fuente).not.toBe(dto);
+    expect(clavesDeClase(fuente, 'UsuarioListadoDto')).not.toEqual(
+      Object.keys(usuarioBitacora.shape),
+    );
+  });
+
+  it('quitar la clase del backend deja de extraerse', () => {
+    const fuente = dto.replace('class UsuarioListadoDto', 'class OtraClase');
+    expect(fuente).not.toBe(dto);
+    expect(clavesDeClase(fuente, 'UsuarioListadoDto')).toBeUndefined();
   });
 });
