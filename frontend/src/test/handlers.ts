@@ -1,8 +1,10 @@
 import { http, HttpResponse } from 'msw';
 import { crearHandlersBandeja } from '@/test/handlersBandeja';
+import { crearHandlersBitacora } from '@/test/handlersBitacora';
 import { crearHandlersCargas } from '@/test/handlersCargas';
 import { crearHandlersCaso } from '@/test/handlersCaso';
 import { crearHandlersTolerancia } from '@/test/handlersTolerancia';
+import { CAMBIOS_INICIALES } from '@/test/fixturesTolerancia';
 import {
   CONTEXTO_SESION,
   EMPRESAS_DISPONIBLES,
@@ -13,20 +15,29 @@ import {
 // Manejadores por defecto: los caminos felices de CU-19 con los payloads de
 // `fixtures.ts`, los de la bandeja (CU-22) con `fixturesBandeja.ts` y el detalle del caso
 // (CU-23) con `fixturesCaso.ts`, las cargas (CU-24) con `fixturesCargas.ts` y la
-// tolerancia con su bitácora (CU-25) con `fixturesTolerancia.ts`. Las pruebas que necesitan otra respuesta usan
-// `servidor.use(...)`. Los caminos llevan el prefijo `/api` porque el
+// tolerancia con su bitácora (CU-25) con `fixturesTolerancia.ts`, y la pantalla
+// de la bitácora (CU-26) con `fixturesBitacora.ts`. Las pruebas que necesitan
+// otra respuesta usan `servidor.use(...)`. Los caminos llevan el prefijo `/api` porque el
 // cliente lo antepone (en desarrollo el proxy de Vite lo retira).
 const bandeja = crearHandlersBandeja();
 const caso = crearHandlersCaso(bandeja);
 const cargas = crearHandlersCargas();
-const tolerancia = crearHandlersTolerancia();
+// UN almacén de eventos de bitácora para toda la app: lo escribe el PUT de la
+// tolerancia y lo lee la pantalla de la bitácora. `GET /api/bitacora` se
+// registra UNA vez (el de la tolerancia, que registra la petición en su
+// historial y delega en el almacén); el primer manejador que coincide gana, así
+// que registrar también el de `bitacora.handlers` lo taparía o sería tapado.
+// Arranca con los eventos de la tolerancia (`CAMBIOS_INICIALES`); los flujos de
+// la bitácora fijan los suyos con `almacenes.bitacora.establecer(...)`.
+const bitacora = crearHandlersBitacora(CAMBIOS_INICIALES);
+const tolerancia = crearHandlersTolerancia('0.5000', undefined, bitacora);
 
 /**
  * Los almacenes en memoria de los manejadores por defecto, para que un flujo
  * fije los datos que sirven (`establecer`) o fuerce un fallo (`opciones`). Los
  * limpia `reiniciarHandlers` tras cada prueba.
  */
-export const almacenes = { bandeja, caso, cargas, tolerancia };
+export const almacenes = { bandeja, caso, cargas, tolerancia, bitacora };
 
 export const handlers = [
   http.post('/api/auth/login', () => HttpResponse.json(RESPUESTA_LOGIN)),
@@ -36,16 +47,18 @@ export const handlers = [
   ...bandeja.handlers,
   ...caso.handlers,
   ...cargas.handlers,
+  ...bitacora.handlersUsuarios,
   ...tolerancia.handlers,
 ];
 
 /**
  * Devuelve al estado de arranque los datos en memoria de los manejadores por
- * defecto (bandeja, caso, cargas y tolerancia): una resolución en una prueba no se filtra a otra.
+ * defecto (bandeja, caso, cargas, tolerancia y bitácora): una resolución en una prueba no se filtra a otra.
  */
 export function reiniciarHandlers(): void {
   bandeja.reiniciar();
   caso.reiniciar();
   cargas.reiniciar();
   tolerancia.reiniciar();
+  bitacora.reiniciar();
 }

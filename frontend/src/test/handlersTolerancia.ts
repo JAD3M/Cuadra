@@ -7,6 +7,10 @@ import {
 } from '@/shared/dominio';
 import { USUARIO } from '@/test/fixtures';
 import {
+  crearHandlersBitacora,
+  type AlmacenBitacora,
+} from '@/test/handlersBitacora';
+import {
   CAMBIOS_INICIALES,
   hace,
   idEvento,
@@ -20,16 +24,16 @@ import {
 //    de Nest (que nombran `toleranciaMonto`, para que una prueba compruebe que
 //    nunca se muestran). Responde el valor normalizado a 4 decimales, lo
 //    guarda y antepone una fila de bitácora `antes -> despues`.
-//  - `GET /bitacora`: filtra por `entidad` y `accion`, respeta `limite` (por
-//    defecto 50, máximo 200 como `LIMITE_MAXIMO`), más nuevo primero, y
-//    responde `{ datos, pagina, limite, total }`.
+//  - `GET /bitacora`: lo atiende el almacén de la bitácora (CU-26,
+//    `handlersBitacora.ts`) con las reglas del servidor. Este manejador
+//    registra la petición en `peticiones()`, espera `compuertas.cambios` y
+//    delega; el PUT antepone su fila a ese mismo almacén. Sin un almacén
+//    inyectado crea el suyo, así que una prueba que usa solo este mock sigue
+//    teniendo `GET /bitacora`.
 // El estado vive en memoria: `reiniciar()` lo devuelve al de arranque y la
 // preparación global de pruebas lo llama tras cada prueba. `peticiones()`
 // registra lo que llegó (también lo que una compuerta retuvo) para probar
 // presencia y ausencia de peticiones.
-
-const LIMITE_POR_DEFECTO = 50;
-const LIMITE_MAXIMO = 200;
 
 const ERROR_NEST = (status: number, mensaje: string | string[]) =>
   HttpResponse.json(
@@ -76,12 +80,17 @@ function oracionesInvalidas(cuerpo: unknown): string[] {
   return [];
 }
 
+/**
+ * `almacen`: el de la bitácora al que escribe el PUT y del que lee el GET. Si
+ * se omite se crea uno propio con `cambiosIniciales`; si se inyecta (como hace
+ * `handlers.ts`, que lo comparte con la bitácora), `cambiosIniciales` no se usa.
+ */
 export function crearHandlersTolerancia(
   valorInicial = '0.5000',
   cambiosIniciales: readonly EventoBitacora[] = CAMBIOS_INICIALES,
+  almacen: AlmacenBitacora = crearHandlersBitacora(cambiosIniciales),
 ) {
   let valor = valorInicial;
-  let eventos = [...cambiosIniciales];
   let peticiones: PeticionRecibida[] = [];
   let compuertas: Compuertas = {};
   let creados = 0;
@@ -128,55 +137,25 @@ export function crearHandlersTolerancia(
     const antes = valor;
     valor = nuevo;
     creados += 1;
-    eventos = [
-      {
-        id: idEvento(500 + creados),
-        entidad: 'companies',
-        entidadId: idEvento(0),
-        accion: 'actualizar',
-        datos: { campo: CAMPO_TOLERANCIA, antes, despues: nuevo },
-        // Siempre más nuevo que cualquier fila de arranque.
-        createdAt: hace(-creados),
-        usuario: { nombre: USUARIO.nombre, email: USUARIO.email },
-        ip: '127.0.0.1',
-        userAgent: 'vitest',
-      },
-      ...eventos,
-    ];
+    almacen.anteponer({
+      id: idEvento(500 + creados),
+      entidad: 'companies',
+      entidadId: idEvento(0),
+      accion: 'actualizar',
+      datos: { campo: CAMPO_TOLERANCIA, antes, despues: nuevo },
+      // Siempre más nuevo que cualquier fila de arranque.
+      createdAt: hace(-creados),
+      usuario: { nombre: USUARIO.nombre, email: USUARIO.email },
+      ip: '127.0.0.1',
+      userAgent: 'vitest',
+    });
     return HttpResponse.json({ toleranciaMonto: nuevo });
   });
 
   const bitacora = http.get('/api/bitacora', async ({ request }) => {
     await registrar(request);
     await compuertas.cambios;
-    const consulta = new URL(request.url).searchParams;
-    const limiteTexto = consulta.get('limite');
-    const limite =
-      limiteTexto === null ? LIMITE_POR_DEFECTO : Number(limiteTexto);
-    if (!Number.isInteger(limite) || limite < 1 || limite > LIMITE_MAXIMO) {
-      return ERROR_NEST(400, [
-        `limite must not be greater than ${LIMITE_MAXIMO}`,
-      ]);
-    }
-    const entidad = consulta.get('entidad');
-    const accion = consulta.get('accion');
-    const coincidentes = [...eventos]
-      .filter(
-        (e) =>
-          (entidad === null || e.entidad === entidad) &&
-          (accion === null || e.accion === accion),
-      )
-      .sort((a, b) =>
-        a.createdAt === b.createdAt
-          ? b.id.localeCompare(a.id)
-          : b.createdAt.localeCompare(a.createdAt),
-      );
-    return HttpResponse.json({
-      datos: coincidentes.slice(0, limite),
-      pagina: 1,
-      limite,
-      total: coincidentes.length,
-    });
+    return almacen.responderLista(request);
   });
 
   return {
@@ -188,10 +167,10 @@ export function crearHandlersTolerancia(
       valor = nuevo;
     },
     /** Los eventos de bitácora en memoria, en el orden en que se guardaron. */
-    cambios: (): readonly EventoBitacora[] => eventos,
+    cambios: (): readonly EventoBitacora[] => almacen.eventos(),
     /** Reemplaza los eventos que sirve `GET /bitacora`. */
     establecerCambios(nuevos: readonly EventoBitacora[]) {
-      eventos = [...nuevos];
+      almacen.establecer(nuevos);
     },
     /** Cada petición que llegó, en orden, también las retenidas. */
     peticiones: (): readonly PeticionRecibida[] => peticiones,
@@ -202,7 +181,7 @@ export function crearHandlersTolerancia(
     /** Devuelve valor, bitácora, registro y compuertas al arranque. */
     reiniciar() {
       valor = valorInicial;
-      eventos = [...cambiosIniciales];
+      almacen.reiniciarEventos();
       peticiones = [];
       compuertas = {};
       creados = 0;
