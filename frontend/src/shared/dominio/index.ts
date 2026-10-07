@@ -15,3 +15,4 @@ export {
 } from './etiquetas';
 export { iniciales } from './iniciales';
 export * from './tolerancia';
+export * from './bitacora';

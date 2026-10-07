@@ -8,6 +8,8 @@ import type { AccionBitacora } from './tipos';
 export const ACCION_CREAR = 'crear' satisfies AccionBitacora;
 export const ACCION_CONFIRMAR = 'confirmar' satisfies AccionBitacora;
 export const ACCION_RECHAZAR = 'rechazar' satisfies AccionBitacora;
+export const ACCION_ACCESO_DENEGADO =
+  'acceso_denegado' satisfies AccionBitacora;
 
 /** Lo que una persona decide sobre una propuesta. */
 export const ACCIONES_RESOLUCION = [ACCION_CONFIRMAR, ACCION_RECHAZAR] as const;
