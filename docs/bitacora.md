@@ -5,14 +5,34 @@
 
 ### 7 oct 2026
 
+- **Seguimientos de CU-24, en `fix/cu-24-seguimientos`** (local, sin push ni
+  PR). Dos commits de código:
+  - M7: los comentarios de `carga.entity.ts`, `estado-cuenta.dto.ts` y
+    `movimiento.entity.ts` decían que la cuenta se guarda enmascarada. No es
+    así: el servidor la guarda tal como llega (`cargas.cuenta` y su copia en
+    `movimientos.cuenta`); el cliente solo pide los últimos dígitos y el
+    servidor no la enmascara ni la valida. Solo comentarios, sin cambio de
+    comportamiento, validación, migración ni ejemplo de OpenAPI.
+  - Doble invalidación: cuando una carga sondeada pasaba de activa a terminal,
+    la lista y el panel la veían y cada uno invalidaba `['bandeja', época]`, con
+    dos `GET /bandeja/resumen` de más. Ahora `usePollingCargas` invalida una
+    vez por carga y época; si solo la ve un observador, invalida igual, y otra
+    época no invalida nada (M17 intacto). Rojo observado primero: la prueba de
+    flujo esperaba 1 lectura y recibió 2 (3 contra 2 acumuladas), y la nueva del
+    hook recibió 2 invalidaciones en vez de 1. Verde después.
+  - Con ambos: typecheck, lint, formato, build y `verificar:dist` del frontend
+    en verde; 2969 pruebas del frontend (dos corridas paralelas) y 836 del
+    backend (39 suites, con Postgres y Redis arriba). Sigue abierto lo de la
+    maqueta (etiqueta «Fallida», mensaje del servidor y resultados bajo «ya
+    existía»).
 - **CU-24 integrado a `master`** por avance rápido de la cadena hasta
   `feat/cu-24-09-kit-docs`, sin push ni PR. Sobre `master` pasan el typecheck
   de la raíz, las 2966 pruebas del frontend y las 836 del backend (39 suites,
   con Postgres y Redis arriba). El usuario recorrió la pantalla en el navegador
   y la dio por buena; falta probar una subida real de archivos. Siguen
   abiertos: agregar a la maqueta la etiqueta «Fallida», el mensaje del
-  servidor y los resultados bajo «ya existía»; el seguimiento M7; y la doble
-  invalidación de la bandeja.
+  servidor y los resultados bajo «ya existía». El seguimiento M7 y la doble
+  invalidación de la bandeja quedaron resueltos (ver la entrada de arriba).
 - **CU-24 terminado: cargas desde la interfaz (KAN-102).** Con ella van 24 de
   26 historias y 94 de 99 puntos; quedan CU-25 y CU-26 (5 pts). Se integró a
   `master` el 7 oct (ver arriba). Vivía en la cadena local de ramas
