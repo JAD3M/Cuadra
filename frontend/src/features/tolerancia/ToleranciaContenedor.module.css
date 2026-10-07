@@ -1,0 +1,7 @@
+/* Disposición de la pantalla de Tolerancia (Tolerancia.dc.html). Solo tokens de rol. */
+.contenedor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-inline-size: 0;
+}

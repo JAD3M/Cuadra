@@ -1,6 +1,12 @@
-import { MarcadorPendiente } from '@/shared/ui/MarcadorPendiente';
+import { useEpoca } from './claves';
+import { ToleranciaContenedor } from './ToleranciaContenedor';
 
-/** Pantalla provisional: configuración de tolerancia. */
+/**
+ * Pantalla de tolerancia. El contenedor se monta con la época como `key`: un
+ * cambio de empresa o de sesión lo desmonta y no queda borrador, éxito ni
+ * alerta de la empresa anterior (ADR-4).
+ */
 export function TolerPage() {
-  return <MarcadorPendiente titulo="Tolerancia" nivel={2} />;
+  const epoca = useEpoca();
+  return <ToleranciaContenedor key={String(epoca)} />;
 }

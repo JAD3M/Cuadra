@@ -96,18 +96,25 @@ describe('tabla de rutas', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
   });
 
-  it.each([
-    ['/tolerancia', 'Tolerancia'],
-    ['/bitacora', 'Bitácora'],
-  ])('%s muestra su marcador dentro del layout', (ruta, nombre) => {
-    renderizar(ruta);
-    expect(
-      screen.getByRole('heading', { level: 2, name: nombre }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Pantalla en construcción/)).toBeInTheDocument();
-    expect(screen.getByRole('main')).toContainElement(
-      screen.getByRole('heading', { level: 2, name: nombre }),
-    );
+  it.each([['/bitacora', 'Bitácora']])(
+    '%s muestra su marcador dentro del layout',
+    (ruta, nombre) => {
+      renderizar(ruta);
+      expect(
+        screen.getByRole('heading', { level: 2, name: nombre }),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Pantalla en construcción/)).toBeInTheDocument();
+      expect(screen.getByRole('main')).toContainElement(
+        screen.getByRole('heading', { level: 2, name: nombre }),
+      );
+    },
+  );
+
+  it('/tolerancia muestra su pantalla dentro del layout, ya no el marcador', () => {
+    renderizar('/tolerancia');
+    const h2 = screen.getByRole('heading', { level: 2, name: 'Valor actual' });
+    expect(screen.getByRole('main')).toContainElement(h2);
+    expect(screen.queryByText(/Pantalla en construcción/)).toBeNull();
   });
 
   it.each(['/bandeja', '/casos/abc', '/cargas', '/tolerancia', '/bitacora'])(
@@ -121,10 +128,13 @@ describe('tabla de rutas', () => {
     },
   );
 
-  it('el h1 del encabezado precede al h2 del marcador', () => {
+  it('en /tolerancia el h1 del encabezado precede al h2 de la pantalla', () => {
     renderizar('/tolerancia');
-    const h1 = screen.getByRole('heading', { level: 1, name: 'Tolerancia' });
-    const h2 = screen.getByRole('heading', { level: 2, name: 'Tolerancia' });
+    const h1 = screen.getByRole('heading', {
+      level: 1,
+      name: /^Tolerancia/,
+    });
+    const h2 = screen.getByRole('heading', { level: 2, name: 'Valor actual' });
     expect(
       h1.compareDocumentPosition(h2) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();

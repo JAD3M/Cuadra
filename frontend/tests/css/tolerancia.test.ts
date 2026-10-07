@@ -21,12 +21,16 @@ const formulario = sinComentarios(
     'features/tolerancia/components/FormularioTolerancia.module.css',
   ),
 );
+const contenedor = sinComentarios(
+  leerModuloCss('features/tolerancia/ToleranciaContenedor.module.css'),
+);
 
 /** Módulos de la pantalla de Tolerancia que ya existen en esta rebanada. */
 const MODULOS: readonly (readonly [string, string])[] = [
   ['TarjetaValor', tarjeta],
   ['AvisoSoloAdmin', aviso],
   ['FormularioTolerancia', formulario],
+  ['ToleranciaContenedor', contenedor],
 ];
 
 describe.each(MODULOS)('contrato CSS de %s', (_nombre, css) => {
