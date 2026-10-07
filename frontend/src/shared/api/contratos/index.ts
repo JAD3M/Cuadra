@@ -4,3 +4,4 @@ export * from './auth';
 export * from './bandeja';
 export * from './caso';
 export * from './cargas';
+export * from './tolerancia';
