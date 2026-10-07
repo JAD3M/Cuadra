@@ -19,6 +19,7 @@ import { Td, Th, Tabla } from '@/shared/ui/Tabla';
 import { SeccionBandeja } from './SeccionBandeja';
 import { SeccionCargas } from './SeccionCargas';
 import { SeccionCaso } from './SeccionCaso';
+import { SeccionTolerancia } from './SeccionTolerancia';
 import estilos from './KitPage.module.css';
 
 /** Empresas de ejemplo del paso 2 del acceso (una con dos roles). */
@@ -141,7 +142,7 @@ export function KitPage({ muestraShell }: KitPageProps) {
         <div className={estilos.fila}>
           <Button>Acento</Button>
           <Button tono="conciliado">Confirmar conciliación</Button>
-          <Button tono="sin_match">Guardar tolerancia</Button>
+          <Button tono="sin_match">Guardar cambios</Button>
           <Button variante="secundario">Anterior</Button>
           <Button variante="peligro">Rechazar</Button>
           <Button variante="fantasma">Ver detalle</Button>
@@ -152,7 +153,7 @@ export function KitPage({ muestraShell }: KitPageProps) {
             Confirmar conciliación
           </Button>
           <Button tono="sin_match" disabled>
-            Guardar tolerancia
+            Guardar cambios
           </Button>
           <Button variante="secundario" disabled>
             Anterior
@@ -356,6 +357,10 @@ export function KitPage({ muestraShell }: KitPageProps) {
 
       <Seccion id="kit-cargas" titulo="Cargas">
         <SeccionCargas />
+      </Seccion>
+
+      <Seccion id="kit-tolerancia" titulo="Tolerancia">
+        <SeccionTolerancia />
       </Seccion>
 
       {muestraShell && (

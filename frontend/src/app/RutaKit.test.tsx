@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router';
 import { ThemeProvider } from '@/shared/tema';
 import seccionCargasFuente from '@/features/kit/SeccionCargas.tsx?raw';
+import seccionToleranciaFuente from '@/features/kit/SeccionTolerancia.tsx?raw';
 import { RutaKit } from './RutaKit';
 
 function renderizar() {
@@ -50,6 +51,7 @@ describe('RutaKit (galería de componentes)', () => {
       'Bandeja',
       'Caso',
       'Cargas',
+      'Tolerancia',
       'Piezas del shell',
     ];
     for (const nombre of secciones) {
@@ -687,6 +689,229 @@ describe('RutaKit (galería de componentes)', () => {
       expect(seccionCargasFuente).not.toMatch(/from\s+['"]@\/shared\/api/);
       expect(seccionCargasFuente).not.toMatch(
         /from\s+['"]@\/features\/cargas\/use/,
+      );
+    });
+  });
+
+  describe('sección Tolerancia', () => {
+    const seccion = () => screen.getByRole('region', { name: 'Tolerancia' });
+    // Las 15 vistas de la maqueta v31 (Tolerancia.dc.html), con el motivo de
+    // `invalido` abierto en sus cuatro valores, más el aviso de los roles que
+    // no administran.
+    const VISTAS = [
+      'normal',
+      'cargando',
+      'error_lectura',
+      'error_lectura_permiso',
+      'error_lectura_otro',
+      'sin_cambios',
+      'invalido_vacio',
+      'invalido_formato',
+      'invalido_rango',
+      'invalido_decimales',
+      'guardando',
+      'guardado',
+      'error_400',
+      'error_403',
+      'error_conexion',
+      'error_otro',
+      'cambios_vacio',
+      'cambios_error',
+      'rol_contador_revisor',
+    ] as const;
+
+    /** El bloque de una vista, por el título que lleva en la galería. */
+    function vista(nombre: (typeof VISTAS)[number]): HTMLElement {
+      const titulo = within(seccion()).getByRole('heading', {
+        level: 3,
+        name: `Vista: ${nombre}`,
+      });
+      const bloque = titulo.parentElement;
+      if (!(bloque instanceof HTMLElement)) throw new Error('sin bloque');
+      return bloque;
+    }
+
+    /** El valor de la tarjeta «Valor actual»: la lista de cambios repite montos. */
+    const enTarjetaValor = (bloque: HTMLElement) =>
+      within(within(bloque).getByRole('region', { name: 'Valor actual' }));
+
+    it('muestra cada una de las vistas de la maqueta sin romperse', () => {
+      renderizar();
+      for (const nombre of VISTAS) {
+        expect(vista(nombre)).toBeInTheDocument();
+      }
+      expect(within(seccion()).queryByRole('heading', { level: 1 })).toBeNull();
+    });
+
+    it('normal: valor exacto, formulario y los cinco cambios', () => {
+      renderizar();
+      const normal = within(vista('normal'));
+      expect(enTarjetaValor(vista('normal')).getByText('$0.50')).toBeVisible();
+      expect(normal.getByRole('textbox')).toHaveValue('0.75');
+      expect(normal.getByRole('button', { name: 'Guardar' })).toBeEnabled();
+      expect(
+        normal.getByRole('list', { name: 'Últimos 5 cambios' }),
+      ).toBeInTheDocument();
+      expect(normal.getAllByRole('listitem')).toHaveLength(5);
+    });
+
+    it('cargando y los tres errores de lectura sustituyen a la tarjeta del valor', () => {
+      renderizar();
+      const cargando = within(vista('cargando'));
+      expect(cargando.getByText('Cargando la tolerancia')).toBeInTheDocument();
+      expect(cargando.getByText('Cargando los cambios')).toBeInTheDocument();
+      expect(cargando.queryByRole('textbox')).toBeNull();
+      const conexion = within(vista('error_lectura'));
+      expect(
+        conexion.getByText('No se pudo conectar con el servidor.'),
+      ).toBeVisible();
+      expect(
+        conexion.getByRole('button', { name: 'Reintentar' }),
+      ).toBeEnabled();
+      expect(conexion.queryByRole('textbox')).toBeNull();
+      const permiso = within(vista('error_lectura_permiso'));
+      expect(
+        permiso.getByText('No tienes permiso para esta acción.'),
+      ).toBeVisible();
+      expect(permiso.queryByRole('button', { name: 'Reintentar' })).toBeNull();
+      const otro = within(vista('error_lectura_otro'));
+      expect(
+        otro.getByText('No se pudo completar la solicitud.'),
+      ).toBeVisible();
+      expect(otro.getByRole('button', { name: 'Reintentar' })).toBeEnabled();
+    });
+
+    it('sin_cambios: el valor actual en el campo avisa y no deja guardar', () => {
+      renderizar();
+      const sin = within(vista('sin_cambios'));
+      expect(sin.getByRole('textbox')).toHaveValue('0.50');
+      expect(
+        sin.getByText('Es el valor actual. Escribe otro para guardar.'),
+      ).toBeVisible();
+      expect(sin.getByRole('button', { name: 'Guardar' })).toBeDisabled();
+    });
+
+    it('invalido: cada motivo trae su mensaje y marca el campo', () => {
+      renderizar();
+      const motivos = {
+        invalido_vacio: 'Escribe un valor.',
+        invalido_formato:
+          'Escribe un número con punto decimal, por ejemplo 0.50.',
+        invalido_rango: 'El valor debe estar entre 0 y 100.',
+        invalido_decimales: 'Usa hasta 4 decimales.',
+      } as const;
+      for (const [nombre, mensaje] of Object.entries(motivos)) {
+        const bloque = within(vista(nombre as keyof typeof motivos));
+        expect(bloque.getByText(mensaje)).toBeVisible();
+        expect(bloque.getByRole('textbox')).toHaveAttribute(
+          'aria-invalid',
+          'true',
+        );
+        expect(bloque.getByRole('button', { name: 'Guardar' })).toBeDisabled();
+      }
+    });
+
+    it('guardando y guardado: el envío apaga los controles y el éxito se anuncia', () => {
+      renderizar();
+      const guardando = within(vista('guardando'));
+      expect(
+        guardando.getByRole('button', { name: 'Guardando…' }),
+      ).toBeDisabled();
+      expect(guardando.getByRole('textbox')).toBeDisabled();
+      expect(
+        guardando.getByText('Guardando la tolerancia'),
+      ).toBeInTheDocument();
+      const guardado = within(vista('guardado'));
+      expect(
+        guardado.getByText(
+          'Tolerancia guardada. Aplica desde la próxima corrida del motor.',
+        ),
+      ).toBeVisible();
+      expect(
+        enTarjetaValor(vista('guardado')).getByText('$0.75'),
+      ).toBeVisible();
+      expect(guardado.getAllByRole('listitem')).toHaveLength(5);
+    });
+
+    it('los errores de guardado traen su copy aprobado y conservan el campo', () => {
+      renderizar();
+      const e400 = within(vista('error_400'));
+      expect(e400.getByRole('alert')).toHaveTextContent(
+        'El servidor no aceptó el valor. Escribe un número entre 0 y 100, con hasta 4 decimales.',
+      );
+      expect(
+        within(vista('error_403')).getByText(
+          'No tienes permiso para esta acción.',
+        ),
+      ).toBeVisible();
+      const conexion = within(vista('error_conexion'));
+      expect(
+        conexion.getByText('No se pudo conectar con el servidor.'),
+      ).toBeVisible();
+      expect(
+        conexion.getByText(
+          'Revisa tu conexión e inténtalo de nuevo. El valor que escribiste sigue en el campo.',
+        ),
+      ).toBeVisible();
+      const otro = within(vista('error_otro'));
+      expect(
+        otro.getByText('No se pudo completar la solicitud.'),
+      ).toBeVisible();
+      expect(
+        otro.getByText(
+          'El valor que escribiste sigue en el campo. Inténtalo de nuevo en unos minutos.',
+        ),
+      ).toBeVisible();
+      for (const nombre of [
+        'error_400',
+        'error_403',
+        'error_conexion',
+        'error_otro',
+      ] as const) {
+        expect(within(vista(nombre)).getByRole('textbox')).toHaveValue('0.75');
+      }
+    });
+
+    it('cambios_vacio y cambios_error: la tarjeta de cambios cae sola y el valor sigue', () => {
+      renderizar();
+      const vacio = within(vista('cambios_vacio'));
+      expect(vacio.getByText('Aún no hay cambios.')).toBeVisible();
+      expect(
+        vacio.getByText(
+          'Cuando un administrador cambie la tolerancia, aparecerá aquí.',
+        ),
+      ).toBeVisible();
+      expect(
+        enTarjetaValor(vista('cambios_vacio')).getByText('$0.50'),
+      ).toBeVisible();
+      const error = within(vista('cambios_error'));
+      expect(
+        error.getByText('No se pudieron cargar los cambios.'),
+      ).toBeVisible();
+      expect(error.getByRole('button', { name: 'Reintentar' })).toBeEnabled();
+      expect(error.getByRole('textbox')).toBeInTheDocument();
+    });
+
+    it('contador y revisor ven el valor y el aviso, sin campo ni botón', () => {
+      renderizar();
+      const rol = within(vista('rol_contador_revisor'));
+      expect(
+        enTarjetaValor(vista('rol_contador_revisor')).getByText('$0.50'),
+      ).toBeVisible();
+      expect(rol.getByRole('note')).toHaveTextContent(
+        'Solo un administrador de la empresa puede cambiar la tolerancia.',
+      );
+      expect(rol.queryByRole('textbox')).toBeNull();
+      expect(rol.queryByRole('button', { name: 'Guardar' })).toBeNull();
+    });
+
+    it('los componentes se alimentan con datos estáticos: la sección no importa de @/shared/api ni de la sesión', () => {
+      expect(seccionToleranciaFuente).not.toMatch(/from\s+['"]@\/shared\/api/);
+      expect(seccionToleranciaFuente).not.toMatch(
+        /from\s+['"]@\/shared\/sesion/,
+      );
+      expect(seccionToleranciaFuente).not.toMatch(
+        /from\s+['"]@\/features\/tolerancia\/use/,
       );
     });
   });

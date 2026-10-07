@@ -103,3 +103,18 @@
   gap: var(--space-20);
   min-inline-size: 0;
 }
+
+/* Las dos tarjetas de la tolerancia, como las dispone su contenedor. */
+.parejaTolerancia {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-20);
+  min-inline-size: 0;
+}
+
+@media (max-width: 900px) {
+  .parejaTolerancia {
+    grid-template-columns: 1fr;
+  }
+}
