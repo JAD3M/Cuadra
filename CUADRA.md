@@ -5,8 +5,8 @@
 
 | | |
 |---|---|
-| **Estado** | Día 8 de 9 · CU-01 a CU-24, más CU-04b · 24 / 26 historias · 94 / 99 pts · Épicas A–G cerradas y H en curso (CU-24 integrada; quedan CU-25 y CU-26) |
-| **Entrega** | 2 de octubre de 2026 (backend, CU-01 a CU-18); el frontend (CU-19 a CU-26) no tiene fecha; CU-25 y CU-26 (5 pts) quedan pendientes |
+| **Estado** | Día 8 de 9 · CU-01 a CU-25, más CU-04b · 25 / 26 historias · 96 / 99 pts · Épicas A–G cerradas y H en curso (CU-24 integrada; CU-25 terminada y pendiente de integrar a `master`; queda CU-26) |
+| **Entrega** | 2 de octubre de 2026 (backend, CU-01 a CU-18); el frontend (CU-19 a CU-26) no tiene fecha; solo queda pendiente CU-26 (3 pts) |
 | **Contexto** | Estancia profesional en michelada.io |
 | **Alcance** | 26 historias · 99 puntos (69 del backend y 30 de la interfaz) · 9 días hábiles para el backend |
 | **Última actualización** | 7 oct 2026 |
@@ -808,7 +808,7 @@ CU-20 a CU-26 están en Jira; solo CU-19 los lleva en este archivo.
 | ID | Historia | Pts | Día | Jira | Qué entrega |
 |---|---|---|---|---|---|
 | CU-24 | Cargas desde la interfaz | 5 | 6 oct | KAN-102 | Subida de CFDI y estados de cuenta y su seguimiento en pantalla, con `GET /cargas` (las últimas 20 cargas de la empresa) para el historial. Integrada a `master` el 7 oct; el usuario la recorrió en el navegador y falta probar una subida real de archivos |
-| CU-25 | Tolerancia desde la interfaz | 2 | sin fecha | KAN-103 | Consulta y cambio de la tolerancia (CU-12) |
+| CU-25 | Tolerancia desde la interfaz | 2 | 7 oct | KAN-103 | Consulta y cambio de la tolerancia (CU-12) en pantalla: valor exacto de hasta 4 decimales, formulario solo para el administrador y los últimos 5 cambios. Solo frontend, sin cambios en el backend. Terminada en la cadena `feat/cu-25-01-logica` a `feat/cu-25-09-kit-docs`; pendiente de integrar a `master`; falta la revisión manual en el navegador |
 | CU-26 | Bitácora en pantalla | 3 | sin fecha | KAN-104 | Consulta de la bitácora de auditoría (CU-16) |
 
 ### Carga por día

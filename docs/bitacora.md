@@ -5,6 +5,194 @@
 
 ### 7 oct 2026
 
+- **CU-25 terminado: tolerancia desde la interfaz (KAN-103).** Con ella van 25
+  de 26 historias y 96 de 99 puntos; queda CU-26 (3 pts). **Pendiente de
+  integrar a `master`.** Vive en la cadena local de ramas
+  `feat/cu-25-01-logica` a `feat/cu-25-09-kit-docs`, sin push ni PR, y no toca
+  el backend. Lo entregado:
+  - Pantalla `/tolerancia` en lugar del marcador, con la maqueta aprobada
+    (versión 31, solo oscuro; el claro sale de los mismos roles de color y del
+    control de tema). Encabezado «Tolerancia de monto» con el subtítulo
+    «{empresa} · aplica a movimientos y CFDI en MXN», donde la empresa es la
+    activa de la sesión (cambia al cambiar de empresa).
+  - Tarjeta «Valor actual» con el monto exacto, sin redondear: hasta 4
+    decimales y mínimo 2 (`0.5000` se ve `0.50`, `0.0050` se ve `0.005`,
+    `12.3456` se ve `12.3456`), a 88 px como la maqueta y sin partirse ni
+    salirse de su caja. El valor viaja siempre como cadena y se trata solo con
+    Decimal.js.
+  - Formulario solo para el administrador: campo de texto con `inputMode`
+    decimal (no `type="number"`), validación local en español (vacío, formato,
+    más de 4 decimales, fuera de 0 a 100), aviso de «es el valor actual» y
+    botón apagado mientras no haya algo válido y distinto. El `PUT` manda
+    `{"toleranciaMonto":"0.0050"}` con el valor como cadena. Éxito en una
+    región de estado `polite`, sin temporizador; los fallos usan copy fijo
+    (400, 403, conexión y otro) y nunca el texto del servidor. Contador y
+    revisor ven el valor, los cambios y el aviso «Solo un administrador de la
+    empresa puede cambiar la tolerancia.», sin campo ni botón.
+  - Tarjeta «Cambios recientes» con los últimos 5 cambios de la tolerancia
+    (`GET /bitacora?entidad=companies&accion=actualizar&limite=50`, filtrados
+    en el cliente por `datos.campo`), con su carga, vacío, error y
+    «Reintentar» propios. Un cambio guardado se ve primero tras la relectura.
+    Las dos lecturas son independientes: una falla sin tumbar a la otra.
+  - Guarda de época: cambiar de empresa, cerrar sesión o desmontar con un `PUT`
+    en vuelo no escribe caché, no invalida y no muestra nada. Al guardar con
+    éxito se invalida el detalle del caso (CAS-TOL-1) para que muestre la
+    tolerancia nueva; la bandeja no se toca.
+  - La galería `/__kit` tiene la sección «Tolerancia» con las 15 vistas de la
+    maqueta v31 (con `invalido` abierto en sus 4 motivos) y el aviso de los
+    roles que solo consultan; sustituye al botón de ejemplo «Guardar
+    tolerancia», que pasó a llamarse «Guardar cambios» para seguir mostrando el
+    tono. Las pruebas de la galería viven en `src/app/RutaKit.test.tsx`, junto
+    a las de las demás secciones (la tarea decía `features/kit`).
+- **Entrega de CU-25.** Nueve ramas locales apiladas (`stacked-to-main`, `S1a`
+  a `S3c`) y 17 commits en `master..HEAD` (16 de código y el de estos documentos). Se partió en límites de commit; los
+  cortes que pasan de 400 líneas por las pruebas quedan como `size:exception`
+  y las pruebas nunca se recortaron para entrar en el presupuesto. Tamaño real
+  por rama (líneas escritas a mano, altas más bajas) y, entre paréntesis, las
+  de cada commit; la previsión de la tarea era de unas 2,600 en total:
+
+  | Rama | Líneas (previsión) | Commits | Prueba de cierre (archivos / pruebas) |
+  |---|---|---|---|
+  | S1a `01-logica` | 664 (~365) | `2ba56b9` (229), `c68e092` (130), `6800a1f` (305) | 202 / 3,073 |
+  | S1b `02-contratos` | 1,026 (~395), `size:exception` | `2a9f2ce` (303), `a554981` (723) | 205 / 3,141 |
+  | S1c `03-hooks` | 1,002 (~280), `size:exception` | `96304bd` (1,002) | 208 / 3,181 |
+  | S2a `04-tarjeta-valor` | 585 (~360), `size:exception` | `ec69e2a` (585) | 211 / 3,230 |
+  | S2b `05-formulario` | 1,064 (~480), `size:exception` | `6b165d6` (321), `c6445e2` (743) | 213 / 3,347 |
+  | S2c `06-contenedor` | 1,146 (~420), `size:exception` | `d529573` (344), `a813a61` (138), `012ffbc` (664) | 216 / 3,405 |
+  | S3a `07-cambios` | 693 (~330), `size:exception` | `4f2c0e0` (693) | 217 / 3,460 |
+  | S3b `08-cambios-cableado` | 778 (~225), `size:exception` | `50303e4` (142), `b37ffa9` (636) | 218 / 3,512 |
+  | S3c `09-kit-docs` | 680 (~250), `size:exception` | `4351949` (486), el de estos documentos | 218 / 3,522 |
+
+  - Commits de más de 400 líneas: `a554981`, `96304bd`, `ec69e2a`, `c6445e2`,
+    `012ffbc`, `4f2c0e0`, `b37ffa9` y `4351949`. En todos el código de
+    producción cabe en 400 líneas y el exceso son las pruebas (en `4351949`,
+    225 de sus 486 líneas). Los otros ocho commits, y todos los de S1a, quedan
+    por debajo.
+  - Total de `master` a la rama de código (antes de estos documentos): 7,347
+    líneas añadidas y 35 quitadas en 64 archivos, de las cuales 1,909 son de
+    código y 5,473 de pruebas y sus ayudas (manejadores de MSW, fixtures, CSS y
+    contraste). La previsión era de unas 2,600 (de 2,300 a 2,900): salió casi
+    tres veces mayor, y en el mismo reparto: lo que más pesó fueron las pruebas
+    de hooks, componentes, CSS y flujos. Nada se recortó.
+- **Verificación de S3c**, observada en `feat/cu-25-09-kit-docs`: en
+  `frontend/`, typecheck, lint (sin modificar), formato, build y
+  `verificar:dist` terminan con código 0; dos corridas completas de `vitest` en
+  paralelo (cada una con su `TMPDIR`) dan 218 archivos y 3,522 pruebas en
+  verde, 10 más que en S3b, sin fallos. En la raíz, typecheck con código 0 y
+  `npm test` con Postgres y Redis arriba: 39 suites y 836 pruebas en verde
+  (las trazas `ERROR` y `WARN` del registro son de pruebas que provocan el
+  fallo a propósito). `git diff --stat master` no muestra ningún cambio en
+  el backend (`src/`), ninguna migración ni ningún GRANT: todo lo cambiado
+  está en `frontend/`, más `CUADRA.md` y esta bitácora.
+- **Decisiones de CU-25** (aceptadas por el usuario): la pantalla acepta hasta
+  4 decimales, como el servidor, y muestra el valor sin ceros de más pero con
+  mínimo 2 (Q1); los últimos 5 cambios salen de `GET /bitacora` filtrados en el
+  cliente, y el enlace «Ver en la bitácora» no se muestra hasta que exista
+  CU-26 (Q2); el éxito es un mensaje en línea en una región `polite`, que dura
+  hasta editar o salir, sin aviso emergente (Q3); Guardar se apaga mientras el
+  valor escrito sea igual al vigente, comparado como Decimal (Q4); contador y
+  revisor ven lo mismo, con el aviso y sin formulario (Q5); campo de texto con
+  `inputMode` decimal en lugar de `type="number"` (Q6); un 400 del servidor
+  muestra copy fijo, nunca su frase (Q7); el subtítulo lleva el nombre de la
+  empresa activa, dinámico, y reemplaza al subtítulo estático del diseño (Q8);
+  un valor negativo como «-1» es error de rango y no de formato, y eso anula lo
+  que decía TOL-4.2 de la especificación (Q9).
+- **Desvíos y notas registrados durante la entrega:**
+  - Subtítulo dinámico (Q8): `ManejadorRuta` ganó `subtituloConEmpresa` y
+    `tituloDocumento`; el título del documento sigue siendo «Tolerancia ·
+    Cuadra» mientras el `h1` es «Tolerancia de monto». Los subtítulos estáticos
+    de las demás rutas no cambian.
+  - Negativos (Q9): `-1`, `-0`, `-0.5` y `-0.12345` son error de rango; el
+    orden de validación es vacío, formato, negativo, más de 4 decimales y más
+    de 100.
+  - El formateador exacto vive en `shared/dinero` (no en la tarjeta) y no usa
+    nunca el formateador de 2 decimales. No se usó `Campo`: el formulario lleva
+    su propio marcado (ADR-3). La consulta de cambios pide `limite=50` y se
+    queda con 5.
+  - El cliente de API no tenía `PUT`: `OpcionesApi.method` se amplió a
+    `GET | POST | PUT` (el diseño lo pasó por alto) con su prueba.
+  - Tras guardar, el campo vuelve a seguir a la caché y la ayuda es la normal,
+    no «Es el valor actual» (maqueta y diseño; el texto de TOL-6 decía lo
+    contrario).
+  - `vistaValor` clasifica con el clasificador de errores de guardado y no con
+    el de lectura de cargas, porque ese manda los 5xx a «conexión» y TOL-2.4
+    pide el copy genérico.
+  - Desmontar con un `PUT` en vuelo (TOL-9.9): no se llama a la pantalla ni
+    hay error, pero la escritura de caché y la invalidación del hook corren
+    igual en la misma época, porque el servidor sí guardó.
+  - Lectura de la versión 31 de la maqueta: el `PUT` 400 es una sola frase en
+    `AlertaError` (título en negrita; la maqueta la pone en peso normal) y el
+    éxito usa `--estado-conciliado-text`.
+  - Interpretaciones de S3b: las aserciones de valor se acotan a la tarjeta
+    «Valor actual» (con la lista, `$0.50` aparece también en las filas;
+    con el ayudante `src/test/tarjetaValor.ts`); CAS-TOL-1.1 y CAS-TOL-1.3 se prueban en
+    el flujo solo hasta donde se puede (el cliente de la app tiene `staleTime`
+    0, así que reabrir un caso siempre relee, y una consulta inactiva nunca se
+    relee por invalidación): lo que discrimina `isInvalidated` es la prueba del
+    hook de S1c; el reintento de TOL-10.9 se prueba a nivel de contenedor con
+    el cliente sin reintentos, porque el de la app reintenta red y 5xx (R7).
+  - Mutaciones comprobadas en cada unidad (rojo observado y revertido desde una
+    copia de respaldo, nunca con `git checkout`): entre otras, quitar la clave
+    de época de `TolerPage`, quitar `cancelQueries`, la guarda de época o la de
+    envío único del hook, apagar el candado de envío del formulario, un
+    literal de rol o `Number(` en el código de producción, y el `Reintentar`
+    de la tarjeta de cambios atado a la lectura del valor.
+  - Contraste: todos los pares nuevos pasan en ambos temas (el más bajo, 5.05:1
+    en oscuro y 4.85:1 en claro para texto; `danger` contra el campo, 7.02 y
+    5.34 como no texto). Ningún color se cambió para pasarlo.
+- **Riesgos aceptados.** Reintentos del cliente de la app (red y 5xx, con
+  retroceso) hacen que los fallos de lectura se prueben a nivel de contenedor.
+  Las pruebas de otras pantallas que aterrizan en `/tolerancia` ahora dependen
+  de los manejadores por defecto (solo se adaptaron dos pruebas de
+  `router.test.tsx`, cada una probada con una corrida que falla). Las pruebas
+  de tolerancia reutilizan `useEpocaVigente`, `clasificarErrorLectura` y
+  `esperarIntervalos` de cargas (ver pendiente 3).
+- **Pendientes abiertos de CU-25:**
+  1. **Backend: `PUT /empresa/tolerancia` idempotente.** Comparar el valor
+     nuevo con el vigente dentro de la misma transacción, con bloqueo de fila
+     (`SELECT ... FOR UPDATE`); si son iguales no se escribe ninguna fila de
+     bitácora y se responde 200 con el valor vigente. Hoy la pantalla lo evita
+     apagando Guardar, pero el servidor registraría un cambio sin cambio.
+  2. **Restaurar el enlace «Ver en la bitácora»** con el filtro de tolerancia
+     ya puesto, cuando exista CU-26.
+  3. **Subir a `shared` los ayudantes de cargas** que reutiliza tolerancia:
+     `useEpocaVigente`, `clasificarErrorLectura` y `esperarIntervalos`.
+  4. **Contraste del borde de los campos en toda la app**: `--color-border-strong`
+     contra `--color-inset` da 1.57:1 en oscuro y 1.48:1 en claro, por debajo
+     de 3:1 para elementos no textuales (lo comparten `Campo` y el formulario de
+     tolerancia). No se corrigió en CU-25.
+- **Pendiente de aprobación del usuario** (no aprobado): de la versión 31 de la
+  maqueta, las vistas de error de lectura `error_lectura_permiso` y
+  `error_lectura_otro` (ya construidas, en S2a); y los estados de la tarjeta
+  «Cambios recientes» sin permiso y de error genérico, que exige la
+  especificación (TOL-10) pero que la maqueta no trae (la tarjeta los muestra
+  con el copy compartido).
+- **Revisión manual en el navegador: PENDIENTE.** Nadie la corrió; las pruebas
+  automáticas no la sustituyen. Contra la maqueta aprobada (versión 31), con el
+  API de desarrollo y datos sembrados; los servidores que se arranquen se
+  detienen por PID:
+  - [ ] Cada `vista` (`normal`, `cargando`, `error_lectura`,
+    `error_lectura_permiso`, `error_lectura_otro`, `sin_cambios`, `invalido`
+    con sus 4 motivos, `guardando`, `guardado`, `error_400`, `error_403`,
+    `error_conexion`, `error_otro`, `cambios_vacio`, `cambios_error`) y cada
+    rol (administrador, contador, revisor), en oscuro y en claro (el claro con
+    el control de tema del shell, porque no hay maqueta clara), a 1440, 900 y
+    375 px.
+  - [ ] El monto de 88 px con 4 decimales y con `100.00`, sin salirse de su
+    caja ni partirse.
+  - [ ] Valores inválidos escritos a mano: coma, 5 decimales, `100.5` y vacío.
+  - [ ] El aviso de «es el valor actual».
+  - [ ] Guardado real contra el API de desarrollo con `0.0050`, `1.2340`,
+    `100` y `0`, con la tarjeta del valor y el detalle del caso mostrándolo.
+  - [ ] La fila de la bitácora visible en «Cambios recientes» tras guardar.
+  - [ ] 403 con un rol degradado.
+  - [ ] Guardar sin red conserva el borrador.
+  - [ ] Cambio de empresa con un borrador sin guardar.
+  - [ ] El control de tema dentro de la propia pantalla.
+  - [ ] Solo teclado y lector de pantalla: anuncios de la región de estado y
+    foco en la alerta.
+  - [ ] El subtítulo con el nombre de la empresa activa, antes y después de
+    cambiar de empresa.
 - **Seguimiento de CU-24 integrado a `master`** por avance rápido de
   `fix/cu-24-seguimientos` (6 commits: comentarios de M7, bandeja invalidada
   una vez por transición, reencolado de una carga fallida y maqueta v27), sin
