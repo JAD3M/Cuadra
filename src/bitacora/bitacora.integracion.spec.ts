@@ -4,6 +4,7 @@ import type { DataSource } from 'typeorm';
 import {
   ANA,
   type AppDeCargas,
+  CARMEN,
   FERRETERIA,
   JORGE,
   levantarAppDeCargas,
@@ -564,5 +565,215 @@ describe('GET /bitacora (AU-20 a AU-26)', () => {
     await bitacora('', await entorno.token(JORGE, TRANSPORTES)).expect(200);
     await request(entorno.app.getHttpServer()).get('/bitacora').expect(401);
     await bitacora('', await entorno.token(ANA, TRANSPORTES)).expect(403);
+  });
+});
+
+interface UsuarioListado {
+  id: string;
+  nombre: string;
+}
+
+const usuarios = (token = tokenAna) =>
+  request(entorno.app.getHttpServer())
+    .get('/bitacora/usuarios')
+    .auth(token, { type: 'bearer' });
+
+const listadoDe = (res: request.Response) =>
+  (res.body as { datos: UsuarioListado[] }).datos;
+
+const cuentaBitacora = async () =>
+  Number(
+    (await una<{ n: string }>(ds, 'SELECT count(*) AS n FROM bitacora')).n,
+  );
+
+describe('AU-26: GET /bitacora/usuarios', () => {
+  // `users` y `user_company_roles` quedan fuera de RLS: el filtro por
+  // company_id de la consulta es la única barrera, de ahí el aislamiento.
+  // El spec trunca la bitácora por prueba, pero los usuarios que crea una
+  // prueba se borran siempre (también si falla): el borrado de un usuario
+  // arrastra sus roles (CASCADE) y deja sus eventos con user_id NULL.
+  const creados: string[] = [];
+
+  async function usuarioExtra(
+    nombre: string,
+    o: { empresa?: string; rol?: string; activo?: boolean } = {},
+  ): Promise<string> {
+    const { id } = await una<{ id: string }>(
+      ds,
+      `INSERT INTO users (email, nombre, password_hash, activo)
+       VALUES ($1, $2, 'sin-contrasena', $3) RETURNING id`,
+      [`extra-${randomUUID()}@prueba.mx`, nombre, o.activo ?? true],
+    );
+    creados.push(id);
+    if (o.empresa) {
+      await ds.query(
+        `INSERT INTO user_company_roles (user_id, company_id, rol)
+         VALUES ($1, $2, $3)`,
+        [id, o.empresa, o.rol ?? 'revisor'],
+      );
+    }
+    return id;
+  }
+
+  afterEach(async () => {
+    const ids = creados.splice(0);
+    if (ids.length > 0) {
+      await ds.query('DELETE FROM users WHERE id = ANY($1::uuid[])', [ids]);
+    }
+    // Rol extra de Ana (prueba de dedupe): se retira por si la prueba falló.
+    await ds.query(
+      `DELETE FROM user_company_roles WHERE user_id = $1 AND company_id = $2
+          AND rol = 'contador'`,
+      [entorno.persona(ANA), A],
+    );
+  });
+
+  it.each([
+    ['admin', ANA, FERRETERIA],
+    ['contador', LUIS, FERRETERIA],
+    ['revisor', JORGE, TRANSPORTES],
+  ])('USR-1: %s lee la lista', async (_rol, email, rfc) => {
+    await usuarios(await entorno.token(email, rfc)).expect(200);
+  });
+
+  it('USR-1: sin token es 401; sin membresía es 403 y queda acceso_denegado', async () => {
+    await request(entorno.app.getHttpServer())
+      .get('/bitacora/usuarios')
+      .expect(401);
+    await usuarios(await entorno.token(ANA, TRANSPORTES)).expect(403);
+    const filasDenegadas = await ds.query<{ entidad_id: string }[]>(
+      `SELECT entidad_id FROM bitacora WHERE accion = 'acceso_denegado'`,
+    );
+    expect(filasDenegadas).toEqual([{ entidad_id: B }]);
+  });
+
+  it('USR-3: forma exacta y orden por nombre, solo id y nombre', async () => {
+    const res = await usuarios().expect(200);
+    expect(res.body).toEqual({
+      datos: [
+        { id: entorno.persona(ANA), nombre: 'Ana Reyes' },
+        { id: entorno.persona(JORGE), nombre: 'Jorge Tapia' },
+        { id: entorno.persona(LUIS), nombre: 'Luis Mendoza' },
+      ],
+    });
+  });
+
+  it('USR-2: cada empresa ve solo a los suyos; Jorge conserva su id', async () => {
+    const deA = listadoDe(await usuarios().expect(200));
+    const deB = listadoDe(
+      await usuarios(await entorno.token(JORGE, TRANSPORTES)).expect(200),
+    );
+    expect(deA.map((u) => u.nombre)).not.toContain('Carmen Olvera');
+    expect(deB).toEqual([
+      { id: entorno.persona(CARMEN), nombre: 'Carmen Olvera' },
+      { id: entorno.persona(JORGE), nombre: 'Jorge Tapia' },
+    ]);
+    expect(deB.map((u) => u.nombre)).not.toEqual(
+      expect.arrayContaining(['Ana Reyes']),
+    );
+    expect(deB.map((u) => u.nombre)).not.toContain('Luis Mendoza');
+    expect(deA.find((u) => u.nombre === 'Jorge Tapia')?.id).toBe(
+      deB.find((u) => u.nombre === 'Jorge Tapia')?.id,
+    );
+  });
+
+  it('USR-3: varios roles en la misma empresa no duplican a la persona', async () => {
+    await ds.query(
+      `INSERT INTO user_company_roles (user_id, company_id, rol)
+       VALUES ($1, $2, 'contador')`,
+      [entorno.persona(ANA), A],
+    );
+    const nombres = listadoDe(await usuarios().expect(200)).map(
+      (u) => u.nombre,
+    );
+    expect(nombres.filter((n) => n === 'Ana Reyes')).toHaveLength(1);
+    expect(nombres).toHaveLength(3);
+  });
+
+  it('USR-4: un autor que ya no es miembro sigue en la lista (D15)', async () => {
+    await evento({ userId: entorno.persona(CARMEN) });
+    const nombres = listadoDe(await usuarios().expect(200)).map(
+      (u) => u.nombre,
+    );
+    expect(nombres).toEqual([
+      'Ana Reyes',
+      'Carmen Olvera',
+      'Jorge Tapia',
+      'Luis Mendoza',
+    ]);
+  });
+
+  it('USR-2: un autor con eventos solo en otra empresa no aparece', async () => {
+    const intruso = await usuarioExtra('Intruso');
+    await evento({ empresa: B, userId: intruso });
+    const nombres = listadoDe(await usuarios().expect(200)).map(
+      (u) => u.nombre,
+    );
+    expect(nombres).not.toContain('Intruso');
+    // Control positivo: en la empresa donde sí firmó, aparece.
+    expect(
+      listadoDe(await usuarios(await entorno.token(JORGE, TRANSPORTES))),
+    ).toContainEqual({ id: intruso, nombre: 'Intruso' });
+  });
+
+  it('USR-3: los eventos sin usuario no agregan a nadie', async () => {
+    await evento({ userId: null });
+    await evento({ userId: null, accion: 'confirmar' });
+    expect(listadoDe(await usuarios().expect(200))).toHaveLength(3);
+  });
+
+  it('USR-4: un miembro inactivo con membresía sí aparece', async () => {
+    const id = await usuarioExtra('Zoe Inactiva', {
+      empresa: A,
+      activo: false,
+    });
+    expect(listadoDe(await usuarios().expect(200))).toContainEqual({
+      id,
+      nombre: 'Zoe Inactiva',
+    });
+  });
+
+  it('USR-3: homónimos se desempatan por id ascendente, igual en cada llamada', async () => {
+    const x = await usuarioExtra('Ana Mendoza', { empresa: A });
+    const y = await usuarioExtra('Ana Mendoza', { empresa: A });
+    const primera = listadoDe(await usuarios().expect(200));
+    const segunda = listadoDe(await usuarios().expect(200));
+    const homonimos = primera.filter((u) => u.nombre === 'Ana Mendoza');
+    expect(homonimos.map((u) => u.id)).toEqual([x, y].sort());
+    expect(primera.slice(0, 2)).toEqual(homonimos);
+    expect(segunda).toEqual(primera);
+  });
+
+  it('USR-5: es solo lectura: no escribe y el resto de verbos no existe', async () => {
+    await evento({ userId: entorno.persona(ANA) });
+    const antes = await cuentaBitacora();
+    await usuarios().expect(200);
+    expect(await cuentaBitacora()).toBe(antes);
+
+    const servidor = entorno.app.getHttpServer();
+    const verbos = [
+      request(servidor).post('/bitacora/usuarios'),
+      request(servidor).put('/bitacora/usuarios'),
+      request(servidor).patch('/bitacora/usuarios'),
+      request(servidor).delete('/bitacora/usuarios'),
+    ];
+    for (const peticion of verbos) {
+      const res = await peticion.auth(tokenAna, { type: 'bearer' }).send({});
+      expect([404, 405]).toContain(res.status);
+    }
+    expect(await cuentaBitacora()).toBe(antes);
+  });
+
+  it('USR-4: el id listado sirve como userId en GET /bitacora', async () => {
+    const luis = entorno.persona(LUIS);
+    const suyo = await evento({ userId: luis });
+    await evento({ userId: entorno.persona(ANA) });
+    await evento({ empresa: B, userId: luis });
+    const lista = listadoDe(await usuarios().expect(200));
+    const id = lista.find((u) => u.nombre === 'Luis Mendoza')?.id;
+    expect(id).toBe(luis);
+    const res = await bitacora(`?userId=${id}`).expect(200);
+    expect(eventosDe(res).map((e) => e.id)).toEqual([suyo]);
+    expect(paginaDe(res).total).toBe(1);
   });
 });

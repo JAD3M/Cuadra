@@ -11,6 +11,7 @@ import type {
   EventoHistorialDto,
   RespuestaBitacoraDto,
   RespuestaHistorialDto,
+  RespuestaUsuariosBitacoraDto,
 } from './dto/bitacora.dto';
 
 interface FilaSql {
@@ -88,6 +89,38 @@ export class BitacoraService {
    * historia de un CFDI o de un movimiento incluye las filas de sus
    * conciliaciones (join por llave primaria, sin multiplicar filas).
    */
+  /**
+   * Personas que se pueden elegir en el filtro de la bitácora: las que
+   * tienen membresía en la empresa y las que firmaron un evento suyo (una
+   * persona que dejó de ser miembro conserva su historia y debe seguir
+   * siendo filtrable). Inactivos incluidos; sin correo y sin paginar, porque
+   * un tope callado dejaría eventos sin filtro posible.
+   *
+   * `users` y `user_company_roles` no tienen RLS (solo `bitacora` lo tiene):
+   * el `company_id = $1` explícito de cada rama es la ÚNICA barrera entre
+   * empresas aquí. La rama de autores recorre los eventos de la empresa una
+   * vez por petición (`ix_bitacora_company_id_created_at` no cubre
+   * `user_id`); un índice (company_id, user_id) pediría una migración.
+   * UNION quita a quien tiene varios roles; el orden es total por id.
+   */
+  async usuarios(companyId: string): Promise<RespuestaUsuariosBitacoraDto> {
+    const datos = await this.contexto
+      .manager()
+      .query<{ id: string; nombre: string }[]>(
+        `SELECT u.id, u.nombre
+         FROM users u
+        WHERE u.id IN (
+                SELECT r.user_id FROM user_company_roles r
+                 WHERE r.company_id = $1
+                UNION
+                SELECT b.user_id FROM bitacora b
+                 WHERE b.company_id = $1 AND b.user_id IS NOT NULL)
+        ORDER BY lower(u.nombre), u.nombre, u.id`,
+        [companyId],
+      );
+    return { datos };
+  }
+
   async listar(
     companyId: string,
     consulta: ConsultaBitacoraDto,

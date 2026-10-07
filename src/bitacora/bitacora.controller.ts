@@ -8,16 +8,34 @@ import {
 import type { UsuarioAutenticado } from '../auth/tipos';
 import { Roles, UsuarioActual } from '../common/decorators/decoradores';
 import { BitacoraService } from './bitacora.service';
-import { ConsultaBitacoraDto, RespuestaBitacoraDto } from './dto/bitacora.dto';
+import {
+  ConsultaBitacoraDto,
+  RespuestaBitacoraDto,
+  RespuestaUsuariosBitacoraDto,
+} from './dto/bitacora.dto';
 
 /** La sesión ya la exige JwtAuthGuard; aquí solo se estrecha el tipo. */
 type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 
-/** CU-16. Bitácora de la empresa: solo lectura, con filtros y paginación. */
+/**
+ * CU-16. Bitácora de la empresa: solo lectura, con filtros y paginación.
+ * CU-26 suma la lista de personas para el filtro de usuario.
+ */
 @ApiBearerAuth()
 @Controller('bitacora')
 export class BitacoraController {
   constructor(private readonly bitacora: BitacoraService) {}
+
+  /** Va antes que cualquier ruta con parámetro: `usuarios` no es un id. */
+  @Get('usuarios')
+  @Roles('admin', 'contador', 'revisor')
+  @ApiOkResponse({ type: RespuestaUsuariosBitacoraDto })
+  @ApiUnauthorizedResponse({ description: 'Sin sesión válida.' })
+  usuarios(
+    @UsuarioActual() usuario: Sesion,
+  ): Promise<RespuestaUsuariosBitacoraDto> {
+    return this.bitacora.usuarios(usuario.companyId);
+  }
 
   @Get()
   @Roles('admin', 'contador', 'revisor')

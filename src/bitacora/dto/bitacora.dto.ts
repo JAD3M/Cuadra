@@ -23,7 +23,12 @@ import {
  * `hasta` exclusivo: [desde, hasta).
  */
 export class ConsultaBitacoraDto {
-  @ApiPropertyOptional({ maxLength: 64, example: 'conciliaciones' })
+  @ApiPropertyOptional({
+    maxLength: 64,
+    example: 'conciliaciones',
+    description:
+      'Cualquier valor de hasta 64 caracteres; sin coincidencias da una página vacía. Las entidades que la aplicación escribe hoy: conciliaciones, companies.',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(64)
@@ -119,4 +124,19 @@ export class RespuestaBitacoraDto {
   @ApiProperty() limite: number;
   @ApiProperty({ description: 'Filas que cumplen el filtro, sin paginar.' })
   total: number;
+}
+
+/** Un usuario de la empresa para el filtro de la bitácora. Sin correo. */
+export class UsuarioListadoDto {
+  @ApiProperty({ format: 'uuid' }) id: string;
+  @ApiProperty() nombre: string;
+}
+
+export class RespuestaUsuariosBitacoraDto {
+  @ApiProperty({
+    type: [UsuarioListadoDto],
+    description:
+      'Miembros de la empresa y autores de sus eventos, por nombre y luego id.',
+  })
+  datos: UsuarioListadoDto[];
 }
