@@ -331,7 +331,8 @@ izquierda solo del primer bloque de dígitos tras las letras iniciales
 
 `POST /cargas/estado-cuenta`, multipart: un archivo en el campo `archivo`
 (`.csv`, 10 MB máximo) y, opcionales, `banco` (≤ 128) y `cuenta` (≤ 32,
-enmascarada), que se copian a cada movimiento, y `perfil` (CU-10, por
+se guarda tal como llega: el cliente solo pide los últimos dígitos y el
+servidor no la enmascara), que se copian a cada movimiento, y `perfil` (CU-10, por
 defecto `cuadra`). Roles admin y contador. El formato canónico es el perfil
 `cuadra` (`src/bancos/perfiles/cuadra.json`); el de cada banco se normaliza
 a estos mismos cuatro datos.

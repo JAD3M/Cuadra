@@ -5,6 +5,33 @@
 
 ### 7 oct 2026
 
+- **Reencolado y maqueta v27 de cargas, en `fix/cu-24-seguimientos`** (local,
+  sin push ni PR). Dos commits de código:
+  - Error en el aviso a la bandeja: la deduplicación de la doble invalidación
+    guardaba `época:id` sin vaciarlo nunca, bajo la suposición de que una carga
+    terminada no vuelve a estar activa. Es falso: resubir un archivo `fallida`
+    la reencola a `pendiente` (el POST responde 200 con `yaExistia`), y su
+    siguiente cierre ya no invalidaba la bandeja, así que las coincidencias
+    nuevas no aparecían. Ahora `usePollingCargas` olvida el aviso al ver la
+    carga activa otra vez; la dedupe es por transición (un solo aviso si ambos
+    observadores ven la misma, nada en otra época). Al resubir, el contenedor
+    también descarta el detalle en caché de la corrida anterior, que seguía
+    mostrando «Fallida» y detenía el sondeo. El mock de MSW reencola como el
+    backend. Rojo observado primero: la prueba del hook esperaba 2
+    invalidaciones y recibió 1, el flujo esperaba 3 lecturas del resumen y
+    recibió 2. Verde después.
+  - Maqueta v27 aprobada e implementada: la carga fallida muestra el chip
+    «Fallida» sobre el aviso fijo; un `ya existía` ya terminado muestra su
+    resultado (resumen y lista) debajo del aviso, tomado del cuerpo del POST,
+    sin pedir `GET /cargas/:id`; reencolado sigue con aviso, «Procesando la
+    carga…» y el resultado al terminar. `errorMensaje` no se muestra a
+    propósito: el backend escribe siempre un mensaje fijo y repetiría el aviso.
+    Revierte esa parte de e0d2352 (la vista `solo_aviso` desapareció). La
+    galería del kit y sus pruebas siguen la maqueta. Cierra el pendiente de la
+    maqueta de las entradas de abajo.
+  - Con ambos: typecheck, lint, formato, build y `verificar:dist` del frontend
+    en verde, typecheck de la raíz y 2968 pruebas del frontend (dos corridas
+    paralelas). Sin cambio de backend.
 - **Seguimientos de CU-24, en `fix/cu-24-seguimientos`** (local, sin push ni
   PR). Dos commits de código:
   - M7: los comentarios de `carga.entity.ts`, `estado-cuenta.dto.ts` y
