@@ -61,7 +61,8 @@ Los de la Story 1.1 en `epics.md`: cookie al iniciar sesión, rotación al elegi
 - Decisión (persona usuaria): resolver el cambio de empresa con sesión viva como T6 dentro de la 1.1, porque AD-6 lo incluye y es el flujo de UJ-1.
 - Pendiente aparte de la 1.1: purga de sesiones vencidas y costo de la escritura por petición (hallazgos a y b).
 - T6 hecha (`8369e38` backend, `c5d4fd9` frontend): `@Scope(...scopes)` acepta lista; `GET /auth/empresas` y `POST /auth/empresa/:id` aceptan sesión sin y con empresa; `RolesGuard` no exige membresía en la empresa actual a los endpoints que aceptan `seleccion` (así se puede salir de una empresa en la que ya se perdió el rol). Backend RED: 8 fallos en `auth.integracion.spec.ts` (401 en lista/cambio); GREEN: 81/81 en `src/auth`; suite completa 40 suites / 878 tests; typecheck y lint limpios. Frontend RED: 6 fallos nuevos en `SessionProvider.restauracion.test.tsx`; GREEN: evento `EMPRESAS_CONOCIDAS` (atado a la época) y `conocerEmpresas()` tras `RESTAURADA_SESION`, sin bloquear y sin terminar la sesión si falla; mocks por defecto listan con sesión viva, cambian la empresa (A/B) y dan 403 a una ajena. Verificación en `frontend/`: typecheck y lint limpios, 240 archivos / 3964 pruebas en verde.
-- Siguiente paso: cierre de la historia 1.1.
+- Revisión nativa de T6 (backend `8369e38`, 8 archivos, 231 líneas, riesgo alto): 4 lentes, aprobada y acusada. Hallazgos no bloqueantes: `roles.guard.ts:45-51` omite la membresía en todo endpoint que acepta `seleccion`, también si declara `@Roles` (R2 y R3, WARNING; ningún test lo fija); sugerencias: línea larga en `auth.service.ts:114-117` y docs de scope duplicadas en `tipos.ts:3`. Frontend `c5d4fd9`: riesgo medio, bajo presupuesto, sin revisión pendiente.
+- Siguiente paso: decidir si se endurece `RolesGuard` y cerrar la historia 1.1.
 
 ## Evidencia de routing
 
