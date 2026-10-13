@@ -101,8 +101,8 @@ export interface AccionesSesion {
   /**
    * Cambio directo de empresa: pide la lista y pasa a `selecting` con origen
    * `cambio`. La sesión actual sigue viva y la caché no se toca. Con un fallo
-   * de red o 5xx rechaza y la sesión sigue en `ready`. Si el servidor no lista
-   * empresas a una sesión que ya eligió una (401), pide ingresar de nuevo.
+   * de red o 5xx rechaza y la sesión sigue en `ready`. Con un 401 (la cookie
+   * ya no vale) pide ingresar de nuevo.
    */
   cambiarEmpresa(): Promise<void>;
   /** Abandona el cambio de empresa y vuelve a la sesión viva, sin recargar. */

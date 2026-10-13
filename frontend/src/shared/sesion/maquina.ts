@@ -77,6 +77,11 @@ export type EventoSesion =
   | { tipo: 'LOGIN_OK'; usuario: Usuario; empresas: EmpresaDisponible[] }
   | { tipo: 'SELECCION_OK'; empresaId: string }
   | { tipo: 'CAMBIO_OK'; empresas: EmpresaDisponible[] }
+  /**
+   * Tras recargar, el servidor ya dijo cuántas empresas tiene la persona.
+   * `epoca` ata la respuesta a la sesión que la pidió.
+   */
+  | { tipo: 'EMPRESAS_CONOCIDAS'; epoca: number; varias: boolean }
   | { tipo: 'REGRESAR' }
   | { tipo: 'CONSUMIR' }
   | { tipo: 'TERMINAR'; motivo: MotivoSalida; email?: string }
@@ -109,6 +114,12 @@ export function empresaVigente(estado: EstadoInterno): string | null {
 /** ¿Hay una sesión viva (con empresa elegida)? */
 export function sesionViva(estado: EstadoInterno): boolean {
   return empresaVigente(estado) !== null;
+}
+
+function esCambio(
+  estado: EstadoInterno,
+): estado is Extract<EstadoInterno, { fase: 'selecting'; origen: 'cambio' }> {
+  return estado.fase === 'selecting' && estado.origen === 'cambio';
 }
 
 function previaDe(estado: EstadoInterno): string | null {
@@ -176,7 +187,8 @@ export function reducir(
         empresaId: evento.empresaId,
         // Es la misma sesión de antes de recargar: la pantalla pedida vale.
         restaurarOrigen: true,
-        // El servidor no dice cuántas empresas tiene quien ya eligió una.
+        // Se corrige con EMPRESAS_CONOCIDAS cuando `GET /auth/empresas`
+        // responde; hasta entonces (o si falla) no se ofrece el cambio.
         varias: false,
       };
 
@@ -244,6 +256,13 @@ export function reducir(
         restaurarOrigen: estado.restaurarOrigen,
         varias: evento.empresas.length > 1,
       };
+
+    case 'EMPRESAS_CONOCIDAS':
+      if (estado.fase !== 'sesion' && !esCambio(estado)) return estado;
+      if (estado.epoca !== evento.epoca || estado.varias === evento.varias) {
+        return estado;
+      }
+      return { ...estado, varias: evento.varias };
 
     case 'REGRESAR':
       if (estado.fase !== 'selecting' || estado.origen !== 'cambio') {

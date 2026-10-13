@@ -598,3 +598,35 @@ describe('crearTienda', () => {
     expect(visto).toBe('selecting');
   });
 });
+
+describe('EMPRESAS_CONOCIDAS (tras recargar)', () => {
+  const RESTAURADA = aplicar(ESTADO_ARRANQUE, {
+    tipo: 'RESTAURADA_SESION',
+    usuario: USUARIO,
+    empresaId: EMPRESA_A.id,
+  });
+  const conocidas = (epoca: number, varias: boolean): EventoSesion => ({
+    tipo: 'EMPRESAS_CONOCIDAS',
+    epoca,
+    varias,
+  });
+
+  it('arranca sin ofrecer el cambio y lo habilita con varias empresas', () => {
+    expect(RESTAURADA).toMatchObject({ fase: 'sesion', varias: false });
+    const siguiente = reducir(RESTAURADA, conocidas(RESTAURADA.epoca, true));
+    expect(siguiente).toMatchObject({ fase: 'sesion', varias: true });
+  });
+
+  it('se ignora si ya coincide, si es de otra época o fuera de una sesión', () => {
+    expect(reducir(RESTAURADA, conocidas(RESTAURADA.epoca, false))).toBe(
+      RESTAURADA,
+    );
+    expect(reducir(RESTAURADA, conocidas(RESTAURADA.epoca + 1, true))).toBe(
+      RESTAURADA,
+    );
+    expect(reducir(ESTADO_ARRANQUE, conocidas(0, true))).toBe(ESTADO_ARRANQUE);
+    expect(reducir(SELECCION, conocidas(SELECCION.epoca, true))).toBe(
+      SELECCION,
+    );
+  });
+});

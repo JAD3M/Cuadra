@@ -11,7 +11,7 @@ import {
   montarSesion,
   type EntornoSesion,
 } from '@/test/montarSesion';
-import { sesionConEmpresa } from '@/test/sesionMock';
+import { abrirSesion, sesionConEmpresa } from '@/test/sesionMock';
 import { servidor } from '@/test/servidor';
 
 function error(status: number) {
@@ -77,9 +77,10 @@ describe('contexto de la sesión', () => {
   it('puedeCambiarEmpresa es false con una sola empresa', async () => {
     const [primera] = RESPUESTA_LOGIN.empresas;
     servidor.use(
-      http.post('/api/auth/login', () =>
-        HttpResponse.json({ ...RESPUESTA_LOGIN, empresas: [primera] }),
-      ),
+      http.post('/api/auth/login', () => {
+        abrirSesion();
+        return HttpResponse.json({ ...RESPUESTA_LOGIN, empresas: [primera] });
+      }),
     );
     const { entorno } = montarSesion();
     await entrarYEsperarListo(entorno);

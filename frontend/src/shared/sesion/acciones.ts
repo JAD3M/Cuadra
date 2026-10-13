@@ -160,9 +160,9 @@ export function crearAcciones({
         terminaSesion: false,
       });
     } catch (causa) {
-      // 401: la sesión ya tiene empresa y el servidor solo lista empresas a
-      // una sesión sin elegir; hay que ingresar la contraseña otra vez.
-      // Cualquier otro fallo deja la sesión como está y lo ve quien llamó.
+      // 401: la cookie dejó de valer (venció o se cerró en otro lado); hay
+      // que ingresar la contraseña otra vez. Cualquier otro fallo deja la
+      // sesión como está y lo ve quien llamó.
       if (causa instanceof ApiError && causa.statusCode === 401 && vigente()) {
         cancelarEnElServidor();
         terminar('reingreso');
@@ -300,6 +300,8 @@ export function crearAcciones({
           usuario: contexto.usuario,
           empresaId: contexto.empresa.id,
         });
+        // La pantalla ya está lista: saber cuántas empresas hay no la bloquea.
+        await conocerEmpresas();
         return;
       } catch (causa) {
         if (!vigente()) return;
@@ -327,6 +329,30 @@ export function crearAcciones({
       // Sin sesión (401) o sin red: nada que retomar.
     }
     if (vigente()) fallida();
+  }
+
+  /**
+   * Tras restaurar una sesión con empresa, pregunta cuántas empresas tiene la
+   * persona para que `puedeCambiarEmpresa` sea correcto. Si falla (red, 5xx,
+   * 401) no pasa nada: el cambio simplemente no se ofrece y la sesión sigue.
+   */
+  async function conocerEmpresas(): Promise<void> {
+    const desde = empezar();
+    const { epoca } = tienda.obtener();
+    try {
+      const empresas = await api.fetch('/auth/empresas', {
+        schema: listaEmpresasDisponibles,
+        terminaSesion: false,
+      });
+      if (generacion !== desde) return;
+      tienda.enviar({
+        tipo: 'EMPRESAS_CONOCIDAS',
+        epoca,
+        varias: empresas.length > 1,
+      });
+    } catch {
+      // Se queda en `false`; no es motivo para tocar la sesión.
+    }
   }
 
   function reintentarContexto(): void {

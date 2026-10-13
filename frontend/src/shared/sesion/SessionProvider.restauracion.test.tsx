@@ -10,7 +10,13 @@ import {
   montarSesion,
 } from '@/test/montarSesion';
 import { servidor } from '@/test/servidor';
-import { espiarSolicitudes } from '@/test/handlersAuth';
+import {
+  empresasFalla,
+  empresasLista,
+  espiarSolicitudes,
+  seleccionFalla,
+} from '@/test/handlersAuth';
+import { EMPRESAS_DISPONIBLES } from '@/test/fixtures';
 import { sesionConEmpresa, sesionSinEmpresa } from '@/test/sesionMock';
 import { claveContexto } from './acciones';
 
@@ -195,5 +201,101 @@ describe('elegir empresa aplica el contexto devuelto', () => {
     expect(estado.contexto.empresa.id).toBe(EMPRESA_A);
     espia.detener();
     esperarSinRastroDeSesion();
+  });
+});
+
+describe('cambio de empresa tras recargar', () => {
+  function listoParaCambiar(
+    estado: ReturnType<typeof montarSesion>['entorno'],
+  ) {
+    const actual = estado.estado();
+    return actual.status === 'ready' && actual.puedeCambiarEmpresa;
+  }
+
+  it('con varias empresas, puedeCambiarEmpresa es true sin volver a entrar', async () => {
+    sesionConEmpresa(EMPRESA_A);
+    const { entorno } = montarSesion({ recarga: true });
+    await waitFor(() => expect(entorno.estado().status).toBe('ready'));
+    await waitFor(() => expect(listoParaCambiar(entorno)).toBe(true));
+  });
+
+  it('con una sola empresa, puedeCambiarEmpresa sigue en false', async () => {
+    sesionConEmpresa(EMPRESA_A);
+    empresasLista([EMPRESAS_DISPONIBLES[0]!]);
+    const espia = espiarSolicitudes();
+    const { entorno } = montarSesion({ recarga: true });
+    await waitFor(() => expect(entorno.estado().status).toBe('ready'));
+    await waitFor(() =>
+      expect(espia.cuantas('GET', '/api/auth/empresas')).toBe(1),
+    );
+    await act(async () => {});
+    const estado = entorno.estado();
+    expect(estado).toMatchObject({
+      status: 'ready',
+      puedeCambiarEmpresa: false,
+    });
+    espia.detener();
+  });
+
+  it.each([401, 500])(
+    'si la lista responde %i, la sesión sigue y no se puede cambiar',
+    async (status) => {
+      sesionConEmpresa(EMPRESA_A);
+      empresasFalla(status);
+      const espia = espiarSolicitudes();
+      const { entorno } = montarSesion({ recarga: true });
+      await waitFor(() => expect(entorno.estado().status).toBe('ready'));
+      await waitFor(() =>
+        expect(espia.cuantas('GET', '/api/auth/empresas')).toBeGreaterThan(0),
+      );
+      await act(async () => {});
+      expect(entorno.estado()).toMatchObject({
+        status: 'ready',
+        puedeCambiarEmpresa: false,
+      });
+      espia.detener();
+    },
+  );
+
+  it('cambiar aplica el contexto devuelto y vacía la caché de la empresa anterior', async () => {
+    sesionConEmpresa(EMPRESA_A);
+    const espia = espiarSolicitudes();
+    const { entorno } = montarSesion({ recarga: true });
+    await waitFor(() => expect(listoParaCambiar(entorno)).toBe(true));
+    entorno.consultas.setQueryData(['dato-ajeno'], 'privado');
+
+    await act(() => entorno.acciones().cambiarEmpresa());
+    expect(entorno.estado().status).toBe('selecting');
+    await act(() => entorno.acciones().elegirEmpresa(EMPRESA_B));
+
+    const estado = entorno.estado();
+    expect(estado).toMatchObject({ status: 'ready', restaurarOrigen: false });
+    if (estado.status !== 'ready') return;
+    expect(estado.contexto.empresa.id).toBe(EMPRESA_B);
+    expect(estado.puedeCambiarEmpresa).toBe(true);
+    expect(entorno.consultas.getQueryData(['dato-ajeno'])).toBeUndefined();
+    expect(espia.cuantas('POST', '/api/auth/empresa/' + EMPRESA_B)).toBe(1);
+    espia.detener();
+  });
+
+  it('un 403 al cambiar conserva la sesión actual', async () => {
+    sesionConEmpresa(EMPRESA_A);
+    const { entorno } = montarSesion({ recarga: true });
+    await waitFor(() => expect(listoParaCambiar(entorno)).toBe(true));
+    await act(() => entorno.acciones().cambiarEmpresa());
+    seleccionFalla(403);
+
+    await act(async () => {
+      await expect(
+        entorno.acciones().elegirEmpresa(EMPRESA_B),
+      ).rejects.toBeDefined();
+    });
+    expect(entorno.estado().status).toBe('selecting');
+
+    act(() => entorno.acciones().regresarSinCambiar());
+    const estado = entorno.estado();
+    expect(estado.status).toBe('ready');
+    if (estado.status !== 'ready') return;
+    expect(estado.contexto.empresa.id).toBe(EMPRESA_A);
   });
 });

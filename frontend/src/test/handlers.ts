@@ -7,6 +7,7 @@ import { crearHandlersTolerancia } from '@/test/handlersTolerancia';
 import { CAMBIOS_INICIALES } from '@/test/fixturesTolerancia';
 import {
   CONTEXTO_SESION,
+  CONTEXTO_SESION_B,
   EMPRESAS_DISPONIBLES,
   RESPUESTA_LOGIN,
 } from '@/test/fixtures';
@@ -14,6 +15,7 @@ import {
   abrirSesion,
   cerrarSesionMock,
   elegirEmpresaMock,
+  empresaDeLaSesion,
   hayEmpresaElegida,
   haySesion,
   reiniciarSesionMock,
@@ -46,6 +48,13 @@ const tolerancia = crearHandlersTolerancia('0.5000', undefined, bitacora);
  */
 export const almacenes = { bandeja, caso, cargas, tolerancia, bitacora };
 
+/** Contexto de la empresa B si es la elegida; cualquier otra, el de la A. */
+function contextoDe(empresaId: string | null) {
+  return empresaId === CONTEXTO_SESION_B.empresa.id
+    ? CONTEXTO_SESION_B
+    : CONTEXTO_SESION;
+}
+
 function sinSesion() {
   return HttpResponse.json(
     { statusCode: 401, error: 'Unauthorized', message: 'No autorizado' },
@@ -62,22 +71,32 @@ export const handlers = [
     abrirSesion();
     return HttpResponse.json(RESPUESTA_LOGIN);
   }),
-  // El backend de la historia 1.1 solo lista empresas a una sesión sin empresa
-  // elegida (con empresa responde 401). El simulado también las lista con
-  // empresa para poder ejercitar el cambio de empresa que prevé AD-6.
+  // Como el backend (AD-6): la lista sirve con o sin empresa elegida, y
+  // elegir o cambiar de empresa actualiza la sesión; una empresa que no es de
+  // la persona responde 403 y deja la sesión como estaba.
   http.get('/api/auth/empresas', () =>
     haySesion() ? HttpResponse.json(EMPRESAS_DISPONIBLES) : sinSesion(),
   ),
   http.post('/api/auth/empresa/:id', ({ params }) => {
-    elegirEmpresaMock(String(params.id));
-    return HttpResponse.json(CONTEXTO_SESION);
+    if (!haySesion()) return sinSesion();
+    const id = String(params.id);
+    if (!EMPRESAS_DISPONIBLES.some((empresa) => empresa.id === id)) {
+      return HttpResponse.json(
+        { statusCode: 403, error: 'Forbidden', message: 'Sin acceso' },
+        { status: 403 },
+      );
+    }
+    elegirEmpresaMock(id);
+    return HttpResponse.json(contextoDe(id));
   }),
   http.post('/api/auth/logout', () => {
     cerrarSesionMock();
     return new HttpResponse(null, { status: 204 });
   }),
   http.get('/api/auth/contexto', () =>
-    hayEmpresaElegida() ? HttpResponse.json(CONTEXTO_SESION) : sinSesion(),
+    hayEmpresaElegida()
+      ? HttpResponse.json(contextoDe(empresaDeLaSesion()))
+      : sinSesion(),
   ),
   ...bandeja.handlers,
   ...caso.handlers,
