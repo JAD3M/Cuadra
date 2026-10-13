@@ -22,9 +22,11 @@ export const Publico = () => SetMetadata(LLAVE_PUBLICO, true);
  * 'sesion' (con empresa) o ambos. Sin este decorador se exige `'sesion'`:
  * olvidarlo debe cerrar la puerta, no abrirla.
  *
- * Un endpoint que acepta 'seleccion' no opera sobre una empresa, así que
- * `RolesGuard` no exige membresía en la empresa de la sesión (elegir o
- * cambiar de empresa debe seguir posible aunque se haya perdido la actual).
+ * Un endpoint que acepta 'seleccion' y no declara `@Roles` no opera sobre
+ * una empresa, así que `RolesGuard` no exige membresía en la de la sesión
+ * (elegir o cambiar de empresa debe seguir posible aunque se haya perdido la
+ * actual). Si además declara `@Roles`, sí opera sobre ella: se exigen
+ * membresía y rol como en cualquier endpoint.
  */
 export const Scope = (...scopes: ScopeSesion[]) =>
   SetMetadata(LLAVE_SCOPE, scopes);

@@ -3,9 +3,9 @@ import { Reflector } from '@nestjs/core';
 import type { Rol } from '../../common/entities/tipos';
 import type { AccesosDenegados } from '../../bitacora/accesos-denegados';
 import type { AuthService } from '../auth.service';
-import { LLAVE_ROLES } from '../../common/decorators/decoradores';
+import { LLAVE_ROLES, LLAVE_SCOPE } from '../../common/decorators/decoradores';
 import { RolesGuard } from './roles.guard';
-import type { UsuarioAutenticado } from '../tipos';
+import type { Scope, UsuarioAutenticado } from '../tipos';
 
 const SESION: UsuarioAutenticado = {
   userId: 'usuario-1',
@@ -30,13 +30,13 @@ function contexto(user: UsuarioAutenticado): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
-function guard(rolesDelUsuario: Rol[], requeridos?: Rol[]) {
+function guard(rolesDelUsuario: Rol[], requeridos?: Rol[], scopes?: Scope[]) {
   const reflector = new Reflector();
-  jest
-    .spyOn(reflector, 'getAllAndOverride')
-    .mockImplementation((llave) =>
-      llave === LLAVE_ROLES ? requeridos : undefined,
-    );
+  jest.spyOn(reflector, 'getAllAndOverride').mockImplementation((llave) => {
+    if (llave === LLAVE_ROLES) return requeridos;
+    if (llave === LLAVE_SCOPE) return scopes;
+    return undefined;
+  });
   const rolesEnEmpresa = jest.fn().mockResolvedValue(rolesDelUsuario);
   const authService = { rolesEnEmpresa } as unknown as AuthService;
   const registrar = jest.fn().mockResolvedValue(undefined);
@@ -120,5 +120,60 @@ describe('RolesGuard', () => {
     const { guard: g, registrar } = guard(['admin'], ['admin']);
     await g.canActivate(contexto(SESION));
     expect(registrar).not.toHaveBeenCalled();
+  });
+
+  describe('endpoint que acepta seleccion y sesion', () => {
+    const AMBOS: Scope[] = ['seleccion', 'sesion'];
+
+    it('sin @Roles deja pasar a quien perdió su rol en la empresa actual', async () => {
+      const {
+        guard: g,
+        rolesEnEmpresa,
+        registrar,
+      } = guard([], undefined, AMBOS);
+      await expect(g.canActivate(contexto(SESION))).resolves.toBe(true);
+      expect(rolesEnEmpresa).not.toHaveBeenCalled();
+      expect(registrar).not.toHaveBeenCalled();
+    });
+
+    it('con @Roles exige membresía: sin roles da 403 y lo registra', async () => {
+      const { guard: g, registrar } = guard([], ['admin'], AMBOS);
+      await expect(g.canActivate(contexto(SESION))).rejects.toThrow(
+        'Sin acceso a esta empresa',
+      );
+      expect(registrar).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rolesRequeridos: ['admin'],
+          rolesDelUsuario: [],
+        }),
+      );
+    });
+
+    it('con @Roles y un rol que no alcanza da 403 Rol insuficiente', async () => {
+      const { guard: g, registrar } = guard(['contador'], ['admin'], AMBOS);
+      await expect(g.canActivate(contexto(SESION))).rejects.toThrow(
+        'Rol insuficiente',
+      );
+      expect(registrar).toHaveBeenCalledTimes(1);
+    });
+
+    it('con @Roles y un rol que alcanza autoriza', async () => {
+      const { guard: g } = guard(['admin'], ['admin'], AMBOS);
+      await expect(g.canActivate(contexto(SESION))).resolves.toBe(true);
+    });
+
+    it('con sesión sin empresa autoriza aunque declare @Roles', async () => {
+      const { guard: g, rolesEnEmpresa } = guard([], ['admin'], AMBOS);
+      await expect(
+        g.canActivate(
+          contexto({
+            userId: 'usuario-1',
+            scope: 'seleccion',
+            sesionId: 'sesion-1',
+          }),
+        ),
+      ).resolves.toBe(true);
+      expect(rolesEnEmpresa).not.toHaveBeenCalled();
+    });
   });
 });

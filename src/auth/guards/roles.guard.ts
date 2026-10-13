@@ -42,24 +42,28 @@ export class RolesGuard implements CanActivate {
     const { user } = solicitud;
     // La sesión sin empresa elegida no opera sobre ninguna: no hay roles que revisar.
     if (user.scope !== 'sesion') return true;
-    // Un endpoint que acepta la sesión sin empresa (elegir o cambiar de
-    // empresa) no opera sobre la actual: no exige membresía en ella.
     const scopes = this.reflector.getAllAndOverride<Scope[] | undefined>(
       LLAVE_SCOPE,
       destinos,
-    );
-    if (scopes?.includes('seleccion')) return true;
-
-    // Aun sin @Roles, una sesión exige membresía vigente en su empresa.
-    const roles = await this.authService.rolesEnEmpresa(
-      user.userId,
-      user.companyId,
     );
     const requeridos =
       this.reflector.getAllAndOverride<Rol[] | undefined>(
         LLAVE_ROLES,
         destinos,
       ) ?? [];
+    // Un endpoint que acepta la sesión sin empresa (elegir o cambiar de
+    // empresa) no opera sobre la actual: no exige membresía en ella, para que
+    // quien perdió su rol pueda salir. Solo vale si no declara @Roles: si
+    // los declara, opera sobre la empresa y sigue el camino normal.
+    const noOperaSobreLaEmpresa =
+      scopes?.includes('seleccion') === true && requeridos.length === 0;
+    if (noOperaSobreLaEmpresa) return true;
+
+    // Aun sin @Roles, una sesión exige membresía vigente en su empresa.
+    const roles = await this.authService.rolesEnEmpresa(
+      user.userId,
+      user.companyId,
+    );
     const denegar = async (mensaje: string): Promise<never> => {
       await this.accesosDenegados.registrar({
         companyId: user.companyId,

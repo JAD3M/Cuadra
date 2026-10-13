@@ -112,9 +112,10 @@ export class AuthService implements OnModuleInit {
 
   /**
    * Paso 2 (AD-6), y también el cambio de empresa con la sesión viva: la
-   * misma fila de `sesiones` gana la empresa y el token rota. El `companyId` viene del cliente, así que se valida contra la base
-   * antes de tocar la sesión: un 403 la deja como estaba. Devuelve el token
-   * nuevo para la cookie.
+   * misma fila de `sesiones` gana la empresa y el token rota. El
+   * `companyId` viene del cliente, así que se valida contra la base antes de
+   * tocar la sesión: un 403 la deja como estaba. Devuelve el token nuevo para
+   * la cookie.
    */
   async seleccionarEmpresa(
     userId: string,
