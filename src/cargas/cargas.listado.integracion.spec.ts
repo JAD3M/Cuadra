@@ -1,6 +1,6 @@
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { createHash, randomUUID } from 'crypto';
-import request from 'supertest';
+import request from '../testing/supertest-con-origen';
 import { abrirSesion } from '../testing/sesion-de-pruebas';
 import type { DataSource } from 'typeorm';
 import type { EstadoCarga, TipoCarga } from '../common/entities/tipos';

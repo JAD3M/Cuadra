@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import request from 'supertest';
+import request from '../testing/supertest-con-origen';
 import type { DataSource } from 'typeorm';
 import {
   ANA,

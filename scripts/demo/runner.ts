@@ -45,6 +45,11 @@ const MOTIVO_RECHAZO = 'Pago parcial; no corresponde a la factura';
 
 export interface OpcionesDemo {
   baseUrl: string;
+  /**
+   * `Origin` que acompaña a las peticiones que cambian datos (AD-6). Por
+   * omisión `ORIGEN_AUTORIZADO` del entorno, o el origen de Vite en desarrollo.
+   */
+  origen?: string;
   log: (linea: string) => void;
   /** Intervalo entre consultas. */
   pollMs?: number;
@@ -188,6 +193,8 @@ export async function ejecutarDemo(
   const timeoutMs = o.timeoutMs ?? 60_000;
   const quietMs = o.quietMs ?? 2_000;
   const base = o.baseUrl.replace(/\/+$/, '');
+  const origen =
+    o.origen ?? process.env.ORIGEN_AUTORIZADO ?? 'http://localhost:5173';
   const { log } = o;
   validarDestino(base);
 
@@ -210,7 +217,8 @@ export async function ejecutarDemo(
     token?: string,
     cuerpo?: unknown,
   ): Promise<Respuesta> {
-    const headers: Record<string, string> = {};
+    // Sin `Origin` la API rechaza toda petición que cambia datos (AD-6).
+    const headers: Record<string, string> = { origin: origen };
     // `token` es el valor de la cookie de sesión: `cuadra_sesion=<token>`.
     if (token) headers.cookie = token;
     let body: FormData | string | undefined;

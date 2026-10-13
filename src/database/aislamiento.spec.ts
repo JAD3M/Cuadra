@@ -10,7 +10,7 @@ import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { createHash, randomUUID } from 'crypto';
-import request from 'supertest';
+import request from '../testing/supertest-con-origen';
 import type { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 import { AuthModule } from '../auth/auth.module';

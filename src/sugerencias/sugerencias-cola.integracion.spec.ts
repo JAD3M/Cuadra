@@ -3,7 +3,7 @@ import { Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import request from 'supertest';
+import request from '../testing/supertest-con-origen';
 import type { Queue } from 'bullmq';
 import type { DataSource } from 'typeorm';
 import type { RespuestaDeCarga } from '../cargas/cargas.service';

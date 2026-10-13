@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import request from 'supertest';
+import request from '../testing/supertest-con-origen';
 import { abrirSesion } from '../testing/sesion-de-pruebas';
 import type { DataSource } from 'typeorm';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';

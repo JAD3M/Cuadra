@@ -13,6 +13,7 @@ import { RolesGuard } from './guards/roles.guard';
 import { AccesosDenegados } from '../bitacora/accesos-denegados';
 import { ContextoEmpresaModule } from '../database/contexto-empresa.module';
 import { LimiteModule, PROVEEDORES_LIMITE } from '../limite/limite.module';
+import { OrigenGuard } from '../origen/origen.guard';
 
 @Module({
   controllers: [AuthController],
@@ -21,9 +22,12 @@ import { LimiteModule, PROVEEDORES_LIMITE } from '../limite/limite.module';
     SesionesService,
     PasswordHasher,
     AccesosDenegados,
-    // Globales y en este orden: primero el límite de intentos (corre también
-    // en rutas @Publico(), como el login), luego quién eres, luego qué
-    // puedes hacer. Todo endpoint exige sesión salvo que se marque @Publico().
+    // Globales y en este orden: primero el origen (barato, sin Redis: una
+    // petición de otro origen nunca consume el contador del login), luego el
+    // límite de intentos (corre también en rutas @Publico(), como el login),
+    // luego quién eres, luego qué puedes hacer. Todo endpoint exige sesión
+    // salvo que se marque @Publico().
+    { provide: APP_GUARD, useClass: OrigenGuard },
     ...PROVEEDORES_LIMITE,
     { provide: APP_GUARD, useClass: SesionCookieGuard },
     { provide: APP_GUARD, useClass: RolesGuard },

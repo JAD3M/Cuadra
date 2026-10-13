@@ -4,7 +4,7 @@ import { createHash, randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { request as peticionHttp } from 'http';
 import { join } from 'path';
-import request from 'supertest';
+import request from '../testing/supertest-con-origen';
 import type { DataSource } from 'typeorm';
 import { filas, una } from '../database/testing/base-de-pruebas';
 import { TransaccionEmpresa } from '../database/transaccion-empresa';
@@ -114,6 +114,7 @@ async function subirChunked(
         method: 'POST',
         headers: {
           cookie: token,
+          origin: process.env.ORIGEN_AUTORIZADO as string,
           'content-type': `multipart/form-data; boundary=${frontera}`,
           'transfer-encoding': 'chunked',
         },

@@ -2,7 +2,7 @@ import { Controller, Get, type INestApplication, Logger } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import request from 'supertest';
+import request from '../testing/supertest-con-origen';
 import type { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 import { configurarApp } from '../configurar-app';
@@ -404,6 +404,89 @@ describe('POST /auth/login', () => {
         JORGE,
       ]);
     }
+  });
+});
+
+describe('Origen autorizado (historia 1.2, AD-6)', () => {
+  const MALO = 'http://malo.example';
+  const alertas = () =>
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('POST /auth/login con otro origen o sin Origin responde 403 y no consume el límite', async () => {
+    alertas();
+    const cuerpo = { email: ANA, password: 'incorrecta-1234' };
+    for (let i = 0; i < 7; i++) {
+      await http()
+        .post('/auth/login')
+        .set('Origin', MALO)
+        .send(cuerpo)
+        .expect(403);
+      await http().post('/auth/login').unset('Origin').send(cuerpo).expect(403);
+    }
+
+    expect(
+      await leerLimites(app.get<Redis>(CLIENTE_REDIS), PREFIJO_LIMITE),
+    ).toEqual({});
+    // Con el origen autorizado el contador sigue en cero: un fallo da 401, no 429.
+    await http().post('/auth/login').send(cuerpo).expect(401);
+  });
+
+  it('un login con otro origen no abre sesión aunque la contraseña sea correcta', async () => {
+    alertas();
+    const antes = await ds.query<{ n: string }[]>(
+      'SELECT count(*)::text AS n FROM sesiones',
+    );
+    const res = await http()
+      .post('/auth/login')
+      .set('Origin', MALO)
+      .send({ email: ANA, password: PASSWORD_SEMILLA })
+      .expect(403);
+
+    expect(setCookieDe(res)).toBeUndefined();
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    const despues = await ds.query<{ n: string }[]>(
+      'SELECT count(*)::text AS n FROM sesiones',
+    );
+    expect(despues[0].n).toBe(antes[0].n);
+  });
+
+  it('POST /auth/logout con otro origen no borra la sesión', async () => {
+    alertas();
+    const cookie = await tokenSesion(ANA, FERRETERIA);
+
+    await http()
+      .post('/auth/logout')
+      .set('Cookie', cookie)
+      .set('Origin', MALO)
+      .expect(403);
+    await http()
+      .post('/auth/logout')
+      .set('Cookie', cookie)
+      .unset('Origin')
+      .expect(403);
+
+    expect(await filaDe(cookie)).toBeDefined();
+    await http().get('/auth/contexto').set('Cookie', cookie).expect(200);
+  });
+
+  it('elegir empresa con otro origen no rota la sesión', async () => {
+    alertas();
+    const seleccion = await tokenSeleccion(ANA);
+
+    await http()
+      .post(`/auth/empresa/${empresas.get(FERRETERIA)}`)
+      .set('Cookie', seleccion)
+      .set('Origin', MALO)
+      .expect(403);
+
+    expect(await filaDe(seleccion)).toBeDefined();
+  });
+
+  it('las lecturas no llevan comprobación de origen', async () => {
+    const cookie = await tokenSesion(ANA, FERRETERIA);
+    await http().get('/auth/contexto').set('Cookie', cookie).expect(200);
   });
 });
 

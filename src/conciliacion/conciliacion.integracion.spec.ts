@@ -2,7 +2,7 @@ import { Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import request from 'supertest';
+import request from '../testing/supertest-con-origen';
 import type { DataSource } from 'typeorm';
 import type { Job } from 'bullmq';
 import type { RespuestaDeCarga } from '../cargas/cargas.service';
