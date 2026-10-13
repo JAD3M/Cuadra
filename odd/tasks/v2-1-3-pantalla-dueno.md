@@ -39,7 +39,7 @@ Que el dueño de Cuadra tenga una cuenta propia (`plataforma_usuarios`, sembrada
 | T4 | Prueba de arquitectura de clase 3 y módulo `src/plataforma/` con lista de empresas vacía (lectura) | delegada | [x] `b0ea1c6` |
 | T5 | Docs: `CUADRA.md`, `docs/bitacora.md` | inline | [x] commit de docs |
 | T6a | Mockup de la pantalla interna (artboards 10 y 11 del canvas, versión 43) acordado por la persona usuaria | inline | [x] |
-| T6b | Backend: `GET /plataforma/auth/me` (sesión plataforma → `{ usuario: { id, correo } }`, 401/403 como el resto) para restaurar la sesión tras recargar; con test | delegada | [ ] |
+| T6b | Backend: `GET /plataforma/auth/me` (sesión plataforma → `{ usuario: { id, correo } }`, 401/403 como el resto) para restaurar la sesión tras recargar; con test | delegada | [x] `f5786b6` |
 | T6c | Frontend: contrato zod, llamadas (`email` en el cuerpo, `correo` en la respuesta), proveedor de sesión de plataforma separado del de empresa, `RutaPlataforma`, `/plataforma/login` y `/plataforma`, textos propios de error, pruebas (MSW + Testing Library) | delegada | [ ] |
 
 Cada tarea cierra con un commit convencional en la rama; el hash se anota aquí como evidencia.
@@ -68,7 +68,10 @@ Los de la Story 1.3 en `epics.md` (líneas 339-377).
 - Historia 1.3, backend cerrada en la rama `feat/v2-1-3-pantalla-dueno`, sin push ni PR. Pendientes: T6 (mockup y frontend), `.env.example` a mano con `DUENO_CORREO` y `DUENO_PASSWORD`, ejecutar la siembra en desarrollo, lista de empresas real en la 1.4.
 - Cadena de PRs abierta (Feature Branch Chain, tracker #1 y PRs #2 a #4). Mockup de plataforma publicado en el canvas (artboards 10 y 11) y acordado; la persona usuaria pidió hacer el frontend con ODD (excepción puntual a la regla de SDD de `CLAUDE.md`). Rama `feat/v2-1-3-04-frontend-plataforma`, PR 4/4 de la cadena.
 - Mapeo del frontend: no hay endpoint de sesión de plataforma y llamar a `GET /auth/contexto` con cookie de plataforma da 403 y termina la sesión en el cliente de empresa, así que el frontend necesita su propio proveedor y un `me` (decisión por defecto: agregar `GET /plataforma/auth/me`, T6b). `LoginDto` usa `email`; la respuesta usa `correo`. `mensajeDeError` en contexto `login` mapea 403 a «sin empresas», incorrecto para plataforma.
-- Siguiente paso: T6b.
+- T6b hecha (`f5786b6`). `GET /plataforma/auth/me` sin `@Publico()` (hereda el scope y el 403 con registro), `perfil()` en el servicio, 401 si el dueño está inactivo, sin escritura en bitácora al leer. RED: 5 casos con 404; GREEN: 5 nuevos, suite completa 1039 de 1039; `typecheck` y `lint` limpios. Spot check del padre: `npm test -- src/plataforma` 63 de 63.
+- Revisión nativa de T6b (`f5786b6`, 5 archivos, 138 líneas, riesgo alto): la persona usuaria la concedió; 4 lentes, aprobada y acusada. Hallazgos no bloqueantes (ambos en `plataforma-auth.controller.ts:111-117`): R2-001 legibilidad y R3 sobre la comprobación de scope redundante con el guard.
+- Nota de proceso: el shell de la herramienta es zsh, que no separa variables sin comillas en argumentos; los tokens del contrato de revisión se pasan con `xargs -0` o arreglos.
+- Siguiente paso: T6c.
 
 ## Evidencia de routing
 
