@@ -32,7 +32,7 @@ Reemplazar el JWT de dos tokens de la v1 (D-09) por una fila en `sesiones` con c
 |----|-------|------|--------|
 | T1 | Migración + entidad `sesiones`, GRANTs, test de privilegios (solo `sesiones` gana DELETE), `esquema.spec` | delegada | [x] `27905cc` |
 | T2 | Servicio de sesiones, guard por cookie, endpoints login/empresa/logout/contexto, inactividad 8 h y renovación; migra a cookie los tests y helpers de backend que usaban Bearer (la suite queda en verde en el commit) | delegada | [x] `dcb2cef` |
-| T3 | Limpieza del JWT: retirar `@nestjs/jwt`, `JWT_SECRET`, `.env.example`, `scripts/demo/runner.ts` y menciones en código | delegada | [ ] |
+| T3 | Limpieza del JWT: retirar `@nestjs/jwt`, `JWT_SECRET`, `.env.example`, `scripts/demo/runner.ts` y menciones en código | delegada | [x] `9742d22` |
 | T4 | Frontend: `credentials: 'include'`, quitar `almacenTokens`, restaurar sesión al recargar, mocks y tests | delegada | [ ] |
 | T5 | Docs: D-09 retirada en `CUADRA.md`, entrada en `docs/bitacora.md`, estado de la historia | inline | [ ] |
 
@@ -52,7 +52,10 @@ Los de la Story 1.1 en `epics.md`: cookie al iniciar sesión, rotación al elegi
 - Mapeo de solo lectura hecho (explorador): flujo JWT, migraciones, tests y AD-2/AD-6 localizados.
 - T1 hecha (`27905cc`): migración `1790709100000-Sesiones`, entidad `Sesion`, test de privilegios en `src/database/sesiones-privilegios.integracion.spec.ts` (RED: 7 fallos por tabla inexistente; GREEN tras la migración). Verificación: typecheck limpio, esquema.spec + privilegios 42/42, suite completa 40 suites / 859 tests en verde. Lint: sin errores en archivos tocados; `auth.service.spec.ts:263` (no-unsafe-member-access) y warning en `main.ts:34` ya existían.
 - T2 hecha (`dcb2cef`): `SesionesService`, `SesionCookieGuard`, login/empresa/logout por cookie, `cookie-parser` en `main.ts` y en las apps de prueba; helper `src/testing/sesion-de-pruebas.ts`; specs y `scripts/demo/runner.ts` migrados de Bearer a cookie. RED: el spec nuevo no compila en HEAD (falta `sesiones.service`). Verificación: typecheck limpio, lint sin errores (se corrigieron `auth.service.spec.ts:263` y el warning de `main.ts`), suite completa 40 suites / 873 tests en verde.
-- Siguiente paso: T3.
+- T3 hecha (`9742d22`): retirados `@nestjs/jwt` (package.json y lock), `JWT_SECRET` (config, spec, CI), `@ApiBearerAuth` -> `@ApiCookieAuth`, `addBearerAuth` -> `addCookieAuth('cuadra_sesion')` y comentarios de JwtAuthGuard. Sin RED nuevo: refactor cubierto por la suite existente, sin comportamiento nuevo. Verificación: typecheck y lint limpios, suite 40 suites / 872 tests (uno menos: el caso `JWT_SECRET` del `it.each`). `.env.example` aún tiene `JWT_SECRET`; la persona usuaria lo quita a mano. `scripts/` y `docker-compose.yml` no tenían JWT.
+- Flaky preexistente: `cargas.listado.integracion.spec.ts:336` (`not.toContain('77')`) falla al azar cuando un UUID del cuerpo contiene "77"; pasa en el rerun. Fuera de alcance.
+- Punto abierto: Cambiar de empresa con una sesión que ya eligió una devuelve 401 porque POST /auth/empresa/:id sigue con @Scope('seleccion'); AD-6 dice "elegir o cambiar"; decidir en una historia posterior.
+- Siguiente paso: T4.
 
 ## Evidencia de routing
 
