@@ -31,7 +31,7 @@ Reemplazar el JWT de dos tokens de la v1 (D-09) por una fila en `sesiones` con c
 | ID | Tarea | Ruta | Estado |
 |----|-------|------|--------|
 | T1 | Migración + entidad `sesiones`, GRANTs, test de privilegios (solo `sesiones` gana DELETE), `esquema.spec` | delegada | [x] `27905cc` |
-| T2 | Servicio de sesiones, guard por cookie, endpoints login/empresa/logout/contexto, inactividad 8 h y renovación; migra a cookie los tests y helpers de backend que usaban Bearer (la suite queda en verde en el commit) | delegada | [ ] |
+| T2 | Servicio de sesiones, guard por cookie, endpoints login/empresa/logout/contexto, inactividad 8 h y renovación; migra a cookie los tests y helpers de backend que usaban Bearer (la suite queda en verde en el commit) | delegada | [x] `dcb2cef` |
 | T3 | Limpieza del JWT: retirar `@nestjs/jwt`, `JWT_SECRET`, `.env.example`, `scripts/demo/runner.ts` y menciones en código | delegada | [ ] |
 | T4 | Frontend: `credentials: 'include'`, quitar `almacenTokens`, restaurar sesión al recargar, mocks y tests | delegada | [ ] |
 | T5 | Docs: D-09 retirada en `CUADRA.md`, entrada en `docs/bitacora.md`, estado de la historia | inline | [ ] |
@@ -51,7 +51,8 @@ Los de la Story 1.1 en `epics.md`: cookie al iniciar sesión, rotación al elegi
 
 - Mapeo de solo lectura hecho (explorador): flujo JWT, migraciones, tests y AD-2/AD-6 localizados.
 - T1 hecha (`27905cc`): migración `1790709100000-Sesiones`, entidad `Sesion`, test de privilegios en `src/database/sesiones-privilegios.integracion.spec.ts` (RED: 7 fallos por tabla inexistente; GREEN tras la migración). Verificación: typecheck limpio, esquema.spec + privilegios 42/42, suite completa 40 suites / 859 tests en verde. Lint: sin errores en archivos tocados; `auth.service.spec.ts:263` (no-unsafe-member-access) y warning en `main.ts:34` ya existían.
-- Siguiente paso: T2.
+- T2 hecha (`dcb2cef`): `SesionesService`, `SesionCookieGuard`, login/empresa/logout por cookie, `cookie-parser` en `main.ts` y en las apps de prueba; helper `src/testing/sesion-de-pruebas.ts`; specs y `scripts/demo/runner.ts` migrados de Bearer a cookie. RED: el spec nuevo no compila en HEAD (falta `sesiones.service`). Verificación: typecheck limpio, lint sin errores (se corrigieron `auth.service.spec.ts:263` y el warning de `main.ts`), suite completa 40 suites / 873 tests en verde.
+- Siguiente paso: T3.
 
 ## Evidencia de routing
 
