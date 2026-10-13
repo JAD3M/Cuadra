@@ -26,7 +26,12 @@ const TABLAS_DOMINIO = [
   'sugerencias_ia',
 ] as const;
 
-const TODAS_LAS_TABLAS = ['companies', 'users', ...TABLAS_DOMINIO] as const;
+const TODAS_LAS_TABLAS = [
+  'companies',
+  'users',
+  'sesiones',
+  ...TABLAS_DOMINIO,
+] as const;
 
 interface Conteos {
   empresas: number;

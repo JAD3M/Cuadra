@@ -4,6 +4,7 @@
 import { Bitacora } from '../bitacora/bitacora.entity';
 import { Carga } from '../cargas/carga.entity';
 import { CargaArchivo } from '../cargas/carga-archivo.entity';
+import { Sesion } from '../auth/sesion.entity';
 import { Cfdi } from '../cfdi/cfdi.entity';
 import { Company } from '../companies/company.entity';
 import { Conciliacion } from '../conciliacion/conciliacion.entity';
@@ -23,4 +24,5 @@ export const ENTIDADES = [
   Conciliacion,
   Bitacora,
   SugerenciaIa,
+  Sesion,
 ];
