@@ -14,6 +14,12 @@ import {
   type SessionState,
 } from '@/shared/sesion';
 import { SESION_LISTA } from '@/test/fixtures';
+import { contextoFalla, espiarSolicitudes } from '@/test/handlersAuth';
+import {
+  sesionPlataformaAbierta,
+  usarHandlersPlataforma,
+} from '@/test/handlersPlataforma';
+import { montarApp } from '@/test/montarApp';
 import { ESTADOS, terminada } from '@/test/montarRutas';
 import { rutas } from './router';
 
@@ -317,6 +323,46 @@ describe('guardas en el árbol de rutas', () => {
       ),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/__kit');
+  });
+});
+
+describe('mundo de plataforma en el árbol de rutas', () => {
+  const hijos = rutas[0]?.children ?? [];
+
+  it('envuelve /plataforma/login y /plataforma en un proveedor de sesión propio', () => {
+    const capa = hijos.find((h) =>
+      h.children?.some((c) =>
+        c.children?.some((n) => n.path === '/plataforma'),
+      ),
+    );
+    expect(capa).toBeDefined();
+    expect(capa?.path).toBeUndefined();
+    const rutasDeCapa = capa?.children?.flatMap((c) =>
+      (c.children ?? []).map((n) => n.path),
+    );
+    expect(rutasDeCapa).toEqual(['/plataforma/login', '/plataforma']);
+  });
+
+  it('con la cookie de plataforma, una ruta de empresa lleva a /login y no consulta /plataforma', async () => {
+    // El backend responde 403 a `GET /auth/contexto` con una sesión de otro
+    // tipo: la sesión de empresa termina como `sin_acceso`.
+    contextoFalla(403);
+    const espia = espiarSolicitudes();
+    const { router } = montarApp('/bandeja');
+    await screen.findByRole('heading', { level: 1, name: 'Inicia sesión' });
+    expect(router.state.location.pathname).toBe('/login');
+    expect(
+      espia.solicitudes.filter((s) => s.ruta.startsWith('/api/plataforma/')),
+    ).toEqual([]);
+    espia.detener();
+  });
+
+  it('una pantalla interna de plataforma no pasa por la guarda de empresa', async () => {
+    usarHandlersPlataforma();
+    sesionPlataformaAbierta();
+    const { router } = montarApp('/plataforma');
+    await screen.findByRole('heading', { level: 1, name: 'Empresas' });
+    expect(router.state.location.pathname).toBe('/plataforma');
   });
 });
 

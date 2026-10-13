@@ -1,4 +1,13 @@
-import { createBrowserRouter, Navigate, type RouteObject } from 'react-router';
+import {
+  createBrowserRouter,
+  Navigate,
+  Outlet,
+  type RouteObject,
+} from 'react-router';
+import { PlataformaLoginPage } from '@/features/plataforma/PlataformaLoginPage';
+import { PlataformaPage } from '@/features/plataforma/PlataformaPage';
+import { TEXTOS_PLATAFORMA } from '@/features/plataforma/textos';
+import { SesionPlataformaProvider } from '@/shared/sesion/plataforma';
 import { EmpresaPage } from '@/features/auth/EmpresaPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { BandejaPage } from '@/features/bandeja/BandejaPage';
@@ -22,6 +31,8 @@ import { ShellLayout } from './shell/ShellLayout';
 import type { ManejadorRuta } from './manejadorRuta';
 import { RutaRaiz } from './RutaRaiz';
 import { RutaAnonima, RutaProtegida, RutaSeleccion } from './rutas';
+import { RutaAnonimaPlataforma } from './rutas/RutaAnonimaPlataforma';
+import { RutaPlataforma } from './rutas/RutaPlataforma';
 
 function titulo(titulo: string): ManejadorRuta {
   return { titulo };
@@ -118,6 +129,37 @@ export const rutas: RouteObject[] = [
                   titulo: TITULO_BITACORA,
                   subtitulo: SUBTITULO_BITACORA,
                 } satisfies ManejadorRuta,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        // Mundo de plataforma: su sesión se monta solo bajo estas rutas y no
+        // comparte estado ni endpoints con la de empresa.
+        element: (
+          <SesionPlataformaProvider>
+            <Outlet />
+          </SesionPlataformaProvider>
+        ),
+        children: [
+          {
+            element: <RutaAnonimaPlataforma />,
+            children: [
+              {
+                path: '/plataforma/login',
+                element: <PlataformaLoginPage />,
+                handle: titulo(TEXTOS_PLATAFORMA.tituloAcceso),
+              },
+            ],
+          },
+          {
+            element: <RutaPlataforma />,
+            children: [
+              {
+                path: '/plataforma',
+                element: <PlataformaPage />,
+                handle: titulo(TEXTOS_PLATAFORMA.tituloEmpresas),
               },
             ],
           },

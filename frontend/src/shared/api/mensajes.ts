@@ -1,6 +1,11 @@
 import { ApiError, ContratoError, NetworkError } from '@/shared/api/errores';
 
-export type ContextoMensaje = 'login' | 'seleccion' | 'general';
+/**
+ * `plataforma` es el acceso del dueño de Cuadra: ni 403 ni empresas tienen el
+ * significado que tienen en el acceso de empresa, y el límite de intentos
+ * (429) se explica con su propio texto.
+ */
+export type ContextoMensaje = 'login' | 'seleccion' | 'general' | 'plataforma';
 
 export type TipoMensaje =
   | 'credenciales'
@@ -26,6 +31,12 @@ const CREDENCIALES: MensajeError = {
   titulo: 'Correo o contraseña incorrectos',
   detalle: 'Revisa tus datos e inténtalo de nuevo.',
   tipo: 'credenciales',
+};
+
+const LIMITE: MensajeError = {
+  titulo: 'Demasiados intentos.',
+  detalle: 'Espera un momento e inténtalo de nuevo.',
+  tipo: 'otro',
 };
 
 const SIN_EMPRESAS: MensajeError = {
@@ -71,6 +82,13 @@ export function mensajeDeError(
 
   if (error instanceof ApiError) {
     if (error.statusCode >= 500) return CONEXION;
+    if (contexto === 'plataforma') {
+      if (error.statusCode === 401 || error.statusCode === 400) {
+        return CREDENCIALES;
+      }
+      if (error.statusCode === 429) return LIMITE;
+      return error.statusCode === 403 ? SIN_PERMISO : OTRO;
+    }
     if (
       contexto === 'login' &&
       (error.statusCode === 401 || error.statusCode === 400)

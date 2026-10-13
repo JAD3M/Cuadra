@@ -1,0 +1,27 @@
+/* Marca de Plataforma.dc.html: logo, nombre y chip. Solo tokens de rol. */
+.marca {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-inline-size: 0;
+}
+
+.logo {
+  flex-shrink: 0;
+  color: var(--estado-conciliado-accent);
+}
+
+.nombre {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-tight);
+}
+
+.chip {
+  padding: var(--space-4) var(--space-10);
+  border-radius: var(--radius-full);
+  background: var(--estado-sin-match-tint);
+  color: var(--estado-sin-match-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
