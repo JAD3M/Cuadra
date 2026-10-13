@@ -81,7 +81,7 @@ interface Archivo {
 function subir(token: string, archivos: Archivo[]) {
   let req = request(app.getHttpServer())
     .post('/cargas/cfdi')
-    .auth(token, { type: 'bearer' });
+    .set('Cookie', token);
   for (const { nombre, contenido } of archivos) {
     req = req.attach('archivos', Buffer.from(contenido), nombre);
   }
@@ -113,7 +113,7 @@ async function subirChunked(
       {
         method: 'POST',
         headers: {
-          authorization: `Bearer ${token}`,
+          cookie: token,
           'content-type': `multipart/form-data; boundary=${frontera}`,
           'transfer-encoding': 'chunked',
         },
@@ -736,7 +736,7 @@ describe('POST /cargas/cfdi, acceso y límites (CU-06)', () => {
     it('sin archivos', async () => {
       const res = await request(app.getHttpServer())
         .post('/cargas/cfdi')
-        .auth(await tokenSesion(ANA, FERRETERIA), { type: 'bearer' })
+        .set('Cookie', await tokenSesion(ANA, FERRETERIA))
         .expect(400);
       expect(mensaje(res)).toMatch(/al menos un archivo/);
     });
@@ -756,7 +756,7 @@ describe('GET /cargas/:id (CU-06, CU-07, CU-08)', () => {
   it('su empresa ve estado, contadores y resultado por archivo: 200', async () => {
     const res = await request(app.getHttpServer())
       .get(`/cargas/${cargaTransportes}`)
-      .auth(await tokenSesion(JORGE, TRANSPORTES), { type: 'bearer' })
+      .set('Cookie', await tokenSesion(JORGE, TRANSPORTES))
       .expect(200);
 
     expect(res.body).toEqual({
@@ -777,11 +777,11 @@ describe('GET /cargas/:id (CU-06, CU-07, CU-08)', () => {
     const ajena = await request(app.getHttpServer())
       .get(`/cargas/${cargaTransportes}`)
       .query({ companyId: entorno.empresa(TRANSPORTES) })
-      .auth(token, { type: 'bearer' })
+      .set('Cookie', token)
       .expect(404);
     const inexistente = await request(app.getHttpServer())
       .get(`/cargas/${randomUUID()}`)
-      .auth(token, { type: 'bearer' })
+      .set('Cookie', token)
       .expect(404);
 
     expect(ajena.body).toEqual(inexistente.body);

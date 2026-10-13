@@ -11,6 +11,7 @@ const SESION: UsuarioAutenticado = {
   userId: 'usuario-1',
   scope: 'sesion',
   companyId: 'empresa-a',
+  sesionId: 'sesion-1',
 };
 
 function contexto(user: UsuarioAutenticado): ExecutionContext {
@@ -67,16 +68,22 @@ describe('RolesGuard', () => {
     );
   });
 
-  it('lee los roles de la base con el usuario y la empresa del token', async () => {
+  it('lee los roles de la base con el usuario y la empresa de la sesión', async () => {
     const { guard: g, rolesEnEmpresa } = guard(['admin'], ['admin']);
     await g.canActivate(contexto(SESION));
     expect(rolesEnEmpresa).toHaveBeenCalledWith('usuario-1', 'empresa-a');
   });
 
-  it('no consulta roles con un token de selección', async () => {
+  it('no consulta roles con una sesión sin empresa', async () => {
     const { guard: g, rolesEnEmpresa } = guard([], ['admin']);
     await expect(
-      g.canActivate(contexto({ userId: 'usuario-1', scope: 'seleccion' })),
+      g.canActivate(
+        contexto({
+          userId: 'usuario-1',
+          scope: 'seleccion',
+          sesionId: 'sesion-1',
+        }),
+      ),
     ).resolves.toBe(true);
     expect(rolesEnEmpresa).not.toHaveBeenCalled();
   });

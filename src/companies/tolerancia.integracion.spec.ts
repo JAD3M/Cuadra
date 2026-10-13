@@ -75,13 +75,13 @@ const bitacora = (accion: string) =>
 async function get(email: string, rfc: string) {
   return request(entorno.app.getHttpServer())
     .get('/empresa/tolerancia')
-    .auth(await entorno.token(email, rfc), { type: 'bearer' });
+    .set('Cookie', await entorno.token(email, rfc));
 }
 
 async function put(email: string, rfc: string, cuerpo: unknown) {
   return request(entorno.app.getHttpServer())
     .put('/empresa/tolerancia')
-    .auth(await entorno.token(email, rfc), { type: 'bearer' })
+    .set('Cookie', await entorno.token(email, rfc))
     .send(cuerpo as object);
 }
 

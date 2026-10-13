@@ -9,16 +9,15 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { JwtService } from '@nestjs/jwt';
 import { UserCompanyRole } from '../companies/user-company-role.entity';
-import { ContextoSesion, EmpresaDisponible, JwtPayload } from './tipos';
+import { SesionesService } from './sesiones.service';
+import type {
+  ContextoSesion,
+  EmpresaDisponible,
+  ResultadoLogin,
+} from './tipos';
 import { ROLES, type Rol } from '../common/entities/tipos';
 import { normalizarEmail } from '../users/email';
-import { RespuestaLoginDto, RespuestaTokenDto } from './dto/respuestas.dto';
-
-/** D-09. Cada firma pasa la suya; el default del módulo es solo la red. */
-const DURACION_SELECCION = '5m';
-const DURACION_SESION = '15m';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -27,7 +26,7 @@ export class AuthService implements OnModuleInit {
     @InjectRepository(UserCompanyRole)
     private readonly userCompanyRoleRepository: Repository<UserCompanyRole>,
     private readonly passwordHasher: PasswordHasher,
-    private readonly jwtService: JwtService,
+    private readonly sesiones: SesionesService,
   ) {}
   hashFalso!: string;
   async onModuleInit() {
@@ -92,18 +91,18 @@ export class AuthService implements OnModuleInit {
     return ROLES.filter((rol) => roles.includes(rol));
   }
 
-  /** Paso 1 de D-09: credenciales → token de selección + empresas para elegir. */
-  async login(email: string, password: string): Promise<RespuestaLoginDto> {
+  /**
+   * Paso 1 (AD-6): valida credenciales y abre una sesión sin empresa elegida.
+   * El token solo sale para que el controlador lo ponga en la cookie.
+   */
+  async login(email: string, password: string): Promise<ResultadoLogin> {
     const user = await this.validarCredenciales(email, password);
     const empresas = await this.consultarCompanies(user.id);
     if (empresas.length === 0) {
       // Las credenciales eran correctas: no es un 401.
       throw new ForbiddenException('El usuario no tiene empresas asignadas');
     }
-    const token = await this.firmar(
-      { sub: user.id, scope: 'seleccion' },
-      DURACION_SELECCION,
-    );
+    const { token } = await this.sesiones.crear(user.id, 'empresa');
     return {
       token,
       usuario: { id: user.id, nombre: user.nombre, email: user.email },
@@ -112,28 +111,28 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Paso 2 de D-09: canjea el token de selección por uno de sesión. El
-   * `companyId` viene del cliente, así que se valida contra la base antes
-   * de firmarlo.
+   * Paso 2 (AD-6): la misma fila de `sesiones` gana la empresa y el token
+   * rota. El `companyId` viene del cliente, así que se valida contra la base
+   * antes de tocar la sesión: un 403 la deja como estaba. Devuelve el token
+   * nuevo para la cookie.
    */
   async seleccionarEmpresa(
     userId: string,
+    sesionId: string,
     companyId: string,
-  ): Promise<RespuestaTokenDto> {
+  ): Promise<string> {
     const roles = await this.rolesEnEmpresa(userId, companyId);
     if (roles.length === 0) {
       throw new ForbiddenException('Sin acceso a esta empresa');
     }
-    const token = await this.firmar(
-      { sub: userId, scope: 'sesion', companyId },
-      DURACION_SESION,
-    );
-    return { token };
+    const token = await this.sesiones.elegirEmpresa(sesionId, companyId);
+    if (token === null) throw new UnauthorizedException('No autorizado');
+    return token;
   }
 
   /**
    * Roles vigentes del usuario en una empresa, leídos en cada request
-   * (D-09): revocar un rol, desactivar al usuario o a la empresa surte
+   * (AD-6): revocar un rol, desactivar al usuario o a la empresa surte
    * efecto de inmediato. Vacío = sin acceso.
    */
   async rolesEnEmpresa(userId: string, companyId: string): Promise<Rol[]> {
@@ -150,9 +149,9 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Quién es el usuario del token de sesión, en qué empresa y con qué roles.
-   * Todo se lee de la base en cada llamada (D-09); el `companyId` viene solo
-   * del token firmado y el predicado es el mismo de `rolesEnEmpresa`.
+   * Quién es el usuario de la sesión, en qué empresa y con qué roles. Todo se
+   * lee de la base en cada llamada (AD-6); el `companyId` viene solo de la
+   * fila de `sesiones` y el predicado es el mismo de `rolesEnEmpresa`.
    */
   async contexto(userId: string, companyId: string): Promise<ContextoSesion> {
     // `select` anidado: el hash de la contraseña ni siquiera se hidrata.
@@ -183,13 +182,5 @@ export class AuthService implements OnModuleInit {
       },
       roles: this.ordenarRoles(filas.map((fila) => fila.rol)),
     };
-  }
-
-  /** Único punto de firma: la duración es obligatoria, nunca se omite. */
-  private firmar(
-    payload: JwtPayload,
-    expiresIn: typeof DURACION_SELECCION | typeof DURACION_SESION,
-  ): Promise<string> {
-    return this.jwtService.signAsync(payload, { expiresIn });
   }
 }

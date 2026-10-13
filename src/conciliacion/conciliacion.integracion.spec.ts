@@ -784,7 +784,7 @@ describe('conciliar (CU-11): gancho del worker', () => {
   async function subirCfdi(token: string) {
     const res = await request(entorno.app.getHttpServer())
       .post('/cargas/cfdi')
-      .auth(token, { type: 'bearer' })
+      .set('Cookie', token)
       .attach('archivos', Buffer.from(xmlCfdi()), 'pue.xml')
       .expect(202);
     return entorno.esperarFin(token, (res.body as RespuestaDeCarga).id);
@@ -793,7 +793,7 @@ describe('conciliar (CU-11): gancho del worker', () => {
   async function subirEstado(token: string) {
     const res = await request(entorno.app.getHttpServer())
       .post('/cargas/estado-cuenta')
-      .auth(token, { type: 'bearer' })
+      .set('Cookie', token)
       .field('banco', 'BANCO SINTETICO')
       .field('cuenta', '****1234')
       .attach(

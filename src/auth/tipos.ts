@@ -2,29 +2,23 @@ import type { Rol } from '../common/entities/tipos';
 
 export type Scope = 'seleccion' | 'sesion';
 
-/** Lo que va firmado dentro del JWT. Mínimo: identidad, no permisos. */
-export type JwtPayload =
-  | {
-      sub: string; // user_id
-      scope: 'seleccion';
-      companyId?: never;
-    }
-  | {
-      sub: string;
-      scope: 'sesion';
-      companyId: string;
-    };
-
-/** Lo que la JwtStrategy deja en request.user. */
+/**
+ * Lo que el guard de sesión deja en request.user (AD-6). Identidad, no
+ * permisos: los roles se leen de la base en cada petición. 'seleccion' =
+ * sesión sin empresa elegida (`company_id` nulo); 'sesion' = con empresa.
+ */
 export type UsuarioAutenticado =
   | {
       userId: string;
       scope: 'seleccion';
+      /** Fila de `sesiones` de esta petición. */
+      sesionId: string;
       companyId?: never;
     }
   | {
       userId: string;
       scope: 'sesion';
+      sesionId: string;
       companyId: string;
     };
 
@@ -49,9 +43,16 @@ export interface EmpresaContexto {
   rfc: string;
 }
 
-/** Quién es, en qué empresa y con qué roles (token de sesión). */
+/** Quién es, en qué empresa y con qué roles (sesión con empresa). */
 export interface ContextoSesion {
   usuario: UsuarioPublico;
   empresa: EmpresaContexto;
   roles: Rol[];
+}
+
+/** Lo que devuelve el login: el token va a la cookie, nunca al cuerpo. */
+export interface ResultadoLogin {
+  token: string;
+  usuario: UsuarioPublico;
+  empresas: EmpresaDisponible[];
 }

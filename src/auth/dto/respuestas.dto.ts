@@ -69,26 +69,16 @@ export class ContextoSesionDto implements ContextoSesion {
   roles!: Rol[];
 }
 
+/**
+ * El token de sesión viaja solo en la cookie `cuadra_sesion` (httpOnly):
+ * nunca en el cuerpo.
+ */
 export class RespuestaLoginDto {
-  @ApiProperty({
-    description:
-      "Token de selección (scope 'seleccion', 5 min). Solo sirve para canjearlo en POST /auth/empresa/:id.",
-  })
-  token!: string;
-
   @ApiProperty({ type: UsuarioPublicoDto })
   usuario!: UsuarioPublicoDto;
 
   @ApiProperty({ type: [EmpresaDisponibleDto] })
   empresas!: EmpresaDisponibleDto[];
-}
-
-export class RespuestaTokenDto {
-  @ApiProperty({
-    description:
-      "Token de sesión (scope 'sesion', 15 min) ligado a la empresa elegida.",
-  })
-  token!: string;
 }
 
 /** Forma de los errores que responde Nest, para documentarlos en Swagger. */

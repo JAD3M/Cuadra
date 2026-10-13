@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import request from 'supertest';
+import { abrirSesion } from '../testing/sesion-de-pruebas';
 import type { DataSource } from 'typeorm';
 import {
   ANA,
@@ -12,8 +13,6 @@ import {
   TRANSPORTES,
 } from '../cargas/testing/app-de-cargas';
 import { una } from '../database/testing/base-de-pruebas';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import { aTexto, dinero, sumar } from '../common/dinero';
 import type { RespuestaBandejaDto, ResumenBandejaDto } from './dto/bandeja.dto';
 
@@ -143,7 +142,7 @@ async function cerrado(empresa: string, monto = '1160.00'): Promise<string> {
 const consultar = (token: string, query = '') =>
   request(entorno.app.getHttpServer())
     .get(`/bandeja${query}`)
-    .auth(token, { type: 'bearer' });
+    .set('Cookie', token);
 
 async function listar(
   query = '',
@@ -226,7 +225,7 @@ describe('RS-C5 tras confirmar de verdad (CU-15)', () => {
 
     await request(entorno.app.getHttpServer())
       .post(`/conciliaciones/${id}/confirmar`)
-      .auth(tokenA, { type: 'bearer' })
+      .set('Cookie', tokenA)
       .expect(200);
 
     expect(ids(await listar())).toEqual([]);
@@ -526,7 +525,7 @@ const ESTADOS = ['conciliado', 'sugerencia', 'sin_match'] as const;
 const resumir = (token: string, query = '') =>
   request(entorno.app.getHttpServer())
     .get(`/bandeja/resumen${query}`)
-    .auth(token, { type: 'bearer' });
+    .set('Cookie', token);
 
 async function resumen(token = tokenA, query = ''): Promise<ResumenBandejaDto> {
   const res = await resumir(token, query).expect(200);
@@ -732,14 +731,9 @@ describe('RS-4 aislamiento y acceso', () => {
       .expect(401);
   });
 
-  it('R9: un token de selección de empresa es 401', async () => {
-    const jwt = new JwtService({
-      secret: entorno.app.get(ConfigService).getOrThrow<string>('JWT_SECRET'),
-    });
-    const token = await jwt.signAsync(
-      { sub: entorno.persona(ANA), scope: 'seleccion' },
-      { expiresIn: '5m' },
-    );
+  it('R9: una sesión sin empresa elegida es 401', async () => {
+    // Sesión abierta pero sin empresa elegida (`company_id` nulo).
+    const token = await abrirSesion(entorno.ds, entorno.persona(ANA), null);
     await resumir(token).expect(401);
   });
 

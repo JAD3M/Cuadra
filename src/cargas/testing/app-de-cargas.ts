@@ -1,10 +1,10 @@
 // src/cargas/testing/app-de-cargas.ts
 import { getQueueToken } from '@nestjs/bullmq';
 import { type INestApplication, ValidationPipe } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
+import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import cookieParser from 'cookie-parser';
 import type { Queue } from 'bullmq';
 import request from 'supertest';
 import type { App } from 'supertest/types';
@@ -13,7 +13,6 @@ import { AuthModule } from '../../auth/auth.module';
 import { BandejaModule } from '../../bandeja/bandeja.module';
 import { BitacoraModule } from '../../bitacora/bitacora.module';
 import { CasosModule } from '../../casos/casos.module';
-import type { JwtPayload } from '../../auth/tipos';
 import { ColasModule } from '../../colas/colas.module';
 import { CompaniesModule } from '../../companies/companies.module';
 import { validateEnv } from '../../config/env.validation';
@@ -25,6 +24,7 @@ import { ResolucionModule } from '../../resolucion/resolucion.module';
 import { COLA_SUGERENCIAS } from '../../sugerencias/cola-sugerencias';
 import { ProveedorSugerencia } from '../../sugerencias/proveedor-sugerencia';
 import { sembrar } from '../../database/seeds/seed';
+import { abrirSesion } from '../../testing/sesion-de-pruebas';
 import {
   crearBaseDePruebas,
   una,
@@ -157,6 +157,7 @@ export async function levantarAppDeCargas(
 
   const app = modulo.createNestApplication<INestApplication<App>>();
   // Igual que main.ts.
+  app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -165,13 +166,10 @@ export async function levantarAppDeCargas(
     }),
   );
   await app.listen(0);
-  const jwt = new JwtService({
-    secret: app.get(ConfigService).getOrThrow<string>('JWT_SECRET'),
-  });
 
   /**
-   * Un typo en una llave daría `undefined`, y un token con `sub: undefined`
-   * lo rechaza el guard con 401: el test pasaría por la razón equivocada.
+   * Un typo en una llave daría `undefined`, y una sesión sin usuario no se
+   * puede insertar: el test fallaría por la razón equivocada.
    */
   const de = (mapa: Map<string, string>, llave: string): string => {
     const valor = mapa.get(llave);
@@ -182,7 +180,7 @@ export async function levantarAppDeCargas(
   const consultar = async (token: string, id: string) => {
     const res = await request(app.getHttpServer())
       .get(`/cargas/${id}`)
-      .auth(token, { type: 'bearer' })
+      .set('Cookie', token)
       .expect(200);
     return res.body as EstadoDeCarga;
   };
@@ -192,16 +190,10 @@ export async function levantarAppDeCargas(
     ds,
     empresa: (rfc) => de(empresas, rfc),
     persona: (email) => de(personas, email),
-    // Firmados a mano, sin pasar por el login (eso lo prueba CU-03). Misma
-    // duración que D-09.
-    token: (email, rfc) => {
-      const payload: JwtPayload = {
-        sub: de(personas, email),
-        scope: 'sesion',
-        companyId: de(empresas, rfc),
-      };
-      return jwt.signAsync(payload, { expiresIn: '15m' });
-    },
+    // Sesión abierta directo en `sesiones`, sin pasar por el login (eso lo
+    // prueba CU-03). El "token" es el encabezado `Cookie` ya armado.
+    token: (email, rfc) =>
+      abrirSesion(ds, de(personas, email), de(empresas, rfc)),
     consultar,
     esperarFin: async (token, id) => {
       const limite = Date.now() + 20_000;

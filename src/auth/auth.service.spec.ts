@@ -3,18 +3,17 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import type { Repository } from 'typeorm';
 import type { User } from '../users/user.entity';
 import type { UserCompanyRole } from '../companies/user-company-role.entity';
 import type { Rol } from '../common/entities/tipos';
 import { AuthService } from './auth.service';
 import { PasswordHasher } from './password';
+import type { SesionesService } from './sesiones.service';
 
 /**
- * Unitarias: repositorios simulados, hasher y JwtService reales. El
- * JwtService se arma con el mismo default que AuthModule ('5m') para que los
- * tests de duración prueben que cada firma pasa la suya.
+ * Unitarias: repositorios y servicio de sesiones simulados, hasher real. La
+ * sesión con cookie la prueba de punta a punta auth.integracion.spec.
  */
 
 const PASSWORD = 'correcta-123';
@@ -30,10 +29,11 @@ const EMPRESA_B = {
 };
 
 let service: AuthService;
-let jwt: JwtService;
 let usuario: User;
 const buscarUsuario = jest.fn();
 const buscarRoles = jest.fn();
+const crearSesion = jest.fn();
+const elegirEmpresa = jest.fn();
 
 beforeAll(async () => {
   usuario = {
@@ -48,26 +48,22 @@ beforeAll(async () => {
 beforeEach(async () => {
   buscarUsuario.mockReset();
   buscarRoles.mockReset();
-  jwt = new JwtService({
-    secret: 'secreto-de-pruebas-unitarias',
-    signOptions: { expiresIn: '5m' },
-  });
+  crearSesion.mockReset().mockResolvedValue({ token: 'token-nuevo' });
+  elegirEmpresa.mockReset().mockResolvedValue('token-rotado');
   service = new AuthService(
     { findOne: buscarUsuario } as unknown as Repository<User>,
     { find: buscarRoles } as unknown as Repository<UserCompanyRole>,
     new PasswordHasher(),
-    jwt,
+    {
+      crear: crearSesion,
+      elegirEmpresa,
+    } as unknown as SesionesService,
   );
   await service.onModuleInit();
 });
 
 function filaRol(empresa: typeof EMPRESA_A, rol: Rol) {
   return { companyId: empresa.id, rol, company: empresa };
-}
-
-function duracion(token: string): number {
-  const { exp, iat } = jwt.decode<{ exp: number; iat: number }>(token);
-  return exp - iat;
 }
 
 describe('AuthService.login', () => {
@@ -175,51 +171,55 @@ describe('AuthService.login', () => {
     }
   });
 
-  it('firma un token de selección de 300 s con solo sub y scope', async () => {
+  it('abre una sesión de tipo empresa sin empresa elegida y devuelve su token', async () => {
     buscarUsuario.mockResolvedValueOnce(usuario);
     buscarRoles.mockResolvedValueOnce([filaRol(EMPRESA_A, 'admin')]);
 
     const { token } = await service.login(usuario.email, PASSWORD);
-    const payload = jwt.decode<Record<string, unknown>>(token);
 
-    expect(duracion(token)).toBe(300);
-    expect(payload).toMatchObject({ sub: usuario.id, scope: 'seleccion' });
-    expect(payload).not.toHaveProperty('companyId');
-    expect(payload).not.toHaveProperty('roles');
+    expect(token).toBe('token-nuevo');
+    expect(crearSesion).toHaveBeenCalledWith(usuario.id, 'empresa');
+  });
+
+  it('con credenciales malas o sin empresas no abre sesión', async () => {
+    buscarUsuario.mockResolvedValueOnce(usuario);
+    await service.login(usuario.email, 'incorrecta').catch(() => undefined);
+    buscarUsuario.mockResolvedValueOnce(usuario);
+    buscarRoles.mockResolvedValueOnce([]);
+    await service.login(usuario.email, PASSWORD).catch(() => undefined);
+
+    expect(crearSesion).not.toHaveBeenCalled();
   });
 });
 
 describe('AuthService.seleccionarEmpresa', () => {
-  it('firma un token de sesión de 900 s con la empresa', async () => {
+  it('rota la sesión a la empresa elegida y devuelve el token nuevo', async () => {
     buscarRoles.mockResolvedValueOnce([{ rol: 'contador' }]);
 
-    const { token } = await service.seleccionarEmpresa(
+    const token = await service.seleccionarEmpresa(
       usuario.id,
+      'sesion-1',
       EMPRESA_A.id,
     );
-    const payload = jwt.decode<Record<string, unknown>>(token);
 
-    expect(duracion(token)).toBe(900);
-    expect(payload).toMatchObject({
-      sub: usuario.id,
-      scope: 'sesion',
-      companyId: EMPRESA_A.id,
-    });
-    expect(payload).not.toHaveProperty('roles');
+    expect(token).toBe('token-rotado');
+    expect(elegirEmpresa).toHaveBeenCalledWith('sesion-1', EMPRESA_A.id);
   });
 
   it('da 403 si no tiene roles en esa empresa', async () => {
     buscarRoles.mockResolvedValueOnce([]);
 
     await expect(
-      service.seleccionarEmpresa(usuario.id, EMPRESA_B.id),
+      service.seleccionarEmpresa(usuario.id, 'sesion-1', EMPRESA_B.id),
     ).rejects.toThrow(ForbiddenException);
+    // El 403 deja la sesión como estaba.
+    expect(elegirEmpresa).not.toHaveBeenCalled();
   });
 
   it('consulta los roles filtrando por usuario, empresa y vigencia', async () => {
     buscarRoles.mockResolvedValueOnce([{ rol: 'admin' }]);
 
-    await service.seleccionarEmpresa(usuario.id, EMPRESA_A.id);
+    await service.seleccionarEmpresa(usuario.id, 'sesion-1', EMPRESA_A.id);
 
     expect(buscarRoles).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -260,9 +260,9 @@ describe('AuthService.contexto', () => {
 
     await service.contexto(user.id, EMPRESA_A.id);
 
-    const consulta = buscarRoles.mock.calls[0][0] as {
-      select: { user: Record<string, boolean> };
-    };
+    const [consulta] = buscarRoles.mock.calls[0] as [
+      { select: { user: Record<string, boolean> } },
+    ];
     expect(consulta).toMatchObject({
       where: {
         userId: user.id,

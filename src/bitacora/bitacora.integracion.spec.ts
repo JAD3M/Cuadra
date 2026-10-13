@@ -132,19 +132,19 @@ async function crearDelMotor(
 const confirmar = (id: string, token = tokenAna) =>
   request(entorno.app.getHttpServer())
     .post(`/conciliaciones/${id}/confirmar`)
-    .auth(token, { type: 'bearer' })
+    .set('Cookie', token)
     .send();
 
 const rechazar = (id: string, token = tokenAna) =>
   request(entorno.app.getHttpServer())
     .post(`/conciliaciones/${id}/rechazar`)
-    .auth(token, { type: 'bearer' })
+    .set('Cookie', token)
     .send({ motivo: 'No corresponde' });
 
 const historial = (id: string, token = tokenAna) =>
   request(entorno.app.getHttpServer())
     .get(`/conciliaciones/${id}/historial`)
-    .auth(token, { type: 'bearer' });
+    .set('Cookie', token);
 
 interface Evento {
   id: string;
@@ -292,7 +292,7 @@ interface Pagina {
 const bitacora = (consulta = '', token = tokenAna) =>
   request(entorno.app.getHttpServer())
     .get(`/bitacora${consulta}`)
-    .auth(token, { type: 'bearer' });
+    .set('Cookie', token);
 
 const paginaDe = (res: request.Response) => res.body as Pagina;
 
@@ -576,7 +576,7 @@ interface UsuarioListado {
 const usuarios = (token = tokenAna) =>
   request(entorno.app.getHttpServer())
     .get('/bitacora/usuarios')
-    .auth(token, { type: 'bearer' });
+    .set('Cookie', token);
 
 const listadoDe = (res: request.Response) =>
   (res.body as { datos: UsuarioListado[] }).datos;
@@ -758,7 +758,7 @@ describe('AU-26: GET /bitacora/usuarios', () => {
       request(servidor).delete('/bitacora/usuarios'),
     ];
     for (const peticion of verbos) {
-      const res = await peticion.auth(tokenAna, { type: 'bearer' }).send({});
+      const res = await peticion.set('Cookie', tokenAna).send({});
       expect([404, 405]).toContain(res.status);
     }
     expect(await cuentaBitacora()).toBe(antes);

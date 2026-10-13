@@ -122,7 +122,6 @@ interface EventoHistorial {
 
 /** Los campos de las respuestas que el runner lee; el resto se ignora. */
 interface CuerpoHttp extends Partial<EstadoCargaHttp> {
-  token?: string;
   empresas?: Array<{ id: string; razonSocial: string }>;
   datos?: unknown;
 }
@@ -130,6 +129,8 @@ interface CuerpoHttp extends Partial<EstadoCargaHttp> {
 interface Respuesta {
   status: number;
   cuerpo: CuerpoHttp | null;
+  /** `cuadra_sesion=<token>` si la respuesta fijó la cookie de sesión. */
+  cookie: string | null;
 }
 
 interface EstadoCargaHttp {
@@ -210,7 +211,8 @@ export async function ejecutarDemo(
     cuerpo?: unknown,
   ): Promise<Respuesta> {
     const headers: Record<string, string> = {};
-    if (token) headers.authorization = `Bearer ${token}`;
+    // `token` es el valor de la cookie de sesión: `cuadra_sesion=<token>`.
+    if (token) headers.cookie = token;
     let body: FormData | string | undefined;
     if (cuerpo instanceof FormData) body = cuerpo;
     else if (cuerpo !== undefined) {
@@ -230,7 +232,14 @@ export async function ejecutarDemo(
     } catch {
       json = null;
     }
-    return { status: res.status, cuerpo: json };
+    const fijada = res.headers
+      .getSetCookie()
+      .find((c) => c.startsWith('cuadra_sesion='));
+    return {
+      status: res.status,
+      cuerpo: json,
+      cookie: fijada ? fijada.split(';')[0] : null,
+    };
   }
 
   const esperarHasta = async <T>(
@@ -274,9 +283,9 @@ export async function ejecutarDemo(
     const elegida = await http(
       'POST',
       `/auth/empresa/${destino.id}`,
-      login.cuerpo?.token,
+      login.cookie ?? undefined,
     );
-    const token = elegida.cuerpo?.token;
+    const token = elegida.cookie;
     if (elegida.status !== 200 || !token) {
       throw fallar(`seleccionar empresa devolvió ${elegida.status}`);
     }

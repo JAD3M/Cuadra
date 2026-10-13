@@ -11,8 +11,8 @@ import { TransaccionEmpresa } from './transaccion-empresa';
 
 /**
  * Global. Corre después de los guards, así que `request.user` ya está
- * validado. Solo el token de sesión abre transacción de empresa: `@Publico`
- * no trae usuario y el de selección no trae empresa.
+ * validado. Solo la sesión con empresa abre transacción de empresa:
+ * `@Publico` no trae usuario y la sesión sin empresa elegida no trae empresa.
  */
 @Injectable()
 export class TransaccionEmpresaInterceptor implements NestInterceptor {

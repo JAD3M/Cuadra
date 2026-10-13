@@ -150,13 +150,13 @@ async function propuesta(empresa = A, diferencia = '0.0000') {
 const rechazar = (id: string, token = tokenAna, cuerpo: object = {}) =>
   request(entorno.app.getHttpServer())
     .post(`/conciliaciones/${id}/rechazar`)
-    .auth(token, { type: 'bearer' })
+    .set('Cookie', token)
     .send(cuerpo);
 
 const confirmar = (id: string, token = tokenAna) =>
   request(entorno.app.getHttpServer())
     .post(`/conciliaciones/${id}/confirmar`)
-    .auth(token, { type: 'bearer' })
+    .set('Cookie', token)
     .send();
 
 const estadoDe = async (tabla: 'cfdi' | 'movimientos', id: string) =>

@@ -822,7 +822,7 @@ describe('integración con CU-14, CU-15 y CU-16 (IA-26 a IA-28)', () => {
   });
 
   const http = () => request(entorno.app.getHttpServer());
-  const conToken = (r: request.Test) => r.auth(token, { type: 'bearer' });
+  const conToken = (r: request.Test) => r.set('Cookie', token);
 
   it('IA-26: la bandeja lista la propuesta llm con score NULL, sin exponer el origen', async () => {
     const { m } = await ambiguo();

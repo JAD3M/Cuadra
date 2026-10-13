@@ -1,8 +1,7 @@
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { createHash, randomUUID } from 'crypto';
 import request from 'supertest';
+import { abrirSesion } from '../testing/sesion-de-pruebas';
 import type { DataSource } from 'typeorm';
 import type { EstadoCarga, TipoCarga } from '../common/entities/tipos';
 import { una } from '../database/testing/base-de-pruebas';
@@ -114,7 +113,7 @@ async function carga(s: Semilla): Promise<string> {
 const listar = (token: string, consulta = '') =>
   request(entorno.app.getHttpServer())
     .get(`/cargas${consulta}`)
-    .auth(token, { type: 'bearer' });
+    .set('Cookie', token);
 
 /** El cuerpo de la respuesta como `unknown`: cada test lo estrecha con `datos`. */
 const cuerpo = async (respuesta: request.Test): Promise<unknown> =>
@@ -164,14 +163,9 @@ describe('CRL-1 endpoint, acceso y forma', () => {
     await request(entorno.app.getHttpServer()).get('/cargas').expect(401);
   });
 
-  it('un token de selección responde 401', async () => {
-    const jwt = new JwtService({
-      secret: entorno.app.get(ConfigService).getOrThrow<string>('JWT_SECRET'),
-    });
-    const token = await jwt.signAsync(
-      { sub: entorno.persona(ANA), scope: 'seleccion' },
-      { expiresIn: '5m' },
-    );
+  it('una sesión sin empresa elegida responde 401', async () => {
+    // Sesión abierta pero sin empresa elegida (`company_id` nulo).
+    const token = await abrirSesion(entorno.ds, entorno.persona(ANA), null);
     await listar(token).expect(401);
   });
 
@@ -392,7 +386,7 @@ describe('CRL-4 documentación y rutas vecinas', () => {
   it('GET /cargas/:id sigue igual: 400 con un id que no es UUID', async () => {
     await request(entorno.app.getHttpServer())
       .get('/cargas/no-es-uuid')
-      .auth(tokenAna, { type: 'bearer' })
+      .set('Cookie', tokenAna)
       .expect(400);
   });
 });

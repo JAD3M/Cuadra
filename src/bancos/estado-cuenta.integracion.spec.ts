@@ -57,7 +57,7 @@ function subir(
 ) {
   let req = request(entorno.app.getHttpServer())
     .post('/cargas/estado-cuenta')
-    .auth(token, { type: 'bearer' });
+    .set('Cookie', token);
   for (const campo of ['banco', 'cuenta', 'perfil'] as const) {
     const valor = campos[campo];
     if (valor !== undefined) req = req.field(campo, valor);
@@ -504,7 +504,7 @@ describe('perfiles de banco (CU-10)', () => {
     // Jorge es revisor en Transportes: no sube, pero sí ve los perfiles.
     const res = await request(entorno.app.getHttpServer())
       .get('/bancos/perfiles')
-      .auth(await entorno.token(JORGE, TRANSPORTES), { type: 'bearer' })
+      .set('Cookie', await entorno.token(JORGE, TRANSPORTES))
       .expect(200);
 
     expect(res.body).toEqual([

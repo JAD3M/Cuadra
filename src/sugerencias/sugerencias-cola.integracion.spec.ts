@@ -62,7 +62,7 @@ async function subirEstadoDeCuenta(): Promise<RespuestaDeCarga> {
   const token = await entorno.token(LUIS, FERRETERIA);
   const res = await request(entorno.app.getHttpServer())
     .post('/cargas/estado-cuenta')
-    .auth(token, { type: 'bearer' })
+    .set('Cookie', token)
     .field('banco', 'BANCO SINTETICO')
     .field('cuenta', '****1234')
     .attach('archivo', readFileSync(ESTADO_CUENTA), 'valido-5.csv')

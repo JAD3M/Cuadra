@@ -15,8 +15,8 @@ import {
 } from '../../common/decorators/decoradores';
 
 /**
- * Guard global, corre después de `JwtAuthGuard`. Los roles no viajan en el
- * token (D-09): se leen de `user_company_roles` en cada request, así que
+ * Guard global, corre después de `SesionCookieGuard`. Los roles no viajan en
+ * la sesión (AD-6): se leen de `user_company_roles` en cada request, así que
  * revocar un rol o una membresía surte efecto de inmediato.
  *
  * Cada 403 queda en la bitácora de la empresa (CU-03.3).
@@ -38,7 +38,7 @@ export class RolesGuard implements CanActivate {
       .switchToHttp()
       .getRequest<SolicitudAutenticada>();
     const { user } = solicitud;
-    // El token de selección no opera sobre ninguna empresa: no hay roles que revisar.
+    // La sesión sin empresa elegida no opera sobre ninguna: no hay roles que revisar.
     if (user.scope !== 'sesion') return true;
 
     // Aun sin @Roles, una sesión exige membresía vigente en su empresa.

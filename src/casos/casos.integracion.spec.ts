@@ -1,8 +1,7 @@
 import { randomUUID } from 'crypto';
 import request from 'supertest';
+import { abrirSesion } from '../testing/sesion-de-pruebas';
 import type { DataSource } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import {
   ANA,
@@ -155,7 +154,7 @@ async function conciliacion(
 const caso = (token: string, id: string, query = '') =>
   request(entorno.app.getHttpServer())
     .get(`/casos/${id}${query}`)
-    .auth(token, { type: 'bearer' });
+    .set('Cookie', token);
 
 async function obtener(id: string, token = tokenA): Promise<RespuestaCasoDto> {
   const res = await caso(token, id).expect(200);
@@ -187,14 +186,9 @@ describe('CAS-1 endpoint, acceso y validación del id', () => {
       .expect(401);
   });
 
-  it('un token de selección de empresa es 401', async () => {
-    const jwt = new JwtService({
-      secret: entorno.app.get(ConfigService).getOrThrow<string>('JWT_SECRET'),
-    });
-    const token = await jwt.signAsync(
-      { sub: entorno.persona(ANA), scope: 'seleccion' },
-      { expiresIn: '5m' },
-    );
+  it('una sesión sin empresa elegida es 401', async () => {
+    // Sesión abierta pero sin empresa elegida (`company_id` nulo).
+    const token = await abrirSesion(entorno.ds, entorno.persona(ANA), null);
     await caso(token, randomUUID()).expect(401);
   });
 
@@ -306,7 +300,7 @@ describe('CAS-3 forma de la respuesta', () => {
     const r = await obtener(m);
     const lista = await request(entorno.app.getHttpServer())
       .get('/bandeja')
-      .auth(tokenA, { type: 'bearer' })
+      .set('Cookie', tokenA)
       .expect(200);
     const fila = (lista.body as RespuestaBandejaDto).datos.find(
       (f) => f.movimientoId === m,

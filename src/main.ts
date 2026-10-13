@@ -3,9 +3,12 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  // La sesión viaja en la cookie `cuadra_sesion` (AD-6).
+  app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -22,7 +25,7 @@ async function bootstrap() {
       new DocumentBuilder()
         .setTitle('Cuadra API')
         .setVersion('0.0.1')
-        .addBearerAuth()
+        .addCookieAuth('cuadra_sesion')
         .build(),
     );
     SwaggerModule.setup('docs', app, documento);
@@ -31,4 +34,4 @@ async function bootstrap() {
   const port = Number(config.get('PORT')) || 3000;
   await app.listen(port);
 }
-bootstrap();
+void bootstrap();
