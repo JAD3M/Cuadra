@@ -25,9 +25,14 @@
     sesión con y sin empresa; cambiar actualiza la misma fila y rota el token,
     y un 403 la deja igual. El frontend ya no pide la contraseña al cambiar y
     conoce `puedeCambiarEmpresa` tras recargar.
+  - **T7 `74bf686`: `RolesGuard` exige `@Roles` aunque el endpoint acepte la
+    sesión sin empresa.** La omisión de membresía para endpoints con
+    `'seleccion'` solo aplica si el endpoint no declara `@Roles`; cinco tests
+    fijan la interacción. Cierra el hallazgo de la revisión de T6.
 - **Revisión nativa.** El rango completo excedió el presupuesto de los
   revisores (`lens_context_budget_exceeded`) y se dividió. Backend T1 a T3 y
-  backend T6: aprobados con 4 lentes. Frontend T4 y T5 (47 archivos): también
+  backend T6 y backend T7: aprobados con 4 lentes. Frontend T4 y T5 (47
+  archivos): también
   excedió el presupuesto; se omitió por decisión de la persona usuaria, porque
   la seguridad de la sesión vive en el backend.
 - **Decisiones:** `Origin` y límite de peticiones quedan para la historia 1.2.
@@ -38,14 +43,13 @@
   2. **Una escritura por petición:** el guard hace SELECT y UPDATE en cada
      petición autenticada y las concurrentes de una misma sesión se
      serializan sobre la fila (`sesion-cookie.guard.ts`).
-  3. **`RolesGuard` y `'seleccion'`:** omite la membresía en todo endpoint que
-     acepta `'seleccion'`, aunque declare `@Roles` (`roles.guard.ts:45-51`);
-     ningún test fija esa interacción.
-  4. **Sin nombre de usuario** al retomar la elección de empresa tras
+  3. **Sin nombre de usuario** al retomar la elección de empresa tras
      recargar: ningún endpoint lo devuelve.
-  5. **Prueba intermitente que ya existía:**
-     `src/cargas/cargas.listado.integracion.spec.ts:336` falla cuando un UUID
-     aleatorio contiene «77».
+  4. **Pruebas intermitentes:**
+     `src/cargas/cargas.listado.integracion.spec.ts:336` (ya existía) falla
+     cuando un UUID aleatorio contiene «77», y `src/database/esquema.spec.ts`
+     («usa el índice parcial al buscar CFDI abiertas por emisor») falló una
+     vez en una corrida completa y pasó al repetirla.
 
 ### 7 oct 2026
 
