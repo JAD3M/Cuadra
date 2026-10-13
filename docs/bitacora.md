@@ -5,6 +5,31 @@
 
 ### 13 oct 2026
 
+- **Historia 1.2 de la v2: límite de peticiones y origen autorizado
+  (KAN-117, FR-57, FR-58).** Rama `feat/v2-1-2-limite-y-origen`, tres tareas
+  con revisión nativa aprobada (4 lentes cada una). Reemplaza la delegación
+  del límite a un proxy (D-11):
+  - **T1 `62a9847`:** cliente Redis compartido con timeouts cortos y sin cola
+    offline, `configurarApp` usada por `main.ts` y por los helpers de prueba
+    (`trust proxy` por `TRUST_PROXY`, CORS con el origen exacto) y la variable
+    obligatoria `ORIGEN_AUTORIZADO`.
+  - **T2 `b6e5fba`:** `@Limite({ intentos, ventanaS })` declarativo. Reserva
+    atómica en Redis (Lua) y devolución si la respuesta es 2xx, para que
+    adivinar en paralelo no esquive el límite y un intento correcto no
+    consuma. Login: 5 fallidos por minuto por dirección, 429 con
+    `Retry-After`. Con Redis caído responde 503 (**falla cerrada**, decisión de
+    la persona usuaria).
+  - **T3 `370830d`:** toda petición que cambia datos exige `Origin` igual a
+    `ORIGEN_AUTORIZADO`; sin él, 403 sin cambios. Corre antes del límite, así
+    que un origen incorrecto no consume intentos. Unos 14 specs y el runner
+    de la demo migraron a un envoltorio de `supertest` que agrega el `Origin`.
+- **Pendientes de la 1.2:** (a) el mensaje 429 dice «Espera un minuto» fijo
+  aunque `@Limite` acepta cualquier ventana (`limite.guard.ts`); (b) las
+  claves del límite reutilizan `COLA_PREFIJO`; (c) en producción
+  `ORIGEN_AUTORIZADO` debe ser el origen real del frontend o toda escritura
+  responde 403; (d) la API no arranca en desarrollo sin `ORIGEN_AUTORIZADO` en
+  el `.env` local.
+
 - **Historia 1.1 de la v2: sesión con cookie que el servidor puede cancelar
   (KAN-116, FR-59).** Implementada con ODD en la rama
   `feat/v2-1-1-sesiones-con-cookie`, sin push ni PR. Reemplaza el JWT de dos

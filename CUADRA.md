@@ -714,6 +714,13 @@ fuera de alcance: el puerto lo permite cuando haga falta.
 
 ### D-11 · Sin bloqueo de cuenta por intentos fallidos
 
+> **Actualizada el 13 oct 2026 (v2, historia 1.2).** El límite ya no se
+> delega a un proxy: vive dentro de la aplicación (AD-15), con contadores en
+> Redis por dirección de cliente, 5 intentos fallidos por minuto en el inicio
+> de sesión (429), y falla cerrada con 503 si Redis no responde. **Sigue sin
+> haber bloqueo de cuenta**: el límite es por origen y por tiempo, nunca por
+> correo. Lo que sigue describe la v1 y se conserva como historial.
+
 El login **no bloquea cuentas** ni cuenta intentos fallidos. Una contraseña
 incorrecta devuelve siempre el mismo 401 "Credenciales inválidas" (CU-03),
 sin importar cuántas veces se repita.
