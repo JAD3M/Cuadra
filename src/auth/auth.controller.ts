@@ -19,7 +19,9 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiServiceUnavailableResponse,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -35,6 +37,7 @@ import {
   Scope,
   UsuarioActual,
 } from '../common/decorators/decoradores';
+import { Limite } from '../limite/limite.decorator';
 import { LoginDto } from './dto/LoginDto';
 import {
   ContextoSesionDto,
@@ -54,6 +57,8 @@ export class AuthController {
 
   @Post('login')
   @Publico()
+  // Por IP y solo cuentan los fallos: un login correcto no consume (AD-15).
+  @Limite({ intentos: 5, ventanaS: 60 })
   @HttpCode(200)
   @ApiOperation({
     summary: 'Inicia sesión: abre la sesión sin empresa y pone la cookie',
@@ -71,6 +76,16 @@ export class AuthController {
   @ApiForbiddenResponse({
     type: RespuestaErrorDto,
     description: 'Credenciales correctas, pero sin empresas asignadas.',
+  })
+  @ApiTooManyRequestsResponse({
+    type: RespuestaErrorDto,
+    description:
+      'Más de 5 intentos fallidos en un minuto desde la misma dirección. Trae `Retry-After`.',
+  })
+  @ApiServiceUnavailableResponse({
+    type: RespuestaErrorDto,
+    description:
+      'El contador de intentos no responde: se rechaza por seguridad.',
   })
   async login(
     @Body() dto: LoginDto,

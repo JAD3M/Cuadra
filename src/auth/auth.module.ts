@@ -12,6 +12,7 @@ import { SesionesService } from './sesiones.service';
 import { RolesGuard } from './guards/roles.guard';
 import { AccesosDenegados } from '../bitacora/accesos-denegados';
 import { ContextoEmpresaModule } from '../database/contexto-empresa.module';
+import { LimiteModule, PROVEEDORES_LIMITE } from '../limite/limite.module';
 
 @Module({
   controllers: [AuthController],
@@ -20,12 +21,16 @@ import { ContextoEmpresaModule } from '../database/contexto-empresa.module';
     SesionesService,
     PasswordHasher,
     AccesosDenegados,
-    // Globales y en este orden: primero quién eres, luego qué puedes hacer.
-    // Todo endpoint exige sesión salvo que se marque @Publico().
+    // Globales y en este orden: primero el límite de intentos (corre también
+    // en rutas @Publico(), como el login), luego quién eres, luego qué
+    // puedes hacer. Todo endpoint exige sesión salvo que se marque @Publico().
+    ...PROVEEDORES_LIMITE,
     { provide: APP_GUARD, useClass: SesionCookieGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
   imports: [
+    // Cliente Redis del límite de intentos.
+    LimiteModule,
     // TransaccionEmpresa: RolesGuard escribe en la bitácora antes del interceptor.
     ContextoEmpresaModule,
     TypeOrmModule.forFeature([User, UserCompanyRole, Sesion]),

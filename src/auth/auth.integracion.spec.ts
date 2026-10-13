@@ -28,6 +28,16 @@ import {
   setCookieDe,
 } from '../testing/sesion-de-pruebas';
 import { COOKIE_SESION, huellaDeToken } from './sesiones.service';
+import type { Express } from 'express';
+import type { Redis } from 'ioredis';
+import { Limite } from '../limite/limite.decorator';
+import { CLIENTE_REDIS } from '../redis/cliente-redis';
+import { leerLimites, limpiarLimites } from '../testing/limites-de-pruebas';
+
+// Prefijo propio: los contadores de límite de esta suite no se mezclan con los
+// de otras que corran a la vez ni con los de desarrollo.
+const PREFIJO_LIMITE = 'cuadra_test_auth';
+process.env.COLA_PREFIJO = PREFIJO_LIMITE;
 
 /**
  * CU-03 y historia 1.1 de punta a punta contra Postgres real y el seed:
@@ -58,6 +68,13 @@ class ControladorDeDominio {
   @Get('seleccion')
   @Scope('seleccion')
   seleccion() {
+    return { ok: true };
+  }
+
+  /** Exige sesión y declara límite: prueba que el límite corre antes que el guard de sesión. */
+  @Get('limitada')
+  @Limite({ intentos: 2, ventanaS: 60 })
+  limitada() {
     return { ok: true };
   }
 }
@@ -127,8 +144,15 @@ beforeAll(async () => {
 }, 60_000);
 
 afterAll(async () => {
+  if (app) await limpiarLimites(app.get<Redis>(CLIENTE_REDIS), PREFIJO_LIMITE);
   await app?.close();
   if (ds?.isInitialized) await ds.destroy();
+});
+
+// Casi todos los casos entran por 127.0.0.1: sin esto, los fallos de unos
+// agotarían el límite de login de los siguientes. El límite en sí no se toca.
+beforeEach(async () => {
+  await limpiarLimites(app.get<Redis>(CLIENTE_REDIS), PREFIJO_LIMITE);
 });
 
 const http = () => request(app.getHttpServer());
@@ -380,6 +404,98 @@ describe('POST /auth/login', () => {
         JORGE,
       ]);
     }
+  });
+});
+
+describe('Límite de intentos de login (historia 1.2)', () => {
+  const MAL = { email: ANA, password: 'incorrecta-1234' };
+  const BIEN = { email: ANA, password: PASSWORD_SEMILLA };
+  const entrar = (cuerpo: object, ip?: string) => {
+    const peticion = http().post('/auth/login').send(cuerpo);
+    return ip ? peticion.set('X-Forwarded-For', ip) : peticion;
+  };
+  const alertas = () =>
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+
+  afterEach(() => jest.restoreAllMocks());
+
+  it('cinco fallos dan 401 y el sexto 429 con Retry-After, sin revelar el correo', async () => {
+    const aviso = alertas();
+    for (let i = 0; i < 5; i++) await entrar(MAL).expect(401);
+
+    const res = await entrar(MAL).expect(429);
+
+    expect(Number(res.headers['retry-after'])).toBeGreaterThanOrEqual(1);
+    expect(res.text).not.toContain(ANA);
+    expect(res.body).toEqual({
+      statusCode: 429,
+      message: 'Demasiados intentos. Espera un minuto e inténtalo de nuevo.',
+      error: 'Too Many Requests',
+    });
+    // Ni el correo ni la contraseña llegan al registro; ni la clave de Redis.
+    const registro = JSON.stringify(aviso.mock.calls);
+    expect(registro).not.toContain(ANA);
+    expect(registro).not.toContain(MAL.password);
+    const llaves = JSON.stringify(
+      await leerLimites(app.get<Redis>(CLIENTE_REDIS), PREFIJO_LIMITE),
+    );
+    expect(llaves).not.toContain(ANA);
+    // Con el tope gastado ni la contraseña correcta pasa hasta que venza la ventana.
+    await entrar(BIEN).expect(429);
+  });
+
+  it('un intento correcto no consume: tras 4 fallos y un acierto queda 1 de margen', async () => {
+    alertas();
+    for (let i = 0; i < 4; i++) await entrar(MAL).expect(401);
+
+    await entrar(BIEN).expect(200);
+
+    const contadores = Object.values(
+      await leerLimites(app.get<Redis>(CLIENTE_REDIS), PREFIJO_LIMITE),
+    );
+    expect(contadores).toEqual(['4']);
+    await entrar(MAL).expect(401);
+    await entrar(MAL).expect(429);
+  });
+
+  it('veinte intentos paralelos: como mucho cinco llegan a comprobar la contraseña', async () => {
+    alertas();
+    const respuestas = await Promise.all(
+      Array.from({ length: 20 }, () => entrar(MAL)),
+    );
+    const estados = respuestas.map((r) => r.status);
+
+    expect(estados.filter((s) => s === 401)).toHaveLength(5);
+    expect(estados.filter((s) => s === 429)).toHaveLength(15);
+  });
+
+  it('otra IP no se ve afectada con proxy de confianza; sin él la cabecera se ignora', async () => {
+    alertas();
+    const express = app.getHttpAdapter().getInstance() as Express;
+
+    // Sin proxy de confianza (el valor de la app de pruebas): cambiar la
+    // cabecera no da un contador nuevo.
+    for (let i = 0; i < 5; i++) await entrar(MAL, '10.0.0.1').expect(401);
+    await entrar(MAL, '10.0.0.2').expect(429);
+
+    await limpiarLimites(app.get<Redis>(CLIENTE_REDIS), PREFIJO_LIMITE);
+    express.set('trust proxy', 1);
+    try {
+      for (let i = 0; i < 5; i++) await entrar(MAL, '10.0.0.1').expect(401);
+      await entrar(MAL, '10.0.0.1').expect(429);
+      await entrar(MAL, '10.0.0.2').expect(401);
+    } finally {
+      express.set('trust proxy', false);
+    }
+  });
+
+  it('el límite corre antes que el guard de sesión, también en rutas no públicas', async () => {
+    alertas();
+    // Sin cookie, SesionCookieGuard respondería 401 siempre: el 429 solo
+    // aparece si el límite se evaluó antes.
+    await http().get('/prueba/limitada').expect(401);
+    await http().get('/prueba/limitada').expect(401);
+    await http().get('/prueba/limitada').expect(429);
   });
 });
 

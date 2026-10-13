@@ -36,7 +36,10 @@ export function configurarApp(app: INestApplication): void {
 
   // CORS con el origen exacto y credenciales (AD-6). Nunca `*` ni el origen
   // reflejado: la función solo concede la cabecera cuando coincide, y a
-  // cualquier otro origen no le responde ninguna cabecera CORS.
+  // cualquier otro origen no le responde ninguna cabecera CORS. Sin cabecera
+  // `Origin` (curl, servidor a servidor, mismo origen) `origen` llega
+  // `undefined` y tampoco se concede nada: CORS solo gobierna a los
+  // navegadores; el rechazo de peticiones sin origen es el guard de la T3.
   const autorizado = config.getOrThrow<string>('ORIGEN_AUTORIZADO');
   app.enableCors({
     origin: (
@@ -44,7 +47,9 @@ export function configurarApp(app: INestApplication): void {
       devolver: (error: Error | null, permitido?: string | false) => void,
     ) => devolver(null, origen === autorizado ? autorizado : false),
     credentials: true,
+    // Los métodos que la API expone; el preflight no concede ningún otro.
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    // Cookie de sesión y cuerpo JSON: nada más cruza entre orígenes.
     allowedHeaders: ['Content-Type', 'Accept'],
   });
 }

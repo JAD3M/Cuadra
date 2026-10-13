@@ -54,6 +54,10 @@ const schema = z
      * saltos de proxy de confianza (lo recomendado: 1 detrás de un proxy);
      * 'true' confía en todos los saltos de X-Forwarded-For y deja a cualquier
      * cliente falsear su IP, solo para entornos cerrados.
+     *
+     * `configurarApp` vuelve a pasar el valor por `interpretarTrustProxy`: una
+     * app montada sin `validate` (un módulo de prueba) deja la variable como
+     * texto crudo, y así ambos caminos dan el mismo resultado.
      */
     TRUST_PROXY: z.preprocess(
       (v) => (v === '' ? undefined : v),
