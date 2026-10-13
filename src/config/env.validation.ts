@@ -1,6 +1,22 @@
 // src/config/env.validation.ts
 import { z } from 'zod';
 
+/**
+ * Valor de `trust proxy` de Express: `false` (apagado), `true` (confía en
+ * todos los saltos) o un número de saltos. Acepta lo ya interpretado o el
+ * texto de la variable; lo demás es apagado.
+ */
+export function interpretarTrustProxy(valor: unknown): boolean | number {
+  if (typeof valor === 'number' && Number.isInteger(valor) && valor > 0) {
+    return valor;
+  }
+  if (valor === true || valor === 'true') return true;
+  if (typeof valor === 'string' && /^[1-9]\d*$/.test(valor)) {
+    return Number(valor);
+  }
+  return false;
+}
+
 const schema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']),
@@ -10,6 +26,42 @@ const schema = z
     /** Rol `cuadra_app`, sin BYPASSRLS: con esta corre la app (CU-04b). */
     DATABASE_APP_URL: z.string().url(),
     REDIS_URL: z.string().url(),
+    /**
+     * AD-6: el único origen que la API acepta. Origen exacto (esquema, host
+     * y puerto si no es el de por defecto): sin ruta, sin barra final y
+     * nunca `*`.
+     */
+    ORIGEN_AUTORIZADO: z.string().refine(
+      (valor) => {
+        try {
+          const url = new URL(valor);
+          return (
+            ['http:', 'https:'].includes(url.protocol) &&
+            url.origin === valor &&
+            !valor.includes('*')
+          );
+        } catch {
+          return false;
+        }
+      },
+      {
+        message:
+          'debe ser un origen exacto (https://dominio[:puerto]), sin ruta ni barra final ni *',
+      },
+    ),
+    /**
+     * AD-15: de dónde sale `req.ip`. Apagada por defecto. Un número son los
+     * saltos de proxy de confianza (lo recomendado: 1 detrás de un proxy);
+     * 'true' confía en todos los saltos de X-Forwarded-For y deja a cualquier
+     * cliente falsear su IP, solo para entornos cerrados.
+     */
+    TRUST_PROXY: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      z
+        .union([z.enum(['true', 'false']), z.string().regex(/^[1-9]\d*$/)])
+        .default('false')
+        .transform(interpretarTrustProxy),
+    ),
     /** CU-08: intentos por job antes de dar la carga por 'fallida'. */
     COLA_INTENTOS: z.coerce.number().int().min(1).default(5),
     /** Espera base del backoff exponencial: d, 2d, 4d, ... */

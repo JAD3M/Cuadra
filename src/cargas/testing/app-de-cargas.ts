@@ -1,10 +1,9 @@
 // src/cargas/testing/app-de-cargas.ts
 import { getQueueToken } from '@nestjs/bullmq';
-import { type INestApplication, ValidationPipe } from '@nestjs/common';
+import { type INestApplication } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import cookieParser from 'cookie-parser';
 import type { Queue } from 'bullmq';
 import request from 'supertest';
 import type { App } from 'supertest/types';
@@ -16,6 +15,7 @@ import { CasosModule } from '../../casos/casos.module';
 import { ColasModule } from '../../colas/colas.module';
 import { CompaniesModule } from '../../companies/companies.module';
 import { validateEnv } from '../../config/env.validation';
+import { configurarApp } from '../../configurar-app';
 import { ContextoEmpresaModule } from '../../database/contexto-empresa.module';
 import { opcionesDataSource } from '../../database/data-source';
 import { ENTIDADES } from '../../database/entidades';
@@ -156,15 +156,7 @@ export async function levantarAppDeCargas(
     .obliterate({ force: true });
 
   const app = modulo.createNestApplication<INestApplication<App>>();
-  // Igual que main.ts.
-  app.use(cookieParser());
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  configurarApp(app);
   await app.listen(0);
 
   /**

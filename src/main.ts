@@ -1,21 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import cookieParser from 'cookie-parser';
+import { configurarApp } from './configurar-app';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  // La sesión viaja en la cookie `cuadra_sesion` (AD-6).
-  app.use(cookieParser());
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  configurarApp(app);
   const config = app.get(ConfigService);
   // La documentación describe el contrato y los ejemplos del seed: fuera de
   // producción nada más.

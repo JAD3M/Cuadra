@@ -5,6 +5,7 @@ const VALIDO = {
   DATABASE_URL: 'postgresql://cuadra:cuadra@localhost:5432/cuadra',
   DATABASE_APP_URL: 'postgresql://cuadra_app:cuadra_app@localhost:5432/cuadra',
   REDIS_URL: 'redis://localhost:6379',
+  ORIGEN_AUTORIZADO: 'http://localhost:5173',
 };
 
 describe('validateEnv (CU-01.3)', () => {
@@ -14,21 +15,81 @@ describe('validateEnv (CU-01.3)', () => {
     expect(env.COLA_PREFIJO).toBe('cuadra');
   });
 
-  it.each(['DATABASE_URL', 'DATABASE_APP_URL', 'REDIS_URL'])(
-    'falta %s: truena nombrándola',
-    (variable) => {
-      const incompleto: Record<string, string> = { ...VALIDO };
-      delete incompleto[variable];
-      expect(() => validateEnv(incompleto)).toThrow(
-        new RegExp(`Configuración inválida:[\\s\\S]*${variable}`),
-      );
-    },
-  );
+  it.each([
+    'DATABASE_URL',
+    'DATABASE_APP_URL',
+    'REDIS_URL',
+    'ORIGEN_AUTORIZADO',
+  ])('falta %s: truena nombrándola', (variable) => {
+    const incompleto: Record<string, string> = { ...VALIDO };
+    delete incompleto[variable];
+    expect(() => validateEnv(incompleto)).toThrow(
+      new RegExp(`Configuración inválida:[\\s\\S]*${variable}`),
+    );
+  });
 
   it('rechaza que la app use el mismo rol que el dueño del esquema', () => {
     expect(() =>
       validateEnv({ ...VALIDO, DATABASE_APP_URL: VALIDO.DATABASE_URL }),
     ).toThrow(/DATABASE_APP_URL/);
+  });
+
+  describe('origen autorizado y proxy (historia 1.2)', () => {
+    it('acepta un origen exacto: esquema, host y puerto opcional', () => {
+      for (const origen of [
+        'http://localhost:5173',
+        'https://cuadra.example',
+        'https://app.cuadra.example:8443',
+      ]) {
+        expect(
+          validateEnv({ ...VALIDO, ORIGEN_AUTORIZADO: origen })
+            .ORIGEN_AUTORIZADO,
+        ).toBe(origen);
+      }
+    });
+
+    it.each([
+      '*',
+      '',
+      'localhost:5173',
+      'cuadra.example',
+      'https://cuadra.example/',
+      'https://cuadra.example/app',
+      'https://cuadra.example?x=1',
+      'https://cuadra.example:443',
+      'ftp://cuadra.example',
+      'https://*.cuadra.example',
+    ])('ORIGEN_AUTORIZADO=%p se rechaza nombrándola', (valor) => {
+      expect(() =>
+        validateEnv({ ...VALIDO, ORIGEN_AUTORIZADO: valor }),
+      ).toThrow(/ORIGEN_AUTORIZADO/);
+    });
+
+    it('TRUST_PROXY ausente o vacío significa apagado', () => {
+      expect(validateEnv(VALIDO).TRUST_PROXY).toBe(false);
+      expect(validateEnv({ ...VALIDO, TRUST_PROXY: '' }).TRUST_PROXY).toBe(
+        false,
+      );
+    });
+
+    it("TRUST_PROXY acepta 'true', 'false' y un número de saltos", () => {
+      expect(validateEnv({ ...VALIDO, TRUST_PROXY: 'true' }).TRUST_PROXY).toBe(
+        true,
+      );
+      expect(validateEnv({ ...VALIDO, TRUST_PROXY: 'false' }).TRUST_PROXY).toBe(
+        false,
+      );
+      expect(validateEnv({ ...VALIDO, TRUST_PROXY: '2' }).TRUST_PROXY).toBe(2);
+    });
+
+    it.each(['0', '-1', '1.5', 'si', 'TRUE', 'loopback', '10.0.0.1'])(
+      'TRUST_PROXY=%p se rechaza nombrándola',
+      (valor) => {
+        expect(() => validateEnv({ ...VALIDO, TRUST_PROXY: valor })).toThrow(
+          /TRUST_PROXY/,
+        );
+      },
+    );
   });
 
   describe('sugerencia por IA (CU-17)', () => {

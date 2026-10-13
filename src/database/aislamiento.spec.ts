@@ -4,13 +4,11 @@ import {
   NotFoundException,
   Param,
   ParseUUIDPipe,
-  ValidationPipe,
   type INestApplication,
 } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import cookieParser from 'cookie-parser';
 import { createHash, randomUUID } from 'crypto';
 import request from 'supertest';
 import type { App } from 'supertest/types';
@@ -19,6 +17,7 @@ import { AuthModule } from '../auth/auth.module';
 import { UsuarioActual } from '../common/decorators/decoradores';
 import type { UsuarioAutenticado } from '../auth/tipos';
 import { abrirSesion } from '../testing/sesion-de-pruebas';
+import { configurarApp } from '../configurar-app';
 import { validateEnv } from '../config/env.validation';
 import { ContextoEmpresa } from './contexto-empresa';
 import { ContextoEmpresaModule } from './contexto-empresa.module';
@@ -145,15 +144,8 @@ beforeAll(async () => {
   }).compile();
 
   app = modulo.createNestApplication();
-  // Igual que main.ts: el caso 3 tiene que ver lo mismo que producción.
-  app.use(cookieParser());
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  // El caso 3 tiene que ver lo mismo que producción.
+  configurarApp(app);
   await app.listen(0);
 }, 60_000);
 

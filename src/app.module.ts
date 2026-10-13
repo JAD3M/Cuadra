@@ -15,6 +15,7 @@ import { CompaniesModule } from './companies/companies.module';
 import { ColasModule } from './colas/colas.module';
 import { ResolucionModule } from './resolucion/resolucion.module';
 import { ContextoEmpresaModule } from './database/contexto-empresa.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { ContextoEmpresaModule } from './database/contexto-empresa.module';
     }),
     ContextoEmpresaModule,
     ColasModule,
+    RedisModule,
     HealthModule,
     AuthModule,
     CargasModule,

@@ -1,17 +1,11 @@
-import {
-  Controller,
-  Get,
-  type INestApplication,
-  Logger,
-  ValidationPipe,
-} from '@nestjs/common';
+import { Controller, Get, type INestApplication, Logger } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
-import cookieParser from 'cookie-parser';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import request from 'supertest';
 import type { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
+import { configurarApp } from '../configurar-app';
 import { validateEnv } from '../config/env.validation';
 import { opcionesDataSource } from '../database/data-source';
 import { ENTIDADES } from '../database/entidades';
@@ -117,16 +111,7 @@ beforeAll(async () => {
   }).compile();
 
   app = modulo.createNestApplication();
-  // Igual que main.ts.
-  app.use(cookieParser());
-  app.useGlobalPipes(
-    // Igual que main.ts: sin transform, el @Transform del DTO no llega al handler.
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }),
-  );
+  configurarApp(app);
   // Escuchando de una vez: si no, supertest abre y cierra el servidor en
   // cada petición y las anidadas (pedir un token dentro de otra) chocan.
   await app.listen(0);

@@ -9,6 +9,8 @@ services:
       DATABASE_URL: postgres://cuadra:cuadra@postgres:5432/cuadra
       DATABASE_APP_URL: postgres://cuadra_app:cuadra_app@postgres:5432/cuadra
       REDIS_URL: redis://redis:6379
+      # Origen del frontend (AD-6). TRUST_PROXY queda sin definir: apagada.
+      ORIGEN_AUTORIZADO: ${ORIGEN_AUTORIZADO:-http://localhost:5173}
     ports: ["3000:3000"]
     volumes:
       - .:/app
