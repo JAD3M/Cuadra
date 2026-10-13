@@ -273,6 +273,66 @@ describe('POST /plataforma/auth/login', () => {
   });
 });
 
+describe('GET /plataforma/auth/me', () => {
+  it('con sesión plataforma responde 200 con id y correo del dueño', async () => {
+    const res = await http()
+      .get('/plataforma/auth/me')
+      .set('Cookie', await loginDueno())
+      .expect(200);
+    expect(res.body).toEqual({
+      usuario: { id: duenoId, correo: CORREO_DUENO },
+    });
+    expect(JSON.stringify(res.body)).not.toMatch(/token|password|hash/i);
+  });
+
+  it('sin cookie responde 401', async () => {
+    await http().get('/plataforma/auth/me').expect(401);
+  });
+
+  it('una sesión de empresa responde 403 y deja el acceso en la bitácora', async () => {
+    const desde = new Date();
+    const cookie = await abrirSesion(ds, anaId, ferreteriaId);
+    await http().get('/plataforma/auth/me').set('Cookie', cookie).expect(403);
+    const [fila] = await bitacoraDe('acceso_denegado', desde);
+    expect(fila.company_id).toBe(ferreteriaId);
+    expect(fila.detalle).toMatchObject({
+      metodo: 'GET',
+      ruta: '/plataforma/auth/me',
+      tipoSesion: 'empresa',
+    });
+  });
+
+  it('un dueño desactivado con la sesión viva recibe 401', async () => {
+    const cookie = await loginDueno();
+    await ds.query(
+      'UPDATE plataforma_usuarios SET activo = false WHERE id = $1',
+      [duenoId],
+    );
+    try {
+      await http().get('/plataforma/auth/me').set('Cookie', cookie).expect(401);
+    } finally {
+      await ds.query(
+        'UPDATE plataforma_usuarios SET activo = true WHERE id = $1',
+        [duenoId],
+      );
+    }
+  });
+
+  it('no deja filas en bitacora_plataforma al leer', async () => {
+    const cookie = await loginDueno();
+    const antes = await una<{ n: string }>(
+      ds,
+      'SELECT count(*)::text AS n FROM bitacora_plataforma',
+    );
+    await http().get('/plataforma/auth/me').set('Cookie', cookie).expect(200);
+    const despues = await una<{ n: string }>(
+      ds,
+      'SELECT count(*)::text AS n FROM bitacora_plataforma',
+    );
+    expect(despues.n).toBe(antes.n);
+  });
+});
+
 describe('GET /plataforma/empresas', () => {
   it('la sesión plataforma recibe la lista, vacía al inicio', async () => {
     const res = await http()
