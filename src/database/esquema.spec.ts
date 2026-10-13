@@ -30,6 +30,8 @@ const TODAS_LAS_TABLAS = [
   'companies',
   'users',
   'sesiones',
+  'plataforma_usuarios',
+  'bitacora_plataforma',
   ...TABLAS_DOMINIO,
 ] as const;
 

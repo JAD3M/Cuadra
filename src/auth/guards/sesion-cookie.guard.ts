@@ -51,14 +51,15 @@ export class SesionCookieGuard implements CanActivate {
 
     const sesion = await this.sesiones.buscarPorToken(token);
     // `plataforma` llega con la historia 1.3; hasta entonces no opera aquí.
-    if (!sesion || sesion.tipo !== 'empresa') {
+    if (!sesion || sesion.tipo !== 'empresa' || sesion.userId === null) {
       throw new UnauthorizedException(NO_AUTORIZADO);
     }
+    const userId = sesion.userId;
     const usuario: UsuarioAutenticado =
       sesion.companyId === null
-        ? { userId: sesion.userId, scope: 'seleccion', sesionId: sesion.id }
+        ? { userId, scope: 'seleccion', sesionId: sesion.id }
         : {
-            userId: sesion.userId,
+            userId,
             scope: 'sesion',
             companyId: sesion.companyId,
             sesionId: sesion.id,

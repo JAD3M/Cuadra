@@ -9,6 +9,8 @@ import { Cfdi } from '../cfdi/cfdi.entity';
 import { Company } from '../companies/company.entity';
 import { Conciliacion } from '../conciliacion/conciliacion.entity';
 import { Movimiento } from '../bancos/movimiento.entity';
+import { BitacoraPlataforma } from '../plataforma/bitacora-plataforma.entity';
+import { PlataformaUsuario } from '../plataforma/plataforma-usuario.entity';
 import { SugerenciaIa } from '../sugerencias/sugerencia-ia.entity';
 import { User } from '../users/user.entity';
 import { UserCompanyRole } from '../companies/user-company-role.entity';
@@ -25,4 +27,6 @@ export const ENTIDADES = [
   Bitacora,
   SugerenciaIa,
   Sesion,
+  PlataformaUsuario,
+  BitacoraPlataforma,
 ];

@@ -29,13 +29,26 @@ export type TipoSesion = (typeof TIPOS_SESION)[number];
 @Index('ux_sesiones_token_hash', ['tokenHash'], { unique: true })
 @Index('ix_sesiones_user_id', ['userId'])
 @Index('ix_sesiones_expira_en', ['expiraEn'])
+@Index('ix_sesiones_plataforma_usuario_id', ['plataformaUsuarioId'])
 @Check('ck_sesiones_tipo', `tipo IN (${listaSql(TIPOS_SESION)})`)
+@Check(
+  'ck_sesiones_sujeto_por_tipo',
+  `(tipo = 'empresa' AND user_id IS NOT NULL AND plataforma_usuario_id IS NULL) OR (tipo = 'plataforma' AND plataforma_usuario_id IS NOT NULL AND user_id IS NULL AND company_id IS NULL)`,
+)
 export class Sesion {
   @PrimaryColumn({ type: 'uuid', default: () => 'uuidv7()' })
   id: string;
 
-  @Column({ type: 'uuid' })
-  userId: string;
+  /** Nulo en sesiones de tipo `plataforma` (CHECK `ck_sesiones_sujeto_por_tipo`). */
+  @Column({ type: 'uuid', nullable: true })
+  userId: string | null;
+
+  /**
+   * Cuenta de plataforma (clase 3, historia 1.3). Columna plana: la relación
+   * se declara por nombre para no importar la entidad fuera de `plataforma/`.
+   */
+  @Column({ type: 'uuid', nullable: true })
+  plataformaUsuarioId: string | null;
 
   /** SHA-256 en hex del token de la cookie. */
   @Column({ type: 'text' })
@@ -56,9 +69,16 @@ export class Sesion {
   @CreateDateColumn({ type: 'timestamptz', default: () => 'now()' })
   creadaEn: Date;
 
-  @ManyToOne(() => User, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => User, { onDelete: 'RESTRICT', nullable: true })
   @JoinColumn({ name: 'user_id', foreignKeyConstraintName: 'fk_sesiones_user' })
-  user: User;
+  user: User | null;
+
+  @ManyToOne('PlataformaUsuario', { onDelete: 'RESTRICT', nullable: true })
+  @JoinColumn({
+    name: 'plataforma_usuario_id',
+    foreignKeyConstraintName: 'fk_sesiones_plataforma_usuario',
+  })
+  plataformaUsuario: unknown;
 
   @ManyToOne(() => Company, { onDelete: 'RESTRICT', nullable: true })
   @JoinColumn({
