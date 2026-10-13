@@ -14,10 +14,7 @@ export interface EmpresasPlataformaProps {
  * (barras), vacía y fallo (alerta). La lista con empresas la define la 1.4 con
  * su mockup; hasta entonces el backend devuelve siempre `[]`.
  */
-export function EmpresasPlataforma({
-  total,
-  alerta,
-}: EmpresasPlataformaProps) {
+export function EmpresasPlataforma({ total, alerta }: EmpresasPlataformaProps) {
   const vacia = total === 0;
   const cargando = total === null && !alerta;
   return (

@@ -23,7 +23,11 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={clienteConsultas}>
       <ThemeProvider>
-        {enPlataforma ? children : <SessionProvider>{children}</SessionProvider>}
+        {enPlataforma ? (
+          children
+        ) : (
+          <SessionProvider>{children}</SessionProvider>
+        )}
       </ThemeProvider>
     </QueryClientProvider>
   );
