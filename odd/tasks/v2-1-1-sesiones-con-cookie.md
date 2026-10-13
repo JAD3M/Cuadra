@@ -34,7 +34,7 @@ Reemplazar el JWT de dos tokens de la v1 (D-09) por una fila en `sesiones` con c
 | T2 | Servicio de sesiones, guard por cookie, endpoints login/empresa/logout/contexto, inactividad 8 h y renovación; migra a cookie los tests y helpers de backend que usaban Bearer (la suite queda en verde en el commit) | delegada | [x] `dcb2cef` |
 | T3 | Limpieza del JWT: retirar `@nestjs/jwt`, `JWT_SECRET`, `.env.example`, `scripts/demo/runner.ts` y menciones en código | delegada | [x] `9742d22` |
 | T4 | Frontend: `credentials: 'include'`, quitar `almacenTokens`, restaurar sesión al recargar, mocks y tests | delegada | [x] `1decfa1` |
-| T5 | Docs: D-09 retirada en `CUADRA.md`, entrada en `docs/bitacora.md`, estado de la historia | inline | [ ] |
+| T5 | Docs: D-09 retirada en `CUADRA.md`, entrada en `docs/bitacora.md`, estado de la historia | inline | [x] `c609000` |
 
 Cada tarea cierra con un commit convencional en la rama; el hash se anota aquí como evidencia.
 
@@ -57,7 +57,7 @@ Los de la Story 1.1 en `epics.md`: cookie al iniciar sesión, rotación al elegi
 - Punto abierto: Cambiar de empresa con una sesión que ya eligió una devuelve 401 porque POST /auth/empresa/:id sigue con @Scope('seleccion'); AD-6 dice "elegir o cambiar"; decidir en una historia posterior.
 - T4 hecha (`1decfa1`): cliente con `credentials: 'include'` y sin `Authorization`; `almacenTokens` retirado; arranque en frío con fase `restaurando` (estado público `restoring`) que prueba `GET /auth/contexto` (con los reintentos de las consultas) y, ante 401, `GET /auth/empresas` para retomar la elección; 403 -> `sin_acceso`; elegir empresa aplica el contexto devuelto por el POST (sin segundo GET); logout llama `POST /auth/logout` y luego vacía el cliente. Mocks con sesión simulada (`src/test/sesionMock.ts`); prueba de proxy Vite con `Set-Cookie`/`Cookie`. RED: 12 fallos en `SessionProvider.restauracion.test.tsx` antes de la implementación. Verificación en `frontend/`: typecheck y lint limpios, suite 240 archivos / 3956 pruebas en verde.
 - Puntos abiertos de T4: (1) `GET /auth/empresas` y `POST /auth/empresa/:id` siguen `@Scope('seleccion')`, así que "Cambiar de empresa" con sesión viva responde 401 y el cliente cae en `reingreso` (cancela la sesión y pide contraseña); tras recargar `puedeCambiarEmpresa` es `false` porque ningún endpoint dice cuántas empresas tiene quien ya eligió. (2) Retomar la elección tras recargar no conoce el nombre: el saludo es "Hola. Tienes acceso a N empresas."; si se quiere el nombre hace falta que `GET /auth/empresas` (o un endpoint nuevo) devuelva el usuario.
-- Siguiente paso: T5.
+- Siguiente paso: revisión nativa del rango (riesgo alto) y decidir el cambio de empresa con sesión viva.
 
 ## Evidencia de routing
 
