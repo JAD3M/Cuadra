@@ -36,7 +36,7 @@ Reemplazar el JWT de dos tokens de la v1 (D-09) por una fila en `sesiones` con c
 | T4 | Frontend: `credentials: 'include'`, quitar `almacenTokens`, restaurar sesión al recargar, mocks y tests | delegada | [x] `1decfa1` |
 | T5 | Docs: D-09 retirada en `CUADRA.md`, entrada en `docs/bitacora.md`, estado de la historia | inline | [x] `c609000` |
 | T6 | Cambiar de empresa con la sesión viva (AD-6 "elegir o cambiar"): `GET /auth/empresas` y `POST /auth/empresa/:id` aceptan sesión sin empresa y con empresa; cambiar actualiza la misma fila, rota el token y deja la sesión igual ante 403; el frontend ya no cae en `reingreso` y conoce `puedeCambiarEmpresa` tras recargar | delegada | [x] `8369e38` (backend), `c5d4fd9` (frontend) |
-| T7 | Endurecer `RolesGuard` (hallazgo R2/R3 de la revisión de T6): la omisión de membresía para endpoints que aceptan `seleccion` solo aplica si el endpoint no declara `@Roles`; un test fija la interacción | delegada | [ ] |
+| T7 | Endurecer `RolesGuard` (hallazgo R2/R3 de la revisión de T6): la omisión de membresía para endpoints que aceptan `seleccion` solo aplica si el endpoint no declara `@Roles`; un test fija la interacción | delegada | [x] `74bf686` |
 
 Cada tarea cierra con un commit convencional en la rama; el hash se anota aquí como evidencia.
 
@@ -63,7 +63,8 @@ Los de la Story 1.1 en `epics.md`: cookie al iniciar sesión, rotación al elegi
 - Pendiente aparte de la 1.1: purga de sesiones vencidas y costo de la escritura por petición (hallazgos a y b).
 - T6 hecha (`8369e38` backend, `c5d4fd9` frontend): `@Scope(...scopes)` acepta lista; `GET /auth/empresas` y `POST /auth/empresa/:id` aceptan sesión sin y con empresa; `RolesGuard` no exige membresía en la empresa actual a los endpoints que aceptan `seleccion` (así se puede salir de una empresa en la que ya se perdió el rol). Backend RED: 8 fallos en `auth.integracion.spec.ts` (401 en lista/cambio); GREEN: 81/81 en `src/auth`; suite completa 40 suites / 878 tests; typecheck y lint limpios. Frontend RED: 6 fallos nuevos en `SessionProvider.restauracion.test.tsx`; GREEN: evento `EMPRESAS_CONOCIDAS` (atado a la época) y `conocerEmpresas()` tras `RESTAURADA_SESION`, sin bloquear y sin terminar la sesión si falla; mocks por defecto listan con sesión viva, cambian la empresa (A/B) y dan 403 a una ajena. Verificación en `frontend/`: typecheck y lint limpios, 240 archivos / 3964 pruebas en verde.
 - Revisión nativa de T6 (backend `8369e38`, 8 archivos, 231 líneas, riesgo alto): 4 lentes, aprobada y acusada. Hallazgos no bloqueantes: `roles.guard.ts:45-51` omite la membresía en todo endpoint que acepta `seleccion`, también si declara `@Roles` (R2 y R3, WARNING; ningún test lo fija); sugerencias: línea larga en `auth.service.ts:114-117` y docs de scope duplicadas en `tipos.ts:3`. Frontend `c5d4fd9`: riesgo medio, bajo presupuesto, sin revisión pendiente.
-- Siguiente paso: decidir si se endurece `RolesGuard` y cerrar la historia 1.1.
+- T7 hecha (`74bf686`): `RolesGuard` solo omite la membresía si el endpoint acepta `seleccion` y no declara `@Roles`; con `@Roles` sigue el camino normal (403 "Sin acceso a esta empresa" con registro, o "Rol insuficiente"). Docs de `@Scope` y `tipos.ts` ajustadas y comentario largo de `auth.service.ts` reflujado. RED: 2 fallos de 13 en `roles.guard.spec.ts` (casos con `@Roles` resolvían `true`); GREEN: 13/13. Verificación: typecheck y lint limpios, suite 40 suites / 883 tests en verde (una corrida previa falló una vez `esquema.spec.ts` "usa el índice parcial al buscar CFDI abiertas por emisor"; pasa solo y en el rerun completo).
+- Siguiente paso: cierre de la historia 1.1.
 
 ## Evidencia de routing
 
