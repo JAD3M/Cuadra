@@ -35,6 +35,7 @@ Reemplazar el JWT de dos tokens de la v1 (D-09) por una fila en `sesiones` con c
 | T3 | Limpieza del JWT: retirar `@nestjs/jwt`, `JWT_SECRET`, `.env.example`, `scripts/demo/runner.ts` y menciones en código | delegada | [x] `9742d22` |
 | T4 | Frontend: `credentials: 'include'`, quitar `almacenTokens`, restaurar sesión al recargar, mocks y tests | delegada | [x] `1decfa1` |
 | T5 | Docs: D-09 retirada en `CUADRA.md`, entrada en `docs/bitacora.md`, estado de la historia | inline | [x] `c609000` |
+| T6 | Cambiar de empresa con la sesión viva (AD-6 "elegir o cambiar"): `GET /auth/empresas` y `POST /auth/empresa/:id` aceptan sesión sin empresa y con empresa; cambiar actualiza la misma fila, rota el token y deja la sesión igual ante 403; el frontend ya no cae en `reingreso` y conoce `puedeCambiarEmpresa` tras recargar | delegada | [ ] |
 
 Cada tarea cierra con un commit convencional en la rama; el hash se anota aquí como evidencia.
 
@@ -57,7 +58,10 @@ Los de la Story 1.1 en `epics.md`: cookie al iniciar sesión, rotación al elegi
 - Punto abierto: Cambiar de empresa con una sesión que ya eligió una devuelve 401 porque POST /auth/empresa/:id sigue con @Scope('seleccion'); AD-6 dice "elegir o cambiar"; decidir en una historia posterior.
 - T4 hecha (`1decfa1`): cliente con `credentials: 'include'` y sin `Authorization`; `almacenTokens` retirado; arranque en frío con fase `restaurando` (estado público `restoring`) que prueba `GET /auth/contexto` (con los reintentos de las consultas) y, ante 401, `GET /auth/empresas` para retomar la elección; 403 -> `sin_acceso`; elegir empresa aplica el contexto devuelto por el POST (sin segundo GET); logout llama `POST /auth/logout` y luego vacía el cliente. Mocks con sesión simulada (`src/test/sesionMock.ts`); prueba de proxy Vite con `Set-Cookie`/`Cookie`. RED: 12 fallos en `SessionProvider.restauracion.test.tsx` antes de la implementación. Verificación en `frontend/`: typecheck y lint limpios, suite 240 archivos / 3956 pruebas en verde.
 - Puntos abiertos de T4: (1) `GET /auth/empresas` y `POST /auth/empresa/:id` siguen `@Scope('seleccion')`, así que "Cambiar de empresa" con sesión viva responde 401 y el cliente cae en `reingreso` (cancela la sesión y pide contraseña); tras recargar `puedeCambiarEmpresa` es `false` porque ningún endpoint dice cuántas empresas tiene quien ya eligió. (2) Retomar la elección tras recargar no conoce el nombre: el saludo es "Hola. Tienes acceso a N empresas."; si se quiere el nombre hace falta que `GET /auth/empresas` (o un endpoint nuevo) devuelva el usuario.
-- Siguiente paso: revisión nativa del rango (riesgo alto) y decidir el cambio de empresa con sesión viva.
+- Revisión nativa (RDD activo, riesgo alto): el rango completo (95 archivos, 4323 líneas) falló con `lens_context_budget_exceeded` sin crear autoridad. Se dividió en dos candidatos. Mitad backend T1-T3 (49 archivos, 1858 líneas): 4 lentes, aprobada y acusada; 7 hallazgos no bloqueantes: (a) las sesiones vencidas no se purgan y la tabla crece sin cota (`sesiones.service.ts:69-87` y `:136-138`); (b) el guard hace SELECT + UPDATE por petición autenticada (`sesion-cookie.guard.ts:68-70`); (c) 4 sugerencias de legibilidad en helpers de tests y `renovar`. Mitad frontend T4-T5 (47 archivos, 2471 líneas): también excedió el presupuesto; por decisión de la persona usuaria se omite la revisión nativa (la seguridad vive en el backend ya aprobado; el frontend no guarda token, no toca `document.cookie` ni inyecta HTML, verificado con búsqueda en `frontend/src`).
+- Decisión (persona usuaria): resolver el cambio de empresa con sesión viva como T6 dentro de la 1.1, porque AD-6 lo incluye y es el flujo de UJ-1.
+- Pendiente aparte de la 1.1: purga de sesiones vencidas y costo de la escritura por petición (hallazgos a y b).
+- Siguiente paso: T6.
 
 ## Evidencia de routing
 
