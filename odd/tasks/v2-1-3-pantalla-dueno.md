@@ -33,7 +33,7 @@ Que el dueño de Cuadra tenga una cuenta propia (`plataforma_usuarios`, sembrada
 
 | ID | Tarea | Ruta | Estado |
 |----|-------|------|--------|
-| T1 | Migración y entidades: `plataforma_usuarios`, `bitacora_plataforma` (solo SELECT/INSERT), `sesiones.plataforma_usuario_id` + FK + CHECK por tipo; actualizar `esquema.spec.ts`; pruebas del CHECK y de los GRANTs | delegada | [ ] |
+| T1 | Migración y entidades: `plataforma_usuarios`, `bitacora_plataforma` (solo SELECT/INSERT), `sesiones.plataforma_usuario_id` + FK + CHECK por tipo; actualizar `esquema.spec.ts`; pruebas del CHECK y de los GRANTs | delegada | [x] `1beabe6` |
 | T2 | Siembra del dueño: script npm, hash, rechazo si la tabla no está vacía, sin endpoint de alta | delegada | [ ] |
 | T3 | Sesión plataforma: scope nuevo, login bajo `/plataforma`, `SesionCookieGuard` deja de dar 401 y distingue tipo, 403 cruzado con registro en `bitacora_plataforma`, migrar test de `auth.integracion.spec.ts:1223`, prueba de que el interceptor no abre transacción sin `company_id` | delegada | [ ] |
 | T4 | Prueba de arquitectura de clase 3 y módulo `src/plataforma/` con lista de empresas vacía (lectura) | delegada | [ ] |
@@ -54,7 +54,10 @@ Los de la Story 1.3 en `epics.md` (líneas 339-377).
 ## Progreso
 
 - Mapeo de solo lectura hecho (explorador): `ck_sesiones_tipo` ya admite `plataforma` y `company_id` nulo; `SesionCookieGuard` da 401 a todo tipo distinto de `empresa`; el interceptor solo abre transacción con `scope==='sesion'`; no existen las tablas de plataforma, `src/plataforma/` ni prueba de arquitectura; `AccesosDenegados` solo escribe por empresa.
-- Siguiente paso: T1.
+- T1 hecha (`1beabe6`). Migración `1790709200000-PlataformaUsuarios`, entidades en `src/plataforma/`, `Sesion.plataformaUsuario` por nombre (sin importar clase 3 fuera de `plataforma/`). RED: 22 de 22 fallaban sin la migración. GREEN: 22 de 22; suite completa 45 suites, 998 tests; `typecheck` y `lint` limpios. Ajustes mínimos: `SesionCookieGuard` rechaza con 401 una sesión empresa sin `userId`; el test de plataforma en `auth.integracion.spec.ts` crea su `plataforma_usuarios` (T3 lo migra a 403). La migración borra sesiones `plataforma` previas (no podían existir: el guard daba 401).
+- Pendiente de T3 (AD-7): `bitacora_plataforma.accion` no tiene CHECK; se agrega cuando se definan los valores (`acceso_denegado`, etc.) junto con `tipos.ts`, su espejo en el frontend y la prueba de deriva.
+- Riesgo anotado: el test de reversibilidad usa `undoLastMigration()`; si se agrega otra migración después, hay que actualizarlo.
+- Siguiente paso: T2 (siembra del dueño).
 
 ## Evidencia de routing
 
