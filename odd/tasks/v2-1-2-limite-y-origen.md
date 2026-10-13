@@ -34,7 +34,7 @@ Que el inicio de sesión resista intentos repetidos (más de 5 fallidos por minu
 | ID | Tarea | Ruta | Estado |
 |----|-------|------|--------|
 | T1 | Cimientos: proveedor ioredis compartido con cierre limpio, `configurarApp(app)` (cookie-parser, ValidationPipe, `trust proxy`, CORS exacto) usada por `main.ts` y por los helpers de prueba, variables `ORIGEN_AUTORIZADO` y `TRUST_PROXY` en `env.validation` (+ spec), `docker-compose.yml` y `ci.yml` | delegada | [x] `62a9847` |
-| T2 | Límite declarativo: decorador `@Limite`, guard antes de `SesionCookieGuard`, conteo de fallos con Lua, 429 con mensaje claro, `Logger` sin correo, aplicado al login (5 fallidos por minuto por IP); pruebas: dispara el límite, un intento correcto no consume, `trust proxy` usa la IP real, otra IP no se ve afectada | delegada | [ ] |
+| T2 | Límite declarativo: decorador `@Limite`, guard antes de `SesionCookieGuard`, conteo de fallos con Lua, 429 con mensaje claro, `Logger` sin correo, aplicado al login (5 fallidos por minuto por IP); pruebas: dispara el límite, un intento correcto no consume, `trust proxy` usa la IP real, otra IP no se ve afectada | delegada | [x] `b6e5fba` |
 | T3 | Origen autorizado: guard de `Origin` en peticiones que cambian datos, 403 sin cambios, CORS sin `*`; migrar helpers y specs que no envían `Origin` (alrededor de 14 archivos y `scripts/demo/runner.ts`) | delegada | [ ] |
 | T4 | Docs: D-11 reemplazada y CU-19.13 en `CUADRA.md`, entrada en `docs/bitacora.md`, aviso de las variables para `.env.example` | inline | [ ] |
 
@@ -55,7 +55,9 @@ Los de la Story 1.2 en `epics.md`: 429 tras más de 5 fallos por minuto con el c
 - Mapeo de solo lectura hecho (explorador): Redis hoy solo lo usan BullMQ y un cliente efímero de `/health`; no existe `trust proxy`, CORS ni helmet; ningún spec envía `Origin`; `main.ts` no llega a los tests, por eso `configurarApp`.
 - Decisión: Redis caído = falla cerrada (503).
 - T1 hecha (`62a9847`). RED: env.validation.spec, configurar-app.spec y redis.module.spec fallaban (21 casos rojos y dos suites sin poder importar). GREEN: 56 + 9 + 2 casos; suite completa 42 suites, 915 tests; `typecheck` y `lint` limpios. `setupFiles` de Jest (`src/testing/entorno-de-pruebas.ts`) fija `ORIGEN_AUTORIZADO=http://localhost:5173` y borra `TRUST_PROXY` para todos los specs. CORS usa función de origen (con cadena, `cors` respondería siempre ese origen). `RedisModule` aún solo está en `AppModule`: T2 debe importarlo donde inyecte `CLIENTE_REDIS`.
-- Siguiente paso: T2.
+- Revisión nativa de T1: aprobada, con 2 sugerencias de legibilidad (comentar el caso de `Origin` indefinido y las listas de métodos CORS en `configurar-app.ts`; explicar por qué `interpretarTrustProxy` se aplica en el esquema y en `configurarApp`). Aplicadas en T2.
+- T2 hecha (`b6e5fba`). Diseño: reserva atómica con Lua (`INCR` + `PEXPIRE` solo si la llave es nueva, devuelve conteo y PTTL) antes del handler; `LimiteInterceptor` devuelve el intento (`DECR`, borra al llegar a 0, nunca crea llave ni toca la caducidad) si la respuesta es 2xx. Guard e interceptor globales vía `PROVEEDORES_LIMITE`, registrados en `AuthModule` antes de `SesionCookieGuard` (el orden por módulo no era fiable, el del arreglo de proveedores sí). Fallo de Redis: 503 y `logger.error` sin URL. Corrección al diseño: tras 4 fallos y un acierto queda 1 fallo de margen (no 4); el acierto neto es cero. RED: con `PROVEEDORES_LIMITE` vacío fallaban 15 casos (10 de `limite.integracion.spec.ts` y 5 de login). GREEN: 73 casos en esos dos archivos; suite completa 43 suites, 931 tests; `typecheck` y `lint` limpios. Los demás specs no tocan el login (abren sesión con `abrirSesion`); solo `auth.integracion.spec.ts` limpia los contadores en `beforeEach`.
+- Siguiente paso: T3.
 
 ## Evidencia de routing
 
