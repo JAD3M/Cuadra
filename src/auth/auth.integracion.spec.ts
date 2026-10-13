@@ -453,11 +453,42 @@ describe('GET /auth/empresas', () => {
     expect(await ds.query('SELECT 1 FROM bitacora')).toHaveLength(0);
   });
 
-  it('rechaza una sesión que ya eligió empresa', async () => {
-    await http()
+  it('una sesión con empresa elegida recibe la misma lista', async () => {
+    const seleccion = await http()
+      .get('/auth/empresas')
+      .set('Cookie', await tokenSeleccion(JORGE))
+      .expect(200);
+    const res = await http()
       .get('/auth/empresas')
       .set('Cookie', await tokenSesion(JORGE, FERRETERIA))
-      .expect(401);
+      .expect(200);
+
+    expect(res.body).toEqual(seleccion.body);
+    expect((res.body as EmpresaRespuesta[]).map((e) => e.rfc)).toEqual([
+      FERRETERIA,
+      TRANSPORTES,
+    ]);
+  });
+
+  it('con empresa elegida sigue respondiendo aunque ya no tenga rol en ella', async () => {
+    const token = await tokenSesion(JORGE, FERRETERIA);
+    await ds.query(
+      `DELETE FROM user_company_roles
+        WHERE company_id = $1
+          AND user_id = (SELECT id FROM users WHERE email = $2)`,
+      [empresas.get(FERRETERIA), JORGE],
+    );
+    try {
+      const res = await http()
+        .get('/auth/empresas')
+        .set('Cookie', token)
+        .expect(200);
+      expect((res.body as EmpresaRespuesta[]).map((e) => e.rfc)).toEqual([
+        TRANSPORTES,
+      ]);
+    } finally {
+      await sembrar(ds);
+    }
   });
 });
 
@@ -717,11 +748,139 @@ describe('POST /auth/empresa/:id', () => {
       .expect(400);
   });
 
-  it('rechaza una sesión que ya eligió empresa', async () => {
-    await http()
-      .post(`/auth/empresa/${empresas.get(FERRETERIA)}`)
-      .set('Cookie', await tokenSesion(ANA, FERRETERIA))
-      .expect(401);
+  describe('con la sesión viva (cambiar de empresa)', () => {
+    it('actualiza la misma fila, rota el token y el contexto es el de la nueva empresa', async () => {
+      const enFerreteria = await tokenSesion(JORGE, FERRETERIA);
+      const antes = (await filaDe(enFerreteria)) as FilaSesion;
+      expect(antes.company_id).toBe(empresas.get(FERRETERIA));
+
+      const res = await http()
+        .post(`/auth/empresa/${empresas.get(TRANSPORTES)}`)
+        .set('Cookie', enFerreteria)
+        .expect(200);
+
+      const rotada = cookieDe(res);
+      expect(rotada).not.toBe(enFerreteria);
+      const despues = (await filaDe(rotada)) as FilaSesion;
+      expect(despues).toMatchObject({
+        id: antes.id,
+        user_id: antes.user_id,
+        company_id: empresas.get(TRANSPORTES),
+      });
+      expect(despues.token_hash).not.toBe(antes.token_hash);
+      expect(await filaDe(enFerreteria)).toBeUndefined();
+      expect((setCookieDe(res) as string).toLowerCase()).toEqual(
+        expect.stringContaining('httponly; secure; samesite=lax'),
+      );
+      expect(res.body).toMatchObject({
+        empresa: { rfc: TRANSPORTES },
+        roles: ['revisor'],
+      });
+
+      // El token anterior muere de inmediato y el nuevo ve la empresa nueva.
+      await http()
+        .get('/auth/contexto')
+        .set('Cookie', enFerreteria)
+        .expect(401);
+      const contexto = await http()
+        .get('/auth/contexto')
+        .set('Cookie', rotada)
+        .expect(200);
+      expect(contexto.body).toMatchObject({
+        empresa: { rfc: TRANSPORTES },
+        roles: ['revisor'],
+      });
+    });
+
+    it('da 403 con una empresa sin rol y la sesión queda exactamente igual', async () => {
+      const enFerreteria = await tokenSesion(ANA, FERRETERIA);
+      const antes = (await filaDe(enFerreteria)) as FilaSesion;
+
+      await http()
+        .post(`/auth/empresa/${empresas.get(TRANSPORTES)}`)
+        .set('Cookie', enFerreteria)
+        .expect(403);
+
+      const despues = (await filaDe(enFerreteria)) as FilaSesion;
+      expect(despues).toMatchObject({
+        id: antes.id,
+        token_hash: antes.token_hash,
+        company_id: empresas.get(FERRETERIA),
+      });
+      // El token viejo sigue sirviendo y sigue en Ferretería.
+      const contexto = await http()
+        .get('/auth/contexto')
+        .set('Cookie', enFerreteria)
+        .expect(200);
+      expect(contexto.body).toMatchObject({ empresa: { rfc: FERRETERIA } });
+    });
+
+    it('elegir la empresa que ya está activa es inofensivo', async () => {
+      const enFerreteria = await tokenSesion(JORGE, FERRETERIA);
+      const res = await http()
+        .post(`/auth/empresa/${empresas.get(FERRETERIA)}`)
+        .set('Cookie', enFerreteria)
+        .expect(200);
+
+      expect(res.body).toMatchObject({
+        empresa: { rfc: FERRETERIA },
+        roles: ['contador'],
+      });
+      await http()
+        .get('/auth/contexto')
+        .set('Cookie', cookieDe(res))
+        .expect(200);
+    });
+
+    it('con un id de empresa de otro usuario da 403 y no cambia nada', async () => {
+      // Ana no tiene rol en Transportes; Jorge sí: el id es válido pero ajeno.
+      const enFerreteria = await tokenSesion(ANA, FERRETERIA);
+      await http()
+        .post(`/auth/empresa/${empresas.get(TRANSPORTES)}`)
+        .set('Cookie', enFerreteria)
+        .expect(403);
+      const fila = (await filaDe(enFerreteria)) as FilaSesion;
+      expect(fila.company_id).toBe(empresas.get(FERRETERIA));
+    });
+
+    it('cambia de empresa aunque ya haya perdido el rol en la actual', async () => {
+      const token = await tokenSesion(JORGE, FERRETERIA);
+      await ds.query(
+        `DELETE FROM user_company_roles
+          WHERE company_id = $1
+            AND user_id = (SELECT id FROM users WHERE email = $2)`,
+        [empresas.get(FERRETERIA), JORGE],
+      );
+      try {
+        const res = await http()
+          .post(`/auth/empresa/${empresas.get(TRANSPORTES)}`)
+          .set('Cookie', token)
+          .expect(200);
+        expect(res.body).toMatchObject({ empresa: { rfc: TRANSPORTES } });
+      } finally {
+        await sembrar(ds);
+      }
+    });
+
+    it('dos sesiones del mismo usuario son independientes', async () => {
+      const a = await tokenSesion(JORGE, FERRETERIA);
+      const b = await tokenSesion(JORGE, FERRETERIA);
+      const resB = await http()
+        .post(`/auth/empresa/${empresas.get(TRANSPORTES)}`)
+        .set('Cookie', b)
+        .expect(200);
+
+      const contextoA = await http()
+        .get('/auth/contexto')
+        .set('Cookie', a)
+        .expect(200);
+      expect(contextoA.body).toMatchObject({ empresa: { rfc: FERRETERIA } });
+      const contextoB = await http()
+        .get('/auth/contexto')
+        .set('Cookie', cookieDe(resB))
+        .expect(200);
+      expect(contextoB.body).toMatchObject({ empresa: { rfc: TRANSPORTES } });
+    });
   });
 
   it('rechaza sin cookie', async () => {

@@ -113,8 +113,8 @@ export class SesionesService {
   }
 
   /**
-   * Elegir empresa: la misma fila gana `company_id` y el token rota, así el
-   * anterior (el de antes de elegir) deja de servir. Devuelve el token nuevo,
+   * Elegir o cambiar de empresa: la misma fila gana `company_id` y el token
+   * rota, así el anterior (el de antes de elegir o de cambiar) deja de servir. Devuelve el token nuevo,
    * o null si la sesión ya no existe.
    */
   async elegirEmpresa(id: string, companyId: string): Promise<string | null> {

@@ -89,17 +89,17 @@ export class AuthController {
   }
 
   @Get('empresas')
-  @Scope('seleccion')
+  @Scope('seleccion', 'sesion')
   @ApiCookieAuth()
   @ApiOperation({
-    summary: 'Empresas que puede elegir el usuario de la sesión sin empresa',
+    summary: 'Empresas que puede elegir el usuario de la sesión',
     description:
-      'La misma lista que devuelve el login, para no perderla si se recarga la página.',
+      'La misma lista que devuelve el login, con o sin empresa elegida: sirve para retomar la elección tras recargar y para cambiar de empresa.',
   })
   @ApiOkResponse({ type: [EmpresaDisponibleDto] })
   @ApiUnauthorizedResponse({
     type: RespuestaErrorDto,
-    description: 'Sin sesión, venció o ya tiene empresa elegida.',
+    description: 'Sin sesión o venció.',
   })
   async empresas(
     @UsuarioActual() usuario: UsuarioAutenticado,
@@ -108,20 +108,20 @@ export class AuthController {
   }
 
   @Post('empresa/:id')
-  @Scope('seleccion')
+  @Scope('seleccion', 'sesion')
   @HttpCode(200)
   @ApiCookieAuth()
   @ApiOperation({
-    summary: 'Elige la empresa de la sesión: misma fila, token rotado',
+    summary: 'Elige o cambia la empresa de la sesión: misma fila, token rotado',
     description:
-      'Si la persona no tiene rol en la empresa responde 403 y la sesión queda igual. La respuesta trae el contexto; la cookie nueva reemplaza a la anterior.',
+      'Sirve con la sesión sin empresa (primera elección) y con la sesión viva (cambio). Si la persona no tiene rol en la empresa responde 403 y la sesión queda igual, con el mismo token. La respuesta trae el contexto de la empresa nueva; la cookie nueva reemplaza a la anterior y la anterior deja de servir.',
   })
   @ApiParam({ name: 'id', format: 'uuid', description: 'Id de la empresa' })
   @ApiOkResponse({ type: ContextoSesionDto })
   @ApiBadRequestResponse({ description: 'El id no es un UUID.' })
   @ApiUnauthorizedResponse({
     type: RespuestaErrorDto,
-    description: 'Sin sesión, venció o ya tiene empresa elegida.',
+    description: 'Sin sesión o venció.',
   })
   @ApiForbiddenResponse({
     type: RespuestaErrorDto,

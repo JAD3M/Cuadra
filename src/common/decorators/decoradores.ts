@@ -18,11 +18,16 @@ export const LLAVE_ROLES = 'auth:roles';
 export const Publico = () => SetMetadata(LLAVE_PUBLICO, true);
 
 /**
- * Qué tipo de sesión acepta el endpoint: 'seleccion' (sin empresa elegida) o
- * 'sesion' (con empresa). Sin este decorador se exige `'sesion'`: olvidarlo
- * debe cerrar la puerta, no abrirla.
+ * Qué tipos de sesión acepta el endpoint: 'seleccion' (sin empresa elegida),
+ * 'sesion' (con empresa) o ambos. Sin este decorador se exige `'sesion'`:
+ * olvidarlo debe cerrar la puerta, no abrirla.
+ *
+ * Un endpoint que acepta 'seleccion' no opera sobre una empresa, así que
+ * `RolesGuard` no exige membresía en la empresa de la sesión (elegir o
+ * cambiar de empresa debe seguir posible aunque se haya perdido la actual).
  */
-export const Scope = (scope: ScopeSesion) => SetMetadata(LLAVE_SCOPE, scope);
+export const Scope = (...scopes: ScopeSesion[]) =>
+  SetMetadata(LLAVE_SCOPE, scopes);
 
 /** Autoriza si cualquiera de los roles del usuario en la empresa está aquí (D-08). */
 export const Roles = (...roles: Rol[]) => SetMetadata(LLAVE_ROLES, roles);

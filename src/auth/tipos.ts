@@ -1,5 +1,6 @@
 import type { Rol } from '../common/entities/tipos';
 
+/** Tipo de sesión: 'seleccion' = sin empresa elegida; 'sesion' = con empresa. */
 export type Scope = 'seleccion' | 'sesion';
 
 /**

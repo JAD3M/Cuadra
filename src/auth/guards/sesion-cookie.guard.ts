@@ -39,9 +39,10 @@ export class SesionCookieGuard implements CanActivate {
     if (this.reflector.getAllAndOverride<boolean>(LLAVE_PUBLICO, destinos)) {
       return true;
     }
-    const scopeRequerido =
-      this.reflector.getAllAndOverride<Scope>(LLAVE_SCOPE, destinos) ??
-      'sesion';
+    const scopesAceptados = this.reflector.getAllAndOverride<Scope[]>(
+      LLAVE_SCOPE,
+      destinos,
+    ) ?? ['sesion'];
 
     const http = contexto.switchToHttp();
     const solicitud = http.getRequest<Request>();
@@ -62,7 +63,7 @@ export class SesionCookieGuard implements CanActivate {
             companyId: sesion.companyId,
             sesionId: sesion.id,
           };
-    if (usuario.scope !== scopeRequerido) {
+    if (!scopesAceptados.includes(usuario.scope)) {
       throw new UnauthorizedException(NO_AUTORIZADO);
     }
     if (!(await this.sesiones.renovar(sesion.id))) {
