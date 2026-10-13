@@ -36,6 +36,7 @@ Reemplazar el JWT de dos tokens de la v1 (D-09) por una fila en `sesiones` con c
 | T4 | Frontend: `credentials: 'include'`, quitar `almacenTokens`, restaurar sesión al recargar, mocks y tests | delegada | [x] `1decfa1` |
 | T5 | Docs: D-09 retirada en `CUADRA.md`, entrada en `docs/bitacora.md`, estado de la historia | inline | [x] `c609000` |
 | T6 | Cambiar de empresa con la sesión viva (AD-6 "elegir o cambiar"): `GET /auth/empresas` y `POST /auth/empresa/:id` aceptan sesión sin empresa y con empresa; cambiar actualiza la misma fila, rota el token y deja la sesión igual ante 403; el frontend ya no cae en `reingreso` y conoce `puedeCambiarEmpresa` tras recargar | delegada | [x] `8369e38` (backend), `c5d4fd9` (frontend) |
+| T7 | Endurecer `RolesGuard` (hallazgo R2/R3 de la revisión de T6): la omisión de membresía para endpoints que aceptan `seleccion` solo aplica si el endpoint no declara `@Roles`; un test fija la interacción | delegada | [ ] |
 
 Cada tarea cierra con un commit convencional en la rama; el hash se anota aquí como evidencia.
 
