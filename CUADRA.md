@@ -619,6 +619,12 @@ JSONB para cuando el flujo básico ya corra.
 
 ### D-09 · Dos tokens: selección (5 min) y sesión (15 min)
 
+> **Retirada el 13 oct 2026 (v2, historia 1.1).** La reemplaza AD-6: una fila
+> en `sesiones` con cookie `httpOnly`, `Secure` y `SameSite=Lax`, que el
+> servidor puede cancelar y que vence tras 8 horas sin actividad. El JWT y
+> `JWT_SECRET` ya no existen. Lo que sigue describe la v1 y se conserva como
+> historial.
+
 Una persona puede pertenecer a varias empresas (D-05). El login **no** puede
 saber a cuál va a entrar, así que el acceso se parte en dos pasos, cada uno
 con su propio token:

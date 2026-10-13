@@ -3,6 +3,37 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 13 oct 2026
+
+- **Historia 1.1 de la v2: sesión con cookie que el servidor puede cancelar
+  (KAN-116, FR-59).** Implementada con ODD en la rama
+  `feat/v2-1-1-sesiones-con-cookie`, sin push ni PR. Reemplaza el JWT de dos
+  tokens de la v1 (D-09) por una fila en `sesiones` (AD-2, AD-6):
+  - **T1 `27905cc`:** tabla `sesiones` sin RLS (clase 2), entidad `Sesion` y
+    `GRANT SELECT, INSERT, UPDATE, DELETE` a `cuadra_app`. Un test comprueba que
+    `sesiones` es la única tabla pública donde `cuadra_app` puede borrar.
+  - **T2 `dcb2cef`:** `SesionesService`, guarda por cookie `cuadra_sesion`
+    (guarda solo el hash SHA-256), login, elegir empresa con rotación del
+    token, logout y vencimiento a las 8 h con renovación por actividad. Los
+    tests y helpers que usaban Bearer pasaron a cookie.
+  - **T3 `9742d22`:** se retiran `@nestjs/jwt`, `JWT_SECRET` y las menciones
+    a Bearer en Swagger.
+  - **T4 `1decfa1`:** el frontend manda la cookie, ya no guarda token, y
+    recargar la página conserva la sesión. La pantalla de login no cambia.
+- **Decisiones:** `Origin` y límite de peticiones quedan para la historia 1.2.
+  Las sesiones de tipo `plataforma` responden 401 hasta la historia 1.3.
+- **Puntos abiertos (fuera de la 1.1):**
+  1. **Cambiar de empresa con la sesión viva** responde 401 porque
+     `POST /auth/empresa/:id` y `GET /auth/empresas` siguen con
+     `@Scope('seleccion')`; el cliente lo trata como reingreso y pide la
+     contraseña. AD-6 dice «elegir o cambiar»; hay que decidirlo.
+  2. **Tras recargar** no hay nombre de usuario al retomar la elección de
+     empresa, y `puedeCambiarEmpresa` queda en `false`, porque ningún endpoint
+     devuelve esos datos.
+  3. **Prueba intermitente que ya existía:**
+     `src/cargas/cargas.listado.integracion.spec.ts:336` falla cuando un UUID
+     aleatorio contiene «77».
+
 ### 7 oct 2026
 
 - **Backend verificado con Postgres 18 en el equipo del usuario: 39 suites y
