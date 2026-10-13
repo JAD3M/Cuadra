@@ -20,17 +20,30 @@
     a Bearer en Swagger.
   - **T4 `1decfa1`:** el frontend manda la cookie, ya no guarda token, y
     recargar la página conserva la sesión. La pantalla de login no cambia.
+  - **T6 `8369e38` y `c5d4fd9`: cambiar de empresa con la sesión viva
+    (AD-6).** `GET /auth/empresas` y `POST /auth/empresa/:id` aceptan la
+    sesión con y sin empresa; cambiar actualiza la misma fila y rota el token,
+    y un 403 la deja igual. El frontend ya no pide la contraseña al cambiar y
+    conoce `puedeCambiarEmpresa` tras recargar.
+- **Revisión nativa.** El rango completo excedió el presupuesto de los
+  revisores (`lens_context_budget_exceeded`) y se dividió. Backend T1 a T3 y
+  backend T6: aprobados con 4 lentes. Frontend T4 y T5 (47 archivos): también
+  excedió el presupuesto; se omitió por decisión de la persona usuaria, porque
+  la seguridad de la sesión vive en el backend.
 - **Decisiones:** `Origin` y límite de peticiones quedan para la historia 1.2.
   Las sesiones de tipo `plataforma` responden 401 hasta la historia 1.3.
 - **Puntos abiertos (fuera de la 1.1):**
-  1. **Cambiar de empresa con la sesión viva** responde 401 porque
-     `POST /auth/empresa/:id` y `GET /auth/empresas` siguen con
-     `@Scope('seleccion')`; el cliente lo trata como reingreso y pide la
-     contraseña. AD-6 dice «elegir o cambiar»; hay que decidirlo.
-  2. **Tras recargar** no hay nombre de usuario al retomar la elección de
-     empresa, y `puedeCambiarEmpresa` queda en `false`, porque ningún endpoint
-     devuelve esos datos.
-  3. **Prueba intermitente que ya existía:**
+  1. **Sesiones vencidas sin purga:** solo se borran al cerrar sesión, así que
+     `sesiones` crece sin cota (`sesiones.service.ts`).
+  2. **Una escritura por petición:** el guard hace SELECT y UPDATE en cada
+     petición autenticada y las concurrentes de una misma sesión se
+     serializan sobre la fila (`sesion-cookie.guard.ts`).
+  3. **`RolesGuard` y `'seleccion'`:** omite la membresía en todo endpoint que
+     acepta `'seleccion'`, aunque declare `@Roles` (`roles.guard.ts:45-51`);
+     ningún test fija esa interacción.
+  4. **Sin nombre de usuario** al retomar la elección de empresa tras
+     recargar: ningún endpoint lo devuelve.
+  5. **Prueba intermitente que ya existía:**
      `src/cargas/cargas.listado.integracion.spec.ts:336` falla cuando un UUID
      aleatorio contiene «77».
 
