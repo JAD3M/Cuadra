@@ -37,7 +37,12 @@ import {
   hace,
 } from '@/test/fixturesTolerancia';
 import { almacenes } from '@/test/handlers';
-import { contextoPorToken, espiarSolicitudes } from '@/test/handlersAuth';
+import { contextoPorEmpresa, espiarSolicitudes } from '@/test/handlersAuth';
+import {
+  elegirEmpresaMock,
+  empresaDeLaSesion,
+  hayEmpresaElegida,
+} from '@/test/sesionMock';
 import {
   cambiosFalla,
   cambiosFueraDeContrato,
@@ -126,28 +131,33 @@ async function intentarEnviar() {
   fireEvent.submit(formulario());
 }
 
-/** `GET /auth/contexto` según el token: A con los roles dados; B con los suyos. */
+/** Contexto según la empresa de la sesión: A con los roles dados; B con los suyos. */
 function contextoConRoles(rolesA: string[], rolesB?: string[]) {
+  const contexto = () =>
+    empresaDeLaSesion() === idB
+      ? { ...CONTEXTO_SESION_B, roles: rolesB ?? CONTEXTO_SESION_B.roles }
+      : { ...CONTEXTO_SESION, roles: rolesA };
   servidor.use(
-    http.post('/api/auth/empresa/:id', ({ params }) =>
-      HttpResponse.json({ token: `token-de-sesion-${String(params.id)}` }),
-    ),
-    http.get('/api/auth/contexto', ({ request }) => {
-      const esB = (request.headers.get('Authorization') ?? '').endsWith(idB);
-      return HttpResponse.json(
-        esB
-          ? { ...CONTEXTO_SESION_B, roles: rolesB ?? CONTEXTO_SESION_B.roles }
-          : { ...CONTEXTO_SESION, roles: rolesA },
-      );
+    http.post('/api/auth/empresa/:id', ({ params }) => {
+      elegirEmpresaMock(String(params.id));
+      return HttpResponse.json(contexto());
     }),
+    http.get('/api/auth/contexto', () =>
+      hayEmpresaElegida()
+        ? HttpResponse.json(contexto())
+        : HttpResponse.json(
+            { statusCode: 401, error: 'Unauthorized', message: 'x' },
+            { status: 401 },
+          ),
+    ),
   );
 }
 
 /** `GET /empresa/tolerancia` de B responde otro valor; el de A, el del almacén. */
 function valorDeBDistinto(valorB: string) {
   servidor.use(
-    http.get('/api/empresa/tolerancia', ({ request }) => {
-      const esB = (request.headers.get('Authorization') ?? '').endsWith(idB);
+    http.get('/api/empresa/tolerancia', () => {
+      const esB = empresaDeLaSesion() === idB;
       return HttpResponse.json({
         toleranciaMonto: esB ? valorB : tolerancia.valor(),
       });
@@ -461,7 +471,7 @@ describe('flujos de tolerancia: roles (TOL-8)', () => {
   });
 
   it('un revisor (empresa B) ve exactamente lo mismo que un contador (TOL-8.3)', async () => {
-    contextoPorToken(idB);
+    contextoPorEmpresa(idB);
     montarApp('/tolerancia');
     await entrarALaApp(/Abarrotes/);
     await esperarValor('$0.50');
@@ -553,7 +563,7 @@ describe('flujos de tolerancia: época y salidas con un PUT en vuelo (TOL-9)', (
         (s) =>
           s.metodo === 'PUT' &&
           s.ruta === '/api/empresa/tolerancia' &&
-          (s.autorizacion ?? '').endsWith(idB),
+          s.empresa === idB,
       ),
     ).toBe(false);
   });
@@ -655,7 +665,7 @@ describe('flujos de tolerancia: encabezado con la empresa activa (Q8)', () => {
   });
 
   it('tras cambiar de empresa el subtítulo muestra el nombre de B', async () => {
-    contextoPorToken(idB);
+    contextoPorEmpresa(idB);
     await abrir();
     await usuario().click(cambiarEmpresa());
     await elegirEmpresaPorNombre(/Abarrotes/);

@@ -2,8 +2,8 @@ import { act, waitFor } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { ApiError, api } from '@/shared/api';
-import { EMPRESAS_DISPONIBLES } from '@/test/fixtures';
-import { esperarTokensCoherentes } from '@/test/invariantesSesion';
+import { CONTEXTO_SESION_B, EMPRESAS_DISPONIBLES } from '@/test/fixtures';
+import { esperarSinRastroDeSesion } from '@/test/invariantesSesion';
 import {
   CREDENCIALES,
   EMPRESA_A,
@@ -11,6 +11,7 @@ import {
   montarSesion,
   type EntornoSesion,
 } from '@/test/montarSesion';
+import { sesionConEmpresa } from '@/test/sesionMock';
 import { servidor } from '@/test/servidor';
 
 function error(status: number) {
@@ -22,14 +23,20 @@ function error(status: number) {
 
 /** Cuenta las peticiones a una ruta (método y ruta exactos). */
 function contar(metodo: string, ruta: string) {
-  const cuenta = { n: 0, cabeceras: [] as (string | null)[] };
+  const cuenta = {
+    n: 0,
+    cabeceras: [] as { autorizacion: string | null; credenciales: string }[],
+  };
   servidor.events.on('request:start', ({ request }) => {
     if (
       request.method === metodo &&
       new URL(request.url).pathname === `/api${ruta}`
     ) {
       cuenta.n += 1;
-      cuenta.cabeceras.push(request.headers.get('Authorization'));
+      cuenta.cabeceras.push({
+        autorizacion: request.headers.get('Authorization'),
+        credenciales: request.credentials,
+      });
     }
   });
   return cuenta;
@@ -48,7 +55,7 @@ async function enCambio(entorno: EntornoSesion) {
 }
 
 describe('cambiarEmpresa', () => {
-  it('pide la lista con el token de selección y pasa a selecting(cambio)', async () => {
+  it('pide la lista con la cookie y pasa a selecting(cambio)', async () => {
     const { entorno } = montarSesion();
     await listo(entorno);
     const llamadas = contar('GET', '/auth/empresas');
@@ -57,12 +64,14 @@ describe('cambiarEmpresa', () => {
     } finally {
       servidor.events.removeAllListeners();
     }
-    expect(llamadas.cabeceras).toEqual(['Bearer token-de-seleccion']);
+    expect(llamadas.cabeceras).toEqual([
+      { autorizacion: null, credenciales: 'include' },
+    ]);
     const estado = entorno.estado();
     expect(estado).toMatchObject({ status: 'selecting', origen: 'cambio' });
     if (estado.status !== 'selecting') return;
     expect(estado.empresas).toHaveLength(EMPRESAS_DISPONIBLES.length);
-    expect(JSON.stringify(estado)).not.toContain('token-de-');
+    expect(JSON.stringify(estado).toLowerCase()).not.toContain('token');
   });
 
   it('expone la empresa activa solo durante el cambio, no en el login', async () => {
@@ -78,18 +87,22 @@ describe('cambiarEmpresa', () => {
     if (enCambio.status !== 'selecting') throw new Error('sin cambio');
     expect(enCambio.empresaActual).toMatchObject({ id: EMPRESA_A });
     expect(enCambio.empresaActual?.razonSocial).toBeTruthy();
-    expect(JSON.stringify(enCambio)).not.toContain('token-de-');
+    expect(JSON.stringify(enCambio).toLowerCase()).not.toContain('token');
   });
 
-  it('conserva ambos tokens (SA-1) y no cambia la época', async () => {
+  it('conserva la sesión viva (SA-1) y no cambia la época', async () => {
     const { entorno } = montarSesion();
     await listo(entorno);
     const epoca = entorno.tienda.obtener().epoca;
     await act(() => entorno.acciones().cambiarEmpresa());
-    expect(entorno.almacen.sesion()).toBe('token-de-sesion');
-    expect(entorno.almacen.seleccion()).toBe('token-de-seleccion');
+    // La empresa activa sigue siendo la de la sesión viva.
+    expect(entorno.tienda.obtener()).toMatchObject({
+      fase: 'selecting',
+      origen: 'cambio',
+      empresaId: EMPRESA_A,
+    });
     expect(entorno.tienda.obtener().epoca).toBe(epoca);
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 
   it('no vacía la caché al empezar el cambio', async () => {
@@ -103,18 +116,24 @@ describe('cambiarEmpresa', () => {
     ).toBeTruthy();
   });
 
-  it('el proveedor sigue devolviendo el token de sesión durante el cambio', async () => {
+  it('durante el cambio las llamadas siguen mandando la cookie de la sesión viva', async () => {
     const { entorno } = montarSesion();
     await enCambio(entorno);
-    const cabeceras: (string | null)[] = [];
+    const cabeceras: { autorizacion: string | null; credenciales: string }[] =
+      [];
     servidor.use(
       http.get('/api/prueba', ({ request }) => {
-        cabeceras.push(request.headers.get('Authorization'));
+        cabeceras.push({
+          autorizacion: request.headers.get('Authorization'),
+          credenciales: request.credentials,
+        });
         return HttpResponse.json({});
       }),
     );
     await api.fetch('/prueba');
-    expect(cabeceras).toEqual(['Bearer token-de-sesion']);
+    expect(cabeceras).toEqual([
+      { autorizacion: null, credenciales: 'include' },
+    ]);
   });
 
   it('un 401 durante el cambio termina la sesión y vacía todo', async () => {
@@ -127,21 +146,19 @@ describe('cambiarEmpresa', () => {
       status: 'ended',
       motivo: 'sesion_expirada',
     });
-    expect(entorno.almacen.sesion()).toBeNull();
-    expect(entorno.almacen.seleccion()).toBeNull();
     expect(entorno.consultas.getQueryData(['dato-ajeno'])).toBeUndefined();
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 
-  it('cerrar sesión durante el cambio descarta ambos tokens', async () => {
+  it('cerrar sesión durante el cambio cancela la sesión viva', async () => {
     const { entorno } = montarSesion();
     await enCambio(entorno);
-    act(() => entorno.acciones().cerrarSesion());
+    await act(() => entorno.acciones().cerrarSesion());
     expect(entorno.estado()).toEqual({
       status: 'ended',
       motivo: 'cierre_voluntario',
     });
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 
   it('401 en la lista: termina con reingreso y el correo para rellenar', async () => {
@@ -156,7 +173,22 @@ describe('cambiarEmpresa', () => {
       motivo: 'reingreso',
       email: CREDENCIALES.email,
     });
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
+  });
+
+  it('401 en la lista: además pide al servidor cancelar la sesión', async () => {
+    const { entorno } = montarSesion();
+    await listo(entorno);
+    servidor.use(http.get('/api/auth/empresas', () => error(401)));
+    const logout = contar('POST', '/auth/logout');
+    try {
+      await expect(
+        act(() => entorno.acciones().cambiarEmpresa()),
+      ).rejects.toBeInstanceOf(ApiError);
+      await waitFor(() => expect(logout.n).toBe(1));
+    } finally {
+      servidor.events.removeAllListeners();
+    }
   });
 
   it.each([
@@ -171,9 +203,8 @@ describe('cambiarEmpresa', () => {
       act(() => entorno.acciones().cambiarEmpresa()),
     ).rejects.toBeInstanceOf(Error);
     expect(entorno.estado().status).toBe('ready');
-    expect(entorno.almacen.sesion()).toBe('token-de-sesion');
-    expect(entorno.almacen.seleccion()).toBe('token-de-seleccion');
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    expect(entorno.tienda.obtener().fase).toBe('sesion');
+    esperarSinRastroDeSesion();
   });
 
   it('una lista vacía termina con sin_empresas', async () => {
@@ -188,11 +219,15 @@ describe('cambiarEmpresa', () => {
     });
   });
 
-  it('sin token de selección pide reingresar', async () => {
-    const { entorno } = montarSesion();
-    await listo(entorno);
-    entorno.almacen.limpiarSeleccion();
-    await act(() => entorno.acciones().cambiarEmpresa());
+  it('tras recargar no se conoce el correo: el reingreso llega sin él', async () => {
+    sesionConEmpresa(EMPRESA_A);
+    const { entorno } = montarSesion({ recarga: true });
+    await waitFor(() => expect(entorno.estado().status).toBe('ready'));
+    // Con la sesión que ya eligió empresa el servidor responde 401 a la lista.
+    servidor.use(http.get('/api/auth/empresas', () => error(401)));
+    await expect(
+      act(() => entorno.acciones().cambiarEmpresa()),
+    ).rejects.toBeInstanceOf(ApiError);
     expect(entorno.estado()).toEqual({ status: 'ended', motivo: 'reingreso' });
   });
 
@@ -221,10 +256,10 @@ describe('cambiarEmpresa', () => {
     act(() => {
       pendiente = entorno.acciones().cambiarEmpresa();
     });
-    act(() => entorno.acciones().cerrarSesion());
+    await act(() => entorno.acciones().cerrarSesion());
     await act(() => pendiente);
     expect(entorno.estado().status).toBe('ended');
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 });
 
@@ -244,15 +279,13 @@ describe('regresarSinCambiar', () => {
     expect(entorno.historial()).toEqual([
       'anonymous',
       'selecting',
-      'loading',
       'ready',
       'selecting',
       'ready',
     ]);
     expect(entorno.estado()).toEqual(antes);
     expect(contexto.n).toBe(0);
-    expect(entorno.almacen.sesion()).toBe('token-de-sesion');
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 
   it('no hace nada fuera del cambio de empresa', async () => {
@@ -272,7 +305,7 @@ describe('regresarSinCambiar', () => {
 });
 
 describe('elegirEmpresa durante un cambio', () => {
-  it('el token de sesión se reemplaza solo cuando la elección se acepta', async () => {
+  it('la sesión se reemplaza solo cuando la elección se acepta', async () => {
     const { entorno } = montarSesion();
     await enCambio(entorno);
     let liberar: () => void = () => {};
@@ -282,21 +315,28 @@ describe('elegirEmpresa durante un cambio', () => {
     servidor.use(
       http.post('/api/auth/empresa/:id', async () => {
         await pausa;
-        return HttpResponse.json({ token: 'token-de-sesion-b' });
+        return HttpResponse.json(CONTEXTO_SESION_B);
       }),
     );
     let pendiente: Promise<void> = Promise.resolve();
     act(() => {
       pendiente = entorno.acciones().elegirEmpresa(EMPRESA_B);
     });
-    expect(entorno.almacen.sesion()).toBe('token-de-sesion');
+    // Mientras el servidor no acepta, la sesión de A sigue siendo la viva.
+    expect(entorno.tienda.obtener()).toMatchObject({
+      fase: 'selecting',
+      empresaId: EMPRESA_A,
+    });
     liberar();
     await act(() => pendiente);
-    expect(entorno.almacen.sesion()).toBe('token-de-sesion-b');
     await waitFor(() => expect(entorno.estado().status).toBe('ready'));
-    expect(entorno.estado()).toMatchObject({ restaurarOrigen: false });
+    // Se aplica el contexto que devolvió el servidor: el de B.
+    expect(entorno.estado()).toMatchObject({
+      restaurarOrigen: false,
+      contexto: CONTEXTO_SESION_B,
+    });
     expect(entorno.tienda.obtener().epoca).toBe(2);
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 
   it('una empresa distinta vacía la caché', async () => {
@@ -328,15 +368,13 @@ describe('elegirEmpresa durante un cambio', () => {
     expect(entorno.historial()).toEqual([
       'anonymous',
       'selecting',
-      'loading',
       'ready',
       'selecting',
       'ready',
     ]);
     expect(entorno.estado()).toEqual(antes);
     expect(entorno.consultas.getQueryData(['dato-ajeno'])).toBe('privado');
-    expect(entorno.almacen.sesion()).toBe('token-de-sesion');
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 
   it('un fallo al elegir deja la sesión anterior viva y se puede abandonar', async () => {
@@ -350,8 +388,7 @@ describe('elegirEmpresa durante un cambio', () => {
       status: 'selecting',
       origen: 'cambio',
     });
-    expect(entorno.almacen.sesion()).toBe('token-de-sesion');
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
     act(() => entorno.acciones().regresarSinCambiar());
     expect(entorno.estado().status).toBe('ready');
   });
@@ -368,7 +405,7 @@ describe('elegirEmpresa durante un cambio', () => {
       motivo: 'reingreso',
       email: CREDENCIALES.email,
     });
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 });
 
@@ -389,7 +426,7 @@ describe('elegirEmpresa: 401 y 403 en el paso de un login', () => {
       motivo: 'seleccion_vencida',
       email: CREDENCIALES.email,
     });
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 
   it('403: rechaza con el 403 y deja la lista refrescada', async () => {
@@ -416,13 +453,15 @@ describe('elegirEmpresa: 401 y 403 en el paso de un login', () => {
     }
     expect(fallo).toBeInstanceOf(ApiError);
     expect((fallo as ApiError).statusCode).toBe(403);
-    expect(llamadas.cabeceras).toEqual(['Bearer token-de-seleccion']);
+    expect(llamadas.cabeceras).toEqual([
+      { autorizacion: null, credenciales: 'include' },
+    ]);
     const estado = entorno.estado();
     expect(estado).toMatchObject({ status: 'selecting', origen: 'login' });
     if (estado.status !== 'selecting') return;
     expect(estado.empresas.map((e) => e.id)).toEqual([segunda?.id]);
     expect(estado.empresas.map((e) => e.id)).not.toContain(primera?.id);
-    expect(entorno.almacen.sesion()).toBeNull();
+    esperarSinRastroDeSesion();
   });
 
   it('403 con lista vacía: sin_empresas y vuelta al paso uno', async () => {
@@ -440,7 +479,7 @@ describe('elegirEmpresa: 401 y 403 en el paso de un login', () => {
       motivo: 'sin_empresas',
       email: CREDENCIALES.email,
     });
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 
   it('403 y 401 al refrescar: seleccion_vencida', async () => {
@@ -489,8 +528,8 @@ describe('elegirEmpresa: 401 y 403 en el paso de un login', () => {
       status: 'selecting',
       origen: 'cambio',
     });
-    expect(entorno.almacen.sesion()).toBe('token-de-sesion');
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    expect(entorno.tienda.obtener().fase).toBe('selecting');
+    esperarSinRastroDeSesion();
   });
 });
 
@@ -515,7 +554,7 @@ describe('refrescarEmpresas', () => {
       status: 'ended',
       motivo: 'sin_empresas',
     });
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 
   it('cambia la lista y conserva el origen', async () => {

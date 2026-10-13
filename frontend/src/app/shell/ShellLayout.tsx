@@ -30,12 +30,13 @@ import estilos from './ShellLayout.module.css';
  *   pendientes de la bandeja), encabezado y contenido. El
  *   cambio de empresa (encabezado) solo se ofrece si `puedeCambiarEmpresa`; si
  *   la petición de la lista falla por red o 5xx, un aviso lo dice y la sesión
- *   sigue en `ready`. «Cerrar sesión» (barra lateral) es local.
+ *   sigue en `ready`.«Cerrar sesión» (barra lateral) cancela la sesión en el servidor.
  * - `selecting` con origen `cambio`: la sesión sigue viva, así que se dibuja el
  *   shell completo con el último contexto conocido (nunca vacío). Solo si no
  *   hay contexto retenido se muestra el estado de carga. `RutaProtegida`
  *   lleva al usuario a `/empresa`.
- * - `loading`: estado neutro de carga, sin datos de identidad.
+ * - `restoring` y `loading`: estado neutro de carga, sin datos de identidad.
+ *   «Cerrar sesión» (barra lateral) la cancela en el servidor.
  * - `unavailable`: aviso de conexión con «Reintentar» y «Cerrar sesión».
  * - `anonymous`, `selecting` de un login, `ended`: nada; la guarda
  *   `RutaProtegida` decide a dónde va el usuario.
@@ -90,6 +91,11 @@ export function ShellLayout() {
 
   let contexto: SessionContext;
   let puedeCambiarEmpresa = false;
+  // El servidor cancela la sesión y después el cliente se vacía; no hay nada
+  // que esperar en pantalla, la guarda lleva a `/login` al terminar.
+  const cerrarSesion = () => {
+    void acciones.cerrarSesion();
+  };
   switch (sesion.status) {
     case 'ready':
       contexto = sesion.contexto;
@@ -102,13 +108,14 @@ export function ShellLayout() {
       }
       if (sesion.origen !== 'cambio') return null;
       return <EstadoCarga />;
+    case 'restoring':
     case 'loading':
       return <EstadoCarga />;
     case 'unavailable':
       return (
         <SesionNoDisponible
           onReintentar={acciones.reintentarContexto}
-          onCerrarSesion={acciones.cerrarSesion}
+          onCerrarSesion={cerrarSesion}
         />
       );
     case 'anonymous':
@@ -184,7 +191,7 @@ export function ShellLayout() {
             usuario={usuario}
             roles={roles}
             controlTema={<ControlTema />}
-            onCerrarSesion={acciones.cerrarSesion}
+            onCerrarSesion={cerrarSesion}
           />
         </div>
         <div className={estilos.columna}>

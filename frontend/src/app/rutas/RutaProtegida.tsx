@@ -6,7 +6,7 @@ import { origenDe } from './origen';
 /**
  * Guarda de las rutas internas (layout sin ruta propia). La sesión decide:
  *
- * - `ready`, `loading`, `unavailable`: deja pasar; `ShellLayout` dibuja cada
+ * - `ready`, `restoring`, `loading`, `unavailable`: deja pasar; `ShellLayout` dibuja cada
  *   uno.
  * - `selecting` con origen `cambio` (cambio de empresa en curso): la sesión
  *   sigue viva, pero la ruta interna redirige a `/empresa` con la
@@ -34,6 +34,7 @@ export function RutaProtegida() {
 
   switch (sesion.status) {
     case 'ready':
+    case 'restoring':
     case 'loading':
     case 'unavailable':
       return <Outlet />;

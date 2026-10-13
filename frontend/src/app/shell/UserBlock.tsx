@@ -4,7 +4,7 @@ import estilos from './UserBlock.module.css';
 export interface UserBlockProps {
   nombre: string;
   roles: readonly Rol[];
-  /** Cierra la sesión; ausente = sin botón. Es local: no revoca el token. */
+  /** Cierra la sesión; ausente = sin botón. El servidor cancela la sesión; la pantalla no lo explica. */
   onCerrarSesion?: () => void;
 }
 

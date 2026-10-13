@@ -5,6 +5,7 @@ import {
 } from '@/shared/api/contratos';
 import { CONTEXTO_SESION, EMPRESAS_DISPONIBLES } from '@/test/fixtures';
 import {
+  ESTADO_ARRANQUE,
   ESTADO_INICIAL,
   crearTienda,
   empresaVigente,
@@ -454,6 +455,88 @@ describe('empresa previa (SA-2) y regreso al origen', () => {
   });
 });
 
+describe('restauración al recargar', () => {
+  it('el arranque en frío pregunta al servidor antes de mostrar nada', () => {
+    expect(ESTADO_ARRANQUE).toEqual({
+      fase: 'restaurando',
+      epoca: 0,
+      empresaPrevia: null,
+    });
+    expect(sesionViva(ESTADO_ARRANQUE)).toBe(false);
+  });
+
+  it('RESTAURADA_SESION lleva a sesion con empresa, época 1 y origen restaurable', () => {
+    const restaurada = aplicar(ESTADO_ARRANQUE, {
+      tipo: 'RESTAURADA_SESION',
+      usuario: USUARIO,
+      empresaId: EMPRESA_A.id,
+    });
+    expect(restaurada).toMatchObject({
+      fase: 'sesion',
+      epoca: 1,
+      empresaId: EMPRESA_A.id,
+      usuario: USUARIO,
+      restaurarOrigen: true,
+      varias: false,
+    });
+  });
+
+  it('RESTAURADA_SELECCION retoma la elección de empresa sin usuario', () => {
+    const retomada = aplicar(ESTADO_ARRANQUE, {
+      tipo: 'RESTAURADA_SELECCION',
+      empresas: EMPRESAS,
+    });
+    expect(retomada).toMatchObject({
+      fase: 'selecting',
+      origen: 'login',
+      usuario: null,
+      empresas: EMPRESAS,
+    });
+    // Elegir empresa desde ahí funciona igual que tras un login.
+    expect(aplicar(retomada, elegir(EMPRESA_B.id))).toMatchObject({
+      fase: 'sesion',
+      empresaId: EMPRESA_B.id,
+      varias: true,
+    });
+  });
+
+  it('RESTAURACION_FALLIDA lleva a anonymous, o a ended con sin_acceso', () => {
+    expect(aplicar(ESTADO_ARRANQUE, { tipo: 'RESTAURACION_FALLIDA' })).toEqual({
+      fase: 'anonymous',
+      epoca: 0,
+      empresaPrevia: null,
+    });
+    expect(
+      aplicar(ESTADO_ARRANQUE, {
+        tipo: 'RESTAURACION_FALLIDA',
+        motivo: 'sin_acceso',
+      }),
+    ).toMatchObject({ fase: 'ended', motivo: 'sin_acceso' });
+  });
+
+  it('los eventos de restauración se ignoran fuera del arranque', () => {
+    for (const estado of [ANONIMO, SELECCION, SESION, EXPIRADO]) {
+      for (const evento of [
+        { tipo: 'RESTAURADA_SESION', usuario: USUARIO, empresaId: 'x' },
+        { tipo: 'RESTAURADA_SELECCION', empresas: EMPRESAS },
+        { tipo: 'RESTAURACION_FALLIDA' },
+      ] as EventoSesion[]) {
+        expect(reducir(estado, evento)).toBe(estado);
+      }
+    }
+  });
+
+  it('LOGIN_OK, TERMINAR y CIERRE no actúan mientras se restaura', () => {
+    for (const evento of [
+      LOGIN_OK,
+      { tipo: 'TERMINAR', motivo: 'sesion_expirada' },
+      { tipo: 'CIERRE' },
+    ] as EventoSesion[]) {
+      expect(reducir(ESTADO_ARRANQUE, evento)).toBe(ESTADO_ARRANQUE);
+    }
+  });
+});
+
 describe('ayudantes de fase', () => {
   it('empresaVigente y sesionViva solo dan datos con la sesión viva', () => {
     expect(empresaVigente(SESION)).toBe(EMPRESA_A.id);
@@ -470,7 +553,14 @@ describe('ayudantes de fase', () => {
 
 describe('estado interno sin secretos', () => {
   it('ningún estado alcanzable contiene la palabra token', () => {
-    const estados = [ANONIMO, SELECCION, SESION, CAMBIO, EXPIRADO];
+    const estados = [
+      ESTADO_ARRANQUE,
+      ANONIMO,
+      SELECCION,
+      SESION,
+      CAMBIO,
+      EXPIRADO,
+    ];
     for (const estado of estados) {
       expect(JSON.stringify(estado).toLowerCase()).not.toContain('token');
     }

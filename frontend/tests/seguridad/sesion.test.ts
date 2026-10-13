@@ -56,6 +56,10 @@ const PROHIBIDOS: [string, RegExp][] = [
   ['Buffer.from (decodificar un JWT)', /\bBuffer\s*\.\s*from\s*\(/],
   ['jwt-decode', /jwt[-_ ]?decode/i],
   ['dangerouslySetInnerHTML', /\bdangerouslySetInnerHTML\b/],
+  // Sesión por cookie `httpOnly` (Story 1.1): el cliente nunca arma una
+  // cabecera con el token.
+  ['cabecera Authorization', /\bAuthorization\b/],
+  ['esquema Bearer', /\bBearer\b/],
 ];
 
 // El token no debe entrar en el estado del enrutador, en una clave de
@@ -72,10 +76,19 @@ describe('seguridad de la sesión (estático)', () => {
   it('encuentra el código que debe vigilar', () => {
     const archivos = FUENTES.map((f) => f.archivo);
     expect(archivos).toContain('src/shared/sesion/SessionProvider.tsx');
-    expect(archivos).toContain('src/shared/sesion/almacenTokens.ts');
+    expect(archivos).toContain('src/shared/sesion/acciones.ts');
+    // La sesión es una cookie httpOnly: no hay almacén de tokens en memoria.
+    expect(archivos).not.toContain('src/shared/sesion/almacenTokens.ts');
     expect(archivos).toContain('src/shared/api/client.ts');
     expect(archivos).toContain('src/features/auth/LoginPage.tsx');
     expect(archivos.some((a) => a.endsWith('.test.tsx'))).toBe(false);
+  });
+
+  it("el cliente de la API manda la cookie de sesión con credentials: 'include'", () => {
+    const cliente = FUENTES.find(
+      (f) => f.archivo === 'src/shared/api/client.ts',
+    );
+    expect(cliente?.codigo).toMatch(/credentials\s*:\s*'include'/);
   });
 
   it.each(PROHIBIDOS)('ningún archivo usa %s', (_nombre, patron) => {
@@ -102,6 +115,8 @@ describe('seguridad de la sesión (estático)', () => {
       [PROHIBIDOS[3]![1], 'document.cookie = t'],
       [PROHIBIDOS[5]![1], 'setTimeout(() => {}, 1)'],
       [PROHIBIDOS[9]![1], 'JSON.parse(atob(parte))'],
+      [PROHIBIDOS[13]![1], "headers.set('Authorization', t)"],
+      [PROHIBIDOS[14]![1], 'valor = `Bearer ${t}`'],
       [TOKEN_EN_DESTINOS[0]![1], 'navigate(x, { state: { token } })'],
       [TOKEN_EN_DESTINOS[2]![1], "useQuery({ queryKey: ['a', token] })"],
     ];

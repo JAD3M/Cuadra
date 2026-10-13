@@ -5,6 +5,11 @@ import {
   EMPRESAS_DISPONIBLES,
   RESPUESTA_LOGIN_UNA_EMPRESA,
 } from '@/test/fixtures';
+import {
+  elegirEmpresaMock,
+  empresaDeLaSesion,
+  hayEmpresaElegida,
+} from '@/test/sesionMock';
 import { servidor } from '@/test/servidor';
 
 // Respuestas alternas de la API de autenticación para las pruebas de flujo.
@@ -68,29 +73,37 @@ export function contextoRedDeFallo() {
 }
 
 /**
- * `POST /auth/empresa/:id` entrega `token-de-sesion-<id>` y `GET
- * /auth/contexto` responde según ese token: el de la empresa B trae
- * `CONTEXTO_SESION_B`; cualquier otro, `CONTEXTO_SESION`. Sirve para probar
- * que los datos de una empresa no aparecen bajo otra.
+ * `POST /auth/empresa/:id` recuerda la empresa elegida en la sesión simulada y
+ * responde su contexto; `GET /auth/contexto` responde el de esa empresa: el de
+ * la empresa B trae `CONTEXTO_SESION_B`; cualquier otra, `CONTEXTO_SESION`.
+ * Sirve para probar que los datos de una empresa no aparecen bajo otra. Los
+ * manejadores de datos leen la empresa con `empresaDeLaSesion()`.
  */
-export function contextoPorToken(idEmpresaB: string) {
+export function contextoPorEmpresa(idEmpresaB: string) {
+  const contextoDe = (id: string | null) =>
+    id === idEmpresaB ? CONTEXTO_SESION_B : CONTEXTO_SESION;
   servidor.use(
-    http.post('/api/auth/empresa/:id', ({ params }) =>
-      HttpResponse.json({ token: `token-de-sesion-${String(params.id)}` }),
-    ),
-    http.get('/api/auth/contexto', ({ request }) => {
-      const token = request.headers.get('Authorization') ?? '';
-      return HttpResponse.json(
-        token.endsWith(idEmpresaB) ? CONTEXTO_SESION_B : CONTEXTO_SESION,
-      );
+    http.post('/api/auth/empresa/:id', ({ params }) => {
+      elegirEmpresaMock(String(params.id));
+      return HttpResponse.json(contextoDe(String(params.id)));
     }),
+    http.get('/api/auth/contexto', () =>
+      hayEmpresaElegida()
+        ? HttpResponse.json(contextoDe(empresaDeLaSesion()))
+        : cuerpoDeError(401),
+    ),
   );
 }
 
 export interface Solicitud {
   metodo: string;
   ruta: string;
+  /** Cabecera `Authorization`: con cookies nunca debe viajar. */
   autorizacion: string | null;
+  /** `credentials` de la petición: `include` manda la cookie de sesión. */
+  credenciales: RequestCredentials;
+  /** Empresa de la sesión simulada cuando llegó la petición. */
+  empresa: string | null;
 }
 
 /**
@@ -104,6 +117,8 @@ export function espiarSolicitudes() {
       metodo: request.method,
       ruta: new URL(request.url).pathname,
       autorizacion: request.headers.get('Authorization'),
+      credenciales: request.credentials,
+      empresa: empresaDeLaSesion(),
     });
   };
   servidor.events.on('request:start', oyente);

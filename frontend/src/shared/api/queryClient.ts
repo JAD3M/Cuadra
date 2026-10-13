@@ -22,7 +22,7 @@ export function crearQueryClient(): QueryClient {
         retry: reintentarConsulta,
         refetchOnWindowFocus: false,
       },
-      // Una mutación (login, canje de token) no es segura de repetir sola.
+      // Una mutación (login, elegir empresa) no es segura de repetir sola.
       mutations: { retry: false },
     },
   });

@@ -33,22 +33,24 @@ export const empresaDisponible = empresaContexto.extend({
 /** `GET /auth/empresas`: la misma lista que trae el login, sin envoltorio. */
 export const listaEmpresasDisponibles = z.array(empresaDisponible);
 
-/** `GET /auth/contexto`. */
+/**
+ * `GET /auth/contexto` y `POST /auth/empresa/:id` (el contexto de la sesión
+ * con empresa elegida).
+ */
 export const contextoSesion = z.object({
   usuario: usuarioPublico,
   empresa: empresaContexto,
   roles: z.array(rol),
 });
 
-/** `POST /auth/login`: `token` es el de selección (5 min). */
+/**
+ * `POST /auth/login`. Sin token: la sesión viaja en la cookie `httpOnly`
+ * `cuadra_sesion` y JavaScript no la lee.
+ */
 export const respuestaLogin = z.object({
-  token: texto,
   usuario: usuarioPublico,
   empresas: listaEmpresasDisponibles,
 });
-
-/** `POST /auth/empresa/:id`: `token` es el de sesión (15 min). */
-export const respuestaToken = z.object({ token: texto });
 
 /** Cuerpo de `POST /auth/login`. La contraseña viaja tal cual, sin recortar. */
 export const solicitudLogin = z.object({
@@ -68,6 +70,5 @@ export type EmpresaContexto = z.infer<typeof empresaContexto>;
 export type EmpresaDisponible = z.infer<typeof empresaDisponible>;
 export type ContextoSesion = z.infer<typeof contextoSesion>;
 export type RespuestaLogin = z.infer<typeof respuestaLogin>;
-export type RespuestaToken = z.infer<typeof respuestaToken>;
 export type SolicitudLogin = z.infer<typeof solicitudLogin>;
 export type CuerpoError = z.infer<typeof cuerpoError>;

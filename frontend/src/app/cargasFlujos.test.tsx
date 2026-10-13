@@ -29,7 +29,8 @@ import {
   itemCarga,
 } from '@/test/fixturesCargas';
 import { almacenes } from '@/test/handlers';
-import { contextoPorToken, espiarSolicitudes } from '@/test/handlersAuth';
+import { contextoPorEmpresa, espiarSolicitudes } from '@/test/handlersAuth';
+import { empresaDeLaSesion } from '@/test/sesionMock';
 import { listaFalla, type ParcheDeCarga } from '@/test/handlersCargas';
 import {
   elegirEmpresaPorNombre,
@@ -292,8 +293,7 @@ describe('flujos de cargas: subir', () => {
 
 describe('flujos de cargas: sesión y empresa', () => {
   const idB = EMPRESAS_DISPONIBLES[1]!.id;
-  const deB = (request: Request) =>
-    (request.headers.get('Authorization') ?? '').endsWith(idB);
+  const deB = () => empresaDeLaSesion() === idB;
   const itemsB: ItemCarga[] = [
     itemCarga(1, {
       estado: 'procesada',
@@ -305,8 +305,8 @@ describe('flujos de cargas: sesión y empresa', () => {
   /** La lista y el detalle según la empresa: A trae las del almacén; B, solo las suyas, terminadas. */
   function listasPorEmpresa() {
     servidor.use(
-      http.get('/api/cargas', ({ request }) =>
-        deB(request)
+      http.get('/api/cargas', () =>
+        deB()
           ? HttpResponse.json({ datos: itemsB })
           : HttpResponse.json({ datos: almacenes.cargas.filas() }),
       ),
@@ -314,7 +314,7 @@ describe('flujos de cargas: sesión y empresa', () => {
   }
 
   it('cambiar de empresa con un POST en vuelo: nada de A se ve ni se escribe en la época nueva (9.2)', async () => {
-    contextoPorToken(idB);
+    contextoPorEmpresa(idB);
     listasPorEmpresa();
     espia = espiarSolicitudes();
     const { router } = await abrirCargas();
@@ -334,7 +334,7 @@ describe('flujos de cargas: sesión y empresa', () => {
     // Control positivo: la lista de B se pidió; se espera a que el temporizador haya corrido.
     const lecturasDeB = () =>
       (espia?.solicitudes ?? []).filter(
-        (s) => s.metodo === 'GET' && (s.autorizacion ?? '').endsWith(idB),
+        (s) => s.metodo === 'GET' && s.empresa === idB,
       );
     expect(lecturasDeB().some((s) => s.ruta === '/api/cargas')).toBe(true);
     await esperarIntervalos(5);
@@ -347,7 +347,7 @@ describe('flujos de cargas: sesión y empresa', () => {
   });
 
   it('cambiar de empresa: no queda ningún dato de la lista ni del panel de A, y el revisor de B ve la tabla con las tarjetas apagadas', async () => {
-    contextoPorToken(idB);
+    contextoPorEmpresa(idB);
     listasPorEmpresa();
     await abrirCargas();
     await subirXml('de-la-empresa-A.xml');

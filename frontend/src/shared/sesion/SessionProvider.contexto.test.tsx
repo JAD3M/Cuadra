@@ -1,9 +1,9 @@
 import { act, waitFor } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { api } from '@/shared/api';
 import { CONTEXTO_SESION, RESPUESTA_LOGIN } from '@/test/fixtures';
-import { esperarTokensCoherentes } from '@/test/invariantesSesion';
+import { esperarSinRastroDeSesion } from '@/test/invariantesSesion';
 import {
   CREDENCIALES,
   EMPRESA_A,
@@ -11,6 +11,7 @@ import {
   montarSesion,
   type EntornoSesion,
 } from '@/test/montarSesion';
+import { sesionConEmpresa } from '@/test/sesionMock';
 import { servidor } from '@/test/servidor';
 
 function error(status: number) {
@@ -22,11 +23,17 @@ function error(status: number) {
 
 /** Responde `/auth/contexto` con `respuesta` y cuenta las llamadas. */
 function contexto(respuesta: () => Response | Promise<Response | void>) {
-  const cuenta = { llamadas: 0, cabeceras: [] as (string | null)[] };
+  const cuenta = {
+    llamadas: 0,
+    cabeceras: [] as { autorizacion: string | null; credenciales: string }[],
+  };
   servidor.use(
     http.get('/api/auth/contexto', ({ request }) => {
       cuenta.llamadas += 1;
-      cuenta.cabeceras.push(request.headers.get('Authorization'));
+      cuenta.cabeceras.push({
+        autorizacion: request.headers.get('Authorization'),
+        credenciales: request.credentials,
+      });
       return respuesta();
     }),
   );
@@ -56,13 +63,9 @@ describe('contexto de la sesión', () => {
     expect(estado.contexto).toEqual(CONTEXTO_SESION);
     // Un acceso nuevo puede ir al destino pedido (la guarda decide con `from`).
     expect(estado.restaurarOrigen).toBe(true);
-    expect(entorno.historial()).toEqual([
-      'anonymous',
-      'selecting',
-      'loading',
-      'ready',
-    ]);
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    // El POST de elegir empresa ya trae el contexto: no pasa por `loading`.
+    expect(entorno.historial()).toEqual(['anonymous', 'selecting', 'ready']);
+    esperarSinRastroDeSesion();
   });
 
   it('puedeCambiarEmpresa es true con varias empresas', async () => {
@@ -83,11 +86,22 @@ describe('contexto de la sesión', () => {
     expect(entorno.estado()).toMatchObject({ puedeCambiarEmpresa: false });
   });
 
-  it('el contexto se pide con el token de sesión, nunca con el de selección', async () => {
+  it('el contexto de elegir empresa se aplica sin pedirlo otra vez', async () => {
     const cuenta = contexto(() => HttpResponse.json(CONTEXTO_SESION));
     const { entorno } = montarSesion();
     await entrarYEsperarListo(entorno);
-    expect(cuenta.cabeceras).toEqual(['Bearer token-de-sesion']);
+    await act(async () => {});
+    expect(cuenta.llamadas).toBe(0);
+  });
+
+  it('la recarga pide el contexto con la cookie y sin Authorization', async () => {
+    sesionConEmpresa();
+    const cuenta = contexto(() => HttpResponse.json(CONTEXTO_SESION));
+    const { entorno } = montarSesion({ recarga: true });
+    await waitFor(() => expect(entorno.estado().status).toBe('ready'));
+    expect(cuenta.cabeceras).toEqual([
+      { autorizacion: null, credenciales: 'include' },
+    ]);
   });
 
   it('la clave de la consulta lleva la época y ningún token', async () => {
@@ -105,8 +119,12 @@ describe('contexto de la sesión', () => {
     const antes = window.location.href;
     const { entorno } = montarSesion();
     await entrarYEsperarListo(entorno);
-    expect(JSON.stringify(entorno.estado())).not.toContain('token-de-');
-    expect(JSON.stringify(entorno.tienda.obtener())).not.toContain('token-de-');
+    expect(JSON.stringify(entorno.estado()).toLowerCase()).not.toContain(
+      'token',
+    );
+    expect(
+      JSON.stringify(entorno.tienda.obtener()).toLowerCase(),
+    ).not.toContain('token');
     expect(window.history.state).toBeNull();
     expect(window.location.href).toBe(antes);
   });
@@ -118,68 +136,85 @@ describe('contexto de la sesión', () => {
   });
 });
 
-describe('fallos del contexto', () => {
+describe('fallos al volver a pedir el contexto', () => {
+  /** Sesión lista; luego `reintentarContexto` vuelve a pedirlo y falla. */
+  async function listoYReintentar(
+    entorno: EntornoSesion,
+    fallo: () => Response | Promise<Response | void>,
+  ) {
+    await entrarYEsperarListo(entorno);
+    const cuenta = contexto(fallo);
+    act(() => entorno.acciones().reintentarContexto());
+    return cuenta;
+  }
+
   it('403: termina con sin_acceso, una sola petición y sin reintentos', async () => {
-    const cuenta = contexto(() => error(403));
     const { entorno } = montarSesion();
-    await entrar(entorno);
+    const cuenta = await listoYReintentar(entorno, () => error(403));
     await waitFor(() => expect(entorno.estado().status).toBe('ended'));
     expect(entorno.estado()).toEqual({ status: 'ended', motivo: 'sin_acceso' });
     expect(cuenta.llamadas).toBe(1);
-    expect(entorno.historial()).not.toContain('ready');
-    expect(entorno.almacen.sesion()).toBeNull();
-    expect(entorno.almacen.seleccion()).toBeNull();
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 
   it('401: termina con sesion_expirada, sin correo', async () => {
-    const cuenta = contexto(() => error(401));
     const { entorno } = montarSesion();
-    await entrar(entorno);
+    const cuenta = await listoYReintentar(entorno, () => error(401));
     await waitFor(() => expect(entorno.estado().status).toBe('ended'));
     expect(entorno.estado()).toEqual({
       status: 'ended',
       motivo: 'sesion_expirada',
     });
     expect(cuenta.llamadas).toBe(1);
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 
   it.each([
     ['500', () => error(500)],
     ['fallo de red', () => HttpResponse.error()],
+    ['un cuerpo con otra forma', () => HttpResponse.json({ usuario: 1 })],
+    ['404', () => error(404)],
   ])(
-    '%s: unavailable tras dos reintentos y reintentarContexto lo recupera',
+    '%s: la sesión sigue lista con el último contexto conocido',
     async (_nombre, fallo) => {
-      const cuenta = contexto(fallo);
       const { entorno } = montarSesion();
-      await entrar(entorno);
-      await waitFor(() => expect(entorno.estado().status).toBe('unavailable'));
-      expect(cuenta.llamadas).toBe(3);
-      // La sesión sigue viva: los tokens no se tocan.
-      expect(entorno.almacen.sesion()).toBe('token-de-sesion');
-      esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
-
-      contexto(() => HttpResponse.json(CONTEXTO_SESION));
-      act(() => entorno.acciones().reintentarContexto());
-      await waitFor(() => expect(entorno.estado().status).toBe('ready'));
+      const cuenta = await listoYReintentar(entorno, fallo);
+      await waitFor(() => expect(cuenta.llamadas).toBeGreaterThan(0));
+      await act(async () => {});
+      expect(entorno.estado()).toMatchObject({ status: 'ready' });
+      expect(entorno.tienda.obtener().fase).toBe('sesion');
     },
   );
+});
 
-  it('un cuerpo con otra forma: unavailable sin reintentos', async () => {
-    const cuenta = contexto(() => HttpResponse.json({ usuario: 1 }));
-    const { entorno } = montarSesion();
-    await entrar(entorno);
-    await waitFor(() => expect(entorno.estado().status).toBe('unavailable'));
+describe('fallos del contexto al recargar', () => {
+  beforeEach(() => sesionConEmpresa());
+
+  it('403: termina con sin_acceso, una sola petición', async () => {
+    const cuenta = contexto(() => error(403));
+    const { entorno } = montarSesion({ recarga: true });
+    await waitFor(() => expect(entorno.estado().status).toBe('ended'));
+    expect(entorno.estado()).toEqual({ status: 'ended', motivo: 'sin_acceso' });
     expect(cuenta.llamadas).toBe(1);
+    esperarSinRastroDeSesion();
   });
 
-  it('un 404 no termina la sesión: unavailable', async () => {
-    contexto(() => error(404));
-    const { entorno } = montarSesion();
-    await entrar(entorno);
-    await waitFor(() => expect(entorno.estado().status).toBe('unavailable'));
-    expect(entorno.almacen.sesion()).toBe('token-de-sesion');
+  it('500: reintenta dos veces y deja anónimo para entrar de nuevo', async () => {
+    const cuenta = contexto(() => error(500));
+    const { entorno } = montarSesion({ recarga: true });
+    await waitFor(() => expect(entorno.estado().status).toBe('anonymous'));
+    expect(cuenta.llamadas).toBe(3);
+  });
+
+  it('un 500 pasajero se recupera sin pasar por el login', async () => {
+    let n = 0;
+    const cuenta = contexto(() => {
+      n += 1;
+      return n === 1 ? error(500) : HttpResponse.json(CONTEXTO_SESION);
+    });
+    const { entorno } = montarSesion({ recarga: true });
+    await waitFor(() => expect(entorno.estado().status).toBe('ready'));
+    expect(cuenta.llamadas).toBe(2);
   });
 });
 
@@ -206,7 +241,7 @@ describe('401 en llamadas de la sesión', () => {
     expect(terminaciones).toBe(1);
   });
 
-  it('un 401 tardío tras rotar el token se ignora', async () => {
+  it('un 401 tardío de una sesión anterior (época rotada) se ignora', async () => {
     const { entorno } = montarSesion();
     await entrarYEsperarListo(entorno);
     servidor.use(
@@ -216,28 +251,28 @@ describe('401 en llamadas de la sesión', () => {
       }),
     );
     const pendiente = api.fetch('/prueba').catch(() => undefined);
-    // La sesión rota (p. ej. otro cambio de empresa) mientras la petición vuela.
-    entorno.almacen.fijarSesion('token-rotado');
+    // La sesión rota (otro cambio de empresa) mientras la petición vuela.
+    await act(() => entorno.acciones().cambiarEmpresa());
+    await act(() => entorno.acciones().elegirEmpresa(EMPRESA_B));
     await act(() => pendiente);
     expect(entorno.estado().status).toBe('ready');
-    expect(entorno.almacen.sesion()).toBe('token-rotado');
   });
 
-  it('un 401 con token propio de la llamada no termina la sesión', async () => {
+  it('un 401 de una llamada del flujo de acceso no termina la sesión', async () => {
     const { entorno } = montarSesion();
     await entrarYEsperarListo(entorno);
     servidor.use(http.get('/api/prueba', () => error(401)));
-    await act(() => api.fetch('/prueba', { token: 'otro' }).catch(() => 0));
+    await act(() =>
+      api.fetch('/prueba', { terminaSesion: false }).catch(() => 0),
+    );
     expect(entorno.estado().status).toBe('ready');
   });
 
   it('un 401 sin sesión viva no hace nada', async () => {
     const { entorno } = montarSesion();
-    entorno.almacen.fijarSesion('token-suelto');
     servidor.use(http.get('/api/prueba', () => error(401)));
     await act(() => api.fetch('/prueba').catch(() => 0));
     expect(entorno.estado().status).toBe('anonymous');
-    expect(entorno.almacen.sesion()).toBe('token-suelto');
   });
 
   it('un 403 fuera del contexto no termina la sesión', async () => {
@@ -250,7 +285,7 @@ describe('401 en llamadas de la sesión', () => {
 });
 
 describe('cierre de sesión', () => {
-  it('cerrarSesion: ended cierre_voluntario, tokens fuera, sin peticiones', async () => {
+  it('cerrarSesion: pide el logout, termina con cierre_voluntario y deja el cliente limpio', async () => {
     const { entorno } = montarSesion();
     await entrarYEsperarListo(entorno);
     const peticiones: string[] = [];
@@ -258,26 +293,24 @@ describe('cierre de sesión', () => {
       peticiones.push(`${request.method} ${new URL(request.url).pathname}`);
     });
     try {
-      act(() => entorno.acciones().cerrarSesion());
+      await act(() => entorno.acciones().cerrarSesion());
       await act(() => delay(30));
     } finally {
       servidor.events.removeAllListeners();
     }
-    expect(peticiones).toEqual([]);
+    expect(peticiones).toEqual(['POST /api/auth/logout']);
     expect(entorno.estado()).toEqual({
       status: 'ended',
       motivo: 'cierre_voluntario',
     });
-    expect(entorno.almacen.sesion()).toBeNull();
-    expect(entorno.almacen.seleccion()).toBeNull();
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 
   it('cerrarSesion vacía la caché de consultas', async () => {
     const { entorno } = montarSesion();
     await entrarYEsperarListo(entorno);
     entorno.consultas.setQueryData(['dato-ajeno'], 'privado');
-    act(() => entorno.acciones().cerrarSesion());
+    await act(() => entorno.acciones().cerrarSesion());
     expect(entorno.consultas.getQueryData(['dato-ajeno'])).toBeUndefined();
     // El observador del proveedor puede dejar una entrada vacía (sin datos).
     const conDatos = entorno.consultas
@@ -296,19 +329,19 @@ describe('cierre de sesión', () => {
     expect(entorno.consultas.getQueryData(['dato-ajeno'])).toBeUndefined();
   });
 
-  it('cerrarSesion fuera de una sesión viva no hace nada', () => {
+  it('cerrarSesion fuera de una sesión viva no hace nada', async () => {
     const { entorno } = montarSesion();
     const antes = entorno.estado();
-    act(() => entorno.acciones().cerrarSesion());
+    await act(() => entorno.acciones().cerrarSesion());
     expect(entorno.estado()).toBe(antes);
   });
 
-  it('cerrarSesion mientras se carga el contexto descarta la respuesta', async () => {
-    contexto(() => delay('infinite'));
+  it('cerrarSesion mientras el contexto se vuelve a pedir descarta la respuesta', async () => {
     const { entorno } = montarSesion();
-    await entrar(entorno);
-    expect(entorno.estado().status).toBe('loading');
-    act(() => entorno.acciones().cerrarSesion());
+    await entrarYEsperarListo(entorno);
+    contexto(() => delay('infinite'));
+    act(() => entorno.acciones().reintentarContexto());
+    await act(() => entorno.acciones().cerrarSesion());
     expect(entorno.estado().status).toBe('ended');
   });
 });
@@ -317,7 +350,7 @@ describe('consumirFin', () => {
   it('pasa de ended a anonymous una sola vez', async () => {
     const { entorno } = montarSesion();
     await entrarYEsperarListo(entorno);
-    act(() => entorno.acciones().cerrarSesion());
+    await act(() => entorno.acciones().cerrarSesion());
     expect(entorno.estado().status).toBe('ended');
     act(() => entorno.acciones().consumirFin());
     expect(entorno.estado()).toEqual({ status: 'anonymous' });
@@ -375,14 +408,18 @@ describe('restaurarOrigen tras una expiración (SA-2)', () => {
     expect(entorno.estado()).toMatchObject({ restaurarOrigen: false });
   });
 
-  it('aparece también durante loading', async () => {
+  it('está disponible en cuanto se elige empresa, sin esperar al contexto', async () => {
     const { entorno } = montarSesion();
     await entrarYEsperarListo(entorno, EMPRESA_A);
     await expirar(entorno);
     contexto(() => delay('infinite'));
     await entrar(entorno, EMPRESA_A);
-    expect(entorno.estado()).toEqual({
-      status: 'loading',
+    expect(entorno.tienda.obtener()).toMatchObject({
+      fase: 'sesion',
+      restaurarOrigen: true,
+    });
+    expect(entorno.estado()).toMatchObject({
+      status: 'ready',
       restaurarOrigen: true,
     });
   });
@@ -392,7 +429,7 @@ describe('restaurarOrigen tras una expiración (SA-2)', () => {
     await entrarYEsperarListo(entorno, EMPRESA_A);
     await expirar(entorno);
     await entrarYEsperarListo(entorno, EMPRESA_A);
-    act(() => entorno.acciones().cerrarSesion());
+    await act(() => entorno.acciones().cerrarSesion());
     expect(entorno.tienda.obtener()).toMatchObject({
       fase: 'ended',
       empresaPrevia: null,
@@ -407,6 +444,8 @@ describe('restaurarOrigen tras una expiración (SA-2)', () => {
     await entrarYEsperarListo(entorno, EMPRESA_A);
     expect(window.history.state).toBeNull();
     expect(window.location.href).toBe(antes);
-    expect(JSON.stringify(entorno.estado())).not.toContain('token');
+    expect(JSON.stringify(entorno.estado()).toLowerCase()).not.toContain(
+      'token',
+    );
   });
 });

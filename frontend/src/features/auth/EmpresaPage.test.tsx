@@ -7,7 +7,6 @@ import { createMemoryRouter, RouterProvider } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RutaAnonima, RutaProtegida, RutaSeleccion } from '@/app/rutas';
 import { crearQueryClient, reintentarConsulta } from '@/shared/api';
-import { crearAlmacenTokens } from '@/shared/sesion/almacenTokens';
 import { ESTADO_INICIAL, crearTienda, reducir } from '@/shared/sesion/maquina';
 import { SessionProvider } from '@/shared/sesion/SessionProvider';
 import type { AccionesSesion, SessionState } from '@/shared/sesion';
@@ -24,6 +23,8 @@ import {
   USUARIO,
 } from '@/test/fixtures';
 import { CREDENCIALES, EMPRESA_A, EMPRESA_B } from '@/test/montarSesion';
+import { esperarSinRastroDeSesion } from '@/test/invariantesSesion';
+import { haySesion } from '@/test/sesionMock';
 import { servidor } from '@/test/servidor';
 import { AVISOS } from './components/textos';
 import { EmpresaPage } from './EmpresaPage';
@@ -54,13 +55,16 @@ function responderLogin(cuerpo: object = RESPUESTA_LOGIN) {
 }
 
 function eleccionesPeticiones() {
-  const cabeceras: (string | null)[] = [];
+  const cabeceras: { autorizacion: string | null; credenciales: string }[] = [];
   servidor.events.on('request:start', ({ request }) => {
     if (
       request.method === 'POST' &&
       new URL(request.url).pathname.startsWith('/api/auth/empresa/')
     ) {
-      cabeceras.push(request.headers.get('Authorization'));
+      cabeceras.push({
+        autorizacion: request.headers.get('Authorization'),
+        credenciales: request.credentials,
+      });
     }
   });
   return cabeceras;
@@ -90,7 +94,6 @@ async function montar(
     mutations: { retry: false },
   });
   historial = [];
-  const almacen = crearAlmacenTokens();
   const tienda = crearTienda(reducir, ESTADO_INICIAL);
   const router = createMemoryRouter(
     [
@@ -115,7 +118,7 @@ async function montar(
   const vista = render(
     <QueryClientProvider client={consultas}>
       <ThemeProvider>
-        <SessionProvider almacen={almacen} tienda={tienda}>
+        <SessionProvider tienda={tienda}>
           <Captura />
           <RouterProvider router={router} />
         </SessionProvider>
@@ -137,7 +140,7 @@ async function montar(
     );
   }
   await screen.findByRole('heading', { level: 1, name: 'Elige empresa' });
-  return { ...vista, router, tienda, almacen, consultas };
+  return { ...vista, router, tienda, consultas };
 }
 
 const tarjeta = (nombre: RegExp | string) =>
@@ -210,14 +213,16 @@ describe('EmpresaPage: estructura', () => {
 });
 
 describe('EmpresaPage: elegir empresa', () => {
-  it('canjea el token de selección y deja la sesión en marcha', async () => {
+  it('elige con la cookie, sin Authorization, y deja la sesión en marcha', async () => {
     const elecciones = eleccionesPeticiones();
     const { router, tienda } = await montar();
     await userEvent.setup().click(tarjeta(/Ferreteria/));
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/bandeja'),
     );
-    expect(elecciones).toEqual(['Bearer token-de-seleccion']);
+    expect(elecciones).toEqual([
+      { autorizacion: null, credenciales: 'include' },
+    ]);
     expect(tienda.obtener().fase).toBe('sesion');
   });
 
@@ -237,7 +242,7 @@ describe('EmpresaPage: elegir empresa', () => {
       http.post('/api/auth/empresa/:id', async () => {
         peticiones += 1;
         await espera;
-        return HttpResponse.json({ token: 'token-de-sesion' });
+        return HttpResponse.json(CONTEXTO_SESION);
       }),
     );
     await montar();
@@ -289,7 +294,7 @@ describe('EmpresaPage: fallos al elegir', () => {
       http.post('/api/auth/empresa/:id', ({ params }) =>
         params.id === EMPRESA_A
           ? error(403)
-          : HttpResponse.json({ token: 'token-de-sesion' }),
+          : HttpResponse.json(CONTEXTO_SESION),
       ),
     );
     const { tienda } = await montar();
@@ -374,7 +379,7 @@ describe('EmpresaPage: fallos al elegir', () => {
     render(
       <QueryClientProvider client={consultas}>
         <ThemeProvider>
-          <SessionProvider almacen={crearAlmacenTokens()} tienda={tienda}>
+          <SessionProvider tienda={tienda}>
             <RouterProvider router={router} />
           </SessionProvider>
         </ThemeProvider>
@@ -395,7 +400,7 @@ describe('EmpresaPage: fallos al elegir', () => {
 
 describe('EmpresaPage: Cambiar de cuenta', () => {
   it('vuelve a /login con el correo vacío y enfocado', async () => {
-    const { router, tienda, almacen } = await montar();
+    const { router, tienda } = await montar();
     await userEvent
       .setup()
       .click(screen.getByRole('button', { name: '← Cambiar de cuenta' }));
@@ -403,7 +408,8 @@ describe('EmpresaPage: Cambiar de cuenta', () => {
     await screen.findByRole('heading', { level: 1, name: 'Inicia sesión' });
     expect(router.state.location.pathname).toBe('/login');
     expect(tienda.obtener().fase).toBe('anonymous');
-    expect(almacen.seleccion()).toBeNull();
+    // La sesión sin empresa se cancela en el servidor.
+    await waitFor(() => expect(haySesion()).toBe(false));
     const correo = screen.getByLabelText('Correo');
     expect(correo).toHaveValue('');
     await waitFor(() => expect(correo).toHaveFocus());
@@ -448,7 +454,7 @@ describe('EmpresaPage: cambio de empresa', () => {
 
   it('abandonar vuelve a la sesión viva sin pasar por loading ni pedir nada (sin destino: /bandeja)', async () => {
     const elecciones = eleccionesPeticiones();
-    const { router, tienda, almacen } = await montar('cambio');
+    const { router, tienda } = await montar('cambio');
     const epoca = tienda.obtener().epoca;
     const antes = historial.length;
     await userEvent
@@ -461,9 +467,10 @@ describe('EmpresaPage: cambio de empresa', () => {
     expect(router.state.location.pathname).toBe('/bandeja');
     expect(tienda.obtener().fase).toBe('sesion');
     expect(tienda.obtener().epoca).toBe(epoca);
-    expect(almacen.sesion()).toBe('token-de-sesion');
     expect(historial.slice(antes)).not.toContain('loading');
-    expect(elecciones).toEqual(['Bearer token-de-seleccion']);
+    expect(elecciones).toEqual([
+      { autorizacion: null, credenciales: 'include' },
+    ]);
   });
 
   it('abandonar vuelve a la pantalla exacta que se dejó, aún con la sesión', async () => {
@@ -555,7 +562,7 @@ describe('EmpresaPage: cambio de empresa', () => {
 });
 
 describe('EmpresaPage: privacidad', () => {
-  it('ningún token queda en el DOM, la ruta ni la caché', async () => {
+  it('ningún token ni rastro de sesión queda en el DOM, la ruta, la caché ni el almacenamiento', async () => {
     const { router, consultas } = await montar();
     await userEvent.setup().click(tarjeta(/Ferreteria/));
     await waitFor(() =>
@@ -568,8 +575,8 @@ describe('EmpresaPage: privacidad', () => {
       JSON.stringify(consultas.getMutationCache().getAll()),
       document.body.innerHTML,
     ].join('\n');
-    expect(rastro).not.toContain('token-de-seleccion');
-    expect(rastro).not.toContain('token-de-sesion');
+    expect(rastro.toLowerCase()).not.toContain('token');
+    esperarSinRastroDeSesion();
     expect(CONTEXTO_SESION.empresa.id).toBe(EMPRESA_A);
   });
 

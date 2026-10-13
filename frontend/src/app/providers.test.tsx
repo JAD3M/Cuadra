@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { useTema } from '@/shared/tema';
+import { sesionConEmpresa } from '@/test/sesionMock';
 import { Providers } from './providers';
 import { useSessionContext } from '@/shared/sesion';
 
@@ -47,13 +48,28 @@ describe('Providers', () => {
     expect(document.documentElement.dataset.theme).toBe('light');
   });
 
-  it('monta la sesión real: arranca anónima (recargar pide iniciar sesión)', () => {
+  it('monta la sesión real: pregunta al servidor y, sin cookie, queda anónima', async () => {
     render(
       <Providers>
         <Sonda />
       </Providers>,
     );
-    expect(screen.getByTestId('sesion')).toHaveTextContent('anonymous');
+    expect(screen.getByTestId('sesion')).toHaveTextContent('restoring');
+    await waitFor(() =>
+      expect(screen.getByTestId('sesion')).toHaveTextContent('anonymous'),
+    );
+  });
+
+  it('recargar con la cookie vigente restaura la sesión sin pedir login', async () => {
+    sesionConEmpresa();
+    render(
+      <Providers>
+        <Sonda />
+      </Providers>,
+    );
+    await waitFor(() =>
+      expect(screen.getByTestId('sesion')).toHaveTextContent('ready'),
+    );
   });
 
   it('conserva el mismo cliente de consultas entre renders', () => {

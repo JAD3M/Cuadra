@@ -1,14 +1,14 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { ApiError, type ClienteApi } from '@/shared/api';
+import { ApiError, reintentarConsulta, type ClienteApi } from '@/shared/api';
 import {
+  contextoSesion,
   listaEmpresasDisponibles,
   respuestaLogin,
-  respuestaToken,
   type SolicitudLogin,
 } from '@/shared/api/contratos';
-import type { AlmacenTokens } from './almacenTokens';
 import {
   reducir,
+  sesionViva,
   type EstadoInterno,
   type EventoSesion,
   type Tienda,
@@ -17,28 +17,24 @@ import type { AccionesSesion, MotivoSalida } from './tipos';
 
 export interface DependenciasAcciones {
   api: ClienteApi;
-  almacen: AlmacenTokens;
   tienda: Tienda<EstadoInterno, EventoSesion>;
   consultas: QueryClient;
 }
 
 /**
- * Acciones de la sesión. Cada una sigue el orden: cambiar el almacén de
- * tokens, vaciar la caché de consultas y, por último, enviar el evento a la
- * máquina; así ningún render ve la sesión nueva con datos de la anterior.
- *
- * Un evento que la máquina ignora no debe dejar tokens nuevos guardados, por
- * eso cada acción revisa la fase antes de actuar y otra vez al volver de la
- * red (el usuario pudo salir mientras la petición estaba en vuelo).
- */
-/**
- * Acciones públicas más `terminar`, que solo usan el proveedor (el hook del
- * cliente de la API) y las propias acciones: las pantallas no terminan la
- * sesión por su cuenta.
+ * Acciones públicas más `terminar` y `restaurar`, que solo usan el proveedor
+ * (el hook del cliente de la API y el arranque): las pantallas no terminan ni
+ * restauran la sesión por su cuenta.
  */
 export interface AccionesInternas extends AccionesSesion {
   /** Termina la sesión por `motivo`; se ignora si la fase no lo admite. */
   terminar(motivo: MotivoSalida): void;
+  /**
+   * Arranque en frío: pregunta al servidor si la cookie todavía vale. Sin
+   * efecto fuera de la fase `restaurando`; llamarla dos veces comparte la
+   * misma petición (StrictMode monta los efectos dos veces).
+   */
+  restaurar(): Promise<void>;
 }
 
 /** Clave de la consulta del contexto de la sesión de una época. */
@@ -52,27 +48,46 @@ const MOTIVOS_CON_CORREO: readonly MotivoSalida[] = [
   'sin_empresas',
 ];
 
+/**
+ * Acciones de la sesión. La sesión es una cookie `httpOnly` que el navegador
+ * manda solo (`credentials: 'include'`); aquí no hay ningún token. Cada acción
+ * vacía la caché de consultas antes de enviar el evento a la máquina, así
+ * ningún render ve la sesión nueva con datos de la anterior.
+ *
+ * Cada acción revisa la fase antes de actuar y otra vez al volver de la red
+ * (el usuario pudo salir mientras la petición estaba en vuelo).
+ */
 export function crearAcciones({
   api,
-  almacen,
   tienda,
   consultas,
 }: DependenciasAcciones): AccionesInternas {
+  // Correo con el que se inició sesión; solo para rellenar el reingreso.
+  // Memoria del cierre: no es un secreto, pero tampoco se persiste.
+  let email: string | null = null;
+  // Cambia cada vez que la sesión se cierra o se reinicia: una respuesta que
+  // salió antes de ese cambio ya no corresponde a la sesión actual.
+  let generacion = 0;
+  let restauracion: Promise<void> | null = null;
+
+  const empezar = () => generacion;
+
   async function iniciarSesion(credenciales: SolicitudLogin): Promise<void> {
     const { fase } = tienda.obtener();
     if (fase !== 'anonymous' && fase !== 'ended') return;
 
-    // Sin `Authorization`: el login no es una llamada de la sesión.
+    // El servidor pone la cookie en la respuesta; el cuerpo no trae token.
     const respuesta = await api.fetch('/auth/login', {
       method: 'POST',
       body: credenciales,
       schema: respuestaLogin,
-      token: null,
+      terminaSesion: false,
     });
 
     const actual = tienda.obtener().fase;
     if (actual !== 'anonymous' && actual !== 'ended') return;
-    almacen.fijarSeleccion(respuesta.token, credenciales.email);
+    generacion += 1;
+    email = credenciales.email;
     tienda.enviar({
       tipo: 'LOGIN_OK',
       usuario: respuesta.usuario,
@@ -80,15 +95,14 @@ export function crearAcciones({
     });
   }
 
-  /** El motivo cuando el token de selección ya no sirve, según el paso. */
+  /** El motivo cuando la sesión sin empresa o el reingreso ya no sirven, según el paso. */
   function motivoDeVencimiento(origen: 'login' | 'cambio'): MotivoSalida {
     return origen === 'cambio' ? 'reingreso' : 'seleccion_vencida';
   }
 
   async function elegirEmpresa(empresaId: string): Promise<void> {
     const inicial = tienda.obtener();
-    const seleccion = almacen.seleccion();
-    if (inicial.fase !== 'selecting' || seleccion === null) return;
+    if (inicial.fase !== 'selecting') return;
 
     // Elegir la empresa que ya está activa equivale a abandonar el cambio: sin
     // petición, sin cambio de época y con la caché intacta.
@@ -99,15 +113,16 @@ export function crearAcciones({
 
     // Si mientras tanto se salió o se cambió de paso, la respuesta ya no
     // corresponde a esta selección.
+    const desde = empezar();
     const vigente = () =>
-      tienda.obtener().fase === 'selecting' &&
-      almacen.seleccion() === seleccion;
+      tienda.obtener().fase === 'selecting' && generacion === desde;
 
-    let respuesta;
+    let contexto;
     try {
-      respuesta = await api.fetch(
+      // El servidor rota la cookie y responde el contexto de la empresa.
+      contexto = await api.fetch(
         `/auth/empresa/${encodeURIComponent(empresaId)}`,
-        { method: 'POST', schema: respuestaToken, token: seleccion },
+        { method: 'POST', schema: contextoSesion, terminaSesion: false },
       );
     } catch (causa) {
       if (causa instanceof ApiError && vigente()) {
@@ -123,34 +138,33 @@ export function crearAcciones({
     }
 
     if (!vigente()) return;
-    // En un cambio el token de sesión se reemplaza solo ahora, con la
-    // elección ya aceptada. Nunca es la empresa activa (esa regresa antes),
-    // así que nada del tenant anterior debe quedar a la vista.
-    almacen.fijarSesion(respuesta.token);
+    // En un cambio la sesión se reemplaza solo ahora, con la elección ya
+    // aceptada. Nunca es la empresa activa (esa regresa antes), así que nada
+    // del tenant anterior debe quedar a la vista. El contexto que devolvió el
+    // servidor se guarda en la época nueva: no hace falta pedirlo otra vez.
     consultas.clear();
+    consultas.setQueryData(claveContexto(tienda.obtener().epoca + 1), contexto);
     tienda.enviar({ tipo: 'SELECCION_OK', empresaId });
   }
 
   async function cambiarEmpresa(): Promise<void> {
     if (tienda.obtener().fase !== 'sesion') return;
-    const seleccion = almacen.seleccion();
-    if (seleccion === null) {
-      terminar('reingreso');
-      return;
-    }
+    const desde = empezar();
     const vigente = () =>
-      tienda.obtener().fase === 'sesion' && almacen.seleccion() === seleccion;
+      tienda.obtener().fase === 'sesion' && generacion === desde;
 
     let empresas;
     try {
       empresas = await api.fetch('/auth/empresas', {
         schema: listaEmpresasDisponibles,
-        token: seleccion,
+        terminaSesion: false,
       });
     } catch (causa) {
-      // 401: la selección venció; hay que ingresar la contraseña otra vez.
+      // 401: la sesión ya tiene empresa y el servidor solo lista empresas a
+      // una sesión sin elegir; hay que ingresar la contraseña otra vez.
       // Cualquier otro fallo deja la sesión como está y lo ve quien llamó.
       if (causa instanceof ApiError && causa.statusCode === 401 && vigente()) {
+        cancelarEnElServidor();
         terminar('reingreso');
       }
       throw causa;
@@ -171,17 +185,16 @@ export function crearAcciones({
 
   async function refrescarEmpresas(): Promise<void> {
     const inicial = tienda.obtener();
-    const seleccion = almacen.seleccion();
-    if (inicial.fase !== 'selecting' || seleccion === null) return;
+    if (inicial.fase !== 'selecting') return;
+    const desde = empezar();
     const vigente = () =>
-      tienda.obtener().fase === 'selecting' &&
-      almacen.seleccion() === seleccion;
+      tienda.obtener().fase === 'selecting' && generacion === desde;
 
     let empresas;
     try {
       empresas = await api.fetch('/auth/empresas', {
         schema: listaEmpresasDisponibles,
-        token: seleccion,
+        terminaSesion: false,
       });
     } catch (causa) {
       if (causa instanceof ApiError && causa.statusCode === 401 && vigente()) {
@@ -201,35 +214,119 @@ export function crearAcciones({
   function volverAlInicio(): void {
     const actual = tienda.obtener();
     if (actual.fase !== 'selecting' || actual.origen !== 'login') return;
-    almacen.limpiar();
+    // La sesión sin empresa sigue en el servidor hasta que venza: se cancela.
+    cancelarEnElServidor();
+    generacion += 1;
+    email = null;
     consultas.clear();
     tienda.enviar({ tipo: 'VOLVER' });
   }
 
   /**
-   * Cierra el ciclo de una sesión que ya no sirve: primero se descartan los
-   * tokens y la caché y luego se avisa a la máquina. Solo si la máquina va a
-   * aceptar el evento; si no, no se toca nada (p. ej. un 401 tardío).
+   * Pide al servidor cancelar la sesión sin esperar la respuesta ni fallar si
+   * no llega: se usa cuando el cliente ya la dio por perdida. Idempotente.
+   */
+  function cancelarEnElServidor(): void {
+    void api
+      .fetch('/auth/logout', { method: 'POST', terminaSesion: false })
+      .catch(() => undefined);
+  }
+
+  /**
+   * Cierra el ciclo de una sesión que ya no sirve: primero se descarta la
+   * caché y luego se avisa a la máquina. Solo si la máquina va a aceptar el
+   * evento; si no, no se toca nada (p. ej. un 401 tardío).
    */
   function cerrarCon(evento: EventoSesion): void {
     const actual = tienda.obtener();
     if (Object.is(reducir(actual, evento), actual)) return;
-    almacen.limpiar();
+    generacion += 1;
     consultas.clear();
     tienda.enviar(evento);
   }
 
   function terminar(motivo: MotivoSalida): void {
-    const email = almacen.email();
+    const correo = email;
     cerrarCon(
-      MOTIVOS_CON_CORREO.includes(motivo) && email !== null
-        ? { tipo: 'TERMINAR', motivo, email }
+      MOTIVOS_CON_CORREO.includes(motivo) && correo !== null
+        ? { tipo: 'TERMINAR', motivo, email: correo }
         : { tipo: 'TERMINAR', motivo },
     );
+    if (tienda.obtener().fase === 'ended') email = null;
   }
 
-  function cerrarSesion(): void {
+  async function cerrarSesion(): Promise<void> {
+    if (!sesionViva(tienda.obtener())) return;
+    // El servidor borra la sesión; el cliente no se vacía hasta que responde,
+    // para que un logout tardío no pise una sesión nueva. Si no llega, la
+    // persona igual sale: la cookie vence sola a las 8 h sin actividad.
+    await api
+      .fetch('/auth/logout', { method: 'POST', terminaSesion: false })
+      .catch(() => undefined);
+    email = null;
     cerrarCon({ tipo: 'CIERRE' });
+  }
+
+  function restaurar(): Promise<void> {
+    if (tienda.obtener().fase !== 'restaurando') return Promise.resolve();
+    restauracion ??= restaurarDelServidor();
+    return restauracion;
+  }
+
+  async function restaurarDelServidor(): Promise<void> {
+    const vigente = () => tienda.obtener().fase === 'restaurando';
+    const fallida = (motivo?: 'sin_acceso') =>
+      tienda.enviar(
+        motivo === undefined
+          ? { tipo: 'RESTAURACION_FALLIDA' }
+          : { tipo: 'RESTAURACION_FALLIDA', motivo },
+      );
+
+    // Mismos reintentos que las consultas: un fallo de red o un 5xx pasajero
+    // no debe mandar a quien recargó otra vez al login.
+    for (let intentos = 1; ; intentos += 1) {
+      try {
+        const contexto = await api.fetch('/auth/contexto', {
+          schema: contextoSesion,
+          terminaSesion: false,
+        });
+        if (!vigente()) return;
+        consultas.setQueryData(
+          claveContexto(tienda.obtener().epoca + 1),
+          contexto,
+        );
+        tienda.enviar({
+          tipo: 'RESTAURADA_SESION',
+          usuario: contexto.usuario,
+          empresaId: contexto.empresa.id,
+        });
+        return;
+      } catch (causa) {
+        if (!vigente()) return;
+        if (causa instanceof ApiError && causa.statusCode === 403) {
+          return fallida('sin_acceso');
+        }
+        if (causa instanceof ApiError && causa.statusCode === 401) break;
+        if (!reintentarConsulta(intentos - 1, causa)) return fallida();
+      }
+    }
+
+    // 401: no hay sesión, o la hay pero sin empresa elegida (el contexto exige
+    // empresa). Esa segunda se distingue porque todavía puede listar empresas.
+    try {
+      const empresas = await api.fetch('/auth/empresas', {
+        schema: listaEmpresasDisponibles,
+        terminaSesion: false,
+      });
+      if (!vigente()) return;
+      if (empresas.length > 0) {
+        tienda.enviar({ tipo: 'RESTAURADA_SELECCION', empresas });
+        return;
+      }
+    } catch {
+      // Sin sesión (401) o sin red: nada que retomar.
+    }
+    if (vigente()) fallida();
   }
 
   function reintentarContexto(): void {
@@ -253,5 +350,6 @@ export function crearAcciones({
     reintentarContexto,
     consumirFin,
     terminar,
+    restaurar,
   };
 }

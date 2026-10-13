@@ -3,7 +3,6 @@ import {
   CONTEXTO_SESION,
   EMPRESAS_DISPONIBLES,
   RESPUESTA_LOGIN,
-  RESPUESTA_TOKEN,
   USUARIO,
 } from '@/test/fixtures';
 import {
@@ -12,7 +11,6 @@ import {
   empresaDisponible,
   listaEmpresasDisponibles,
   respuestaLogin,
-  respuestaToken,
   rol,
   solicitudLogin,
   usuarioPublico,
@@ -33,8 +31,15 @@ describe('contratos de autenticación: cargas válidas', () => {
     expect(contextoSesion.parse(CONTEXTO_SESION)).toEqual(CONTEXTO_SESION);
   });
 
-  it('parsea la respuesta de token', () => {
-    expect(respuestaToken.parse(RESPUESTA_TOKEN)).toEqual(RESPUESTA_TOKEN);
+  it('la respuesta de login no lleva token: la sesión viaja en la cookie', () => {
+    expect(Object.keys(RESPUESTA_LOGIN)).not.toContain('token');
+    expect(Object.keys(respuestaLogin.parse(RESPUESTA_LOGIN))).toEqual([
+      'usuario',
+      'empresas',
+    ]);
+    // Un token que llegara de más se descarta: nunca entra al estado.
+    const conToken = { ...RESPUESTA_LOGIN, token: 'x' };
+    expect(Object.keys(respuestaLogin.parse(conToken))).not.toContain('token');
   });
 
   it('parsea la solicitud de login', () => {
@@ -85,15 +90,13 @@ describe('contratos de autenticación: roles fuera del espejo', () => {
 });
 
 describe('contratos de autenticación: formas incorrectas fallan', () => {
-  it('rechaza un login sin token', () => {
-    const { token: _token, ...sinToken } = RESPUESTA_LOGIN;
-    void _token;
-    expect(respuestaLogin.safeParse(sinToken).success).toBe(false);
-  });
-
-  it('rechaza un token vacío o que no es cadena', () => {
-    expect(respuestaToken.safeParse({ token: '' }).success).toBe(false);
-    expect(respuestaToken.safeParse({ token: 123 }).success).toBe(false);
+  it('rechaza un login sin usuario o sin empresas', () => {
+    const { usuario: _usuario, ...sinUsuario } = RESPUESTA_LOGIN;
+    void _usuario;
+    expect(respuestaLogin.safeParse(sinUsuario).success).toBe(false);
+    const { empresas: _empresas, ...sinEmpresas } = RESPUESTA_LOGIN;
+    void _empresas;
+    expect(respuestaLogin.safeParse(sinEmpresas).success).toBe(false);
   });
 
   it('rechaza roles que no son arreglo', () => {

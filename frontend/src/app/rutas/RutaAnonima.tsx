@@ -8,6 +8,7 @@ import {
 /**
  * Guarda de `/login`: solo se ve sin sesión.
  *
+ * - `restoring`: nada, hasta saber si la cookie todavía vale.
  * - `anonymous`, `ended`: muestra la pantalla de acceso.
  * - `selecting`: a `/empresa`, conservando el destino ya validado.
  * - `loading`, `ready`, `unavailable`: ya hay sesión; va al destino guardado
@@ -18,6 +19,9 @@ export function RutaAnonima() {
   const { state } = useLocation();
 
   switch (sesion.status) {
+    case 'restoring':
+      // Recarga: todavía no se sabe si hay sesión; ni login ni redirección.
+      return null;
     case 'anonymous':
     case 'ended':
       return <Outlet />;

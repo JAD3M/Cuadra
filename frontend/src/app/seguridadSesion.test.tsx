@@ -7,6 +7,7 @@ import {
   waitFor,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import {
   afterAll,
@@ -19,13 +20,14 @@ import {
   vi,
 } from 'vitest';
 import { rutas } from '@/app/router';
-import { crearQueryClient, reintentarConsulta } from '@/shared/api';
+import { api, crearQueryClient, reintentarConsulta } from '@/shared/api';
 import { SessionProvider } from '@/shared/sesion';
 import { ThemeProvider } from '@/shared/tema';
 import { CLAVE_TEMA } from '@/shared/tema/tipos';
 import { contextoFalla, loginFalla } from '@/test/handlersAuth';
 import { elegirEmpresaPorNombre, enviarLogin } from '@/test/montarApp';
 import { CREDENCIALES } from '@/test/montarSesion';
+import { sesionConEmpresa } from '@/test/sesionMock';
 import { servidor } from '@/test/servidor';
 
 /**
@@ -51,7 +53,12 @@ afterAll(() => configure({ asyncUtilTimeout: 1000 }));
 let consultas: QueryClient;
 let router: ReturnType<typeof createMemoryRouter>;
 let salida: string[];
-let peticiones: { origen: string; ruta: string; autorizacion: boolean }[];
+let peticiones: {
+  origen: string;
+  ruta: string;
+  autorizacion: boolean;
+  credenciales: RequestCredentials;
+}[];
 
 function montar(ruta: string) {
   consultas = crearQueryClient();
@@ -143,6 +150,7 @@ beforeEach(() => {
       origen: url.origin,
       ruta: url.pathname,
       autorizacion: request.headers.has('Authorization'),
+      credenciales: request.credentials,
     });
   });
 });
@@ -202,10 +210,22 @@ describe('seguridad de la sesión en ejecución', () => {
   });
 
   it('una sesión que expira no filtra nada y el aviso no nombra tokens', async () => {
-    contextoFalla(401);
     montar('/casos/9');
     await enviarLogin();
     await elegirEmpresaPorNombre(/Ferreteria/);
+    await screen.findByRole('banner');
+    // La sesión vence en el servidor: la siguiente llamada ya responde 401.
+    servidor.use(
+      http.get('/api/prueba', () =>
+        HttpResponse.json(
+          { statusCode: 401, error: 'x', message: 'texto del servidor' },
+          { status: 401 },
+        ),
+      ),
+    );
+    await act(async () => {
+      await api.fetch('/prueba').catch(() => undefined);
+    });
     await screen.findByText(
       'Tu sesión terminó. Inicia sesión de nuevo para continuar.',
     );
@@ -213,32 +233,30 @@ describe('seguridad de la sesión en ejecución', () => {
   });
 
   it('un 403 de contexto y un fallo de red no filtran nada ni muestran texto del servidor', async () => {
+    // Recarga con una sesión que ya no tiene acceso a su empresa.
+    sesionConEmpresa();
     contextoFalla(403);
     montar('/bandeja');
-    await enviarLogin();
-    await elegirEmpresaPorNombre(/Ferreteria/);
     await screen.findByText('Ya no tienes acceso a esta empresa.');
     expect(screen.queryByText('texto del servidor')).toBeNull();
     inspeccionar('sin acceso');
   });
 
-  it('el encabezado Authorization solo viaja a rutas relativas de la API', async () => {
+  it('ninguna petición lleva Authorization y todas mandan la cookie a rutas relativas de la API', async () => {
     montar('/bandeja');
     await enviarLogin();
     await elegirEmpresaPorNombre(/Ferreteria/);
     await screen.findByRole('banner');
     await act(async () => {});
 
-    const conToken = peticiones.filter((p) => p.autorizacion);
-    // Elegir empresa (token de selección) y pedir el contexto (de sesión).
-    expect(conToken.length).toBeGreaterThanOrEqual(2);
-    for (const p of conToken) {
+    const deLaApi = peticiones.filter((p) => p.ruta.startsWith('/api/'));
+    // Restaurar, login, elegir empresa y pedir el contexto, como mínimo.
+    expect(deLaApi.length).toBeGreaterThanOrEqual(4);
+    for (const p of deLaApi) {
       expect(p.origen).toBe(window.location.origin);
-      expect(p.ruta.startsWith('/api/')).toBe(true);
+      expect(p.autorizacion, `Authorization en ${p.ruta}`).toBe(false);
+      expect(p.credenciales, `credentials en ${p.ruta}`).toBe('include');
     }
-    // El login nunca lleva token.
-    const login = peticiones.find((p) => p.ruta === '/api/auth/login');
-    expect(login?.autorizacion).toBe(false);
   });
 
   it('las claves de consulta de la sesión no contienen tokens', async () => {

@@ -10,6 +10,7 @@ import {
 /**
  * Guarda de `/empresa`: solo se ve mientras se elige empresa.
  *
+ * - `restoring`: nada, hasta saber si la cookie todavía vale.
  * - `selecting` (de un login o de un cambio de empresa): muestra el paso.
  * - `anonymous`, `ended`: a `/login` con el foco en el correo. El destino
  *   guardado sigue su camino solo si la sesión anterior expiró o nunca hubo.
@@ -38,6 +39,9 @@ export function RutaSeleccion() {
   }
 
   switch (sesion.status) {
+    case 'restoring':
+      // Recarga: todavía no se sabe si hay sesión ni qué paso retomar.
+      return null;
     case 'selecting':
       return <Outlet />;
     case 'anonymous':

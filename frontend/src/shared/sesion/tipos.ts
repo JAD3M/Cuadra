@@ -28,7 +28,10 @@ export type MotivoSalida =
 export type OrigenSeleccion = 'login' | 'cambio';
 
 /**
- * Estado de la sesión que consume la aplicación. Nunca contiene un token.
+ * Estado de la sesión que consume la aplicación. Nunca contiene un token: la
+ * sesión es una cookie `httpOnly` que JavaScript no lee.
+ * - `restoring`: arranque en frío (recarga); se le pregunta al servidor si la
+ *   cookie todavía vale. No es todavía anónimo ni hay sesión.
  * - `anonymous`: no hay sesión (arranque en frío o «Cambiar de cuenta»).
  * - `selecting`: credenciales válidas; falta elegir empresa. Con
  *   `origen: 'cambio'` la sesión anterior sigue viva.
@@ -42,11 +45,13 @@ export type OrigenSeleccion = 'login' | 'cambio';
  * misma empresa y por lo tanto se puede volver a la pantalla de origen.
  */
 export type SessionState =
+  | { status: 'restoring' }
   | { status: 'anonymous' }
   | {
       status: 'selecting';
       origen: OrigenSeleccion;
-      usuario: Usuario;
+      /** `null` al retomar la elección tras una recarga: nadie lo informa. */
+      usuario: Usuario | null;
       empresas: EmpresaDisponible[];
       /**
        * Empresa de la sesión viva durante un cambio (`origen: 'cambio'`).
@@ -87,17 +92,17 @@ export interface AccionesSesion {
    */
   iniciarSesion(credenciales: SolicitudLogin): Promise<void>;
   /**
-   * Canjea el token de selección por uno de sesión para la empresa dada. Con
-   * un 401 (la selección venció) la sesión termina y además rechaza; con un
-   * 403 refresca la lista de empresas y rechaza para que la pantalla muestre
-   * el mensaje.
+   * Elige la empresa de la sesión: el servidor rota la cookie y devuelve el
+   * contexto, que se aplica sin pedirlo otra vez. Con un 401 (la sesión sin
+   * empresa venció) la sesión termina y además rechaza; con un 403 refresca la
+   * lista de empresas y rechaza para que la pantalla muestre el mensaje.
    */
   elegirEmpresa(empresaId: string): Promise<void>;
   /**
-   * Cambio directo de empresa: con el token de selección que se conserva pide
-   * la lista y pasa a `selecting` con origen `cambio`. La sesión actual sigue
-   * viva y la caché no se toca. Con un fallo de red o 5xx rechaza y la sesión
-   * sigue en `ready`.
+   * Cambio directo de empresa: pide la lista y pasa a `selecting` con origen
+   * `cambio`. La sesión actual sigue viva y la caché no se toca. Con un fallo
+   * de red o 5xx rechaza y la sesión sigue en `ready`. Si el servidor no lista
+   * empresas a una sesión que ya eligió una (401), pide ingresar de nuevo.
    */
   cambiarEmpresa(): Promise<void>;
   /** Abandona el cambio de empresa y vuelve a la sesión viva, sin recargar. */
@@ -107,13 +112,17 @@ export interface AccionesSesion {
    * quedó vacía la sesión termina con `sin_empresas`.
    */
   refrescarEmpresas(): Promise<void>;
-  /** «Cambiar de cuenta»: descarta todo y vuelve a `anonymous`, sin correo. */
+  /**
+   * «Cambiar de cuenta»: cancela la sesión sin empresa en el servidor, descarta
+   * todo y vuelve a `anonymous`, sin correo.
+   */
   volverAlInicio(): void;
   /**
-   * Cierre voluntario: descarta tokens y caché y pasa a `ended` con
-   * `cierre_voluntario`. No hace ninguna petición: la API no revoca tokens.
+   * Cierre voluntario: `POST /auth/logout` (el servidor borra la sesión),
+   * luego descarta la caché y pasa a `ended` con `cierre_voluntario`. Si la
+   * petición falla igual cierra en el cliente.
    */
-  cerrarSesion(): void;
+  cerrarSesion(): Promise<void>;
   /** Vuelve a pedir el contexto cuando el estado es `unavailable`. */
   reintentarContexto(): void;
   /**

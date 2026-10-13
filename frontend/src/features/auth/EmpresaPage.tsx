@@ -44,7 +44,7 @@ export function EmpresaPage() {
   const cambio = estado.origen === 'cambio';
   const saludo = cambio
     ? saludoCambio(estado.empresaActual?.razonSocial)
-    : saludoEmpresas(estado.usuario.nombre, estado.empresas.length);
+    : saludoEmpresas(estado.usuario?.nombre ?? '', estado.empresas.length);
 
   return (
     <LayoutAuth controlTema={<ControlTema />}>

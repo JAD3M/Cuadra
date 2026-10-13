@@ -95,7 +95,7 @@ describe('UserBlock: cerrar sesión', () => {
     }
   });
 
-  it('no afirma que el token se revoque', () => {
+  it('no explica en pantalla cómo se cancela la sesión', () => {
     const { container } = render(
       <UserBlock nombre="Ana" roles={['admin']} onCerrarSesion={() => {}} />,
     );

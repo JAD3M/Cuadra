@@ -1,18 +1,25 @@
 import { delay, http, HttpResponse } from 'msw';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { contextoSesion } from '@/shared/api/contratos';
 import { CONTEXTO_SESION } from '@/test/fixtures';
+import { sesionConEmpresa } from '@/test/sesionMock';
 import { servidor } from '@/test/servidor';
 import { api, configurarCliente, crearClienteApi } from './client';
 import { ApiError, ContratoError, NetworkError } from './errores';
 
-/** Registra la cabecera Authorization de la última petición recibida. */
-function espiarAutorizacion() {
-  const vistas: (string | null)[] = [];
+// El servidor simulado solo da el contexto a una sesión con empresa.
+beforeEach(() => sesionConEmpresa());
+
+/** Registra la cabecera Authorization y las credenciales de cada petición. */
+function espiarPeticion() {
+  const vistas: { autorizacion: string | null; credenciales: string }[] = [];
   servidor.use(
     http.get('/api/auth/contexto', ({ request }) => {
-      vistas.push(request.headers.get('Authorization'));
+      vistas.push({
+        autorizacion: request.headers.get('Authorization'),
+        credenciales: request.credentials,
+      });
       return HttpResponse.json(CONTEXTO_SESION);
     }),
   );
@@ -30,45 +37,43 @@ function responder403(ruta: string) {
   );
 }
 
-describe('token', () => {
-  it('no envía Authorization cuando el proveedor devuelve null', async () => {
-    const vistas = espiarAutorizacion();
-    const cliente = crearClienteApi({ proveedorToken: () => null });
-    await cliente.fetch('/auth/contexto');
-    expect(vistas).toEqual([null]);
-  });
-
-  it('no envía Authorization si no hay proveedor', async () => {
-    const vistas = espiarAutorizacion();
+describe('cookie de sesión', () => {
+  it('manda la cookie con credentials: include y nunca Authorization', async () => {
+    const vistas = espiarPeticion();
     await crearClienteApi().fetch('/auth/contexto');
-    expect(vistas).toEqual([null]);
+    expect(vistas).toEqual([{ autorizacion: null, credenciales: 'include' }]);
   });
 
-  it('envía Authorization: Bearer cuando el proveedor devuelve un token', async () => {
-    const vistas = espiarAutorizacion();
-    const cliente = crearClienteApi({ proveedorToken: () => 't' });
+  it('pasa credentials: include al fetch inyectado, también con FormData', async () => {
+    const llamadas: RequestInit[] = [];
+    const cliente = crearClienteApi({
+      fetchImpl: (_entrada, init) => {
+        llamadas.push(init ?? {});
+        return Promise.resolve(Response.json({}));
+      },
+    });
     await cliente.fetch('/auth/contexto');
-    expect(vistas).toEqual(['Bearer t']);
+    await cliente.fetch('/cargas/cfdi', {
+      method: 'POST',
+      body: new FormData(),
+    });
+    expect(llamadas.map((l) => l.credentials)).toEqual(['include', 'include']);
+    for (const llamada of llamadas) {
+      expect((llamada.headers as Headers).has('Authorization')).toBe(false);
+    }
   });
 
-  it('el token de la llamada tiene prioridad sobre el proveedor', async () => {
-    const vistas = espiarAutorizacion();
-    const cliente = crearClienteApi({ proveedorToken: () => 'sesion' });
-    await cliente.fetch('/auth/contexto', { token: 'seleccion' });
-    expect(vistas).toEqual(['Bearer seleccion']);
+  it('ni siquiera con una sesión viva se manda Authorization', async () => {
+    const vistas = espiarPeticion();
+    const cliente = crearClienteApi({ proveedorEpoca: () => 3 });
+    await cliente.fetch('/auth/contexto');
+    expect(vistas).toEqual([{ autorizacion: null, credenciales: 'include' }]);
   });
 
-  it('token null en la llamada fuerza una petición sin Authorization', async () => {
-    const vistas = espiarAutorizacion();
-    const cliente = crearClienteApi({ proveedorToken: () => 'sesion' });
-    await cliente.fetch('/auth/contexto', { token: null });
-    expect(vistas).toEqual([null]);
-  });
-
-  it('el token nunca aparece en la URL pedida', async () => {
+  it('la sesión no aparece en la URL pedida', async () => {
     const urls: string[] = [];
     const cliente = crearClienteApi({
-      proveedorToken: () => 'secreto',
+      proveedorEpoca: () => 3,
       fetchImpl: (entrada) => {
         urls.push(String(entrada));
         return Promise.resolve(Response.json({}));
@@ -109,7 +114,7 @@ describe('ruta y petición', () => {
     'rechaza la ruta no relativa %j antes de pedir nada',
     async (ruta) => {
       const fetchImpl = vi.fn<typeof fetch>();
-      const cliente = crearClienteApi({ proveedorToken: () => 't', fetchImpl });
+      const cliente = crearClienteApi({ proveedorEpoca: () => 1, fetchImpl });
       await expect(cliente.fetch(ruta)).rejects.toBeInstanceOf(TypeError);
       expect(fetchImpl).not.toHaveBeenCalled();
     },
@@ -314,11 +319,11 @@ function responder401(ruta: string, contador?: { n: number }) {
 }
 
 describe('fin de sesión por 401', () => {
-  it('con el token del proveedor llama al hook una vez y lanza ApiError', async () => {
+  it('con una sesión viva llama al hook una vez y lanza ApiError', async () => {
     responder401('/api/auth/contexto');
     const alTerminarSesion = vi.fn();
     const cliente = crearClienteApi({
-      proveedorToken: () => 'sesion',
+      proveedorEpoca: () => 1,
       alTerminarSesion,
     });
     const error = await cliente
@@ -330,40 +335,24 @@ describe('fin de sesión por 401', () => {
     expect(alTerminarSesion).toHaveBeenCalledWith('sesion_expirada');
   });
 
-  it('con un token por llamada (selección) no llama al hook', async () => {
+  it('con terminaSesion: false (login, elegir empresa, logout) no llama al hook', async () => {
     responder401('/api/auth/contexto');
     const alTerminarSesion = vi.fn();
     const cliente = crearClienteApi({
-      proveedorToken: () => 'sesion',
+      proveedorEpoca: () => 1,
       alTerminarSesion,
     });
     await expect(
-      cliente.fetch('/auth/contexto', { token: 'seleccion' }),
+      cliente.fetch('/auth/contexto', { terminaSesion: false }),
     ).rejects.toBeInstanceOf(ApiError);
     expect(alTerminarSesion).not.toHaveBeenCalled();
   });
 
-  it('con token: null (login) no llama al hook', async () => {
+  it('sin sesión viva (época null o sin proveedor) no llama al hook', async () => {
     responder401('/api/auth/contexto');
-    const alTerminarSesion = vi.fn();
-    const cliente = crearClienteApi({
-      proveedorToken: () => 'sesion',
-      alTerminarSesion,
-    });
-    await expect(
-      cliente.fetch('/auth/contexto', { token: null }),
-    ).rejects.toBeInstanceOf(ApiError);
-    expect(alTerminarSesion).not.toHaveBeenCalled();
-  });
-
-  it('sin token del proveedor (null o vacío) no llama al hook', async () => {
-    responder401('/api/auth/contexto');
-    for (const token of [null, '']) {
+    for (const proveedorEpoca of [() => null, undefined]) {
       const alTerminarSesion = vi.fn();
-      const cliente = crearClienteApi({
-        proveedorToken: () => token,
-        alTerminarSesion,
-      });
+      const cliente = crearClienteApi({ proveedorEpoca, alTerminarSesion });
       await expect(cliente.fetch('/auth/contexto')).rejects.toBeInstanceOf(
         ApiError,
       );
@@ -371,12 +360,12 @@ describe('fin de sesión por 401', () => {
     }
   });
 
-  it('si el token rotó mientras la llamada estaba en vuelo no llama al hook', async () => {
-    let vigente = 'sesion-vieja';
+  it('si la sesión rotó mientras la llamada estaba en vuelo no llama al hook', async () => {
+    let vigente = 1;
     servidor.use(
       http.get('/api/auth/contexto', () => {
-        // La sesión cambia antes de que llegue la respuesta.
-        vigente = 'sesion-nueva';
+        // La sesión cambia (otra empresa) antes de que llegue la respuesta.
+        vigente = 2;
         return HttpResponse.json(
           { statusCode: 401, error: 'Unauthorized', message: 'x' },
           { status: 401 },
@@ -385,7 +374,7 @@ describe('fin de sesión por 401', () => {
     );
     const alTerminarSesion = vi.fn();
     const cliente = crearClienteApi({
-      proveedorToken: () => vigente,
+      proveedorEpoca: () => vigente,
       alTerminarSesion,
     });
     await expect(cliente.fetch('/auth/contexto')).rejects.toBeInstanceOf(
@@ -396,13 +385,13 @@ describe('fin de sesión por 401', () => {
 
   it('tres 401 simultáneos terminan la sesión una sola vez', async () => {
     responder401('/api/auth/contexto');
-    let vigente: string | null = 'sesion';
-    // El hook real limpia el almacén: los 401 siguientes ven otro token.
+    let vigente: number | null = 1;
+    // El hook real termina la sesión: los 401 siguientes ven otra época.
     const alTerminarSesion = vi.fn(() => {
       vigente = null;
     });
     const cliente = crearClienteApi({
-      proveedorToken: () => vigente,
+      proveedorEpoca: () => vigente,
       alTerminarSesion,
     });
     const resultados = await Promise.allSettled([
@@ -418,7 +407,7 @@ describe('fin de sesión por 401', () => {
     responder403('/api/auth/contexto');
     const alTerminarSesion = vi.fn();
     const cliente = crearClienteApi({
-      proveedorToken: () => 'sesion',
+      proveedorEpoca: () => 1,
       alTerminarSesion,
     });
     await expect(cliente.fetch('/auth/contexto')).rejects.toBeInstanceOf(
@@ -428,11 +417,11 @@ describe('fin de sesión por 401', () => {
     expect(alTerminarSesion).toHaveBeenCalledWith('sin_acceso');
   });
 
-  it('un 403 en otra ruta con token del proveedor no llama al hook', async () => {
+  it('un 403 en otra ruta con sesión viva no llama al hook', async () => {
     responder403('/api/casos');
     const alTerminarSesion = vi.fn();
     const cliente = crearClienteApi({
-      proveedorToken: () => 'sesion',
+      proveedorEpoca: () => 1,
       alTerminarSesion,
     });
     await expect(cliente.fetch('/casos')).rejects.toBeInstanceOf(ApiError);
@@ -441,7 +430,7 @@ describe('fin de sesión por 401', () => {
 
   it('sin hook registrado un 401 no rompe', async () => {
     responder401('/api/auth/contexto');
-    const cliente = crearClienteApi({ proveedorToken: () => 'sesion' });
+    const cliente = crearClienteApi({ proveedorEpoca: () => 1 });
     await expect(cliente.fetch('/auth/contexto')).rejects.toBeInstanceOf(
       ApiError,
     );
@@ -451,7 +440,7 @@ describe('fin de sesión por 401', () => {
     const contador = { n: 0 };
     responder401('/api/auth/contexto', contador);
     const cliente = crearClienteApi({
-      proveedorToken: () => 'sesion',
+      proveedorEpoca: () => 1,
       alTerminarSesion: vi.fn(),
     });
     await expect(cliente.fetch('/auth/contexto')).rejects.toBeInstanceOf(
@@ -460,11 +449,11 @@ describe('fin de sesión por 401', () => {
     expect(contador.n).toBe(1);
   });
 
-  it('un fallo de red con token del proveedor no termina la sesión', async () => {
+  it('un fallo de red con sesión viva no termina la sesión', async () => {
     servidor.use(http.get('/api/auth/contexto', () => HttpResponse.error()));
     const alTerminarSesion = vi.fn();
     const cliente = crearClienteApi({
-      proveedorToken: () => 'sesion',
+      proveedorEpoca: () => 1,
       alTerminarSesion,
     });
     // `HttpResponse.error()` llega como NetworkError a través del shim de fetch.
@@ -477,19 +466,22 @@ describe('fin de sesión por 401', () => {
 
 describe('configurarCliente (singleton)', () => {
   it('registra los hooks sobre el cliente único y se pueden retirar', async () => {
-    const vistas = espiarAutorizacion();
-    configurarCliente({ proveedorToken: () => 'sesion' });
+    responder401('/api/auth/contexto');
+    const alTerminarSesion = vi.fn();
+    configurarCliente({ proveedorEpoca: () => 1, alTerminarSesion });
     try {
-      await api.fetch('/auth/contexto');
-      expect(vistas).toEqual(['Bearer sesion']);
+      await expect(api.fetch('/auth/contexto')).rejects.toBeInstanceOf(
+        ApiError,
+      );
+      expect(alTerminarSesion).toHaveBeenCalledTimes(1);
     } finally {
       configurarCliente({
-        proveedorToken: undefined,
+        proveedorEpoca: undefined,
         alTerminarSesion: undefined,
       });
     }
-    await api.fetch('/auth/contexto');
-    expect(vistas).toEqual(['Bearer sesion', null]);
+    await expect(api.fetch('/auth/contexto')).rejects.toBeInstanceOf(ApiError);
+    expect(alTerminarSesion).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -584,18 +576,19 @@ describe('cuerpo FormData (API-17)', () => {
     expect(init?.body).toBe('{"toleranciaMonto":"0.0050"}');
   });
 
-  it('17.3: envía Authorization: Bearer con un cuerpo FormData', async () => {
+  it('17.3: un cuerpo FormData manda la cookie y no lleva Authorization', async () => {
     const { fetchImpl, llamadas } = dobleFetch();
-    await crearClienteApi({ fetchImpl, proveedorToken: () => 'tok' }).fetch(
+    await crearClienteApi({ fetchImpl, proveedorEpoca: () => 1 }).fetch(
       '/cargas/cfdi',
       { method: 'POST', body: new FormData() },
     );
-    expect((llamadas[0]?.init.headers as Headers).get('Authorization')).toBe(
-      'Bearer tok',
+    expect(llamadas[0]?.init.credentials).toBe('include');
+    expect((llamadas[0]?.init.headers as Headers).has('Authorization')).toBe(
+      false,
     );
   });
 
-  it('17.4: un 401 con el token vigente termina la sesión con sesion_expirada y lanza ApiError 401', async () => {
+  it('17.4: un 401 de la sesión vigente termina la sesión con sesion_expirada y lanza ApiError 401', async () => {
     servidor.use(
       http.post('/api/cargas/cfdi', () =>
         HttpResponse.json(
@@ -606,7 +599,7 @@ describe('cuerpo FormData (API-17)', () => {
     );
     const alTerminarSesion = vi.fn();
     const cliente = crearClienteApi({
-      proveedorToken: () => 'vigente',
+      proveedorEpoca: () => 1,
       alTerminarSesion,
     });
     const error = await cliente

@@ -1,8 +1,8 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
-import { delay, http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import { ApiError, api } from '@/shared/api';
-import { esperarTokensCoherentes } from '@/test/invariantesSesion';
+import { esperarSinRastroDeSesion } from '@/test/invariantesSesion';
 import {
   CREDENCIALES,
   EMPRESA_A,
@@ -10,6 +10,8 @@ import {
   espiar,
   montarSesion,
 } from '@/test/montarSesion';
+import { CONTEXTO_SESION } from '@/test/fixtures';
+import { espiarSolicitudes } from '@/test/handlersAuth';
 import { servidor } from '@/test/servidor';
 import { useSessionActions } from './useSessionActions';
 
@@ -18,7 +20,7 @@ describe('SessionProvider', () => {
     const { entorno } = montarSesion();
     expect(screen.getByTestId('estado')).toHaveTextContent('anonymous');
     expect(typeof entorno.acciones().iniciarSesion).toBe('function');
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    esperarSinRastroDeSesion();
   });
 
   it('login correcto: pasa a selecting con usuario y empresas, sin token', async () => {
@@ -28,27 +30,28 @@ describe('SessionProvider', () => {
     expect(estado.status).toBe('selecting');
     if (estado.status !== 'selecting') return;
     expect(estado.origen).toBe('login');
-    expect(estado.usuario.nombre).toBe('Jorge Tapia');
+    expect(estado.usuario?.nombre).toBe('Jorge Tapia');
     expect(estado.empresas).toHaveLength(2);
 
     const publico = JSON.stringify(estado);
-    expect(publico).not.toContain('token-de-seleccion');
     expect(publico).not.toContain('secreta-1');
-    expect(JSON.stringify(entorno.tienda.obtener())).not.toContain(
-      'token-de-seleccion',
-    );
-    expect(entorno.almacen.seleccion()).toBe('token-de-seleccion');
-    expect(entorno.almacen.email()).toBe(CREDENCIALES.email);
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    expect(publico.toLowerCase()).not.toContain('token');
+    expect(
+      JSON.stringify(entorno.tienda.obtener()).toLowerCase(),
+    ).not.toContain('token');
+    esperarSinRastroDeSesion();
   });
 
-  it('el login se envía sin Authorization', async () => {
-    const cabeceras: (string | null)[] = [];
+  it('el login manda la cookie y se envía sin Authorization', async () => {
+    const cabeceras: { autorizacion: string | null; credenciales: string }[] =
+      [];
     servidor.use(
       http.post('/api/auth/login', ({ request }) => {
-        cabeceras.push(request.headers.get('Authorization'));
+        cabeceras.push({
+          autorizacion: request.headers.get('Authorization'),
+          credenciales: request.credentials,
+        });
         return HttpResponse.json({
-          token: 't',
           usuario: {
             id: '3f2b8a6e-6c1d-4a39-9d5e-0c1f7a1b2c3d',
             nombre: 'N',
@@ -59,9 +62,10 @@ describe('SessionProvider', () => {
       }),
     );
     const { entorno } = montarSesion();
-    entorno.almacen.fijarSesion('token-colgado');
     await act(() => entorno.acciones().iniciarSesion(CREDENCIALES));
-    expect(cabeceras).toEqual([null]);
+    expect(cabeceras).toEqual([
+      { autorizacion: null, credenciales: 'include' },
+    ]);
   });
 
   it.each([400, 401, 403, 500])(
@@ -80,8 +84,7 @@ describe('SessionProvider', () => {
         act(() => entorno.acciones().iniciarSesion(CREDENCIALES)),
       ).rejects.toBeInstanceOf(ApiError);
       expect(entorno.estado().status).toBe('anonymous');
-      expect(entorno.almacen.seleccion()).toBeNull();
-      esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+      esperarSinRastroDeSesion();
     },
   );
 
@@ -111,35 +114,35 @@ describe('SessionProvider', () => {
     expect(entorno.estado().status).toBe('selecting');
   });
 
-  it('elegirEmpresa: canjea con el token de selección y pasa a loading', async () => {
-    const cabeceras: (string | null)[] = [];
-    // El contexto no responde: se observa el estado `loading` sin carreras.
+  it('elegirEmpresa: manda la cookie, pasa a ready con el contexto devuelto', async () => {
+    const llamadas: { autorizacion: string | null; credenciales: string }[] =
+      [];
     servidor.use(
-      http.get('/api/auth/contexto', () => delay('infinite')),
       http.post('/api/auth/empresa/:id', ({ request, params }) => {
-        cabeceras.push(request.headers.get('Authorization'));
+        llamadas.push({
+          autorizacion: request.headers.get('Authorization'),
+          credenciales: request.credentials,
+        });
         expect(params['id']).toBe(EMPRESA_A);
-        return HttpResponse.json({ token: 'token-de-sesion' });
+        return HttpResponse.json(CONTEXTO_SESION);
       }),
     );
     const { entorno } = montarSesion();
     await act(() => entorno.acciones().iniciarSesion(CREDENCIALES));
     await act(() => entorno.acciones().elegirEmpresa(EMPRESA_A));
-    expect(cabeceras).toEqual(['Bearer token-de-seleccion']);
-    expect(entorno.estado()).toEqual({
-      status: 'loading',
-      restaurarOrigen: true,
-    });
-    expect(entorno.almacen.sesion()).toBe('token-de-sesion');
-    expect(JSON.stringify(entorno.estado())).not.toContain('token-de-');
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    expect(llamadas).toEqual([{ autorizacion: null, credenciales: 'include' }]);
+    const estado = entorno.estado();
+    expect(estado.status).toBe('ready');
+    if (estado.status !== 'ready') return;
+    expect(estado.contexto).toEqual(CONTEXTO_SESION);
+    expect(JSON.stringify(estado).toLowerCase()).not.toContain('token');
+    esperarSinRastroDeSesion();
   });
 
   it('elegirEmpresa sin selección activa no hace nada', async () => {
     const { entorno } = montarSesion();
     await act(() => entorno.acciones().elegirEmpresa(EMPRESA_A));
     expect(entorno.estado().status).toBe('anonymous');
-    expect(entorno.almacen.sesion()).toBeNull();
   });
 
   it('un fallo al elegir deja el paso de selección intacto', async () => {
@@ -157,8 +160,7 @@ describe('SessionProvider', () => {
       act(() => entorno.acciones().elegirEmpresa(EMPRESA_A)),
     ).rejects.toBeInstanceOf(ApiError);
     expect(entorno.estado().status).toBe('selecting');
-    expect(entorno.almacen.sesion()).toBeNull();
-    expect(entorno.almacen.seleccion()).toBe('token-de-seleccion');
+    esperarSinRastroDeSesion();
   });
 
   it('una respuesta que llega después de «Cambiar de cuenta» se descarta', async () => {
@@ -169,7 +171,7 @@ describe('SessionProvider', () => {
     servidor.use(
       http.post('/api/auth/empresa/:id', async () => {
         await pausa;
-        return HttpResponse.json({ token: 'token-tardio' });
+        return HttpResponse.json(CONTEXTO_SESION);
       }),
     );
     const { entorno } = montarSesion();
@@ -182,8 +184,14 @@ describe('SessionProvider', () => {
     liberar();
     await act(() => pendiente);
     expect(entorno.estado().status).toBe('anonymous');
-    expect(entorno.almacen.sesion()).toBeNull();
-    esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+    // La respuesta tardía no deja datos de una sesión que ya no existe.
+    expect(
+      entorno.consultas
+        .getQueryCache()
+        .getAll()
+        .filter((q) => q.state.data !== undefined),
+    ).toEqual([]);
+    esperarSinRastroDeSesion();
   });
 
   it('vacía la caché de consultas al elegir empresa', async () => {
@@ -196,14 +204,17 @@ describe('SessionProvider', () => {
   });
 
   describe('«Cambiar de cuenta»', () => {
-    it('descarta el token de selección y el correo, y vuelve a anónimo', async () => {
+    it('cancela la sesión en el servidor y vuelve a anónimo', async () => {
+      const espia = espiarSolicitudes();
       const { entorno } = montarSesion();
       await act(() => entorno.acciones().iniciarSesion(CREDENCIALES));
       act(() => entorno.acciones().volverAlInicio());
       expect(entorno.estado()).toEqual({ status: 'anonymous' });
-      expect(entorno.almacen.seleccion()).toBeNull();
-      expect(entorno.almacen.email()).toBeNull();
-      esperarTokensCoherentes(entorno.tienda.obtener(), entorno.almacen);
+      await waitFor(() =>
+        expect(espia.cuantas('POST', '/api/auth/logout')).toBe(1),
+      );
+      espia.detener();
+      esperarSinRastroDeSesion();
     });
 
     it('vacía la caché de consultas', async () => {
@@ -222,58 +233,96 @@ describe('SessionProvider', () => {
     });
   });
 
-  describe('token que ve el cliente de la API (M4, AUT-8)', () => {
-    it('antes de elegir empresa no hay Authorization, aunque exista el de selección', async () => {
+  describe('lo que ve el cliente de la API (M4, AUT-8)', () => {
+    it('nunca manda Authorization: ni antes ni después de elegir empresa', async () => {
       const llamadas = espiar('/api/prueba');
       const { entorno } = montarSesion();
       await act(() => entorno.acciones().iniciarSesion(CREDENCIALES));
       await api.fetch('/prueba');
-      expect(entorno.almacen.seleccion()).toBe('token-de-seleccion');
-      expect(llamadas).toEqual([null]);
-    });
-
-    it('con sesión solo viaja el token de sesión, nunca el de selección', async () => {
-      const llamadas = espiar('/api/prueba');
-      const { entorno } = montarSesion();
-      await act(() => entorno.acciones().iniciarSesion(CREDENCIALES));
       await act(() => entorno.acciones().elegirEmpresa(EMPRESA_A));
       await api.fetch('/prueba');
-      expect(llamadas).toEqual(['Bearer token-de-sesion']);
-      expect(llamadas.join()).not.toContain('token-de-seleccion');
+      expect(llamadas).toEqual([
+        { autorizacion: null, credenciales: 'include' },
+        { autorizacion: null, credenciales: 'include' },
+      ]);
     });
   });
 
   describe('registro en el cliente', () => {
-    it('al desmontar se desregistra el proveedor de token', async () => {
-      const llamadas = espiar('/api/prueba');
-      const { entorno, unmount } = montarSesion();
-      entorno.almacen.fijarSesion('token-vivo');
-      await api.fetch('/prueba');
+    function responder401() {
+      servidor.use(
+        http.get('/api/prueba', () =>
+          HttpResponse.json(
+            { statusCode: 401, error: 'x', message: 'y' },
+            { status: 401 },
+          ),
+        ),
+      );
+    }
+
+    async function conSesion(opciones: { estricto?: boolean } = {}) {
+      const montada = montarSesion(opciones);
+      await act(() => montada.entorno.acciones().iniciarSesion(CREDENCIALES));
+      await act(() => montada.entorno.acciones().elegirEmpresa(EMPRESA_A));
+      await waitFor(() =>
+        expect(montada.entorno.estado().status).toBe('ready'),
+      );
+      return montada;
+    }
+
+    it('un 401 de la API con sesión viva la termina con sesion_expirada', async () => {
+      const { entorno } = await conSesion();
+      responder401();
+      await expect(api.fetch('/prueba')).rejects.toBeInstanceOf(ApiError);
+      expect(entorno.estado()).toEqual({
+        status: 'ended',
+        motivo: 'sesion_expirada',
+      });
+      expect(
+        entorno.consultas
+          .getQueryCache()
+          .getAll()
+          .filter((q) => q.state.data !== undefined),
+      ).toEqual([]);
+    });
+
+    it('al desmontar se desregistra el hook: un 401 ya no termina la sesión', async () => {
+      const { entorno, unmount } = await conSesion();
       unmount();
-      await api.fetch('/prueba');
-      expect(llamadas).toEqual(['Bearer token-vivo', null]);
+      responder401();
+      await expect(api.fetch('/prueba')).rejects.toBeInstanceOf(ApiError);
+      expect(entorno.estado().status).toBe('ready');
     });
 
     it('funciona bajo StrictMode (doble montaje) y sigue registrado', async () => {
-      const llamadas = espiar('/api/prueba');
-      // El contexto no responde: `loading` es un estado estable de la prueba y
-      // no una carrera contra la respuesta del servidor simulado.
-      servidor.use(http.get('/api/auth/contexto', () => delay('infinite')));
-      const { entorno } = montarSesion({ estricto: true });
-      await act(() => entorno.acciones().iniciarSesion(CREDENCIALES));
-      await act(() => entorno.acciones().elegirEmpresa(EMPRESA_A));
-      await api.fetch('/prueba');
-      expect(llamadas).toEqual(['Bearer token-de-sesion']);
-      expect(entorno.estado().status).toBe('loading');
+      const { entorno } = await conSesion({ estricto: true });
+      responder401();
+      await expect(api.fetch('/prueba')).rejects.toBeInstanceOf(ApiError);
+      expect(entorno.estado().status).toBe('ended');
     });
 
-    it('bajo StrictMode desmontar también desregistra', async () => {
-      const llamadas = espiar('/api/prueba');
-      const { entorno, unmount } = montarSesion({ estricto: true });
-      entorno.almacen.fijarSesion('token-vivo');
-      unmount();
-      await api.fetch('/prueba');
-      expect(llamadas).toEqual([null]);
+    it('un 401 de una sesión anterior (época rotada) no termina la actual', async () => {
+      const { entorno } = await conSesion();
+      let liberar: () => void = () => {};
+      const pausa = new Promise<void>((resolver) => {
+        liberar = resolver;
+      });
+      servidor.use(
+        http.get('/api/prueba', async () => {
+          await pausa;
+          return HttpResponse.json(
+            { statusCode: 401, error: 'x', message: 'y' },
+            { status: 401 },
+          );
+        }),
+      );
+      const enVuelo = api.fetch('/prueba').catch((e: unknown) => e);
+      await act(() => entorno.acciones().cambiarEmpresa());
+      await act(() => entorno.acciones().elegirEmpresa(EMPRESA_B));
+      await waitFor(() => expect(entorno.estado().status).toBe('ready'));
+      liberar();
+      expect(await enVuelo).toBeInstanceOf(ApiError);
+      expect(entorno.estado().status).toBe('ready');
     });
   });
 
@@ -287,13 +336,12 @@ describe('SessionProvider', () => {
     expect(entorno.acciones()).toBe(antes);
   });
 
-  it('cada proveedor tiene su propio almacén (no hay estado compartido)', async () => {
+  it('cada proveedor tiene su propio estado (no hay estado compartido)', async () => {
     const uno = montarSesion();
     await act(() => uno.entorno.acciones().iniciarSesion(CREDENCIALES));
     uno.unmount();
     const otro = montarSesion();
     expect(otro.entorno.estado().status).toBe('anonymous');
-    expect(otro.entorno.almacen.seleccion()).toBeNull();
   });
 });
 
@@ -343,7 +391,7 @@ describe('época pública de la sesión (ready.epoca)', () => {
     const { entorno } = montarSesion();
     await listo(entorno);
     const antes = epocaPublica(entorno);
-    act(() => entorno.acciones().cerrarSesion());
+    await act(() => entorno.acciones().cerrarSesion());
     await waitFor(() => expect(entorno.estado().status).toBe('ended'));
     act(() => entorno.acciones().consumirFin());
     await listo(entorno);

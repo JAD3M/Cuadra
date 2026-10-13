@@ -7,8 +7,9 @@ import { SessionProvider } from '@/shared/sesion';
 /**
  * Proveedores globales de la app, de afuera hacia adentro: datos (React
  * Query), tema y sesión. La sesión va dentro del cliente de consultas porque
- * lo usa (contexto) y lo vacía al cambiar de empresa y al terminar. Los tokens
- * viven solo en la memoria del proveedor.
+ * lo usa (contexto) y lo vacía al cambiar de empresa y al terminar. La sesión
+ * es una cookie `httpOnly`: al recargar, el proveedor la restaura preguntando
+ * al servidor.
  */
 export function Providers({ children }: { children: ReactNode }) {
   const [clienteConsultas] = useState(crearQueryClient);

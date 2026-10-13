@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  useEffect,
   useLayoutEffect,
   useMemo,
   useState,
@@ -9,9 +10,8 @@ import {
 import { api, configurarCliente } from '@/shared/api';
 import { contextoSesion } from '@/shared/api/contratos';
 import { claveContexto, crearAcciones } from './acciones';
-import { crearAlmacenTokens, type AlmacenTokens } from './almacenTokens';
 import {
-  ESTADO_INICIAL,
+  ESTADO_ARRANQUE,
   crearTienda,
   reducir,
   sesionViva,
@@ -24,8 +24,6 @@ import type { SessionState } from './tipos';
 
 export interface SessionProviderProps {
   children: ReactNode;
-  /** Solo para pruebas: inyecta el almacén para inspeccionarlo. */
-  almacen?: AlmacenTokens;
   /** Solo para pruebas: inyecta la tienda para leer la fase interna. */
   tienda?: Tienda<EstadoInterno, EventoSesion>;
 }
@@ -45,6 +43,8 @@ function publicar(
   consulta: ConsultaContexto,
 ): SessionState {
   switch (interno.fase) {
+    case 'restaurando':
+      return { status: 'restoring' };
     case 'anonymous':
       return { status: 'anonymous' };
     case 'selecting': {
@@ -96,39 +96,45 @@ function useContextoQuery(interno: EstadoInterno) {
 
 /**
  * Proveedor real de la sesión (memoria solamente). Une la máquina de
- * estados, el almacén de tokens y el cliente de la API; los tokens no pasan
- * por React.
+ * estados y el cliente de la API. La sesión en sí es una cookie `httpOnly`:
+ * al montar (arranque o recarga) pregunta al servidor si todavía vale.
  */
 export function SessionProvider({
   children,
-  almacen: almacenInyectado,
   tienda: tiendaInyectada,
 }: SessionProviderProps) {
   const consultas = useQueryClient();
-  const [almacen] = useState(() => almacenInyectado ?? crearAlmacenTokens());
   const [tienda] = useState(
-    () => tiendaInyectada ?? crearTienda(reducir, ESTADO_INICIAL),
+    () => tiendaInyectada ?? crearTienda(reducir, ESTADO_ARRANQUE),
   );
-  const [acciones] = useState(() =>
-    crearAcciones({ api, almacen, tienda, consultas }),
-  );
+  const [acciones] = useState(() => crearAcciones({ api, tienda, consultas }));
 
   // Layout effect: el cliente debe conocer al proveedor antes de que corra
   // cualquier efecto pasivo o consulta. El cleanup cubre el doble montaje de
   // StrictMode y el desmontaje entre pruebas.
   useLayoutEffect(() => {
     configurarCliente({
-      proveedorToken: almacen.proveedor(),
+      // Época de la sesión viva, o `null`: un 401 de una época anterior (la
+      // sesión ya rotó o terminó) no termina la actual.
+      proveedorEpoca: () => {
+        const actual = tienda.obtener();
+        return sesionViva(actual) ? actual.epoca : null;
+      },
       // Solo termina si la fase lo admite; un 401 tardío se ignora.
       alTerminarSesion: (motivo) => acciones.terminar(motivo),
     });
     return () => {
       configurarCliente({
-        proveedorToken: undefined,
+        proveedorEpoca: undefined,
         alTerminarSesion: undefined,
       });
     };
-  }, [almacen, acciones]);
+  }, [tienda, acciones]);
+
+  // Arranque en frío: sin efecto si la tienda ya trae otra fase (pruebas).
+  useEffect(() => {
+    void acciones.restaurar();
+  }, [acciones]);
 
   const interno = useSyncExternalStore(tienda.suscribir, tienda.obtener);
   const consulta = useContextoQuery(interno);

@@ -9,8 +9,15 @@ import {
   CONTEXTO_SESION,
   EMPRESAS_DISPONIBLES,
   RESPUESTA_LOGIN,
-  RESPUESTA_TOKEN,
 } from '@/test/fixtures';
+import {
+  abrirSesion,
+  cerrarSesionMock,
+  elegirEmpresaMock,
+  hayEmpresaElegida,
+  haySesion,
+  reiniciarSesionMock,
+} from '@/test/sesionMock';
 
 // Manejadores por defecto: los caminos felices de CU-19 con los payloads de
 // `fixtures.ts`, los de la bandeja (CU-22) con `fixturesBandeja.ts` y el detalle del caso
@@ -39,11 +46,39 @@ const tolerancia = crearHandlersTolerancia('0.5000', undefined, bitacora);
  */
 export const almacenes = { bandeja, caso, cargas, tolerancia, bitacora };
 
+function sinSesion() {
+  return HttpResponse.json(
+    { statusCode: 401, error: 'Unauthorized', message: 'No autorizado' },
+    { status: 401 },
+  );
+}
+
+// Autenticación por cookie: el servidor simulado recuerda la sesión
+// (`sesionMock.ts`). Sin sesión con empresa, `GET /auth/contexto` es 401, igual
+// que el backend, de modo que una app recién montada arranca en el login. Las
+// pruebas que parten de una sesión ya abierta usan `sesionConEmpresa()`.
 export const handlers = [
-  http.post('/api/auth/login', () => HttpResponse.json(RESPUESTA_LOGIN)),
-  http.get('/api/auth/empresas', () => HttpResponse.json(EMPRESAS_DISPONIBLES)),
-  http.post('/api/auth/empresa/:id', () => HttpResponse.json(RESPUESTA_TOKEN)),
-  http.get('/api/auth/contexto', () => HttpResponse.json(CONTEXTO_SESION)),
+  http.post('/api/auth/login', () => {
+    abrirSesion();
+    return HttpResponse.json(RESPUESTA_LOGIN);
+  }),
+  // El backend de la historia 1.1 solo lista empresas a una sesión sin empresa
+  // elegida (con empresa responde 401). El simulado también las lista con
+  // empresa para poder ejercitar el cambio de empresa que prevé AD-6.
+  http.get('/api/auth/empresas', () =>
+    haySesion() ? HttpResponse.json(EMPRESAS_DISPONIBLES) : sinSesion(),
+  ),
+  http.post('/api/auth/empresa/:id', ({ params }) => {
+    elegirEmpresaMock(String(params.id));
+    return HttpResponse.json(CONTEXTO_SESION);
+  }),
+  http.post('/api/auth/logout', () => {
+    cerrarSesionMock();
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.get('/api/auth/contexto', () =>
+    hayEmpresaElegida() ? HttpResponse.json(CONTEXTO_SESION) : sinSesion(),
+  ),
   ...bandeja.handlers,
   ...caso.handlers,
   ...cargas.handlers,
@@ -56,6 +91,7 @@ export const handlers = [
  * defecto (bandeja, caso, cargas, tolerancia y bitácora): una resolución en una prueba no se filtra a otra.
  */
 export function reiniciarHandlers(): void {
+  reiniciarSesionMock();
   bandeja.reiniciar();
   caso.reiniciar();
   cargas.reiniciar();

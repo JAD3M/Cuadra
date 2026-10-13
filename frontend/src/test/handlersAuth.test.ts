@@ -7,7 +7,7 @@ import {
 } from '@/test/fixtures';
 import {
   contextoFalla,
-  contextoPorToken,
+  contextoPorEmpresa,
   contextoRedDeFallo,
   empresasFalla,
   empresasLista,
@@ -17,6 +17,7 @@ import {
   loginUnaEmpresa,
   seleccionFalla,
 } from '@/test/handlersAuth';
+import { empresaDeLaSesion } from '@/test/sesionMock';
 
 const IDB = EMPRESAS_DISPONIBLES[1]!.id;
 let espia: ReturnType<typeof espiarSolicitudes> | null = null;
@@ -74,27 +75,23 @@ describe('handlers de autenticación de pruebas', () => {
     expect(await respuesta.json()).toMatchObject({ statusCode: 401 });
   });
 
-  it('contextoPorToken distingue la empresa B por el token', async () => {
-    contextoPorToken(IDB);
-    const { token } = await (
-      await fetch(`/api/auth/empresa/${IDB}`, { method: 'POST' })
-    ).json();
-    expect(token).toBe(`token-de-sesion-${IDB}`);
-    const deB = await fetch('/api/auth/contexto', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+  it('contextoPorEmpresa distingue la empresa B por la sesión simulada', async () => {
+    contextoPorEmpresa(IDB);
+    // Sin sesión con empresa, 401.
+    expect((await fetch('/api/auth/contexto')).status).toBe(401);
+    const elegida = await fetch(`/api/auth/empresa/${IDB}`, { method: 'POST' });
+    expect(await elegida.json()).toEqual(CONTEXTO_SESION_B);
+    expect(empresaDeLaSesion()).toBe(IDB);
+    const deB = await fetch('/api/auth/contexto');
     expect(await deB.json()).toEqual(CONTEXTO_SESION_B);
-    const deA = await fetch('/api/auth/contexto', {
-      headers: { Authorization: 'Bearer token-de-sesion-otra' },
-    });
+    await fetch('/api/auth/empresa/otra', { method: 'POST' });
+    const deA = await fetch('/api/auth/contexto');
     expect(await deA.json()).toEqual(CONTEXTO_SESION);
   });
 
   it('espiarSolicitudes cuenta por método y ruta y deja de oír al detenerse', async () => {
     espia = espiarSolicitudes();
-    await fetch('/api/auth/contexto', {
-      headers: { Authorization: 'Bearer t' },
-    });
+    await fetch('/api/auth/contexto', { credentials: 'include' });
     await fetch('/api/auth/contexto');
     await fetch('/api/auth/login', { method: 'POST' });
     expect(espia.cuantas('GET', '/api/auth/contexto')).toBe(2);
@@ -102,7 +99,9 @@ describe('handlers de autenticación de pruebas', () => {
     expect(espia.solicitudes[0]).toEqual({
       metodo: 'GET',
       ruta: '/api/auth/contexto',
-      autorizacion: 'Bearer t',
+      autorizacion: null,
+      credenciales: 'include',
+      empresa: null,
     });
     espia.detener();
     await fetch('/api/auth/contexto');

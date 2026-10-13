@@ -13,7 +13,7 @@ import {
 } from '@/test/fixturesCaso';
 import { FILAS_DEMO, idDe } from '@/test/fixturesBandeja';
 import { almacenes } from '@/test/handlers';
-import { contextoPorToken, espiarSolicitudes } from '@/test/handlersAuth';
+import { contextoPorEmpresa, espiarSolicitudes } from '@/test/handlersAuth';
 import { resolverFalla } from '@/test/handlersCaso';
 import {
   elegirEmpresaPorNombre,
@@ -228,7 +228,7 @@ describe('flujos del detalle del caso', () => {
 
   it('cambiar de empresa con un POST en vuelo: nada del caso de A se ve ni se escribe en la nueva época', async () => {
     const idB = EMPRESAS_DISPONIBLES[1]!.id;
-    contextoPorToken(idB);
+    contextoPorEmpresa(idB);
     servidor.use(
       http.post('/api/conciliaciones/:id/:accion', async () => {
         await delay(200);
@@ -264,9 +264,7 @@ describe('flujos del detalle del caso', () => {
     expect(screen.queryByRole('alert')).toBeNull();
     // Lo escrito por la mutación vieja no invalidó nada de la época nueva: la
     // bandeja y el contador se pidieron una vez, y el caso nunca.
-    const deLaNueva = espia.solicitudes.filter((s) =>
-      (s.autorizacion ?? '').endsWith(idB),
-    );
+    const deLaNueva = espia.solicitudes.filter((s) => s.empresa === idB);
     expect(deLaNueva.filter((s) => s.ruta === '/api/bandeja')).toHaveLength(1);
     expect(
       deLaNueva.filter((s) => s.ruta === '/api/bandeja/resumen'),

@@ -5,12 +5,16 @@ import { ContratoError, NetworkError, aApiError } from '@/shared/api/errores';
 export type MotivoFinSesion = 'sin_acceso' | 'sesion_expirada';
 
 export interface ConfiguracionCliente {
-  /** Devuelve el token vigente o `null`. En CU-20 no hay sesión: siempre `null`. */
-  proveedorToken?: () => string | null;
+  /**
+   * Época de la sesión viva, o `null` si no hay una. La sesión viaja en una
+   * cookie `httpOnly` que el cliente no ve: este contador solo sirve para
+   * saber si un 401 pertenece a la sesión actual o a una anterior.
+   */
+  proveedorEpoca?: () => number | null;
   /**
    * Se invoca con un 403 en `GET /auth/contexto` (`sin_acceso`) y con un 401 en
-   * una llamada autorizada por el proveedor (`sesion_expirada`). Inerte si no
-   * se registra.
+   * una llamada de la sesión viva (`sesion_expirada`). Inerte si no se
+   * registra.
    */
   alTerminarSesion?: (motivo: MotivoFinSesion) => void;
 }
@@ -32,11 +36,11 @@ export interface OpcionesApi<T> {
   schema?: ZodType<T>;
   signal?: AbortSignal;
   /**
-   * Token de esta llamada. Tiene prioridad sobre el proveedor: el flujo de
-   * CU-21 usa un token de selección y uno de sesión. `null` fuerza una llamada
-   * sin `Authorization`; `undefined` deja decidir al proveedor.
+   * `false` marca una llamada del propio flujo de acceso (login, elegir
+   * empresa, logout, restaurar): su 401 lo resuelve quien llama y no termina
+   * la sesión viva.
    */
-  token?: string | null;
+  terminaSesion?: boolean;
 }
 
 export interface ClienteApi {
@@ -50,7 +54,7 @@ const RUTA_CONTEXTO = '/auth/contexto';
 const RUTA_NO_RELATIVA = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
 
 function validarRuta(path: string): void {
-  // El token viaja en una cabecera: una ruta absoluta lo enviaría a otro origen.
+  // La cookie de sesión viaja con cada petición: una ruta absoluta la enviaría a otro origen.
   if (!path.startsWith('/') || RUTA_NO_RELATIVA.test(path)) {
     throw new TypeError(
       `La ruta de la API debe ser relativa y empezar con "/": ${path}`,
@@ -68,7 +72,7 @@ export function crearClienteApi(opciones: OpcionesCliente = {}): ClienteApi {
   // Se resuelve en cada llamada para no capturar un `fetch` que luego se parchea.
   const fetchImpl: typeof fetch =
     opciones.fetchImpl ?? ((entrada, init) => globalThis.fetch(entrada, init));
-  let proveedorToken = opciones.proveedorToken;
+  let proveedorEpoca = opciones.proveedorEpoca;
   let alTerminarSesion = opciones.alTerminarSesion;
 
   async function llamar<T>(path: string, o: OpcionesApi<T> = {}): Promise<T> {
@@ -76,11 +80,10 @@ export function crearClienteApi(opciones: OpcionesCliente = {}): ClienteApi {
     const method = o.method ?? 'GET';
 
     const headers = new Headers({ Accept: 'application/json' });
-    // Solo una llamada autorizada por el proveedor puede terminar la sesión:
-    // el login (`token: null`) y el token de selección no son la sesión.
-    const delProveedor = o.token === undefined;
-    const token = delProveedor ? (proveedorToken?.() ?? null) : o.token;
-    if (token) headers.set('Authorization', `Bearer ${token}`);
+    // Solo una llamada de la sesión viva puede terminarla: las del flujo de
+    // acceso (`terminaSesion: false`) resuelven su 401 por su cuenta.
+    const epoca =
+      o.terminaSesion === false ? null : (proveedorEpoca?.() ?? null);
     let body: string | FormData | undefined;
     if (o.body instanceof FormData) {
       body = o.body;
@@ -95,6 +98,8 @@ export function crearClienteApi(opciones: OpcionesCliente = {}): ClienteApi {
         method,
         headers,
         body,
+        // La sesión es una cookie `httpOnly` del mismo origen (proxy de Vite).
+        credentials: 'include',
         signal: o.signal,
       });
     } catch (causa) {
@@ -114,11 +119,10 @@ export function crearClienteApi(opciones: OpcionesCliente = {}): ClienteApi {
         alTerminarSesion?.('sin_acceso');
       } else if (
         respuesta.status === 401 &&
-        delProveedor &&
-        token &&
-        // Si el token ya rotó (otro 401 terminó la sesión, o hubo un cambio
+        epoca !== null &&
+        // Si la época ya cambió (otro 401 terminó la sesión, o hubo un cambio
         // de empresa), este 401 es de una sesión anterior y se ignora.
-        proveedorToken?.() === token
+        proveedorEpoca?.() === epoca
       ) {
         alTerminarSesion?.('sesion_expirada');
       }
@@ -143,8 +147,8 @@ export function crearClienteApi(opciones: OpcionesCliente = {}): ClienteApi {
   return {
     fetch: llamar,
     configurar(configuracion) {
-      if ('proveedorToken' in configuracion)
-        proveedorToken = configuracion.proveedorToken;
+      if ('proveedorEpoca' in configuracion)
+        proveedorEpoca = configuracion.proveedorEpoca;
       if ('alTerminarSesion' in configuracion)
         alTerminarSesion = configuracion.alTerminarSesion;
     },

@@ -4,10 +4,7 @@ import { http, HttpResponse } from 'msw';
 import { StrictMode, useEffect } from 'react';
 import { crearQueryClient, reintentarConsulta } from '@/shared/api';
 import {
-  crearAlmacenTokens,
-  type AlmacenTokens,
-} from '@/shared/sesion/almacenTokens';
-import {
+  ESTADO_ARRANQUE,
   ESTADO_INICIAL,
   crearTienda,
   reducir,
@@ -29,7 +26,6 @@ export const EMPRESA_A = '7a1c9e52-0b34-4d6f-8e21-5c9d3b7a4f10';
 export const EMPRESA_B = 'b2d4f6a8-1c3e-4f50-9a7b-2d4f6a8c0e1b';
 
 export interface EntornoSesion {
-  almacen: AlmacenTokens;
   tienda: Tienda<EstadoInterno, EventoSesion>;
   consultas: QueryClient;
   /** Último estado público que vio un consumidor. */
@@ -56,7 +52,13 @@ function Sonda({
  * Monta el `SessionProvider` real con un cliente de consultas de pruebas (sin
  * espera entre reintentos) y devuelve lo necesario para inspeccionarlo.
  */
-export function montarSesion(opciones: { estricto?: boolean } = {}) {
+export function montarSesion(
+  opciones: {
+    estricto?: boolean;
+    /** Arranca como una recarga: antes de mostrar nada pregunta al servidor. */
+    recarga?: boolean;
+  } = {},
+) {
   const consultas = crearQueryClient();
   consultas.setDefaultOptions({
     queries: {
@@ -68,14 +70,16 @@ export function montarSesion(opciones: { estricto?: boolean } = {}) {
   });
   const vistos: SessionState['status'][] = [];
   const entorno = {
-    almacen: crearAlmacenTokens(),
-    tienda: crearTienda(reducir, ESTADO_INICIAL),
+    tienda: crearTienda(
+      reducir,
+      opciones.recarga ? ESTADO_ARRANQUE : ESTADO_INICIAL,
+    ),
     consultas,
     historial: () => vistos,
   } as EntornoSesion;
   const arbol = (
     <QueryClientProvider client={consultas}>
-      <SessionProvider almacen={entorno.almacen} tienda={entorno.tienda}>
+      <SessionProvider tienda={entorno.tienda}>
         <Sonda
           alLeer={(estado, acciones) => {
             entorno.estado = () => estado;
@@ -92,12 +96,18 @@ export function montarSesion(opciones: { estricto?: boolean } = {}) {
   return { ...vista, entorno };
 }
 
-/** Registra la cabecera Authorization de cada GET a `ruta`. */
+/**
+ * Registra, de cada GET a `ruta`, la cabecera Authorization y las
+ * credenciales de la petición.
+ */
 export function espiar(ruta: string) {
-  const llamadas: (string | null)[] = [];
+  const llamadas: { autorizacion: string | null; credenciales: string }[] = [];
   servidor.use(
     http.get(ruta, ({ request }) => {
-      llamadas.push(request.headers.get('Authorization'));
+      llamadas.push({
+        autorizacion: request.headers.get('Authorization'),
+        credenciales: request.credentials,
+      });
       return HttpResponse.json({ ok: true });
     }),
   );

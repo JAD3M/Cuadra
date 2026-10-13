@@ -26,13 +26,11 @@ export const EMPRESAS_DISPONIBLES = [
   },
 ];
 
+/** `POST /auth/login`: sin token, la sesión viaja en la cookie `httpOnly`. */
 export const RESPUESTA_LOGIN = {
-  token: 'token-de-seleccion',
   usuario: USUARIO,
   empresas: EMPRESAS_DISPONIBLES,
 };
-
-export const RESPUESTA_TOKEN = { token: 'token-de-sesion' };
 
 export const CONTEXTO_SESION = {
   usuario: USUARIO,

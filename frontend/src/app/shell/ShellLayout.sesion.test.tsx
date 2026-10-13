@@ -12,7 +12,6 @@ import { AVISOS } from '@/features/auth/components/textos';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { api, crearQueryClient, mensajeDeError } from '@/shared/api';
 import { reintentarConsulta } from '@/shared/api';
-import { crearAlmacenTokens } from '@/shared/sesion/almacenTokens';
 import { ESTADO_INICIAL, crearTienda, reducir } from '@/shared/sesion/maquina';
 import { SessionProvider } from '@/shared/sesion/SessionProvider';
 import {
@@ -24,6 +23,12 @@ import {
 import { ThemeProvider } from '@/shared/tema';
 import { CONTEXTO_SESION, EMPRESAS_DISPONIBLES } from '@/test/fixtures';
 import { CREDENCIALES, EMPRESA_A, EMPRESA_B } from '@/test/montarSesion';
+import { esperarSinRastroDeSesion } from '@/test/invariantesSesion';
+import {
+  elegirEmpresaMock,
+  empresaDeLaSesion,
+  hayEmpresaElegida,
+} from '@/test/sesionMock';
 import { servidor } from '@/test/servidor';
 import { ShellLayout } from './ShellLayout';
 
@@ -44,7 +49,7 @@ function Captura() {
 }
 
 /**
- * Página interna de prueba: pide `/prueba` con el token de sesión y muestra
+ * Página interna de prueba: pide `/prueba` con la cookie de sesión y muestra
  * el dato o el mensaje de error, como lo haría una pantalla real.
  */
 function Prueba() {
@@ -65,31 +70,34 @@ function Prueba() {
   return <p data-testid="prueba">{texto}</p>;
 }
 
-function tokenDe(request: Request) {
-  return request.headers.get('Authorization')?.replace('Bearer ', '') ?? '';
+/** Contexto de la empresa de la sesión simulada: A o B. */
+function contextoActual() {
+  const empresa =
+    empresaDeLaSesion() === EMPRESA_B
+      ? EMPRESAS_DISPONIBLES[1]
+      : EMPRESAS_DISPONIBLES[0];
+  return {
+    ...CONTEXTO_SESION,
+    empresa: {
+      id: empresa?.id,
+      razonSocial: empresa?.razonSocial,
+      rfc: empresa?.rfc,
+    },
+  };
 }
 
-/** Un token distinto por empresa; los datos y el contexto lo reflejan. */
+/** La sesión simulada recuerda la empresa; los datos y el contexto la reflejan. */
 function servidorPorEmpresa() {
   servidor.use(
-    http.post('/api/auth/empresa/:id', ({ params }) =>
-      HttpResponse.json({ token: `token-de-sesion-${String(params.id)}` }),
-    ),
-    http.get('/api/auth/contexto', ({ request }) => {
-      const empresa = tokenDe(request).endsWith(EMPRESA_B)
-        ? EMPRESAS_DISPONIBLES[1]
-        : EMPRESAS_DISPONIBLES[0];
-      return HttpResponse.json({
-        ...CONTEXTO_SESION,
-        empresa: {
-          id: empresa?.id,
-          razonSocial: empresa?.razonSocial,
-          rfc: empresa?.rfc,
-        },
-      });
+    http.post('/api/auth/empresa/:id', ({ params }) => {
+      elegirEmpresaMock(String(params.id));
+      return HttpResponse.json(contextoActual());
     }),
-    http.get('/api/prueba', ({ request }) =>
-      HttpResponse.json({ dato: `datos de ${tokenDe(request)}` }),
+    http.get('/api/auth/contexto', () =>
+      hayEmpresaElegida() ? HttpResponse.json(contextoActual()) : fallo(401),
+    ),
+    http.get('/api/prueba', () =>
+      HttpResponse.json({ dato: `datos de ${empresaDeLaSesion()}` }),
     ),
   );
 }
@@ -125,7 +133,6 @@ async function montar(ruta = '/bandeja') {
     },
     mutations: { retry: false },
   });
-  const almacen = crearAlmacenTokens();
   const tienda = crearTienda(reducir, ESTADO_INICIAL);
   const router = createMemoryRouter(
     [
@@ -163,14 +170,14 @@ async function montar(ruta = '/bandeja') {
   const vista = render(
     <QueryClientProvider client={consultas}>
       <ThemeProvider>
-        <SessionProvider almacen={almacen} tienda={tienda}>
+        <SessionProvider tienda={tienda}>
           <Captura />
           <RouterProvider router={router} />
         </SessionProvider>
       </ThemeProvider>
     </QueryClientProvider>,
   );
-  return { ...vista, router, tienda, almacen, consultas };
+  return { ...vista, router, tienda, consultas };
 }
 
 async function entrarConEmpresa(id: string = EMPRESA_A) {
@@ -290,7 +297,7 @@ describe('ShellLayout con la sesión real: cambio de empresa', () => {
       expect(router.state.location.pathname).toBe('/bandeja'),
     );
     expect(screen.getByTestId('prueba')).toHaveTextContent(
-      `datos de token-de-sesion-${EMPRESA_A}`,
+      `datos de ${EMPRESA_A}`,
     );
     expect(consultas.getQueryData(['prueba'])).toBeDefined();
 
@@ -306,7 +313,7 @@ describe('ShellLayout con la sesión real: cambio de empresa', () => {
     );
     await waitFor(() =>
       expect(screen.getByTestId('prueba')).toHaveTextContent(
-        `datos de token-de-sesion-${EMPRESA_B}`,
+        `datos de ${EMPRESA_B}`,
       ),
     );
     expect(vistos.slice(antes).join('|')).not.toContain(EMPRESA_A);
@@ -319,12 +326,12 @@ describe('ShellLayout con la sesión real: cambio de empresa', () => {
   it('el contador de pendientes es el de la empresa activa y nunca el de la anterior', async () => {
     servidorPorEmpresa();
     servidor.use(
-      http.get('/api/bandeja/resumen', ({ request }) =>
+      http.get('/api/bandeja/resumen', () =>
         HttpResponse.json({
           conteos: {
             conciliado: 0,
-            sugerencia: tokenDe(request).endsWith(EMPRESA_B) ? 2 : 5,
-            sin_match: tokenDe(request).endsWith(EMPRESA_B) ? 1 : 4,
+            sugerencia: empresaDeLaSesion() === EMPRESA_B ? 2 : 5,
+            sin_match: empresaDeLaSesion() === EMPRESA_B ? 1 : 4,
           },
           montoPorRevisar: [],
         }),
@@ -402,9 +409,9 @@ describe('ShellLayout con la sesión real: cambio de empresa', () => {
 });
 
 describe('ShellLayout con la sesión real: cierre de sesión', () => {
-  it('lleva a /login con «Cerraste sesión.», sin petición, sin destino y con la caché vacía', async () => {
+  it('lleva a /login con «Cerraste sesión.», con un solo logout, sin destino y con la caché vacía', async () => {
     servidorPorEmpresa();
-    const { router, consultas, almacen } = await montar();
+    const { router, consultas } = await montar();
     await entrarConEmpresa();
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/bandeja'),
@@ -424,7 +431,8 @@ describe('ShellLayout con la sesión real: cierre de sesión', () => {
     expect(screen.getByRole('status')).toHaveTextContent(
       AVISOS.cierre_voluntario,
     );
-    expect(solicitudes.slice(antes)).toEqual([]);
+    // Lo único posterior al clic es la cancelación de la sesión en el servidor.
+    expect(solicitudes.slice(antes)).toEqual(['POST /api/auth/logout']);
     // Puede quedar la consulta del contexto, desactivada y sin datos.
     expect(consultas.getQueryData(['prueba'])).toBeUndefined();
     expect(
@@ -433,8 +441,7 @@ describe('ShellLayout con la sesión real: cierre de sesión', () => {
         .getAll()
         .filter((consulta) => consulta.state.data !== undefined),
     ).toEqual([]);
-    expect(almacen.sesion()).toBeNull();
-    expect(almacen.seleccion()).toBeNull();
+    esperarSinRastroDeSesion();
   });
 
   it('Atrás y volver a la ruta interna no muestran contenido protegido', async () => {
@@ -455,7 +462,7 @@ describe('ShellLayout con la sesión real: cierre de sesión', () => {
     expect(vistos.length).toBe(vistosAntes);
   });
 
-  it('el cierre no afirma haber revocado el token', async () => {
+  it('el cierre no habla de revocar nada en pantalla', async () => {
     servidorPorEmpresa();
     const { container } = await montar();
     await entrarConEmpresa();
@@ -525,8 +532,8 @@ describe('ShellLayout con la sesión real: errores de la API en pantallas intern
     await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
     await screen.findByRole('heading', { level: 1, name: 'Elige empresa' });
     servidor.use(
-      http.get('/api/prueba', ({ request }) =>
-        HttpResponse.json({ dato: `datos de ${tokenDe(request)}` }),
+      http.get('/api/prueba', () =>
+        HttpResponse.json({ dato: `datos de ${empresaDeLaSesion()}` }),
       ),
     );
     await usuario.click(
@@ -564,7 +571,6 @@ describe('ShellLayout con la sesión real: encabezado', () => {
     servidor.use(
       http.post('/api/auth/login', () =>
         HttpResponse.json({
-          token: 'token-de-seleccion',
           usuario: CONTEXTO_SESION.usuario,
           empresas: [EMPRESAS_DISPONIBLES[0]],
         }),

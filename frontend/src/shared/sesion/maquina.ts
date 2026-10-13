@@ -4,14 +4,23 @@ import type { MotivoSalida } from './tipos';
 /**
  * Máquina de estados de la sesión: reductor puro y una tienda mínima.
  *
- * Aquí NO hay tokens. Los tokens viven en `almacenTokens` (un cierre fuera de
- * React); este estado solo dice en qué fase está la sesión, así nunca puede
- * acabar en una prop, un contexto o una clave de consulta.
+ * Aquí NO hay tokens: la sesión es una cookie `httpOnly` que el navegador
+ * guarda y JavaScript no puede leer. Este estado solo dice en qué fase está
+ * la sesión.
  *
  * Un evento que no corresponde a la fase actual se ignora y devuelve el mismo
  * objeto: así cada transición es idempotente y la tienda no notifica.
  */
 export type EstadoInterno =
+  | {
+      /**
+       * Arranque en frío: se le pregunta al servidor si la cookie todavía
+       * vale (recarga de la página). Nada de la sesión es visible aún.
+       */
+      fase: 'restaurando';
+      epoca: number;
+      empresaPrevia: null;
+    }
   | {
       fase: 'anonymous';
       epoca: number;
@@ -22,7 +31,8 @@ export type EstadoInterno =
       fase: 'selecting';
       origen: 'login';
       epoca: number;
-      usuario: Usuario;
+      /** `null` al retomar la elección tras una recarga: nadie lo informa. */
+      usuario: Usuario | null;
       empresas: EmpresaDisponible[];
       empresaPrevia: string | null;
     }
@@ -30,7 +40,7 @@ export type EstadoInterno =
       fase: 'selecting';
       origen: 'cambio';
       epoca: number;
-      usuario: Usuario;
+      usuario: Usuario | null;
       empresas: EmpresaDisponible[];
       /** Empresa de la sesión viva que se está cambiando. */
       empresaId: string;
@@ -41,7 +51,7 @@ export type EstadoInterno =
   | {
       fase: 'sesion';
       epoca: number;
-      usuario: Usuario;
+      usuario: Usuario | null;
       empresaId: string;
       restaurarOrigen: boolean;
       varias: boolean;
@@ -57,6 +67,13 @@ export type EstadoInterno =
 export type FaseSesion = EstadoInterno['fase'];
 
 export type EventoSesion =
+  | {
+      tipo: 'RESTAURADA_SESION';
+      usuario: Usuario;
+      empresaId: string;
+    }
+  | { tipo: 'RESTAURADA_SELECCION'; empresas: EmpresaDisponible[] }
+  | { tipo: 'RESTAURACION_FALLIDA'; motivo?: 'sin_acceso' }
   | { tipo: 'LOGIN_OK'; usuario: Usuario; empresas: EmpresaDisponible[] }
   | { tipo: 'SELECCION_OK'; empresaId: string }
   | { tipo: 'CAMBIO_OK'; empresas: EmpresaDisponible[] }
@@ -73,6 +90,13 @@ export const ESTADO_INICIAL: EstadoInterno = {
   empresaPrevia: null,
 };
 
+/** Estado de arranque de la aplicación: primero se pregunta al servidor. */
+export const ESTADO_ARRANQUE: EstadoInterno = {
+  fase: 'restaurando',
+  epoca: 0,
+  empresaPrevia: null,
+};
+
 /** Empresa de la sesión viva, o `null` si no hay una. */
 export function empresaVigente(estado: EstadoInterno): string | null {
   if (estado.fase === 'sesion') return estado.empresaId;
@@ -82,7 +106,7 @@ export function empresaVigente(estado: EstadoInterno): string | null {
   return null;
 }
 
-/** ¿Sigue viva la sesión (hay token de sesión)? */
+/** ¿Hay una sesión viva (con empresa elegida)? */
 export function sesionViva(estado: EstadoInterno): boolean {
   return empresaVigente(estado) !== null;
 }
@@ -143,6 +167,42 @@ export function reducir(
   evento: EventoSesion,
 ): EstadoInterno {
   switch (evento.tipo) {
+    case 'RESTAURADA_SESION':
+      if (estado.fase !== 'restaurando') return estado;
+      return {
+        fase: 'sesion',
+        epoca: estado.epoca + 1,
+        usuario: evento.usuario,
+        empresaId: evento.empresaId,
+        // Es la misma sesión de antes de recargar: la pantalla pedida vale.
+        restaurarOrigen: true,
+        // El servidor no dice cuántas empresas tiene quien ya eligió una.
+        varias: false,
+      };
+
+    case 'RESTAURADA_SELECCION':
+      if (estado.fase !== 'restaurando') return estado;
+      return {
+        fase: 'selecting',
+        origen: 'login',
+        epoca: estado.epoca,
+        usuario: null,
+        empresas: evento.empresas,
+        empresaPrevia: null,
+      };
+
+    case 'RESTAURACION_FALLIDA':
+      if (estado.fase !== 'restaurando') return estado;
+      if (evento.motivo === 'sin_acceso') {
+        return {
+          fase: 'ended',
+          epoca: estado.epoca,
+          motivo: 'sin_acceso',
+          empresaPrevia: null,
+        };
+      }
+      return { fase: 'anonymous', epoca: estado.epoca, empresaPrevia: null };
+
     case 'LOGIN_OK':
       if (estado.fase !== 'anonymous' && estado.fase !== 'ended') return estado;
       return {

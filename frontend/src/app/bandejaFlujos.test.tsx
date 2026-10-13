@@ -11,7 +11,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { AVISOS } from '@/features/auth/components/textos';
 import { CONTEXTO_SESION_B, EMPRESAS_DISPONIBLES } from '@/test/fixtures';
 import { bandejaFalla, filaBandeja, resumenDe } from '@/test/fixturesBandeja';
-import { contextoPorToken, espiarSolicitudes } from '@/test/handlersAuth';
+import { contextoPorEmpresa, espiarSolicitudes } from '@/test/handlersAuth';
+import { empresaDeLaSesion } from '@/test/sesionMock';
 import {
   elegirEmpresaPorNombre,
   entrarALaApp,
@@ -133,7 +134,7 @@ describe('flujos de la bandeja', () => {
 
   it('al cambiar de empresa solo se ven los datos de la nueva, nunca los de la anterior', async () => {
     const idB = EMPRESAS_DISPONIBLES[1]!.id;
-    contextoPorToken(idB);
+    contextoPorEmpresa(idB);
     const filasA = [filaBandeja({ descripcion: 'Fila de la empresa A' })];
     const filasB = [
       filaBandeja({
@@ -141,19 +142,18 @@ describe('flujos de la bandeja', () => {
         descripcion: 'Fila de la empresa B',
       }),
     ];
-    const deB = (request: Request) =>
-      (request.headers.get('Authorization') ?? '').endsWith(idB);
+    const deB = () => empresaDeLaSesion() === idB;
     servidor.use(
-      http.get('/api/bandeja', ({ request }) =>
+      http.get('/api/bandeja', () =>
         HttpResponse.json({
-          datos: deB(request) ? filasB : filasA,
+          datos: deB() ? filasB : filasA,
           pagina: 1,
           limite: 20,
           total: 1,
         }),
       ),
-      http.get('/api/bandeja/resumen', ({ request }) =>
-        HttpResponse.json(resumenDe(deB(request) ? filasB : filasA)),
+      http.get('/api/bandeja/resumen', () =>
+        HttpResponse.json(resumenDe(deB() ? filasB : filasA)),
       ),
     );
     const { router } = montarApp('/bandeja');

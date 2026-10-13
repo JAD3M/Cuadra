@@ -9,7 +9,9 @@ import {
   it,
   vi,
 } from 'vitest';
+import { http, HttpResponse } from 'msw';
 import { AVISOS } from '@/features/auth/components/textos';
+import { api } from '@/shared/api';
 import {
   contextoFalla,
   empresasFalla,
@@ -23,6 +25,7 @@ import {
   esperarBandejaCargada,
   montarApp,
 } from '@/test/montarApp';
+import { sesionConEmpresa } from '@/test/sesionMock';
 import { servidor } from '@/test/servidor';
 
 // Montar la app completa y teclear en el formulario tarda más que una pantalla
@@ -68,14 +71,56 @@ describe('flujos: entrada', () => {
     );
   });
 
-  it('una página recién cargada equivale a recargar: sin sesión y con el destino de la URL', async () => {
-    const primero = montarApp('/casos/9');
+  it('recargar conserva la sesión: sin login, en la misma pantalla y sin nada en el almacenamiento', async () => {
+    const primero = montarApp('/casos/9?x=1');
     await entrarALaApp();
     await waitFor(() =>
       expect(primero.router.state.location.pathname).toBe('/casos/9'),
     );
     primero.unmount();
 
+    // Una página recién cargada: la memoria de JavaScript se perdió y la
+    // cookie `httpOnly` (el servidor simulado) sigue ahí.
+    espia = espiarSolicitudes();
+    const { router } = montarApp('/casos/9?x=1');
+    await screen.findByRole('banner');
+    expect(router.state.location.pathname).toBe('/casos/9');
+    expect(router.state.location.search).toBe('?x=1');
+    expect(screen.queryByRole('heading', { name: 'Inicia sesión' })).toBeNull();
+    expect(espia.cuantas('POST', '/api/auth/login')).toBe(0);
+    expect(espia.cuantas('GET', '/api/auth/contexto')).toBe(1);
+    expect(window.localStorage.length).toBe(0);
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  it('recargar en /login con la cookie vigente entra directo a /bandeja', async () => {
+    const primero = montarApp('/bandeja');
+    await entrarALaApp();
+    primero.unmount();
+
+    const { router } = montarApp('/login');
+    await screen.findByRole('banner');
+    expect(router.state.location.pathname).toBe('/bandeja');
+  });
+
+  it('recargar con la sesión sin empresa retoma la elección de empresa', async () => {
+    const primero = montarApp('/bandeja');
+    await enviarLogin();
+    await screen.findByRole('heading', { level: 1, name: 'Elige empresa' });
+    primero.unmount();
+
+    const { router } = montarApp('/empresa');
+    await screen.findByRole('heading', { level: 1, name: 'Elige empresa' });
+    expect(router.state.location.pathname).toBe('/empresa');
+    // Sin nombre: la lista no lo trae; el saludo no inventa uno.
+    expect(
+      screen.getByText('Hola. Tienes acceso a dos empresas.'),
+    ).toBeInTheDocument();
+    await elegirEmpresaPorNombre(/Ferreteria/);
+    await screen.findByRole('banner');
+  });
+
+  it('una página recién cargada sin cookie va al login con el destino de la URL', async () => {
     const { router } = montarApp('/casos/9');
     await encabezadoLogin();
     expect(router.state.location.pathname).toBe('/login');
@@ -111,10 +156,10 @@ describe('flujos: entrada', () => {
 describe('flujos: fin de sesión', () => {
   it('un 403 al pedir el contexto lleva a /login con el aviso y sin una segunda petición', async () => {
     espia = espiarSolicitudes();
+    // Recarga con una cookie vigente pero sin acceso a la empresa.
+    sesionConEmpresa();
     contextoFalla(403);
     const { router } = montarApp('/casos/9');
-    await enviarLogin();
-    await elegirEmpresaPorNombre(/Ferreteria/);
 
     await screen.findByText(AVISOS.sin_acceso);
     expect(router.state.location.pathname).toBe('/login');
@@ -123,11 +168,27 @@ describe('flujos: fin de sesión', () => {
     expect(espia.cuantas('GET', '/api/auth/contexto')).toBe(1);
   });
 
+  /** La sesión vence en el servidor: la siguiente llamada responde 401. */
+  async function expirar() {
+    servidor.use(
+      http.get('/api/prueba', () =>
+        HttpResponse.json(
+          { statusCode: 401, error: 'x', message: 'y' },
+          { status: 401 },
+        ),
+      ),
+    );
+    await act(async () => {
+      await api.fetch('/prueba').catch(() => undefined);
+    });
+  }
+
   it('tras expirar, la misma empresa vuelve al origen', async () => {
-    contextoFalla(401);
     const { router } = montarApp('/casos/9?x=1');
     await enviarLogin();
     await elegirEmpresaPorNombre(/Ferreteria/);
+    await screen.findByRole('banner');
+    await expirar();
     await screen.findByText(AVISOS.sesion_expirada);
     expect(router.state.location.pathname).toBe('/login');
 
@@ -141,10 +202,11 @@ describe('flujos: fin de sesión', () => {
   });
 
   it('tras expirar, otra empresa va a /bandeja', async () => {
-    contextoFalla(401);
     const { router } = montarApp('/casos/9');
     await enviarLogin();
     await elegirEmpresaPorNombre(/Ferreteria/);
+    await screen.findByRole('banner');
+    await expirar();
     await screen.findByText(AVISOS.sesion_expirada);
 
     servidor.resetHandlers();
@@ -173,7 +235,7 @@ describe('flujos: fin de sesión', () => {
 });
 
 describe('flujos: cerrar sesión', () => {
-  it('es local: sin peticiones, sin hablar de revocación y con el aviso', async () => {
+  it('cancela la sesión en el servidor: una sola petición, sin hablar de revocación y con el aviso', async () => {
     const { router } = montarApp('/bandeja');
     await entrarALaApp();
     await esperarBandejaCargada();
@@ -182,8 +244,26 @@ describe('flujos: cerrar sesión', () => {
     await userEvent.setup().click(cerrarSesion());
     await screen.findByText(AVISOS.cierre_voluntario);
     expect(router.state.location.pathname).toBe('/login');
-    expect(espia.solicitudes).toEqual([]);
+    expect(espia.solicitudes.map((s) => `${s.metodo} ${s.ruta}`)).toEqual([
+      'POST /api/auth/logout',
+    ]);
+    expect(espia.solicitudes[0]).toMatchObject({
+      autorizacion: null,
+      credenciales: 'include',
+    });
     expect(screen.queryByText(/revoc/i)).toBeNull();
+  });
+
+  it('tras cerrar sesión, recargar vuelve al login: la cookie ya no existe', async () => {
+    const primero = montarApp('/bandeja');
+    await entrarALaApp();
+    await userEvent.setup().click(cerrarSesion());
+    await encabezadoLogin();
+    primero.unmount();
+
+    const { router } = montarApp('/bandeja');
+    await encabezadoLogin();
+    expect(router.state.location.pathname).toBe('/login');
   });
 
   it('Atrás no devuelve al interior', async () => {

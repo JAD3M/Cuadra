@@ -6,7 +6,6 @@ import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RutaAnonima } from '@/app/rutas';
 import { crearQueryClient } from '@/shared/api';
-import { crearAlmacenTokens } from '@/shared/sesion/almacenTokens';
 import {
   ESTADO_INICIAL,
   crearTienda,
@@ -57,7 +56,7 @@ function montar({ inicial = ESTADO_INICIAL, state }: Opciones = {}) {
   const vista = render(
     <QueryClientProvider client={consultas}>
       <ThemeProvider>
-        <SessionProvider almacen={crearAlmacenTokens()} tienda={tienda}>
+        <SessionProvider tienda={tienda}>
           <RouterProvider router={router} />
         </SessionProvider>
       </ThemeProvider>
@@ -197,7 +196,7 @@ describe('LoginPage: acceso correcto', () => {
       screen.getByTestId('state-empresa').textContent,
     ].join('\n');
     expect(rastro).not.toContain(CREDENCIALES.password);
-    expect(rastro).not.toContain('token-de-seleccion');
+    expect(rastro.toLowerCase()).not.toContain('token');
   });
 
   it('envía el correo recortado y la contraseña tal cual', async () => {
@@ -205,7 +204,7 @@ describe('LoginPage: acceso correcto', () => {
     servidor.use(
       http.post('/api/auth/login', async ({ request }) => {
         cuerpo = await request.json();
-        return HttpResponse.json({ token: 'x' }, { status: 401 });
+        return HttpResponse.json({ message: 'x' }, { status: 401 });
       }),
     );
     montar();
@@ -374,7 +373,6 @@ describe('LoginPage: fallos de credenciales', () => {
 
 describe('LoginPage: fallos de conexión', () => {
   const cuerpoValido = {
-    token: 't',
     usuario: { id: 'no-es-guid', nombre: 'X', email: 'x@y.mx' },
     empresas: [],
   };
