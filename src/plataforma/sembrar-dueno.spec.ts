@@ -32,6 +32,9 @@ beforeEach(async () => {
   await ds.query(
     'DELETE FROM sesiones WHERE plataforma_usuario_id IS NOT NULL',
   );
+  // Otras suites dejan filas de bitácora que apuntan al dueño (FK RESTRICT).
+  // Solo el dueño del esquema puede borrarlas: cuadra_app solo agrega.
+  await ds.query('DELETE FROM bitacora_plataforma');
   await ds.query('DELETE FROM plataforma_usuarios');
 });
 

@@ -210,7 +210,7 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 
   it('cuadra_app inserta en bitacora_plataforma y no puede actualizarla ni borrarla', async () => {
     await app.query(
-      `INSERT INTO bitacora_plataforma (accion, detalle) VALUES ('prueba', '{"a":1}')`,
+      `INSERT INTO bitacora_plataforma (accion, detalle) VALUES ('acceso_denegado', '{"a":1}')`,
     );
     await expect(
       app.query(`UPDATE bitacora_plataforma SET accion = 'x'`),
@@ -241,9 +241,17 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 });
 
 describe('migración reversible', () => {
-  it('down y up de PlataformaUsuarios dejan el esquema intacto', async () => {
+  it('down y up de PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
+    // La última es el CHECK de acciones; la anterior, las tablas.
     await duenio.undoLastMigration();
-    // Tras revertir, la última pendiente es la de plataforma: ya no hay tablas.
+    const { n: checks } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM pg_constraint
+        WHERE conname = 'ck_bitacora_plataforma_accion'`,
+    );
+    expect(checks).toBe(0);
+    await duenio.undoLastMigration();
+    // Tras revertir las dos, ya no hay tablas de plataforma.
     const { n } = await una<{ n: number }>(
       duenio,
       `SELECT count(*)::int AS n FROM information_schema.tables

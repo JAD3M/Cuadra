@@ -106,6 +106,19 @@ export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 export const ENTIDADES_BITACORA = ['conciliaciones', 'companies'] as const;
 export type EntidadBitacora = (typeof ENTIDADES_BITACORA)[number];
 
+/**
+ * AD-7. Acciones de `bitacora_plataforma` (clase 3, solo el dueño de Cuadra).
+ * Namespace aparte de `ACCIONES_BITACORA`, que es la de cada empresa. Un
+ * valor nuevo exige migración del CHECK `ck_bitacora_plataforma_accion`.
+ */
+export const ACCIONES_BITACORA_PLATAFORMA = [
+  'acceso_denegado',
+  'iniciar_sesion_plataforma',
+  'cerrar_sesion_plataforma',
+] as const;
+export type AccionBitacoraPlataforma =
+  (typeof ACCIONES_BITACORA_PLATAFORMA)[number];
+
 /** `'a' | 'b'` -> `'a', 'b'`, para escribir los CHECK sin repetir literales. */
 export function listaSql(valores: readonly string[]): string {
   return valores.map((v) => `'${v}'`).join(', ');

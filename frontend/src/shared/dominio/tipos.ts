@@ -76,3 +76,11 @@ export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 
 export const ENTIDADES_BITACORA = ['conciliaciones', 'companies'] as const;
 export type EntidadBitacora = (typeof ENTIDADES_BITACORA)[number];
+
+export const ACCIONES_BITACORA_PLATAFORMA = [
+  'acceso_denegado',
+  'iniciar_sesion_plataforma',
+  'cerrar_sesion_plataforma',
+] as const;
+export type AccionBitacoraPlataforma =
+  (typeof ACCIONES_BITACORA_PLATAFORMA)[number];

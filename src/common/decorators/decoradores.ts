@@ -22,6 +22,10 @@ export const Publico = () => SetMetadata(LLAVE_PUBLICO, true);
  * 'sesion' (con empresa) o ambos. Sin este decorador se exige `'sesion'`:
  * olvidarlo debe cerrar la puerta, no abrirla.
  *
+ * 'plataforma' (AD-5) es el mundo del dueño de Cuadra: toda ruta bajo
+ * `/plataforma` lo declara, y solo una sesión de tipo `plataforma` la
+ * alcanza. No se mezcla con los otros dos en una misma ruta.
+ *
  * Un endpoint que acepta 'seleccion' y no declara `@Roles` no opera sobre
  * una empresa, así que `RolesGuard` no exige membresía en la de la sesión
  * (elegir o cambiar de empresa debe seguir posible aunque se haya perdido la

@@ -1,5 +1,6 @@
 // src/plataforma/bitacora-plataforma.entity.ts
 import {
+  Check,
   Column,
   CreateDateColumn,
   Entity,
@@ -8,6 +9,11 @@ import {
   ManyToOne,
   PrimaryColumn,
 } from 'typeorm';
+import {
+  ACCIONES_BITACORA_PLATAFORMA,
+  type AccionBitacoraPlataforma,
+  listaSql,
+} from '../common/entities/tipos';
 import { PlataformaUsuario } from './plataforma-usuario.entity';
 
 /**
@@ -18,6 +24,10 @@ import { PlataformaUsuario } from './plataforma-usuario.entity';
  */
 @Entity('bitacora_plataforma')
 @Index('ix_bitacora_plataforma_created_at', ['createdAt'])
+@Check(
+  'ck_bitacora_plataforma_accion',
+  `accion IN (${listaSql(ACCIONES_BITACORA_PLATAFORMA)})`,
+)
 export class BitacoraPlataforma {
   @PrimaryColumn({ type: 'uuid', default: () => 'uuidv7()' })
   id: string;
@@ -27,7 +37,7 @@ export class BitacoraPlataforma {
   plataformaUsuarioId: string | null;
 
   @Column({ type: 'varchar', length: 64 })
-  accion: string;
+  accion: AccionBitacoraPlataforma;
 
   @Column({ type: 'jsonb', nullable: true })
   detalle: Record<string, unknown> | null;
