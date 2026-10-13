@@ -11,7 +11,7 @@ Que el dueño de Cuadra tenga una cuenta propia (`plataforma_usuarios`, sembrada
 
 - Backend: migración (`plataforma_usuarios`, `bitacora_plataforma`, `sesiones.plataforma_usuario_id` + CHECK), entidades, módulo `src/plataforma/`, scope plataforma en guards y decoradores, comando de siembra, prueba de arquitectura, tests.
 - Docs: `CUADRA.md`, `docs/bitacora.md` (incluye cambiar la línea «sesiones `plataforma` responden 401 hasta la 1.3»).
-- Frontend: bloqueado hasta que exista y se acuerde el mockup de la pantalla interna (UX-DR1, UX-DR9; SDD, un cambio a la vez).
+- Frontend: bloqueado hasta que exista y se acuerde el mockup de la pantalla interna (UX-DR1, UX-DR9). Con el mockup acordado, el frontend se trabaja con ODD (T6b y T6c).
 - Fuera de alcance: crear empresas (1.4), vista previa del banco (épica 3), apagar la separación de funciones (épica 5).
 
 ## Decisiones
@@ -38,7 +38,9 @@ Que el dueño de Cuadra tenga una cuenta propia (`plataforma_usuarios`, sembrada
 | T3 | Sesión plataforma: scope nuevo, login bajo `/plataforma`, `SesionCookieGuard` deja de dar 401 y distingue tipo, 403 cruzado con registro en `bitacora_plataforma`, migrar test de `auth.integracion.spec.ts:1223`, prueba de que el interceptor no abre transacción sin `company_id` | delegada | [x] `d0cefca` |
 | T4 | Prueba de arquitectura de clase 3 y módulo `src/plataforma/` con lista de empresas vacía (lectura) | delegada | [x] `b0ea1c6` |
 | T5 | Docs: `CUADRA.md`, `docs/bitacora.md` | inline | [x] commit de docs |
-| T6 | Frontend: mockup de la pantalla interna, acuerdo, luego SDD | bloqueada | [ ] |
+| T6a | Mockup de la pantalla interna (artboards 10 y 11 del canvas, versión 43) acordado por la persona usuaria | inline | [x] |
+| T6b | Backend: `GET /plataforma/auth/me` (sesión plataforma → `{ usuario: { id, correo } }`, 401/403 como el resto) para restaurar la sesión tras recargar; con test | delegada | [ ] |
+| T6c | Frontend: contrato zod, llamadas (`email` en el cuerpo, `correo` en la respuesta), proveedor de sesión de plataforma separado del de empresa, `RutaPlataforma`, `/plataforma/login` y `/plataforma`, textos propios de error, pruebas (MSW + Testing Library) | delegada | [ ] |
 
 Cada tarea cierra con un commit convencional en la rama; el hash se anota aquí como evidencia.
 
@@ -64,7 +66,9 @@ Los de la Story 1.3 en `epics.md` (líneas 339-377).
 - T4 hecha (`b0ea1c6`). `src/plataforma/arquitectura.ts` (helper puro `buscarInfracciones`) y `arquitectura.spec.ts`: palabra completa, sensible a mayúsculas; excluye `plataforma/**`, migraciones y comentarios; lista blanca por archivo y nombre (`database/entidades.ts`, `database/esquema.spec.ts`, `auth/sesion.entity.ts`, `auth/auth.integracion.spec.ts`). Sin infractores reales. La prueba de que puede fallar usa fixtures en memoria. Suite completa 1033 de 1034 antes de corregir un orden en un fixture propio; el padre corrió `arquitectura` 6 de 6. Evaluación nativa: riesgo medio, 197 líneas, `under_budget`, sin revisión.
 - T5 hecha: entrada de la 1.3 en `docs/bitacora.md` y nota en D-09 de `CUADRA.md`.
 - Historia 1.3, backend cerrada en la rama `feat/v2-1-3-pantalla-dueno`, sin push ni PR. Pendientes: T6 (mockup y frontend), `.env.example` a mano con `DUENO_CORREO` y `DUENO_PASSWORD`, ejecutar la siembra en desarrollo, lista de empresas real en la 1.4.
-- Siguiente paso: la persona usuaria decide integrar y subir el backend; T6 espera el mockup.
+- Cadena de PRs abierta (Feature Branch Chain, tracker #1 y PRs #2 a #4). Mockup de plataforma publicado en el canvas (artboards 10 y 11) y acordado; la persona usuaria pidió hacer el frontend con ODD (excepción puntual a la regla de SDD de `CLAUDE.md`). Rama `feat/v2-1-3-04-frontend-plataforma`, PR 4/4 de la cadena.
+- Mapeo del frontend: no hay endpoint de sesión de plataforma y llamar a `GET /auth/contexto` con cookie de plataforma da 403 y termina la sesión en el cliente de empresa, así que el frontend necesita su propio proveedor y un `me` (decisión por defecto: agregar `GET /plataforma/auth/me`, T6b). `LoginDto` usa `email`; la respuesta usa `correo`. `mensajeDeError` en contexto `login` mapea 403 a «sin empresas», incorrecto para plataforma.
+- Siguiente paso: T6b.
 
 ## Evidencia de routing
 
