@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiUnauthorizedResponse,
@@ -15,11 +15,11 @@ import {
   ResumenBandejaDto,
 } from './dto/bandeja.dto';
 
-/** La sesión ya la exige JwtAuthGuard; aquí solo se estrecha el tipo. */
+/** La sesión (cookie, AD-6) ya la exige SesionCookieGuard; aquí solo se estrecha el tipo. */
 type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 
 /** CU-14. Bandeja de revisión: cualquier miembro de la empresa, solo lectura. */
-@ApiBearerAuth()
+@ApiCookieAuth()
 @Controller('bandeja')
 export class BandejaController {
   constructor(private readonly bandeja: BandejaService) {}

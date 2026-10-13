@@ -5,7 +5,6 @@ const VALIDO = {
   DATABASE_URL: 'postgresql://cuadra:cuadra@localhost:5432/cuadra',
   DATABASE_APP_URL: 'postgresql://cuadra_app:cuadra_app@localhost:5432/cuadra',
   REDIS_URL: 'redis://localhost:6379',
-  JWT_SECRET: 'un-secreto-de-al-menos-16',
 };
 
 describe('validateEnv (CU-01.3)', () => {
@@ -15,7 +14,7 @@ describe('validateEnv (CU-01.3)', () => {
     expect(env.COLA_PREFIJO).toBe('cuadra');
   });
 
-  it.each(['DATABASE_URL', 'DATABASE_APP_URL', 'REDIS_URL', 'JWT_SECRET'])(
+  it.each(['DATABASE_URL', 'DATABASE_APP_URL', 'REDIS_URL'])(
     'falta %s: truena nombrándola',
     (variable) => {
       const incompleto: Record<string, string> = { ...VALIDO };

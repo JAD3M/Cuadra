@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Put, Req } from '@nestjs/common';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiCookieAuth } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { UsuarioAutenticado } from '../auth/tipos';
 import { Roles, UsuarioActual } from '../common/decorators/decoradores';
@@ -9,11 +9,11 @@ import {
 } from './dto/tolerancia.dto';
 import { ToleranciaService } from './tolerancia.service';
 
-/** La sesión ya la exige JwtAuthGuard; aquí solo se estrecha el tipo. */
+/** La sesión (cookie, AD-6) ya la exige SesionCookieGuard; aquí solo se estrecha el tipo. */
 type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 
 /** CU-12. Configuración de la empresa de la sesión. */
-@ApiBearerAuth()
+@ApiCookieAuth()
 @Controller('empresa')
 export class EmpresaController {
   constructor(private readonly tolerancia: ToleranciaService) {}

@@ -452,7 +452,7 @@ describe('CAS-5 documentación', () => {
   it('OpenAPI incluye GET /casos/{movimientoId} con 200 tipado y 400, 401, 404', () => {
     const documento = SwaggerModule.createDocument(
       entorno.app,
-      new DocumentBuilder().addBearerAuth().build(),
+      new DocumentBuilder().addCookieAuth('cuadra_sesion').build(),
     );
     const operacion = documento.paths['/casos/{movimientoId}']?.get;
     expect(operacion).toBeDefined();

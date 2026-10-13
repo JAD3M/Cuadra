@@ -1,7 +1,7 @@
 import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -12,11 +12,11 @@ import { UsuarioActual } from '../common/decorators/decoradores';
 import { CasosService } from './casos.service';
 import { RespuestaCasoDto } from './dto/caso.dto';
 
-/** La sesión ya la exige JwtAuthGuard; aquí solo se estrecha el tipo. */
+/** La sesión (cookie, AD-6) ya la exige SesionCookieGuard; aquí solo se estrecha el tipo. */
 type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 
 /** CU-23. Detalle de un caso: cualquier miembro de la empresa, solo lectura. */
-@ApiBearerAuth()
+@ApiCookieAuth()
 @Controller('casos')
 export class CasosController {
   constructor(private readonly casos: CasosService) {}

@@ -2,8 +2,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /**
  * Historia 1.1 (AD-2, AD-6). `sesiones`: una fila por sesión abierta, que
- * reemplaza al JWT de la v1 (D-09). La cookie lleva el token; la tabla solo
- * guarda su SHA-256, nunca el token.
+ * reemplaza al JWT de la v1 (D-09, retirada por AD-6). La cookie lleva el
+ * token; la tabla solo guarda su SHA-256, nunca el token.
  *
  * - Clase 2 (AD-2): identidad, no dominio. Sin RLS: el guard la lee antes de
  *   saber la empresa y fuera de la transacción de empresa. `company_id` es

@@ -12,7 +12,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import {
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiBody,
   ApiConsumes,
   ApiForbiddenResponse,
@@ -37,10 +37,10 @@ import {
 } from './cargas.service';
 import { YaExistiaInterceptor } from './ya-existia.interceptor';
 
-/** La sesión ya la exige JwtAuthGuard; aquí solo se estrecha el tipo. */
+/** La sesión (cookie, AD-6) ya la exige SesionCookieGuard; aquí solo se estrecha el tipo. */
 type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 
-@ApiBearerAuth()
+@ApiCookieAuth()
 @Controller('cargas')
 export class CargasController {
   constructor(private readonly cargas: CargasService) {}

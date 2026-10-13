@@ -38,7 +38,6 @@ jobs:
       DATABASE_URL: postgresql://cuadra:cuadra@localhost:5432/cuadra
       DATABASE_APP_URL: postgresql://cuadra_app:cuadra_app@localhost:5432/cuadra
       REDIS_URL: redis://localhost:6379
-      JWT_SECRET: secreto-solo-para-ci-no-usar-en-produccion
 
     steps:
       - uses: actions/checkout@v4

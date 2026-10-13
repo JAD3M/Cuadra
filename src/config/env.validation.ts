@@ -10,7 +10,6 @@ const schema = z
     /** Rol `cuadra_app`, sin BYPASSRLS: con esta corre la app (CU-04b). */
     DATABASE_APP_URL: z.string().url(),
     REDIS_URL: z.string().url(),
-    JWT_SECRET: z.string().min(16),
     /** CU-08: intentos por job antes de dar la carga por 'fallida'. */
     COLA_INTENTOS: z.coerce.number().int().min(1).default(5),
     /** Espera base del backoff exponencial: d, 2d, 4d, ... */

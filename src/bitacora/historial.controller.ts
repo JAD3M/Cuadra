@@ -1,7 +1,7 @@
 import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
 } from '@nestjs/swagger';
@@ -10,11 +10,11 @@ import { Roles, UsuarioActual } from '../common/decorators/decoradores';
 import { BitacoraService } from './bitacora.service';
 import { RespuestaHistorialDto } from './dto/bitacora.dto';
 
-/** La sesión ya la exige JwtAuthGuard; aquí solo se estrecha el tipo. */
+/** La sesión (cookie, AD-6) ya la exige SesionCookieGuard; aquí solo se estrecha el tipo. */
 type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 
 /** CU-16. Historial de una conciliación, en orden cronológico. */
-@ApiBearerAuth()
+@ApiCookieAuth()
 @Controller('conciliaciones')
 export class HistorialController {
   constructor(private readonly bitacora: BitacoraService) {}

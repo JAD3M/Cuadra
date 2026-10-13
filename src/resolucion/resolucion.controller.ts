@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
@@ -21,11 +21,11 @@ import { Roles, UsuarioActual } from '../common/decorators/decoradores';
 import { RechazarDto, ResolucionRespuestaDto } from './dto/resolucion.dto';
 import { ResolucionService } from './resolucion.service';
 
-/** La sesión ya la exige JwtAuthGuard; aquí solo se estrecha el tipo. */
+/** La sesión (cookie, AD-6) ya la exige SesionCookieGuard; aquí solo se estrecha el tipo. */
 type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 
 /** CU-15. Resolver una propuesta de conciliación. */
-@ApiBearerAuth()
+@ApiCookieAuth()
 @Controller('conciliaciones')
 export class ResolucionController {
   constructor(private readonly resolucion: ResolucionService) {}

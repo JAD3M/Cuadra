@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
-  ApiBearerAuth,
+  ApiCookieAuth,
   ApiOkResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -14,14 +14,14 @@ import {
   RespuestaUsuariosBitacoraDto,
 } from './dto/bitacora.dto';
 
-/** La sesión ya la exige JwtAuthGuard; aquí solo se estrecha el tipo. */
+/** La sesión (cookie, AD-6) ya la exige SesionCookieGuard; aquí solo se estrecha el tipo. */
 type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 
 /**
  * CU-16. Bitácora de la empresa: solo lectura, con filtros y paginación.
  * CU-26 suma la lista de personas para el filtro de usuario.
  */
-@ApiBearerAuth()
+@ApiCookieAuth()
 @Controller('bitacora')
 export class BitacoraController {
   constructor(private readonly bitacora: BitacoraService) {}

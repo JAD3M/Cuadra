@@ -1,8 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiCookieAuth } from '@nestjs/swagger';
 import { PerfilesBancarios } from './perfiles-bancarios';
 
-@ApiBearerAuth()
+@ApiCookieAuth()
 @Controller('bancos')
 export class BancosController {
   constructor(private readonly perfiles: PerfilesBancarios) {}

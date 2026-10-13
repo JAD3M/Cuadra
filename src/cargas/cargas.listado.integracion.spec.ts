@@ -368,7 +368,7 @@ describe('CRL-4 documentación y rutas vecinas', () => {
   it('OpenAPI incluye GET /cargas con 200 tipado y 401', () => {
     const documento = SwaggerModule.createDocument(
       entorno.app,
-      new DocumentBuilder().addBearerAuth().build(),
+      new DocumentBuilder().addCookieAuth('cuadra_sesion').build(),
     );
     const operacion = documento.paths['/cargas']?.get;
     expect(operacion).toBeDefined();
