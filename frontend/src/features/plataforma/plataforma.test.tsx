@@ -7,7 +7,6 @@ import {
   DUENO,
   cuerposLogin,
   empresasPlataformaFalla,
-  empresasPlataformaLista,
   loginPlataformaFalla,
   loginPlataformaRedDeFallo,
   sesionDeEmpresaEnPlataforma,
@@ -249,23 +248,6 @@ describe('plataforma: pantalla interna', () => {
     expect(screen.getAllByRole('main')).toHaveLength(1);
     expect(screen.getByRole('group', { name: 'Tema' })).toBeInTheDocument();
     expect(screen.getByText('Plataforma')).toBeInTheDocument();
-  });
-
-  it('muestra las empresas que devuelve la API con su RFC', async () => {
-    sesionPlataformaAbierta();
-    empresasPlataformaLista([
-      {
-        id: 'e1a1b2c3-0000-4000-8000-000000000001',
-        razonSocial: 'Ferretería del Norte SA de CV',
-        rfc: 'FNO010101AB1',
-      },
-    ]);
-    montarPlataforma('/plataforma');
-    expect(
-      await screen.findByText('Ferretería del Norte SA de CV'),
-    ).toBeInTheDocument();
-    expect(screen.getByText('FNO010101AB1')).toBeInTheDocument();
-    expect(screen.queryByText('Aún no hay empresas')).toBeNull();
   });
 
   it('un fallo al leer empresas muestra una alerta con texto propio, no el del servidor', async () => {

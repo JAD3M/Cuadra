@@ -2,38 +2,40 @@ import type { ReactNode } from 'react';
 import { TEXTOS_PLATAFORMA } from '@/features/plataforma/textos';
 import estilos from './EmpresasPlataforma.module.css';
 
-/** Fila de la lista: solo lo que la API devuelve, sin derivar nada. */
-export interface FilaEmpresaPlataforma {
-  id: string;
-  razonSocial: string;
-  rfc: string;
-}
-
 export interface EmpresasPlataformaProps {
-  /** `null` mientras carga o si falló (ver `alerta`). */
-  empresas: readonly FilaEmpresaPlataforma[] | null;
+  /** Cuántas empresas hay; `null` mientras carga o si falló (ver `alerta`). */
+  total: number | null;
   /** Alerta de fallo ya armada por el contenedor. */
   alerta?: ReactNode;
 }
 
 /**
- * Sección «Lista de empresas». Vacía muestra el estado vacío del mockup; con
- * filas, una lista simple con razón social y RFC (la 1.4 define el resto).
+ * Sección «Lista de empresas», con los tres estados del mockup: cargando
+ * (barras), vacía y fallo (alerta). La lista con empresas la define la 1.4 con
+ * su mockup; hasta entonces el backend devuelve siempre `[]`.
  */
 export function EmpresasPlataforma({
-  empresas,
+  total,
   alerta,
 }: EmpresasPlataformaProps) {
-  const vacia = empresas !== null && empresas.length === 0;
+  const vacia = total === 0;
+  const cargando = total === null && !alerta;
   return (
     <section
       aria-label={TEXTOS_PLATAFORMA.listaEmpresas}
-      aria-busy={empresas === null && !alerta}
+      aria-busy={cargando}
       className={
         vacia ? `${estilos.seccion} ${estilos.vacia}` : estilos.seccion
       }
     >
       {alerta}
+      {cargando && (
+        <div className={estilos.cargando} aria-hidden="true">
+          <span className={estilos.barra} />
+          <span className={estilos.barra} />
+          <span className={estilos.barra} />
+        </div>
+      )}
       {vacia && (
         <>
           <svg
@@ -57,16 +59,6 @@ export function EmpresasPlataforma({
             {TEXTOS_PLATAFORMA.vacioDetalle}
           </span>
         </>
-      )}
-      {empresas !== null && empresas.length > 0 && (
-        <ul className={estilos.lista}>
-          {empresas.map((empresa) => (
-            <li key={empresa.id} className={estilos.fila}>
-              <span className={estilos.razon}>{empresa.razonSocial}</span>
-              <span className={estilos.rfc}>{empresa.rfc}</span>
-            </li>
-          ))}
-        </ul>
       )}
     </section>
   );

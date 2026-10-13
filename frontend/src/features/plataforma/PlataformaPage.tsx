@@ -55,7 +55,7 @@ export function PlataformaPage() {
           </p>
         </div>
         <EmpresasPlataforma
-          empresas={empresas.data ?? null}
+          total={empresas.data ? empresas.data.length : null}
           alerta={
             fallo ? (
               <AlertaError titulo={fallo.titulo} detalle={fallo.detalle} />
