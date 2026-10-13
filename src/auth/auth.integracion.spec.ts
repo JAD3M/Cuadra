@@ -1223,9 +1223,18 @@ describe('SesionCookieGuard', () => {
   it('rechaza una sesión de tipo plataforma, que aún no opera', async () => {
     const usuario = await una<{ id: string }>(ds, USUARIO_POR_EMAIL, [ANA]);
     const cookie = await abrirSesion(ds, usuario.id, null);
+    const dueno = await una<{ id: string }>(
+      ds,
+      `INSERT INTO plataforma_usuarios (correo, password_hash)
+       VALUES ('dueno-sesion@cuadra.test', 'hash') RETURNING id`,
+    );
+    // El CHECK de sujeto por tipo exige un solo sujeto: se pasa de usuario de
+    // empresa a cuenta de plataforma en la misma sentencia.
     await ds.query(
-      `UPDATE sesiones SET tipo = 'plataforma' WHERE token_hash = $1`,
-      [huellaDeToken(valorDe(cookie))],
+      `UPDATE sesiones SET tipo = 'plataforma', user_id = NULL,
+              company_id = NULL, plataforma_usuario_id = $2
+        WHERE token_hash = $1`,
+      [huellaDeToken(valorDe(cookie)), dueno.id],
     );
 
     await http().get('/prueba/seleccion').set('Cookie', cookie).expect(401);

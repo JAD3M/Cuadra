@@ -25,6 +25,7 @@
     "migration:generate": "typeorm-ts-node-commonjs -d src/database/data-source.ts migration:generate",
     "schema:log": "npm run typeorm -- schema:log",
     "seed": "ts-node src/database/seeds/seed.ts",
+    "sembrar:dueno": "ts-node src/database/seeds/sembrar-dueno.ts",
     "demo:generar": "ts-node scripts/demo/generar.ts",
     "demo": "ts-node scripts/demo/ejecutar.ts"
   },
