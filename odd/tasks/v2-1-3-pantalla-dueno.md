@@ -34,7 +34,7 @@ Que el dueño de Cuadra tenga una cuenta propia (`plataforma_usuarios`, sembrada
 | ID | Tarea | Ruta | Estado |
 |----|-------|------|--------|
 | T1 | Migración y entidades: `plataforma_usuarios`, `bitacora_plataforma` (solo SELECT/INSERT), `sesiones.plataforma_usuario_id` + FK + CHECK por tipo; actualizar `esquema.spec.ts`; pruebas del CHECK y de los GRANTs | delegada | [x] `1beabe6` |
-| T2 | Siembra del dueño: script npm, hash, rechazo si la tabla no está vacía, sin endpoint de alta | delegada | [ ] |
+| T2 | Siembra del dueño: script npm, hash, rechazo si la tabla no está vacía, sin endpoint de alta | delegada | [x] `21d8789` |
 | T3 | Sesión plataforma: scope nuevo, login bajo `/plataforma`, `SesionCookieGuard` deja de dar 401 y distingue tipo, 403 cruzado con registro en `bitacora_plataforma`, migrar test de `auth.integracion.spec.ts:1223`, prueba de que el interceptor no abre transacción sin `company_id` | delegada | [ ] |
 | T4 | Prueba de arquitectura de clase 3 y módulo `src/plataforma/` con lista de empresas vacía (lectura) | delegada | [ ] |
 | T5 | Docs: `CUADRA.md`, `docs/bitacora.md` | inline | [ ] |
@@ -57,7 +57,9 @@ Los de la Story 1.3 en `epics.md` (líneas 339-377).
 - T1 hecha (`1beabe6`). Migración `1790709200000-PlataformaUsuarios`, entidades en `src/plataforma/`, `Sesion.plataformaUsuario` por nombre (sin importar clase 3 fuera de `plataforma/`). RED: 22 de 22 fallaban sin la migración. GREEN: 22 de 22; suite completa 45 suites, 998 tests; `typecheck` y `lint` limpios. Ajustes mínimos: `SesionCookieGuard` rechaza con 401 una sesión empresa sin `userId`; el test de plataforma en `auth.integracion.spec.ts` crea su `plataforma_usuarios` (T3 lo migra a 403). La migración borra sesiones `plataforma` previas (no podían existir: el guard daba 401).
 - Pendiente de T3 (AD-7): `bitacora_plataforma.accion` no tiene CHECK; se agrega cuando se definan los valores (`acceso_denegado`, etc.) junto con `tipos.ts`, su espejo en el frontend y la prueba de deriva.
 - Riesgo anotado: el test de reversibilidad usa `undoLastMigration()`; si se agrega otra migración después, hay que actualizarlo.
-- Siguiente paso: T2 (siembra del dueño).
+- T2 hecha (`21d8789`). `sembrarDueno(ds, {correo, password})` en `src/plataforma/sembrar-dueno.ts`, entrada delgada en `src/database/seeds/sembrar-dueno.ts`, `npm run sembrar:dueno` con `DUENO_CORREO` y `DUENO_PASSWORD`. Decisión de la persona usuaria: mínimo de 12 caracteres, solo en esta siembra (el repo no tenía regla). Una transacción con `SHARE ROW EXCLUSIVE` evita dos dueños concurrentes. RED: módulo inexistente; GREEN: 11 de 11; suite completa 1008 de 1009 (solo la intermitente conocida); `typecheck` y `lint` limpios. El CLI no se ejecutó contra la base de desarrollo.
+- Nota de routing: el escritor se detuvo una vez por una denegación de permiso (lectura compuesta) y no la rodeó; se retomó con lecturas simples.
+- Siguiente paso: T3 (sesión plataforma, guard propio, 403 cruzado).
 
 ## Evidencia de routing
 
