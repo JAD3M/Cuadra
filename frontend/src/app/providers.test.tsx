@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { useTema } from '@/shared/tema';
 import { sesionConEmpresa } from '@/test/sesionMock';
+import { servidor } from '@/test/servidor';
 import { Providers } from './providers';
 import { useSessionContext } from '@/shared/sesion';
 
@@ -70,6 +71,28 @@ describe('Providers', () => {
     await waitFor(() =>
       expect(screen.getByTestId('sesion')).toHaveTextContent('ready'),
     );
+  });
+
+  it('en /plataforma no restaura la sesión de empresa ni llama a /auth', async () => {
+    const urls: string[] = [];
+    const registrar = ({ request }: { request: Request }) => {
+      urls.push(new URL(request.url).pathname);
+    };
+    servidor.events.on('request:start', registrar);
+    window.history.pushState({}, '', '/plataforma');
+    try {
+      render(
+        <Providers>
+          <p>pantalla de plataforma</p>
+        </Providers>,
+      );
+      expect(screen.getByText('pantalla de plataforma')).toBeInTheDocument();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(urls.filter((u) => u.includes('/auth/'))).toEqual([]);
+    } finally {
+      servidor.events.removeListener('request:start', registrar);
+      window.history.pushState({}, '', '/');
+    }
   });
 
   it('conserva el mismo cliente de consultas entre renders', () => {

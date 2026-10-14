@@ -1,6 +1,17 @@
-import { Body, Controller, HttpCode, Post, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiCookieAuth,
+  ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
@@ -17,7 +28,12 @@ import {
   OPCIONES_COOKIE,
   SesionesService,
 } from '../auth/sesiones.service';
-import { Publico, Scope } from '../common/decorators/decoradores';
+import type { UsuarioAutenticado } from '../auth/tipos';
+import {
+  Publico,
+  Scope,
+  UsuarioActual,
+} from '../common/decorators/decoradores';
 import { Limite } from '../limite/limite.decorator';
 import { RespuestaLoginPlataformaDto } from './dto/plataforma.dto';
 import { PlataformaAuthService } from './plataforma-auth.service';
@@ -71,6 +87,33 @@ export class PlataformaAuthController {
       detalle: { ip: solicitud.ip ?? null },
     });
     return { usuario };
+  }
+
+  /**
+   * Solo lectura y no deja fila en la bitácora: el frontend la llama en cada
+   * carga de página. El guard ya rechazó sesiones ajenas (403 con bitácora).
+   */
+  @Get('me')
+  @ApiCookieAuth()
+  @ApiOperation({
+    summary: 'Dueño de la sesión de plataforma vigente',
+    description:
+      'Sirve para restaurar la sesión tras recargar. No escribe en la bitácora.',
+  })
+  @ApiOkResponse({ type: RespuestaLoginPlataformaDto })
+  @ApiUnauthorizedResponse({
+    description: 'Sin sesión, venció, o la cuenta ya no está activa.',
+  })
+  @ApiForbiddenResponse({
+    description: 'La sesión no es de plataforma. Queda en la bitácora.',
+  })
+  async me(
+    @UsuarioActual() actual: UsuarioAutenticado,
+  ): Promise<RespuestaLoginPlataformaDto> {
+    if (actual.scope !== 'plataforma') {
+      throw new UnauthorizedException('No autorizado');
+    }
+    return { usuario: await this.auth.perfil(actual.plataformaUsuarioId) };
   }
 
   @Post('logout')

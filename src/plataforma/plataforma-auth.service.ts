@@ -54,4 +54,20 @@ export class PlataformaAuthService implements OnModuleInit {
     const { token } = await this.sesiones.crearPlataforma(usuario.id);
     return { token, usuario: { id: usuario.id, correo: usuario.correo } };
   }
+
+  /**
+   * El dueño de una sesión viva, para restaurarla tras recargar. Cuenta
+   * inexistente o desactivada: mismo 401 que una sesión ausente.
+   */
+  async perfil(
+    plataformaUsuarioId: string,
+  ): Promise<{ id: string; correo: string }> {
+    const usuario = await this.usuarios.findOne({
+      where: { id: plataformaUsuarioId },
+    });
+    if (!usuario || !usuario.activo) {
+      throw new UnauthorizedException('No autorizado');
+    }
+    return { id: usuario.id, correo: usuario.correo };
+  }
 }

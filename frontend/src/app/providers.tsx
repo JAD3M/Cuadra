@@ -13,10 +13,21 @@ import { SessionProvider } from '@/shared/sesion';
  */
 export function Providers({ children }: { children: ReactNode }) {
   const [clienteConsultas] = useState(crearQueryClient);
+  // Las rutas de `/plataforma` tienen su propia sesión (cookie de otro tipo).
+  // Restaurar la de empresa ahí llamaría a `/auth/contexto`, que responde 403
+  // y deja un acceso denegado en `bitacora_plataforma` en cada carga. Se
+  // decide una vez, al arrancar: entrar a `/plataforma` es una carga completa.
+  const [enPlataforma] = useState(() =>
+    window.location.pathname.startsWith('/plataforma'),
+  );
   return (
     <QueryClientProvider client={clienteConsultas}>
       <ThemeProvider>
-        <SessionProvider>{children}</SessionProvider>
+        {enPlataforma ? (
+          children
+        ) : (
+          <SessionProvider>{children}</SessionProvider>
+        )}
       </ThemeProvider>
     </QueryClientProvider>
   );

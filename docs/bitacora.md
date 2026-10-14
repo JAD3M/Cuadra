@@ -26,10 +26,24 @@
   - **T4 `b0ea1c6`:** prueba de arquitectura: falla si un módulo fuera de
     `plataforma/` nombra las tablas o entidades de clase 3 (lista blanca por
     archivo y nombre; migraciones y comentarios fuera).
-- **Revisión nativa:** riesgo alto sobre T1 a T3 (autenticación); la persona
-  usuaria declinó la revisión de ese candidato. T4 quedó bajo presupuesto.
-  La evaluación de riesgo se corrió una sola vez sobre el rango, no tras cada
-  commit.
+  - **T6b `f5786b6`:** `GET /plataforma/auth/me` para restaurar la sesión del
+    dueño al recargar; 401 si el dueño está inactivo y sin escritura en la
+    bitácora al leer.
+  - **T6c `ce3c509`:** frontend de plataforma según el mockup acordado
+    (artboards 10 y 11 del canvas): `/plataforma/login` y `/plataforma`, sesión
+    propia separada de la de empresa, `RutaPlataforma`, textos de error
+    propios. Corrección: el proveedor de sesión de empresa ya no se monta en
+    `/plataforma`, porque pedía `/auth/contexto` con la cookie del dueño y
+    dejaba un acceso denegado en cada carga.
+- **Flujo:** `CLAUDE.md` pasa toda la implementación de una historia (backend
+  y frontend) a ODD, con PR al terminar la historia.
+- **Revisión nativa:** T1 a T3 salieron de riesgo alto (autenticación) y la
+  persona usuaria declinó esa revisión. T4 quedó bajo presupuesto. T6b y T6c
+  (riesgo alto) se revisaron con 4 lentes y quedaron aprobadas; los hallazgos
+  no bloqueantes de T6c están en el documento ODD (reintentos de `/me` sin
+  espera, el cierre de sesión que oculta fallas del logout y la decisión
+  por prefijo en `Providers`). La evaluación de riesgo de T1 a T3 se corrió
+  una sola vez sobre el rango, no tras cada commit.
 - **Pendientes de la 1.3:** (a) `GET /plataforma/empresas` devuelve `[]` fijo:
   `companies` tiene RLS FORCE y leerla sin `company_id` exigiría saltarla, se
   resuelve en la 1.4; (b) los intentos fallidos de login del dueño no se

@@ -48,4 +48,7 @@ Trabajamos historia por historia (CU-01 … CU-26). No adelantes
 historias. Al terminar una, corre los tests, agrega la entrada en
 `docs/bitacora.md` y actualiza el estado en `CUADRA.md`.
 
-El frontend se trabaja con SDD, un cambio a la vez.
+Toda la implementación de una historia, backend y frontend, se trabaja
+con ODD: un documento por historia en `odd/tasks/`, una historia a la
+vez. Al terminar la historia se arma el PR (en cadena si pasa de 400
+líneas de cambio).

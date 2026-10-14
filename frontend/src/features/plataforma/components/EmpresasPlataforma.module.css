@@ -1,0 +1,46 @@
+/* Lista de empresas de Plataforma.dc.html. Solo tokens de rol. */
+.seccion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-inline-size: 0;
+}
+
+.vacia {
+  align-items: center;
+  padding: var(--space-48) var(--space-24);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-sidebar);
+  text-align: center;
+}
+
+.icono {
+  color: var(--color-muted);
+}
+
+.titulo {
+  font-size: var(--text-2xl);
+}
+
+.detalle {
+  max-inline-size: 460px;
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.cargando {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-24);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-sidebar);
+}
+
+.barra {
+  block-size: 48px;
+  border-radius: var(--radius-md);
+  background: var(--color-selected);
+}
