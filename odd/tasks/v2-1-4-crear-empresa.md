@@ -46,7 +46,7 @@ Que el dueño, con sesión de plataforma, cree una empresa con nombre y RFC. El 
 | T1 | Helper de RFC compartido (`normalizarRfc`, `validarRfc`, rechazo de genéricos) y `lector-cfdi.ts` lo reutiliza; tests | delegada | [x] `85c719e` |
 | T2 | Migración: `companies.separacion_funciones` (`NOT NULL DEFAULT true`), `GRANT INSERT (columnas mínimas)`, nueva acción en `ck_bitacora_plataforma_accion`; entidad, `esquema.spec.ts`, espejo de la acción en backend y frontend con sus tests de deriva | delegada | [x] `341597b` |
 | T3 | Servicio y endpoints `POST` y `GET /plataforma/empresas`: normalización, 400/409, una transacción con ambas bitácoras, lista real; corregir el comentario de RLS en el controlador; integración | delegada | [x] `92e432d` |
-| T4 | Mockup del formulario y de la lista con datos acordado por la persona usuaria | inline | [ ] |
+| T4 | Mockup del formulario y de la lista con datos acordado por la persona usuaria | inline | [x] canvas versión 54, aprobado 2026-10-14 |
 | T5 | Frontend: contrato zod, hook de alta, lista con nombre y RFC, formulario, mensajes de error claros, pruebas (MSW + Testing Library) | delegada | [ ] |
 | T6 | Docs: `CUADRA.md`, `docs/bitacora.md` | inline | [ ] |
 
@@ -71,4 +71,5 @@ Cada tarea cierra con un commit convencional en la rama; el hash se anota aquí 
 - T1 (delegada): `src/common/rfc.ts` con `FORMATO_RFC`, `normalizarRfc`, `validarRfc` (motivo `formato` o `generico`); `lector-cfdi.ts` usa `FORMATO_RFC` sin cambio de comportamiento (los genéricos siguen siendo válidos en un CFDI). RED: el spec no resolvía `./rfc`; GREEN: 39 tests en `src/common` y `src/cfdi`.
 - T2 (delegada): migración `CrearEmpresas`, entidad `Company.separacionFunciones` (en `src/companies/company.entity.ts`), acción `crear_empresa` en backend y espejo frontend, tests de privilegio por columna y de reversibilidad ampliado. RED: 2 tests de `esquema.spec.ts` fallaban; GREEN: `src/database` y `src/plataforma` en verde.
 - T3 (delegada): `EmpresasPlataforma` (SQL explícito, una transacción, bitácora de plataforma que lanza), `POST`/`GET /plataforma/empresas`, cuerpo `{ razonSocial, rfc }`, 400/409, comentario de RLS corregido. RED: 14 tests fallaban; GREEN: 77 tests en `src/plataforma`. Backend completo: 49 suites, 1069 tests; typecheck y lint limpios.
-- Siguiente paso: T4 (mockup).
+- T4 (inline): mockup acordado en los artboards 10 y 11 (formulario inline con razón social y RFC, tabla de dos columnas sin estado por decisión de la persona usuaria, errores de formato/genérico bajo el campo, duplicado y red en alerta, aviso de éxito, selector de tema con Sistema). De paso se actualizaron los artboards de la app: barra lateral fija (`sticky`, 100vh; código en `a2332f5`), «Cerrar sesión» y selector de tema en Detalle, Cargas, Tolerancia y Bitácora.
+- Siguiente paso: T5 (frontend).
