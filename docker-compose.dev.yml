@@ -1,0 +1,54 @@
+# Desarrollo: la API con recarga en caliente (Dockerfile.dev), los procesadores
+# de colas dentro de la misma API y Postgres/Redis publicados en el host (las
+# pruebas se conectan a ellos). Es un archivo completo, no un override: el de
+# producción exige variables con `:?` y el desarrollo no debe pedirlas.
+#
+#   docker compose -f docker-compose.dev.yml up -d --build
+#
+# Para no repetir -f, agrega COMPOSE_FILE=docker-compose.dev.yml a tu .env.
+# Producción: docker-compose.yml (ver "Despliegue" en el README).
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    user: node
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://cuadra:cuadra@postgres:5432/cuadra
+      DATABASE_APP_URL: postgres://cuadra_app:cuadra_app@postgres:5432/cuadra
+      REDIS_URL: redis://redis:6379
+      # Origen del frontend (AD-6). TRUST_PROXY queda sin definir: apagada.
+      ORIGEN_AUTORIZADO: ${ORIGEN_AUTORIZADO:-http://localhost:5173}
+    ports: ["3000:3000"]
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: cuadra
+      POSTGRES_PASSWORD: cuadra
+      POSTGRES_DB: cuadra
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cuadra"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    # AD-16: sin desalojo, o Redis puede tirar jobs de BullMQ bajo presión.
+    command: ["redis-server", "--maxmemory-policy", "noeviction"]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:

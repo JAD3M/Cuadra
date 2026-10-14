@@ -1,30 +1,83 @@
+# Producción (AD-17): PostgreSQL, Redis con `noeviction`, API y worker con la
+# misma imagen; migraciones como paso explícito (perfil `tools`). Sin valores
+# por defecto para los secretos: si falta una variable, compose se detiene y la
+# nombra. Desarrollo: docker-compose.dev.yml.
+#
+#   docker compose up -d --build
+#   docker compose --profile tools run --rm migrate
+#
+# Las contraseñas van dentro de una URL: usa caracteres que no necesiten
+# escape (letras, números, `-`, `_`) o escápalos con porcentaje.
+
+x-cuadra: &cuadra
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: cuadra-api:latest
+  restart: unless-stopped
+  env_file: .env
+  environment: &entorno
+    NODE_ENV: production
+    DATABASE_URL: postgres://cuadra:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD es obligatoria}@postgres:5432/cuadra
+    DATABASE_APP_URL: postgres://cuadra_app:${CUADRA_APP_PASSWORD:?CUADRA_APP_PASSWORD es obligatoria}@postgres:5432/cuadra
+    REDIS_URL: redis://redis:6379
+    # Origen del frontend (AD-6). TRUST_PROXY queda como en .env (apagada).
+    ORIGEN_AUTORIZADO: ${ORIGEN_AUTORIZADO:?ORIGEN_AUTORIZADO es obligatoria}
+  depends_on: &dependencias
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+
 services:
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    user: node
-    env_file: .env
+    <<: *cuadra
+    command: ["node", "dist/main"]
     environment:
-      DATABASE_URL: postgres://cuadra:cuadra@postgres:5432/cuadra
-      DATABASE_APP_URL: postgres://cuadra_app:cuadra_app@postgres:5432/cuadra
-      REDIS_URL: redis://redis:6379
-      # Origen del frontend (AD-6). TRUST_PROXY queda sin definir: apagada.
-      ORIGEN_AUTORIZADO: ${ORIGEN_AUTORIZADO:-http://localhost:5173}
-    ports: ["3000:3000"]
-    volumes:
-      - .:/app
-      - /app/node_modules
-    depends_on:
-      postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
+      <<: *entorno
+      # La API solo encola; consume el worker (AD-16).
+      PROCESAR_COLAS: "false"
+    ports: ["${API_PUERTO:-3000}:3000"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+
+  worker:
+    <<: *cuadra
+    command: ["node", "dist/worker"]
+    environment:
+      <<: *entorno
+      PROCESAR_COLAS: "true"
+
+  # Paso explícito, nunca dependencia de `api` (las migraciones no corren al
+  # arrancar). Corre con el dueño del esquema (DATABASE_URL).
+  migrate:
+    <<: *cuadra
+    profiles: [tools]
+    restart: "no"
+    command:
+      [
+        "node",
+        "node_modules/typeorm/cli.js",
+        "migration:run",
+        "-d",
+        "dist/database/data-source.js",
+      ]
+
   postgres:
     image: postgres:18-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: cuadra
-      POSTGRES_PASSWORD: cuadra
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD es obligatoria}
       POSTGRES_DB: cuadra
-    ports: ["5432:5432"]
     volumes: ["pgdata:/var/lib/postgresql"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U cuadra"]
@@ -33,7 +86,12 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    restart: unless-stopped
+    # AD-16: `noeviction` para que Redis nunca descarte jobs; `appendonly` para
+    # que sobrevivan a un reinicio.
+    command:
+      ["redis-server", "--maxmemory-policy", "noeviction", "--appendonly", "yes"]
+    volumes: ["redisdata:/data"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -41,3 +99,4 @@ services:
 
 volumes:
   pgdata:
+  redisdata:
