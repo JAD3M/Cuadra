@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { LARGO_MAXIMO_PASSWORD } from '../../common/politica-contrasena';
 
 export const MOTIVOS_INVITACION_INVALIDA = [
   'usada',
@@ -45,7 +46,7 @@ export class AceptarInvitacionDto {
   })
   @IsOptional()
   @IsString()
-  @MaxLength(256)
+  @MaxLength(LARGO_MAXIMO_PASSWORD)
   password?: string;
 
   @ApiProperty({

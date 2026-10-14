@@ -9,6 +9,7 @@ import {
 import { DataSource, type QueryRunner } from 'typeorm';
 import { PasswordHasher } from '../auth/password';
 import { huellaDeToken, SesionesService } from '../auth/sesiones.service';
+import { exigirPasswordValida } from '../common/politica-contrasena';
 import type {
   EstadoInvitacionDto,
   InvitacionAceptadaDto,
@@ -17,9 +18,6 @@ import type {
 
 /** SQLSTATE de `unique_violation`. */
 const VIOLACION_UNICA = '23505';
-
-/** Mínimo de la contraseña de una cuenta nueva. */
-export const LARGO_MINIMO_PASSWORD = 12;
 
 const MENSAJES: Record<MotivoInvitacionInvalida, string> = {
   usada: 'Esta invitación ya se usó.',
@@ -151,14 +149,10 @@ export class InvitacionesService {
         if (!nombre || nombre.length === 0) {
           throw new BadRequestException('Escribe tu nombre.');
         }
-        if (!password || password.length < LARGO_MINIMO_PASSWORD) {
-          throw new BadRequestException(
-            `La contraseña debe tener al menos ${LARGO_MINIMO_PASSWORD} caracteres.`,
-          );
-        }
+        exigirPasswordValida(password);
         const [creado] = (await qr.query(
           `INSERT INTO users (email, nombre, password_hash) VALUES ($1, $2, $3) RETURNING id`,
-          [fila.email, nombre, await this.hasher.hashear(password)],
+          [fila.email, nombre, await this.hasher.hashear(password as string)],
         )) as Array<{ id: string }>;
         userId = creado.id;
         cuentaNueva = true;
