@@ -257,3 +257,42 @@ describe('FormularioLogin: fallos', () => {
     await waitFor(() => expect(clave()).toHaveFocus());
   });
 });
+
+describe('FormularioLogin: mostrar y ocultar la contraseña', () => {
+  it('empieza oculta y alterna con el botón sin perder el valor', async () => {
+    const usuario = userEvent.setup();
+    montar();
+    expect(clave()).toHaveAttribute('type', 'password');
+    await usuario.type(clave(), 'Cuadra-2026');
+    await usuario.click(
+      screen.getByRole('button', { name: 'Mostrar contraseña' }),
+    );
+    expect(clave()).toHaveAttribute('type', 'text');
+    expect(clave()).toHaveValue('Cuadra-2026');
+    expect(
+      screen.getByRole('button', { name: 'Ocultar contraseña' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    await usuario.click(
+      screen.getByRole('button', { name: 'Ocultar contraseña' }),
+    );
+    expect(clave()).toHaveAttribute('type', 'password');
+  });
+
+  it('el botón no envía el formulario y el envío usa lo escrito', async () => {
+    const usuario = userEvent.setup();
+    const { onEnviar } = montar();
+    await usuario.type(correo(), 'ana@despacho.mx');
+    await usuario.type(clave(), 'Cuadra-2026');
+    await usuario.click(
+      screen.getByRole('button', { name: 'Mostrar contraseña' }),
+    );
+    expect(onEnviar).not.toHaveBeenCalled();
+    await usuario.click(screen.getByRole('button', { name: 'Entrar' }));
+    await waitFor(() =>
+      expect(onEnviar).toHaveBeenCalledWith({
+        email: 'ana@despacho.mx',
+        password: 'Cuadra-2026',
+      }),
+    );
+  });
+});

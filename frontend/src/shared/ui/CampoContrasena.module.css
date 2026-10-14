@@ -1,0 +1,26 @@
+/*
+ * Botón de mostrar u ocultar la contraseña. Medidas de Main.dc.html (.vbtn).
+ * Solo tokens de rol.
+ */
+.boton {
+  min-inline-size: var(--touch-min);
+  min-block-size: var(--touch-min);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-link);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.boton:hover {
+  color: var(--color-link-hover);
+}
+
+.boton:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}

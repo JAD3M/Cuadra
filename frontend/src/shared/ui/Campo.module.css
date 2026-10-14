@@ -29,6 +29,25 @@
   font-size: var(--text-lg);
 }
 
+.envoltura,
+.conAccion {
+  position: relative;
+  min-inline-size: 0;
+}
+
+/* Espacio del botón de acción (Main.dc.html, .ver input). */
+.conAccion .control {
+  padding-inline-end: calc(var(--space-16) * 6);
+}
+
+.accion {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: var(--space-4);
+  display: flex;
+  transform: translateY(-50%);
+}
+
 .control::placeholder {
   color: var(--color-muted);
 }
