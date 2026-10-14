@@ -45,6 +45,7 @@ export const ETIQUETAS_ACCION_BITACORA: Record<AccionBitacora, string> = {
   confirmar: 'Confirmada',
   rechazar: 'Rechazada',
   acceso_denegado: 'Acceso denegado',
+  invitar: 'Invitación enviada',
 };
 
 /**
