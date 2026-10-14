@@ -41,8 +41,8 @@ Que una persona de una empresa recupere su contraseña desde un enlace de un sol
 | T1 | Migración `tokens_recuperacion` + GRANTs (incl. `UPDATE (password_hash, updated_at)` en `users`) + acciones de bitácora, entidad, espejo en frontend y pruebas de esquema y deriva | delegada | [x] |
 | T2 | Validador de política de contraseña compartido (invitaciones y recuperación) con sus pruebas | delegada | [x] |
 | T3 | Backend: pedir (respuesta uniforme, correo tras commit, límite), consultar y restablecer (consume token, actualiza contraseña, borra sesiones), integración | delegada | [x] |
-| T4 | Mockup de «olvidé mi contraseña» y «restablecer» (estados: vigente, inválido, usado, caducado, enviado) acordado por la persona usuaria | inline | [ ] |
-| T5 | Frontend: enlace desde el login, dos pantallas públicas, tests | delegada | [ ] |
+| T4 | Mockup de «olvidé mi contraseña» y «restablecer» (estados: vigente, inválido, usado, caducado, enviado) acordado por la persona usuaria | inline | [x] canvas versiones 62-63, aprobado 2026-10-14 |
+| T5 | Frontend: enlace desde el login, dos pantallas públicas, tests | delegada | [x] a57a50e, a7ebc58, cb6ecb8 |
 | T6 | Docs: `CUADRA.md`, `docs/bitacora.md` | inline | [ ] |
 
 Cada tarea cierra con un commit convencional; el hash se anota aquí.
@@ -51,6 +51,7 @@ T4 bloquea a T5.
 
 - T1: commit ff004bb "feat(auth): tabla de tokens de recuperación y acción de bitácora de plataforma"
 - T2: commit "refactor(auth): extraer la política de contraseña v1 a un validador compartido" (e874d08)
+- T5: commits a57a50e (contrato, textos, hooks, estados terminales), a7ebc58 (pantallas y rutas públicas), cb6ecb8 (enlace en el login)
 - T3: commit "feat(recuperacion): pedir, consultar y restablecer la contraseña por correo" (e2eebd2)
 
 ## Criterios de aceptación
@@ -69,3 +70,4 @@ Plan creado.
 - T1 y T3 bloqueadas por superficies fuera de lo autorizado (ver reporte): `src/plataforma/arquitectura.spec.ts` (regla AD-2), `src/plataforma/plataforma.esquema.spec.ts` (undoLastMigration), un servicio en `src/plataforma/`, y `frontend/src/features/bitacora/tonos.ts` si se agrega acción a `ACCIONES_BITACORA`.
 - T1 hecha (ff004bb): migración `1790709600000-TokensRecuperacion` (tabla clase 2, CHECK de una sola cuenta, un índice vivo por cuenta, GRANTs por columna incl. `UPDATE (password_hash, updated_at)` en `users`, `restablecer_contrasena` en el CHECK de plataforma), entidad, espejo en frontend, lista blanca AD-2 y specs de esquema, deriva y reversibilidad. Desviación: la migración se escribió antes que las pruebas de esquema (no se observó RED).
 - T3 hecha: módulo `src/recuperacion/` (POST pedir con `@Limite` y `contarExitos`, GET estado, POST restablecer) y `RecuperacionPlataforma` en `src/plataforma/` para la cuenta del dueño (AD-2). Si el mismo correo existe en los dos mundos, cada cuenta recibe su propio correo y enlace. Un fallo de envío se registra y no cambia la respuesta (un error delataría la cuenta). El enlace del correo es `<ORIGEN_AUTORIZADO>/recuperar/<token>`: T4/T5 deben usar esa ruta. Nota técnica: `qr.query` de TypeORM devuelve `[filas, n]` en UPDATE/DELETE, por eso se verifica con SELECT ... FOR UPDATE antes de actualizar.
+- T5 hecha: `/recuperar` y `/recuperar/:token` públicas sin guarda (como la invitación: no redirigen con sesión viva; restablecer no abre sesión y ofrece ir al login). Pedir muestra siempre `enviado`; alerta solo en red/429/5xx. Un 410 al guardar relee el enlace para mostrar su motivo. El enlace del login entra por un slot `enlaceOlvido` de `FormularioLogin` para que siga sin importar el enrutador. Reutiliza `LARGO_MINIMO_CONTRASENA` de invitaciones. Textos y estados tal cual el mockup; único añadido: «Enviando…» / «Guardando…» mientras hay petición. Verificado: typecheck, lint y 4155 pruebas verdes (RED observado antes de implementar).
