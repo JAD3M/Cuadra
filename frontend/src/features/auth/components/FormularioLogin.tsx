@@ -6,6 +6,7 @@ import { esquemaLogin, type ValoresLogin } from '@/features/auth/esquemaLogin';
 import { AlertaError } from '@/shared/ui/AlertaError';
 import { Button } from '@/shared/ui/Button';
 import { Campo } from '@/shared/ui/Campo';
+import { CampoContrasena } from '@/shared/ui/CampoContrasena';
 import estilos from './FormularioLogin.module.css';
 
 /**
@@ -123,9 +124,8 @@ export function FormularioLogin({
         error={errors.email?.message}
         {...register('email')}
       />
-      <Campo
+      <CampoContrasena
         etiqueta="Contraseña"
-        type="password"
         autoComplete="current-password"
         error={errors.password?.message}
         aria-describedby={fallo ? idAlerta : undefined}

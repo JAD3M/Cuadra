@@ -12,6 +12,7 @@ import { ControlTema } from '@/shared/tema';
 import { AlertaError } from '@/shared/ui/AlertaError';
 import { Button } from '@/shared/ui/Button';
 import { Campo } from '@/shared/ui/Campo';
+import { CampoContrasena } from '@/shared/ui/CampoContrasena';
 import { Card } from '@/shared/ui/Card';
 import { EstadoChip, TONOS_ESTADO_CHIP } from '@/shared/ui/EstadoChip';
 import { Monto } from '@/shared/ui/Monto';
@@ -175,7 +176,7 @@ export function KitPage({ muestraShell }: KitPageProps) {
             type="email"
             defaultValue="tapia@despacho.mx"
           />
-          <Campo etiqueta="Contraseña" type="password" placeholder="••••••••" />
+          <CampoContrasena etiqueta="Contraseña" placeholder="••••••••" />
           <Campo
             etiqueta="Correo con error"
             type="email"

@@ -51,3 +51,24 @@ export const TEXTOS_ALTA_EMPRESA = {
   creadaDetalle: (razonSocial: string) =>
     `${razonSocial} ya aparece en la lista.`,
 } as const;
+
+/** Invitar al administrador (mockup `Plataforma.dc.html`, historia 1.5). */
+export const TEXTOS_INVITAR = {
+  columnaAcciones: 'Acciones',
+  boton: 'Invitar administrador',
+  etiquetaBoton: (razonSocial: string) =>
+    `Invitar administrador de ${razonSocial}`,
+  titulo: (razonSocial: string) => `Invitar administrador de ${razonSocial}`,
+  etiquetaCorreo: 'Correo del administrador',
+  ayudaCorreo: 'La persona recibirá un enlace válido por 7 días.',
+  correoInvalido: 'Escribe un correo válido.',
+  enviar: 'Enviar invitación',
+  enviando: 'Enviando…',
+  cancelar: 'Cancelar',
+  enviadaTitulo: (correo: string) => `Invitación enviada a ${correo}.`,
+  enviadaDetalle: 'El enlace vence en 7 días.',
+  sinServicioTitulo: 'No se pudo enviar el correo.',
+  sinServicioDetalle: 'Inténtalo de nuevo.',
+  limiteTitulo: 'Demasiadas invitaciones.',
+  limiteDetalle: 'Espera unos minutos e inténtalo de nuevo.',
+} as const;
