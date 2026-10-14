@@ -20,9 +20,34 @@ export const TEXTOS_PLATAFORMA = {
   cerrarSesion: 'Cerrar sesión',
   tituloEmpresas: 'Empresas',
   subtituloEmpresas:
-    'Todas las empresas de la plataforma, con su RFC y su estado.',
+    'Todas las empresas de la plataforma, con su nombre y su RFC.',
   listaEmpresas: 'Lista de empresas',
   vacioTitulo: 'Aún no hay empresas',
-  vacioDetalle:
-    'Cuando haya empresas, aparecerán aquí con su nombre, su RFC y su estado.',
+  vacioDetalle: 'Cuando haya empresas, aparecerán aquí con su nombre y su RFC.',
+  columnaRazonSocial: 'Razón social',
+  columnaRfc: 'RFC',
+} as const;
+
+/** Alta de empresa (mockup `Plataforma.dc.html`, historia 1.4). */
+export const TEXTOS_ALTA_EMPRESA = {
+  crear: 'Crear empresa',
+  creando: 'Creando…',
+  titulo: 'Nueva empresa',
+  cancelar: 'Cancelar',
+  etiquetaRazonSocial: 'Razón social',
+  etiquetaRfc: 'RFC',
+  ayudaRfc: '12 o 13 caracteres. Se guarda en mayúsculas y sin espacios.',
+  razonVacia: 'Escribe la razón social',
+  rfcVacio: 'Escribe el RFC',
+  razonInvalida:
+    'La razón social no puede ir vacía ni pasar de 255 caracteres.',
+  rfcFormato:
+    'El RFC no tiene un formato válido: debe tener 12 o 13 caracteres (3 o 4 letras, fecha AAMMDD y homoclave).',
+  rfcGenerico:
+    'Este RFC es genérico (público en general o extranjero) y no puede usarse para una empresa.',
+  duplicadoTitulo: 'Ese RFC ya pertenece a otra empresa',
+  duplicadoDetalle: 'No se creó nada. Revisa el RFC e inténtalo de nuevo.',
+  creadaTitulo: 'Empresa creada',
+  creadaDetalle: (razonSocial: string) =>
+    `${razonSocial} ya aparece en la lista.`,
 } as const;

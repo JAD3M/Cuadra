@@ -44,3 +44,28 @@
   border-radius: var(--radius-md);
   background: var(--color-selected);
 }
+
+/* Tabla con datos: la tarjeta de la lista, sin partir nunca el RFC. */
+.tabla {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-sidebar);
+  overflow: hidden;
+  min-inline-size: 0;
+}
+
+.sinPartir {
+  white-space: nowrap;
+}
+
+.rfc {
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-field);
+  white-space: nowrap;
+}
+
+.crear {
+  margin-block-start: var(--space-8);
+  min-block-size: var(--control-height);
+  font-size: var(--text-base);
+}
