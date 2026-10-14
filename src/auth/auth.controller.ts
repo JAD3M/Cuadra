@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   Param,
@@ -46,6 +47,18 @@ import {
   RespuestaLoginDto,
 } from './dto/respuestas.dto';
 import type { UsuarioAutenticado } from './tipos';
+
+/**
+ * Estrecha el tipo: estas rutas no declaran `@Scope('plataforma')`, así que
+ * `SesionCookieGuard` ya cortó (403) cualquier sesión de plataforma antes de
+ * llegar aquí. Si algún día no lo hiciera, falla cerrado.
+ */
+function soloEmpresa(
+  usuario: UsuarioAutenticado,
+): Exclude<UsuarioAutenticado, { scope: 'plataforma' }> {
+  if (usuario.scope === 'plataforma') throw new ForbiddenException();
+  return usuario;
+}
 
 @ApiTags('auth')
 @Controller('auth')
@@ -119,7 +132,9 @@ export class AuthController {
   async empresas(
     @UsuarioActual() usuario: UsuarioAutenticado,
   ): Promise<EmpresaDisponibleDto[]> {
-    return await this.authService.consultarCompanies(usuario.userId);
+    return await this.authService.consultarCompanies(
+      soloEmpresa(usuario).userId,
+    );
   }
 
   @Post('empresa/:id')
@@ -147,13 +162,14 @@ export class AuthController {
     @Param('id', ParseUUIDPipe) companyId: string,
     @Res({ passthrough: true }) respuesta: Response,
   ): Promise<ContextoSesionDto> {
+    const { userId, sesionId } = soloEmpresa(usuario);
     const token = await this.authService.seleccionarEmpresa(
-      usuario.userId,
-      usuario.sesionId,
+      userId,
+      sesionId,
       companyId,
     );
     fijarCookieSesion(respuesta, token);
-    return await this.authService.contexto(usuario.userId, companyId);
+    return await this.authService.contexto(userId, companyId);
   }
 
   @Post('logout')

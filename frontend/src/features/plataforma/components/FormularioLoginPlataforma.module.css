@@ -1,0 +1,35 @@
+/*
+ * Acceso de plataforma. Medidas de Plataforma.dc.html (formulario de 420 px,
+ * separación de 22 px, botón de 52 px). La etiqueta va en el naranja del chip.
+ */
+.formulario {
+  inline-size: 100%;
+  max-inline-size: var(--auth-form-width);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-22);
+}
+
+.encabezado {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.etiqueta {
+  font-size: var(--text-sm);
+  color: var(--estado-sin-match-text);
+  letter-spacing: var(--tracking-label-wide);
+  text-transform: uppercase;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-title-lg);
+  letter-spacing: var(--tracking-tight);
+}
+
+.entrar {
+  min-block-size: var(--control-height-lg);
+  font-size: var(--text-lg);
+}

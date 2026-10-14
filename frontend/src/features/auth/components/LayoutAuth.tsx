@@ -11,6 +11,11 @@ export interface LayoutAuthProps {
    * layout es el landmark principal. La galería usa `div` para no repetirlo.
    */
   como?: 'main' | 'div';
+  /**
+   * Panel de marca. Por omisión el de la empresa; el acceso de plataforma
+   * pasa el suyo (misma disposición, otro titular).
+   */
+  panel?: ReactNode;
 }
 
 /**
@@ -22,12 +27,11 @@ export function LayoutAuth({
   controlTema,
   children,
   como: Elemento = 'main',
+  panel = <PanelMarca />,
 }: LayoutAuthProps) {
   return (
     <Elemento className={estilos.layout}>
-      <div className={estilos.marca}>
-        <PanelMarca />
-      </div>
+      <div className={estilos.marca}>{panel}</div>
       <div className={estilos.formulario}>
         <div className={estilos.tema}>{controlTema}</div>
         <div className={estilos.contenido}>{children}</div>

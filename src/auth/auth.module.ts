@@ -3,12 +3,11 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../users/user.entity';
-import { PasswordHasher } from './password';
 import { UserCompanyRole } from '../companies/user-company-role.entity';
 import { APP_GUARD } from '@nestjs/core';
 import { SesionCookieGuard } from './guards/sesion-cookie.guard';
-import { Sesion } from './sesion.entity';
-import { SesionesService } from './sesiones.service';
+import { SesionesModule } from './sesiones.module';
+import { PlataformaModule } from '../plataforma/plataforma.module';
 import { RolesGuard } from './guards/roles.guard';
 import { AccesosDenegados } from '../bitacora/accesos-denegados';
 import { ContextoEmpresaModule } from '../database/contexto-empresa.module';
@@ -19,8 +18,6 @@ import { OrigenGuard } from '../origen/origen.guard';
   controllers: [AuthController],
   providers: [
     AuthService,
-    SesionesService,
-    PasswordHasher,
     AccesosDenegados,
     // Globales y en este orden: primero el origen (barato, sin Redis: una
     // petición de otro origen nunca consume el contador del login), luego el
@@ -37,7 +34,11 @@ import { OrigenGuard } from '../origen/origen.guard';
     LimiteModule,
     // TransaccionEmpresa: RolesGuard escribe en la bitácora antes del interceptor.
     ContextoEmpresaModule,
-    TypeOrmModule.forFeature([User, UserCompanyRole, Sesion]),
+    // Sesiones y hash compartidos con el login de plataforma.
+    SesionesModule,
+    // AD-5: el guard de sesión registra ahí los cruces entre mundos.
+    PlataformaModule,
+    TypeOrmModule.forFeature([User, UserCompanyRole]),
   ],
 })
 export class AuthModule {}

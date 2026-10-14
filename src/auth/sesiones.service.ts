@@ -85,6 +85,29 @@ export class SesionesService {
     return { token, sesion };
   }
 
+  /**
+   * Sesión de tipo `plataforma` (AD-5): sin `user_id` ni `company_id`, solo
+   * la cuenta del dueño. Mismo token opaco y mismos 8 h que la de empresa.
+   */
+  async crearPlataforma(
+    plataformaUsuarioId: string,
+  ): Promise<{ token: string; sesion: Sesion }> {
+    const token = nuevoToken();
+    const ahora = new Date();
+    const sesion = await this.repositorio.save(
+      this.repositorio.create({
+        userId: null,
+        plataformaUsuarioId,
+        tipo: 'plataforma',
+        companyId: null,
+        tokenHash: huellaDeToken(token),
+        ultimaActividad: ahora,
+        expiraEn: new Date(ahora.getTime() + DURACION_SESION_MS),
+      }),
+    );
+    return { token, sesion };
+  }
+
   /** Solo sesiones vigentes: una vencida es como si no existiera. */
   async buscarPorToken(token: string): Promise<Sesion | null> {
     return await this.repositorio.findOne({

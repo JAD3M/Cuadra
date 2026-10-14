@@ -5,6 +5,53 @@
 
 ### 13 oct 2026
 
+- **Historia 1.3 de la v2: pantalla interna del dueño de Cuadra (KAN-118,
+  FR-67 parte, AD-2, AD-5).** Rama `feat/v2-1-3-pantalla-dueno` con ODD, cuatro
+  tareas de backend. Frontend bloqueado hasta que el mockup de la pantalla
+  interna exista y se acuerde (UX-DR1, UX-DR9):
+  - **T1 `1beabe6`:** `plataforma_usuarios` y `bitacora_plataforma` (clase 3,
+    sin RLS; la bitácora solo `SELECT` e `INSERT`). `sesiones` gana
+    `plataforma_usuario_id` con FK y `ck_sesiones_sujeto_por_tipo`: `user_id`
+    o `plataforma_usuario_id` según el tipo (decisión de la persona usuaria).
+  - **T2 `21d8789`:** `npm run sembrar:dueno` con `DUENO_CORREO` y
+    `DUENO_PASSWORD`. Mínimo de 12 caracteres, solo en esta siembra (decisión
+    de la persona usuaria; el repo no tenía regla). Se niega si la tabla ya
+    tiene filas y no existe ningún endpoint de alta.
+  - **T3 `d0cefca`:** login y cierre bajo `/plataforma`, mismo 401 genérico y
+    límite; una sesión empresa en `/plataforma/*` y una plataforma en una ruta
+    de empresa responden 403 y quedan en `bitacora_plataforma`. CHECK de
+    acciones (AD-7) con su espejo en el frontend. Una sesión plataforma nunca
+    abre transacción de empresa (spy en el interceptor). Reemplaza el 401 de
+    la 1.1 para sesiones `plataforma`.
+  - **T4 `b0ea1c6`:** prueba de arquitectura: falla si un módulo fuera de
+    `plataforma/` nombra las tablas o entidades de clase 3 (lista blanca por
+    archivo y nombre; migraciones y comentarios fuera).
+  - **T6b `f5786b6`:** `GET /plataforma/auth/me` para restaurar la sesión del
+    dueño al recargar; 401 si el dueño está inactivo y sin escritura en la
+    bitácora al leer.
+  - **T6c `ce3c509`:** frontend de plataforma según el mockup acordado
+    (artboards 10 y 11 del canvas): `/plataforma/login` y `/plataforma`, sesión
+    propia separada de la de empresa, `RutaPlataforma`, textos de error
+    propios. Corrección: el proveedor de sesión de empresa ya no se monta en
+    `/plataforma`, porque pedía `/auth/contexto` con la cookie del dueño y
+    dejaba un acceso denegado en cada carga.
+- **Flujo:** `CLAUDE.md` pasa toda la implementación de una historia (backend
+  y frontend) a ODD, con PR al terminar la historia.
+- **Revisión nativa:** T1 a T3 salieron de riesgo alto (autenticación) y la
+  persona usuaria declinó esa revisión. T4 quedó bajo presupuesto. T6b y T6c
+  (riesgo alto) se revisaron con 4 lentes y quedaron aprobadas; los hallazgos
+  no bloqueantes de T6c están en el documento ODD (reintentos de `/me` sin
+  espera, el cierre de sesión que oculta fallas del logout y la decisión
+  por prefijo en `Providers`). La evaluación de riesgo de T1 a T3 se corrió
+  una sola vez sobre el rango, no tras cada commit.
+- **Pendientes de la 1.3:** (a) `GET /plataforma/empresas` devuelve `[]` fijo:
+  `companies` tiene RLS FORCE y leerla sin `company_id` exigiría saltarla, se
+  resuelve en la 1.4; (b) los intentos fallidos de login del dueño no se
+  registran en `bitacora_plataforma` (sin usuario conocido; filas controladas
+  por un atacante); (c) agregar `DUENO_CORREO` y `DUENO_PASSWORD` a
+  `.env.example` a mano; (d) `npm run sembrar:dueno` no se ha ejecutado contra
+  la base de desarrollo; (e) mockup de la pantalla interna.
+
 - **Historia 1.2 de la v2: límite de peticiones y origen autorizado
   (KAN-117, FR-57, FR-58).** Rama `feat/v2-1-2-limite-y-origen`, tres tareas
   con revisión nativa aprobada (4 lentes cada una). Reemplaza la delegación

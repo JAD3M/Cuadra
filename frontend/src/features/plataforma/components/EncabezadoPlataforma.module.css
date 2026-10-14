@@ -1,0 +1,27 @@
+/* Encabezado de la pantalla interna (Plataforma.dc.html). Solo tokens de rol. */
+.encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-16);
+  padding: var(--space-16) var(--space-32);
+  border-block-end: 1px solid var(--color-border-subtle);
+  background: var(--color-sidebar);
+}
+
+.marca {
+  display: flex;
+  flex-grow: 1;
+  min-inline-size: 0;
+}
+
+.tema {
+  min-inline-size: 0;
+}
+
+.correo {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--text-md);
+  color: var(--color-text-secondary);
+}
