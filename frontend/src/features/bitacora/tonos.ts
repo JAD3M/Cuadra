@@ -18,4 +18,5 @@ export const TONOS_ACCION: Readonly<Record<AccionBitacora, TonoAccion>> = {
   confirmar: 'conciliado',
   rechazar: 'sin_match',
   acceso_denegado: 'denegado',
+  invitar: 'neutral',
 };
