@@ -1,5 +1,5 @@
 // src/correo/correo.module.ts
-import { Global, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AdaptadorSmtp } from './adaptador-smtp';
 import { CorreoSimulado } from './correo-simulado';
@@ -38,7 +38,6 @@ export function crearProveedorCorreo(config: ConfigService): ProveedorCorreo {
   return new CorreoSimulado();
 }
 
-@Global()
 @Module({
   providers: [
     {

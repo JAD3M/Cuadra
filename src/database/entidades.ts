@@ -28,6 +28,7 @@ export const ENTIDADES = [
   Bitacora,
   SugerenciaIa,
   Sesion,
+  Invitacion,
   PlataformaUsuario,
   BitacoraPlataforma,
 ];
