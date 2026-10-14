@@ -17,6 +17,18 @@ export function interpretarTrustProxy(valor: unknown): boolean | number {
   return false;
 }
 
+function vacioComoFaltante<T extends z.ZodType>(esquema: T) {
+  return z.preprocess((v) => (v === '' ? undefined : v), esquema);
+}
+
+const VARIABLES_CORREO = [
+  'CORREO_SMTP_HOST',
+  'CORREO_SMTP_PORT',
+  'CORREO_SMTP_USUARIO',
+  'CORREO_SMTP_PASSWORD',
+  'CORREO_REMITENTE',
+] as const;
+
 const schema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']),
@@ -108,6 +120,18 @@ const schema = z
     LLM_MAX_LLAMADAS_POR_CORRIDA: z.coerce.number().int().min(1).default(20),
     /** Más candidatos que esto y el movimiento se omite (no se trunca). */
     LLM_CANDIDATOS_MAX: z.coerce.number().int().min(1).default(10),
+    /**
+     * Historia 1.5: correo saliente. Todo opcional (sin ellas se usa el
+     * adaptador simulado); en producción deben venir las cinco (ver el
+     * superRefine). Una cadena vacía cuenta como faltante.
+     */
+    CORREO_SMTP_HOST: vacioComoFaltante(z.string().min(1).optional()),
+    CORREO_SMTP_PORT: vacioComoFaltante(
+      z.coerce.number().int().min(1).max(65535).optional(),
+    ),
+    CORREO_SMTP_USUARIO: vacioComoFaltante(z.string().min(1).optional()),
+    CORREO_SMTP_PASSWORD: vacioComoFaltante(z.string().min(1).optional()),
+    CORREO_REMITENTE: vacioComoFaltante(z.string().min(1).optional()),
   })
   // Con el mismo usuario, la app correría como dueño (superusuario en Docker)
   // y RLS no aplicaría, sin que nada falle.
@@ -129,7 +153,21 @@ const schema = z
       path: ['LLM_PROVEEDOR'],
       message: "'simulado' no esta permitido con NODE_ENV=production",
     },
-  );
+  )
+  // En producción el correo no puede quedar simulado: se nombran TODAS las
+  // variables faltantes, nunca sus valores.
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV !== 'production') return;
+    for (const variable of VARIABLES_CORREO) {
+      if (env[variable] === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [variable],
+          message: 'es obligatoria con NODE_ENV=production',
+        });
+      }
+    }
+  });
 
 export type Env = z.infer<typeof schema>;
 

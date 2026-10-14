@@ -8,6 +8,13 @@ export interface OpcionesLimite {
   intentos: number;
   /** Duración de la ventana, en segundos. */
   ventanaS: number;
+  /**
+   * Cuenta también las respuestas 2xx: con `true` el intento reservado no se
+   * devuelve al terminar bien, así que cada envío exitoso consume el tope. Es
+   * para rutas que producen un efecto externo (invitar manda un correo) y no
+   * deben dispararse sin fin. Por defecto, `false`: solo cuentan los fallos.
+   */
+  contarExitos?: boolean;
 }
 
 /**
@@ -24,6 +31,8 @@ export interface OpcionesLimite {
  * - Cuenta los intentos que no terminan en 2xx (401, 400, 403...). Uno
  *   correcto no consume: se reserva antes del handler y se devuelve al
  *   terminar bien, así que adivinar en paralelo no esquiva el tope.
+ * - Con `contarExitos: true` el intento tampoco se devuelve en un 2xx: la
+ *   ruta cuenta cada petición, buena o mala.
  * - Con el tope superado responde 429 con `Retry-After`; con Redis caído
  *   responde 503 (falla cerrada).
  * - Cada ruta lleva su contador: la clave usa controlador y handler, no la

@@ -209,7 +209,15 @@ describe('validateEnv (CU-01.3)', () => {
 
       it('anthropic en production sigue permitido', () => {
         expect(
-          validateEnv({ ...VALIDO, NODE_ENV: 'production' }).LLM_PROVEEDOR,
+          validateEnv({
+            ...VALIDO,
+            NODE_ENV: 'production',
+            CORREO_SMTP_HOST: 'smtp.example',
+            CORREO_SMTP_PORT: '587',
+            CORREO_SMTP_USUARIO: 'usuario',
+            CORREO_SMTP_PASSWORD: 'secreto',
+            CORREO_REMITENTE: 'no-responder@cuadra.example',
+          }).LLM_PROVEEDOR,
         ).toBe('anthropic');
       });
     });
@@ -217,6 +225,60 @@ describe('validateEnv (CU-01.3)', () => {
     it('no existe LLM_FALLBACK_SERVIDOR: no hay respaldo del lado del servidor', () => {
       const env = validateEnv({ ...VALIDO, LLM_FALLBACK_SERVIDOR: 'true' });
       expect(env).not.toHaveProperty('LLM_FALLBACK_SERVIDOR');
+    });
+  });
+  describe('correo (historia 1.5)', () => {
+    const CORREO = {
+      CORREO_SMTP_HOST: 'smtp.example',
+      CORREO_SMTP_PORT: '587',
+      CORREO_SMTP_USUARIO: 'usuario',
+      CORREO_SMTP_PASSWORD: 'secreto',
+      CORREO_REMITENTE: 'no-responder@cuadra.example',
+    };
+    const PRODUCCION = { ...VALIDO, NODE_ENV: 'production' };
+
+    it('fuera de producción no exige ninguna', () => {
+      expect(() => validateEnv(VALIDO)).not.toThrow();
+      expect(() =>
+        validateEnv({ ...VALIDO, NODE_ENV: 'development' }),
+      ).not.toThrow();
+    });
+
+    it('producción con todas: las acepta y convierte el puerto', () => {
+      const env = validateEnv({ ...PRODUCCION, ...CORREO });
+      expect(env.CORREO_SMTP_PORT).toBe(587);
+    });
+
+    it('producción sin ninguna: nombra todas', () => {
+      let mensaje = '';
+      try {
+        validateEnv(PRODUCCION);
+      } catch (e) {
+        mensaje = (e as Error).message;
+      }
+      for (const variable of Object.keys(CORREO)) {
+        expect(mensaje).toContain(variable);
+      }
+    });
+
+    it('producción con una faltante: nombra solo esa y no imprime valores', () => {
+      const parcial: Record<string, string> = { ...PRODUCCION, ...CORREO };
+      delete parcial.CORREO_SMTP_USUARIO;
+      let mensaje = '';
+      try {
+        validateEnv(parcial);
+      } catch (e) {
+        mensaje = (e as Error).message;
+      }
+      expect(mensaje).toContain('CORREO_SMTP_USUARIO');
+      expect(mensaje).not.toContain('CORREO_SMTP_HOST');
+      expect(mensaje).not.toContain('secreto');
+    });
+
+    it('trata la cadena vacía como faltante', () => {
+      expect(() =>
+        validateEnv({ ...PRODUCCION, ...CORREO, CORREO_SMTP_PASSWORD: '' }),
+      ).toThrow(/CORREO_SMTP_PASSWORD/);
     });
   });
 });

@@ -85,6 +85,8 @@ export type ResultadoSugerencia = (typeof RESULTADOS_SUGERENCIA)[number];
 /**
  * 'acceso_denegado' (CU-03.3): un 403 por rol o por membresía. `entidad` es
  * 'companies' y `entidad_id` la empresa a la que se intentó entrar.
+ * 'invitar' (historia 1.5): el dueño invitó a alguien a la empresa. `entidad`
+ * es 'companies', `user_id` queda nulo y el dueño va en `datos`.
  */
 export const ACCIONES_BITACORA = [
   'crear',
@@ -94,6 +96,7 @@ export const ACCIONES_BITACORA = [
   'confirmar',
   'rechazar',
   'acceso_denegado',
+  'invitar',
 ] as const;
 export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 
@@ -116,6 +119,7 @@ export const ACCIONES_BITACORA_PLATAFORMA = [
   'iniciar_sesion_plataforma',
   'cerrar_sesion_plataforma',
   'crear_empresa',
+  'invitar',
 ] as const;
 export type AccionBitacoraPlataforma =
   (typeof ACCIONES_BITACORA_PLATAFORMA)[number];
