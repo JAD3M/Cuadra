@@ -652,6 +652,15 @@ JSONB para cuando el flujo básico ya corra.
 > las sesiones de esa cuenta y no se abre ninguna: la persona entra después
 > por el login. La ruta de pedir usa el límite de la 1.2 contando también los
 > envíos exitosos.
+>
+> Desde la historia 1.7 (14 oct 2026) el despliegue es repetible: el
+> `docker-compose.yml` por defecto es el de producción, con `api` y `worker`
+> separados (la API ya no consume las colas), Redis con `noeviction` y
+> migraciones como paso explícito (`--profile tools run --rm migrate`). Las
+> contraseñas de la base salen de `.env` y, con `NODE_ENV=production`, la API
+> no arranca con credenciales de desarrollo y nombra la variable. El desarrollo
+> usa `docker-compose.dev.yml`. Procedimiento, respaldo con restauración
+> verificada y criterio para elegir el host: [`docs/despliegue.md`](docs/despliegue.md).
 
 Una persona puede pertenecer a varias empresas (D-05). El login **no** puede
 saber a cuál va a entrar, así que el acceso se parte en dos pasos, cada uno

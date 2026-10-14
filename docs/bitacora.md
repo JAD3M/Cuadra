@@ -5,6 +5,26 @@
 
 ### 14 oct 2026
 
+- **Historia 1.7 de la v2: levantar Cuadra en un entorno limpio, con secretos
+  fuera del repositorio (KAN-122, FR-56, FR-60, AD-16, AD-17).** Rama
+  `feat/v2-1-7-entorno-limpio` con ODD, desde `master` en `b12d11a`:
+  - **T1 `510dbe0`:** con `NODE_ENV=production` se rechazan las contraseñas
+    de desarrollo en `DATABASE_URL` y `DATABASE_APP_URL`, nombrando la variable
+    sin imprimir el valor; `.dockerignore` endurecido.
+  - **T2 `3c0d482`:** `src/worker.ts`; la API de producción ya no consume las
+    colas (`PROCESAR_COLAS`).
+  - **T3 `0375484`:** `Dockerfile` de producción, `docker-compose.yml` con
+    `worker`, Redis `noeviction`, paso `migrate` (perfil `tools`) y secretos
+    obligatorios; `docker-compose.dev.yml` para desarrollo.
+  - **T4 `7a7f4a3`:** `scripts/respaldo/` con respaldo y restauración que
+    compara el conteo de filas; probado con 16 tablas iguales y con una
+    diferencia provocada que sale con 1.
+  - **T5:** `docs/despliegue.md` con el procedimiento y el criterio para
+    elegir el host; README y `CUADRA.md` al día.
+  - **Desviaciones:** compose de desarrollo como archivo propio y no como
+    override (Compose evalúa `${VAR:?}` por archivo); T2 sin RED observado.
+  - **Pendiente:** CI no construye la imagen ni prueba el respaldo.
+
 - **Historia 1.6 de la v2: recuperar la contraseña por correo (KAN-121,
   FR-43, FR-44, AD-6, AD-14).** Rama `feat/v2-1-6-recuperar-contrasena` con
   ODD, desde `master` en `5bdb4f7`:

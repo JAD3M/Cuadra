@@ -44,7 +44,7 @@ Que cualquier persona levante Cuadra completa en una máquina limpia con Docker 
 | T2 | Worker: bootstrap propio, la API no consume colas, pruebas | delegada | [x] `3c0d482` |
 | T3 | Compose y `Dockerfile` de producción: servicio `worker`, `noeviction` explícito, paso `migrate`, healthcheck de la API | delegada | [x] `0375484` |
 | T4 | Scripts de respaldo y restauración con conteo de filas, probados contra la base local | delegada | [x] `7a7f4a3` |
-| T5 | Docs: procedimiento de despliegue, criterio del host, `README.md`, `CUADRA.md`, `docs/bitacora.md` | inline | [ ] |
+| T5 | Docs: procedimiento de despliegue, criterio del host, `README.md`, `CUADRA.md`, `docs/bitacora.md` | inline | [x] commit de docs |
 
 Cada tarea cierra con un commit convencional; el hash se anota aquí. El `format:check` del frontend y del backend entra en la verificación de cada escritor.
 
