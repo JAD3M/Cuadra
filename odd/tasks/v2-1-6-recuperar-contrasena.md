@@ -51,7 +51,7 @@ T4 bloquea a T5.
 
 - T1: commit ff004bb "feat(auth): tabla de tokens de recuperación y acción de bitácora de plataforma"
 - T2: commit "refactor(auth): extraer la política de contraseña v1 a un validador compartido" (e874d08)
-- T3: commit "feat(recuperacion): pedir, consultar y restablecer la contraseña por correo" (hash en Progreso)
+- T3: commit "feat(recuperacion): pedir, consultar y restablecer la contraseña por correo" (e2eebd2)
 
 ## Criterios de aceptación
 
