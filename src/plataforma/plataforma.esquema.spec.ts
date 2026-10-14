@@ -241,8 +241,27 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 });
 
 describe('migración reversible', () => {
-  it('down y up de CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
-    // La última es CrearEmpresas: quita la columna, el GRANT y `crear_empresa`.
+  it('down y up de Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
+    // La última es Invitaciones: quita la tabla, los GRANT por columna y
+    // `invitar` de los dos CHECK.
+    await duenio.undoLastMigration();
+    const { n: invitaciones } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM information_schema.tables
+        WHERE table_schema='public' AND table_name = 'invitaciones'`,
+    );
+    expect(invitaciones).toBe(0);
+    const { ok: insertaUsuario } = await una<{ ok: boolean }>(
+      duenio,
+      `SELECT has_column_privilege('cuadra_app', 'users', 'email', 'INSERT') AS ok`,
+    );
+    expect(insertaUsuario).toBe(false);
+    await expect(
+      duenio.query(
+        `INSERT INTO bitacora_plataforma (accion) VALUES ('invitar')`,
+      ),
+    ).rejects.toThrow(/ck_bitacora_plataforma_accion/);
+    // Luego CrearEmpresas: quita la columna, el GRANT y `crear_empresa`.
     await duenio.undoLastMigration();
     const { n: columnas } = await una<{ n: number }>(
       duenio,

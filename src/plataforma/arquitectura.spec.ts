@@ -23,6 +23,8 @@ const LISTA_BLANCA: ListaBlanca = {
   'database/esquema.spec.ts': ['plataforma_usuarios', 'bitacora_plataforma'],
   // Relación por nombre en string, sin importar la clase (sin ciclo).
   'auth/sesion.entity.ts': ['PlataformaUsuario'],
+  // Relación por nombre en string, como Sesion: quién invitó (historia 1.5).
+  'auth/invitacion.entity.ts': ['PlataformaUsuario'],
   // Fixture que inserta un dueño para probar la sesión de plataforma.
   'auth/auth.integracion.spec.ts': ['plataforma_usuarios'],
 };

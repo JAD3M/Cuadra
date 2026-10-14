@@ -71,6 +71,7 @@ export const ACCIONES_BITACORA = [
   'confirmar',
   'rechazar',
   'acceso_denegado',
+  'invitar',
 ] as const;
 export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 
@@ -82,6 +83,7 @@ export const ACCIONES_BITACORA_PLATAFORMA = [
   'iniciar_sesion_plataforma',
   'cerrar_sesion_plataforma',
   'crear_empresa',
+  'invitar',
 ] as const;
 export type AccionBitacoraPlataforma =
   (typeof ACCIONES_BITACORA_PLATAFORMA)[number];
