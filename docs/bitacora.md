@@ -3,6 +3,43 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 14 oct 2026
+
+- **Historia 1.4 de la v2: crear una empresa con su RFC verificado (KAN-119,
+  FR-39 parte, FR-49, AD-2, AD-5, AD-7, AD-13).** Rama
+  `feat/v2-1-4-crear-empresa` con ODD, desde `master` en `e6cde86`:
+  - **T1 `85c719e`:** `src/common/rfc.ts` (`normalizarRfc`, `validarRfc`).
+    Rechaza `XAXX010101000` y `XEXX010101000` al crear una empresa (decisión de
+    la persona usuaria); dentro de un CFDI siguen siendo válidos. Solo valida
+    la forma: no consulta al SAT ni calcula el dígito verificador.
+  - **T2 `341597b`:** migración `CrearEmpresas`: `companies.separacion_funciones`
+    (`NOT NULL DEFAULT true`), `GRANT INSERT (rfc, razon_social)` por columnas
+    y la acción `crear_empresa` en el CHECK de `bitacora_plataforma`, con su
+    espejo en el frontend.
+  - **T3 `92e432d`:** `POST` y `GET /plataforma/empresas`. El RFC se normaliza
+    en el servidor; 400 que nombra el problema (formato o genérico) y 409 si ya
+    existe (pre-chequeo más `23505`, también ante altas concurrentes). Un solo
+    INSERT con las columnas concedidas, `set_config('app.company_id', …)` y
+    las dos bitácoras en la misma transacción: si cualquiera falla, no se crea
+    nada. En `bitacora` de empresa `user_id` queda NULL y el id del dueño va
+    en `datos`.
+  - **T4 `4376b7d`:** mockup acordado (artboards 10 y 11): formulario inline
+    con razón social y RFC, tabla de dos columnas **sin estado** (decisión de
+    la persona usuaria; se agrega a la API si algún día hace falta).
+  - **T5 `fae968d`, `dc98823`:** frontend de la lista y el alta. La validación
+    del navegador es solo una ayuda: el servidor decide; el texto del servidor
+    nunca se muestra, el mensaje se deriva de los valores enviados.
+- **Corrección a la 1.3:** `companies` **no** tiene RLS (queda fuera por
+  `AislamientoRls.ts`); la lista salía vacía porque `cuadra_app` solo tenía
+  `SELECT` y faltaba el `GRANT INSERT` por columnas. El comentario del
+  controlador ya está corregido.
+- **Barra lateral fija (`a2332f5`):** en pantallas de 900 px o más la barra del
+  shell queda `sticky` a la altura de la ventana y desplaza solo su propio
+  contenido. Los mockups de la app se actualizaron igual, y se les agregó
+  «Cerrar sesión» y el selector de tema donde faltaban.
+- **Pendiente:** el RFC no se valida contra el SAT; el estado de la empresa en
+  la lista; invitar al primer administrador es la 1.5.
+
 ### 13 oct 2026
 
 - **Historia 1.3 de la v2: pantalla interna del dueño de Cuadra (KAN-118,
