@@ -57,6 +57,15 @@ class ControladorDePrueba {
     throw new UnauthorizedException('No autorizado');
   }
 
+  /** Cuenta también los 2xx: cada envío exitoso consume (historia 1.5). */
+  @Post('envio')
+  @HttpCode(200)
+  @Limite({ intentos: 2, ventanaS: 60, contarExitos: true })
+  envio() {
+    llamadas += 1;
+    return { ok: true };
+  }
+
   @Get('libre')
   libre() {
     return { ok: true };
@@ -162,6 +171,27 @@ describe('@Limite', () => {
     // Queda exactamente un fallo de margen.
     await fallar().expect(401);
     await fallar().expect(429);
+  });
+
+  it('con contarExitos las respuestas 2xx también consumen y al pasar el tope responde 429', async () => {
+    const envio = () => http().post('/prueba-limite/envio').send({});
+    await envio().expect(200);
+    await envio().expect(200);
+
+    const res = await envio().expect(429);
+
+    expect(res.headers['retry-after']).toBeDefined();
+    expect(llamadas).toBe(2);
+  });
+
+  it('contarExitos no cambia las rutas sin la opción: el éxito sigue sin consumir', async () => {
+    for (let i = 0; i < 5; i++) {
+      await http()
+        .post('/prueba-limite/intento')
+        .send({ ok: true })
+        .expect(200);
+    }
+    expect(llamadas).toBe(5);
   });
 
   it('el contador no pasa a negativo ni borra la ventana al devolver', async () => {
