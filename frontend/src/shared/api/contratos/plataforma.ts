@@ -29,7 +29,7 @@ export const solicitudLoginPlataforma = z.object({
   password: texto,
 });
 
-/** Empresa de la lista de `GET /plataforma/empresas` (vacía hasta la 1.4). */
+/** Empresa de la lista de `GET /plataforma/empresas`. */
 export const empresaPlataforma = z.object({
   id,
   razonSocial: texto,
@@ -38,9 +38,22 @@ export const empresaPlataforma = z.object({
 
 export const listaEmpresasPlataforma = z.array(empresaPlataforma);
 
+/**
+ * Cuerpo de `POST /plataforma/empresas` (historia 1.4). El RFC se manda ya
+ * normalizado, pero quien lo normaliza y valida de verdad es el servidor.
+ */
+export const solicitudCrearEmpresa = z.object({
+  razonSocial: texto,
+  rfc: texto,
+});
+
+/** Respuesta de `POST /plataforma/empresas`: la misma forma que una fila de la lista. */
+export const empresaCreadaPlataforma = empresaPlataforma;
+
 export type UsuarioPlataforma = z.infer<typeof usuarioPlataforma>;
 export type RespuestaSesionPlataforma = z.infer<
   typeof respuestaSesionPlataforma
 >;
 export type SolicitudLoginPlataforma = z.infer<typeof solicitudLoginPlataforma>;
 export type EmpresaPlataforma = z.infer<typeof empresaPlataforma>;
+export type SolicitudCrearEmpresa = z.infer<typeof solicitudCrearEmpresa>;
