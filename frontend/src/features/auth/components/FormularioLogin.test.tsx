@@ -99,6 +99,20 @@ describe('FormularioLogin: estructura y atributos', () => {
   });
 });
 
+describe('FormularioLogin: enlace de recuperación', () => {
+  it('muestra el enlace que recibe, bajo la contraseña, y nada si no recibe', () => {
+    const { unmount } = montar();
+    expect(screen.queryByRole('link')).toBeNull();
+    unmount();
+    montar({
+      enlaceOlvido: <a href="/recuperar">¿Olvidaste tu contraseña?</a>,
+    });
+    expect(
+      screen.getByRole('link', { name: '¿Olvidaste tu contraseña?' }),
+    ).toHaveAttribute('href', '/recuperar');
+  });
+});
+
 describe('FormularioLogin: validación', () => {
   it('un envío inválido no envía nada, muestra ambos mensajes y enfoca el primero', async () => {
     const usuario = userEvent.setup();

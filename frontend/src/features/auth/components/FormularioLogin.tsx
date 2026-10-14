@@ -42,6 +42,11 @@ export interface FormularioLoginProps {
    * página); la galería, que ya tiene su `h1`, usa `h3`.
    */
   titulo?: 'h1' | 'h3';
+  /**
+   * Enlace «¿Olvidaste tu contraseña?», ya armado: el formulario no importa
+   * el enrutador. Va bajo el campo de la contraseña.
+   */
+  enlaceOlvido?: ReactNode;
   onEnviar(valores: ValoresLogin): void;
 }
 
@@ -58,6 +63,7 @@ export function FormularioLogin({
   aviso,
   enfocarCorreo = false,
   titulo: Titulo = 'h1',
+  enlaceOlvido,
   onEnviar,
 }: FormularioLoginProps) {
   const idTitulo = useId();
@@ -131,6 +137,7 @@ export function FormularioLogin({
         aria-describedby={fallo ? idAlerta : undefined}
         {...register('password')}
       />
+      {enlaceOlvido && <div className={estilos.olvido}>{enlaceOlvido}</div>}
       <Button type="submit" disabled={pendiente} className={estilos.entrar}>
         {pendiente ? 'Entrando…' : 'Entrar'}
       </Button>

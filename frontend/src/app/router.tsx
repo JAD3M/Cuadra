@@ -11,6 +11,8 @@ import { SesionPlataformaProvider } from '@/shared/sesion/plataforma';
 import { EmpresaPage } from '@/features/auth/EmpresaPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { InvitacionPage } from '@/features/invitaciones/InvitacionPage';
+import { RestablecerContrasenaPage } from '@/features/recuperacion/RestablecerContrasenaPage';
+import { SolicitarRecuperacionPage } from '@/features/recuperacion/SolicitarRecuperacionPage';
 import { BandejaPage } from '@/features/bandeja/BandejaPage';
 import { SUBTITULO, TITULO } from '@/features/bandeja/textos';
 import { BitacoraPage } from '@/features/bitacora/BitacoraPage';
@@ -83,6 +85,18 @@ export const rutas: RouteObject[] = [
         path: '/invitacion/:token',
         element: <InvitacionPage />,
         handle: titulo('Invitación'),
+      },
+      {
+        // Públicas: ninguna guarda (como la invitación). No redirigen aunque
+        // haya una sesión viva; restablecer no abre sesión, lleva al login.
+        path: '/recuperar',
+        element: <SolicitarRecuperacionPage />,
+        handle: titulo('Recuperar contraseña'),
+      },
+      {
+        path: '/recuperar/:token',
+        element: <RestablecerContrasenaPage />,
+        handle: titulo('Nueva contraseña'),
       },
       {
         element: <RutaSeleccion />,
