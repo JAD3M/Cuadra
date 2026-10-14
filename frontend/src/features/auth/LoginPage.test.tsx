@@ -105,9 +105,8 @@ describe('LoginPage: estructura', () => {
     });
     expect(enlace).toHaveAttribute('href', '/recuperar');
     expect(
-      screen
-        .getByLabelText('Contraseña')
-        .compareDocumentPosition(enlace) & Node.DOCUMENT_POSITION_FOLLOWING,
+      screen.getByLabelText('Contraseña').compareDocumentPosition(enlace) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 

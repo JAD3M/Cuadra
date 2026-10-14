@@ -104,7 +104,9 @@ describe('FormularioLogin: enlace de recuperación', () => {
     const { unmount } = montar();
     expect(screen.queryByRole('link')).toBeNull();
     unmount();
-    montar({ enlaceOlvido: <a href="/recuperar">¿Olvidaste tu contraseña?</a> });
+    montar({
+      enlaceOlvido: <a href="/recuperar">¿Olvidaste tu contraseña?</a>,
+    });
     expect(
       screen.getByRole('link', { name: '¿Olvidaste tu contraseña?' }),
     ).toHaveAttribute('href', '/recuperar');

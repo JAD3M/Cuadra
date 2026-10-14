@@ -115,14 +115,17 @@ describe('restablecer: enlaces que no valen', () => {
     ['caducada', 'Este enlace caducó'],
     ['reemplazada', 'Este enlace fue reemplazado'],
     ['desconocida', 'No encontramos este enlace'],
-  ] as const)('%s muestra su título, sin formulario', async (motivo, esperado) => {
-    montar({ tipo: 'invalida', motivo });
-    expect(await titulo()).toHaveTextContent(esperado);
-    expect(screen.queryByLabelText('Contraseña nueva')).toBeNull();
-    expect(
-      screen.getByRole('link', { name: 'Pedir un enlace nuevo' }),
-    ).toHaveAttribute('href', '/recuperar');
-  });
+  ] as const)(
+    '%s muestra su título, sin formulario',
+    async (motivo, esperado) => {
+      montar({ tipo: 'invalida', motivo });
+      expect(await titulo()).toHaveTextContent(esperado);
+      expect(screen.queryByLabelText('Contraseña nueva')).toBeNull();
+      expect(
+        screen.getByRole('link', { name: 'Pedir un enlace nuevo' }),
+      ).toHaveAttribute('href', '/recuperar');
+    },
+  );
 
   it('solo «usada» ofrece iniciar sesión', async () => {
     montar({ tipo: 'invalida', motivo: 'usada' });

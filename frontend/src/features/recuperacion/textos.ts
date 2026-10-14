@@ -33,10 +33,7 @@ export const TEXTOS_RECUPERACION = {
 
 /** Estados terminales de las dos pantallas, con su título y su texto. */
 export type EstadoTerminalRecuperacion =
-  | 'enviado'
-  | 'exito'
-  | MotivoRecuperacionInvalida
-  | 'cuenta_desactivada';
+  'enviado' | 'exito' | MotivoRecuperacionInvalida | 'cuenta_desactivada';
 
 export const TERMINALES_RECUPERACION: Record<
   EstadoTerminalRecuperacion,
@@ -54,7 +51,8 @@ export const TERMINALES_RECUPERACION: Record<
   },
   usada: {
     titulo: 'Este enlace ya se usó',
-    texto: 'Si ya cambiaste tu contraseña, inicia sesión. Si no, pide un enlace nuevo.',
+    texto:
+      'Si ya cambiaste tu contraseña, inicia sesión. Si no, pide un enlace nuevo.',
   },
   caducada: {
     titulo: 'Este enlace caducó',

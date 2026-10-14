@@ -44,7 +44,8 @@ export function RestablecerContrasenaPage() {
               setErrorContrasena(TEXTOS_RECUPERACION.contrasenaCorta);
               return;
             }
-            if (error.statusCode === 403) return setTerminal('cuenta_desactivada');
+            if (error.statusCode === 403)
+              return setTerminal('cuenta_desactivada');
             if (error.statusCode === 404) return setTerminal('desconocida');
             // 410: el enlace dejó de valer; se vuelve a leer para conocer el
             // motivo en vez de adivinarlo.

@@ -62,7 +62,9 @@ export function EstadoTerminalRecuperacion({
           {verPedir && (
             <Link
               to="/recuperar"
-              className={estado === 'usada' ? estilos.secundaria : estilos.accion}
+              className={
+                estado === 'usada' ? estilos.secundaria : estilos.accion
+              }
             >
               {TEXTOS_RECUPERACION.pedirNuevo}
             </Link>

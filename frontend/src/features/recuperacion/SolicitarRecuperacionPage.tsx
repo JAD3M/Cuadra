@@ -27,7 +27,9 @@ export function SolicitarRecuperacionPage() {
     <FormularioSolicitar
       pendiente={solicitar.isPending}
       aviso={
-        alerta && <AlertaError titulo={alerta.titulo} detalle={alerta.detalle} />
+        alerta && (
+          <AlertaError titulo={alerta.titulo} detalle={alerta.detalle} />
+        )
       }
       onEnviar={(valores) => {
         setAlerta(null);

@@ -7,10 +7,7 @@ import { LARGO_MINIMO_CONTRASENA, TEXTOS_RECUPERACION } from './textos';
  * servidor decide y responde igual exista o no la cuenta.
  */
 export const esquemaSolicitar = z.object({
-  email: z
-    .string()
-    .trim()
-    .pipe(z.email(TEXTOS_RECUPERACION.correoInvalido)),
+  email: z.string().trim().pipe(z.email(TEXTOS_RECUPERACION.correoInvalido)),
 });
 
 /**

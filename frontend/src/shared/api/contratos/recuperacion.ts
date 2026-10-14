@@ -20,9 +20,7 @@ export const MOTIVOS_RECUPERACION_INVALIDA = [
   'desconocida',
 ] as const;
 
-export const motivoRecuperacionInvalida = z.enum(
-  MOTIVOS_RECUPERACION_INVALIDA,
-);
+export const motivoRecuperacionInvalida = z.enum(MOTIVOS_RECUPERACION_INVALIDA);
 
 /**
  * `GET /auth/recuperacion/:token`: siempre 200 con la misma forma. Vigente no
