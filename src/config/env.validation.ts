@@ -29,6 +29,24 @@ const VARIABLES_CORREO = [
   'CORREO_REMITENTE',
 ] as const;
 
+/**
+ * AD-17: contraseñas que traen el repositorio, el compose de desarrollo o el
+ * ejemplo de variables. Con NODE_ENV=production no sirven; una vacía tampoco.
+ */
+const CONTRASENAS_POR_DEFECTO = new Set([
+  'cuadra',
+  'cuadra_app',
+  'cambia-esta-contrasena',
+]);
+
+function contrasenaDeUrl(url: string): string {
+  try {
+    return decodeURIComponent(new URL(url).password);
+  } catch {
+    return '';
+  }
+}
+
 const schema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']),
@@ -158,6 +176,17 @@ const schema = z
   // variables faltantes, nunca sus valores.
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return;
+    for (const variable of ['DATABASE_URL', 'DATABASE_APP_URL'] as const) {
+      const contrasena = contrasenaDeUrl(env[variable]);
+      if (contrasena === '' || CONTRASENAS_POR_DEFECTO.has(contrasena)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [variable],
+          message:
+            'la contraseña está vacía o es una de las de desarrollo; con NODE_ENV=production debe ser propia',
+        });
+      }
+    }
     for (const variable of VARIABLES_CORREO) {
       if (env[variable] === undefined) {
         ctx.addIssue({

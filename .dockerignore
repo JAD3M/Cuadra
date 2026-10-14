@@ -1,2 +1,20 @@
+# Secretos y archivos locales: nunca entran a la imagen.
+.env
+.env.*
+
+# Control de versiones, dependencias y artefactos que la imagen reconstruye.
+.git
+.gitignore
+node_modules
+dist
+coverage
+
+# Herramientas y planeación que no son del runtime.
+.claude
+.atl
+odd
+_bmad-output
+docs
+
 # El frontend se ejecuta desde el host; no debe entrar a la imagen del API.
 frontend/

@@ -212,6 +212,10 @@ describe('validateEnv (CU-01.3)', () => {
           validateEnv({
             ...VALIDO,
             NODE_ENV: 'production',
+            DATABASE_URL:
+              'postgresql://cuadra:Xk29-largo-y-unico@db:5432/cuadra',
+            DATABASE_APP_URL:
+              'postgresql://cuadra_app:Qw81-otra-larga-unica@db:5432/cuadra',
             CORREO_SMTP_HOST: 'smtp.example',
             CORREO_SMTP_PORT: '587',
             CORREO_SMTP_USUARIO: 'usuario',
@@ -235,7 +239,13 @@ describe('validateEnv (CU-01.3)', () => {
       CORREO_SMTP_PASSWORD: 'secreto',
       CORREO_REMITENTE: 'no-responder@cuadra.example',
     };
-    const PRODUCCION = { ...VALIDO, NODE_ENV: 'production' };
+    const PRODUCCION = {
+      ...VALIDO,
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://cuadra:Xk29-largo-y-unico@db:5432/cuadra',
+      DATABASE_APP_URL:
+        'postgresql://cuadra_app:Qw81-otra-larga-unica@db:5432/cuadra',
+    };
 
     it('fuera de producción no exige ninguna', () => {
       expect(() => validateEnv(VALIDO)).not.toThrow();
@@ -280,5 +290,80 @@ describe('validateEnv (CU-01.3)', () => {
         validateEnv({ ...PRODUCCION, ...CORREO, CORREO_SMTP_PASSWORD: '' }),
       ).toThrow(/CORREO_SMTP_PASSWORD/);
     });
+  });
+  describe('credenciales por defecto (historia 1.7)', () => {
+    const CORREO = {
+      CORREO_SMTP_HOST: 'smtp.example',
+      CORREO_SMTP_PORT: '587',
+      CORREO_SMTP_USUARIO: 'usuario',
+      CORREO_SMTP_PASSWORD: 'secreto',
+      CORREO_REMITENTE: 'no-responder@cuadra.example',
+    };
+    const PRODUCCION = {
+      ...VALIDO,
+      ...CORREO,
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://cuadra:Xk29-largo-y-unico@db:5432/cuadra',
+      DATABASE_APP_URL:
+        'postgresql://cuadra_app:Qw81-otra-larga-unica@db:5432/cuadra',
+    };
+
+    it('producción con contraseñas propias: se acepta', () => {
+      expect(() => validateEnv(PRODUCCION)).not.toThrow();
+    });
+
+    it.each([
+      ['DATABASE_URL', 'cuadra'],
+      ['DATABASE_URL', 'cambia-esta-contrasena'],
+      ['DATABASE_APP_URL', 'cuadra_app'],
+      ['DATABASE_APP_URL', 'cambia-esta-contrasena'],
+      ['DATABASE_APP_URL', 'cuadra'],
+    ])(
+      'producción con %s con la contraseña por defecto %s: la nombra',
+      (variable, clave) => {
+        const url = new URL(PRODUCCION[variable as 'DATABASE_URL']);
+        url.password = clave;
+        let mensaje = '';
+        try {
+          validateEnv({ ...PRODUCCION, [variable]: url.toString() });
+        } catch (e) {
+          mensaje = (e as Error).message;
+        }
+        expect(mensaje).toMatch(
+          new RegExp(`Configuración inválida:[\\s\\S]*${variable}`),
+        );
+        expect(mensaje).not.toContain(clave === 'cuadra' ? 'xx' : clave);
+      },
+    );
+
+    it('producción sin contraseña: se rechaza', () => {
+      expect(() =>
+        validateEnv({
+          ...PRODUCCION,
+          DATABASE_URL: 'postgresql://cuadra@db:5432/cuadra',
+        }),
+      ).toThrow(/DATABASE_URL/);
+    });
+
+    it('el mensaje no imprime la contraseña', () => {
+      let mensaje = '';
+      try {
+        validateEnv({
+          ...PRODUCCION,
+          DATABASE_URL: 'postgresql://cuadra:cambia-esta-contrasena@db/cuadra',
+        });
+      } catch (e) {
+        mensaje = (e as Error).message;
+      }
+      expect(mensaje).toContain('DATABASE_URL');
+      expect(mensaje).not.toContain('cambia-esta-contrasena');
+    });
+
+    it.each(['development', 'test'])(
+      'en %s las contraseñas de desarrollo siguen valiendo',
+      (NODE_ENV) => {
+        expect(() => validateEnv({ ...VALIDO, NODE_ENV })).not.toThrow();
+      },
+    );
   });
 });
