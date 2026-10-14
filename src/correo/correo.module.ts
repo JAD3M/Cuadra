@@ -1,5 +1,5 @@
 // src/correo/correo.module.ts
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AdaptadorSmtp } from './adaptador-smtp';
 import { CorreoSimulado } from './correo-simulado';
@@ -33,6 +33,14 @@ export function crearProveedorCorreo(config: ConfigService): ProveedorCorreo {
   if (config.get<string>('NODE_ENV') === 'production') {
     throw new Error(
       `Correo sin configurar en produccion; faltan: ${faltantes.join(', ')}`,
+    );
+  }
+  // Solo en desarrollo: sin un buzón real, el log es la única forma de ver el
+  // enlace. En pruebas no imprime y en producción este adaptador no existe.
+  if (config.get<string>('NODE_ENV') === 'development') {
+    const log = new Logger('CorreoSimulado');
+    return new CorreoSimulado((m) =>
+      log.log(`Correo simulado a ${m.para}: ${m.asunto}\n${m.texto}`),
     );
   }
   return new CorreoSimulado();

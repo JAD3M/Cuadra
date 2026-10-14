@@ -37,6 +37,37 @@ describe('crearProveedorCorreo (historia 1.5)', () => {
   });
 });
 
+describe('correo simulado en desarrollo', () => {
+  const MENSAJE = {
+    para: 'admin@aurora.mx',
+    asunto: 'Invitación a Cuadra',
+    texto: 'Entra con http://localhost:5173/invitacion/token-de-prueba',
+  };
+  afterEach(() => jest.restoreAllMocks());
+
+  it('imprime el mensaje, con su enlace, en el log de la API', async () => {
+    const log = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    const correo = crearProveedorCorreo(
+      new ConfigService({ NODE_ENV: 'development' }),
+    );
+    await correo.enviar(MENSAJE);
+    const impreso = log.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(impreso).toContain('admin@aurora.mx');
+    expect(impreso).toContain(
+      'http://localhost:5173/invitacion/token-de-prueba',
+    );
+  });
+
+  it('en pruebas no imprime nada', async () => {
+    const log = jest.spyOn(Logger.prototype, 'log').mockImplementation();
+    const correo = crearProveedorCorreo(
+      new ConfigService({ NODE_ENV: 'test' }),
+    );
+    await correo.enviar(MENSAJE);
+    expect(log).not.toHaveBeenCalled();
+  });
+});
+
 describe('CorreoSimulado', () => {
   it('guarda en memoria lo enviado y se puede leer y vaciar', async () => {
     const correo = new CorreoSimulado();
