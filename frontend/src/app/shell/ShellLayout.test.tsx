@@ -41,6 +41,7 @@ function accionesFalsas() {
     iniciarSesion: vi.fn(),
     elegirEmpresa: vi.fn(),
     cambiarEmpresa: vi.fn(),
+    abrirSesionDeInvitacion: vi.fn(),
     regresarSinCambiar: vi.fn(),
     refrescarEmpresas: vi.fn(),
     volverAlInicio: vi.fn(),

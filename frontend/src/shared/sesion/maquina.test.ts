@@ -630,3 +630,31 @@ describe('EMPRESAS_CONOCIDAS (tras recargar)', () => {
     );
   });
 });
+
+describe('reducir: SESION_ABIERTA (aceptar una invitación)', () => {
+  const abrir = (id: string): EventoSesion => ({
+    tipo: 'SESION_ABIERTA',
+    usuario: USUARIO,
+    empresaId: id,
+  });
+
+  it.each([
+    ['anónimo', ANONIMO],
+    ['restaurando', ESTADO_ARRANQUE],
+    ['selección de login', SELECCION],
+    ['sesión viva', SESION],
+    ['cambio de empresa', CAMBIO],
+    ['sesión expirada', EXPIRADO],
+  ])('desde %s abre la sesión de la empresa nueva', (_nombre, inicial) => {
+    const estado = reducir(inicial, abrir(EMPRESA_B.id));
+    expect(estado).toEqual({
+      fase: 'sesion',
+      epoca: inicial.epoca + 1,
+      usuario: USUARIO,
+      empresaId: EMPRESA_B.id,
+      restaurarOrigen: false,
+      varias: false,
+    });
+    expect(sesionViva(estado)).toBe(true);
+  });
+});

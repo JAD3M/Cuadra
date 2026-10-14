@@ -76,6 +76,11 @@ export type EventoSesion =
   | { tipo: 'RESTAURACION_FALLIDA'; motivo?: 'sin_acceso' }
   | { tipo: 'LOGIN_OK'; usuario: Usuario; empresas: EmpresaDisponible[] }
   | { tipo: 'SELECCION_OK'; empresaId: string }
+  /**
+   * El servidor ya abrió una sesión con empresa (aceptar una invitación):
+   * vale desde cualquier fase y reemplaza la que hubiera.
+   */
+  | { tipo: 'SESION_ABIERTA'; usuario: Usuario; empresaId: string }
   | { tipo: 'CAMBIO_OK'; empresas: EmpresaDisponible[] }
   /**
    * Tras recargar, el servidor ya dijo cuántas empresas tiene la persona.
@@ -243,6 +248,17 @@ export function reducir(
         varias: estado.empresas.length > 1,
       };
     }
+
+    case 'SESION_ABIERTA':
+      return {
+        fase: 'sesion',
+        epoca: estado.epoca + 1,
+        usuario: evento.usuario,
+        empresaId: evento.empresaId,
+        // Sesión nueva sin pantalla pedida que recordar: va a `/bandeja`.
+        restaurarOrigen: false,
+        varias: false,
+      };
 
     case 'CAMBIO_OK':
       if (estado.fase !== 'sesion') return estado;
