@@ -84,6 +84,7 @@ export const ACCIONES_BITACORA_PLATAFORMA = [
   'cerrar_sesion_plataforma',
   'crear_empresa',
   'invitar',
+  'restablecer_contrasena',
 ] as const;
 export type AccionBitacoraPlataforma =
   (typeof ACCIONES_BITACORA_PLATAFORMA)[number];

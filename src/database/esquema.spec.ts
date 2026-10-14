@@ -33,6 +33,7 @@ const TODAS_LAS_TABLAS = [
   'plataforma_usuarios',
   'bitacora_plataforma',
   'invitaciones',
+  'tokens_recuperacion',
   ...TABLAS_DOMINIO,
 ] as const;
 
@@ -838,6 +839,90 @@ describe('invitaciones y altas por la app (historia 1.5)', () => {
       await qr.query(
         `INSERT INTO bitacora (company_id, entidad, entidad_id, accion) VALUES ($1, 'invitaciones', $1, 'invitar')`,
         [emp],
+      );
+    });
+  });
+});
+
+describe('tokens_recuperacion (historia 1.6)', () => {
+  const columna = async (tabla: string, col: string, permiso: string) =>
+    (
+      await una<{ ok: boolean }>(
+        ds,
+        `SELECT has_column_privilege('cuadra_app', $1, $2, $3) AS ok`,
+        [tabla, col, permiso],
+      )
+    ).ok;
+
+  const tabla = async (nombre: string, permiso: string) =>
+    (
+      await una<{ ok: boolean }>(
+        ds,
+        `SELECT has_table_privilege('cuadra_app', $1, $2) AS ok`,
+        [nombre, permiso],
+      )
+    ).ok;
+
+  it('es clase 2: sin RLS y con permisos mínimos', async () => {
+    const { relrowsecurity } = await una<{ relrowsecurity: boolean }>(
+      ds,
+      `SELECT relrowsecurity FROM pg_class WHERE relname = 'tokens_recuperacion'`,
+    );
+    expect(relrowsecurity).toBe(false);
+    expect(await tabla('tokens_recuperacion', 'SELECT')).toBe(true);
+    expect(await tabla('tokens_recuperacion', 'INSERT')).toBe(true);
+    expect(await tabla('tokens_recuperacion', 'DELETE')).toBe(false);
+    expect(await tabla('tokens_recuperacion', 'UPDATE')).toBe(false);
+    for (const c of ['consumida_en', 'reemplazada_en']) {
+      expect(await columna('tokens_recuperacion', c, 'UPDATE')).toBe(true);
+    }
+    for (const c of ['user_id', 'token_hash', 'expires_at']) {
+      expect(await columna('tokens_recuperacion', c, 'UPDATE')).toBe(false);
+    }
+  });
+
+  it('users: UPDATE solo de password_hash y updated_at', async () => {
+    expect(await tabla('users', 'UPDATE')).toBe(false);
+    for (const c of ['password_hash', 'updated_at']) {
+      expect(await columna('users', c, 'UPDATE')).toBe(true);
+    }
+    for (const c of ['email', 'activo', 'nombre']) {
+      expect(await columna('users', c, 'UPDATE')).toBe(false);
+    }
+  });
+
+  it('exige exactamente una cuenta y un solo enlace vivo por cuenta', async () => {
+    await enTransaccion(async (qr) => {
+      const { id: usuario } = await una<{ id: string }>(
+        qr,
+        `INSERT INTO users (email, nombre, password_hash) VALUES ('rec@x.test', 'Rec', 'h') RETURNING id`,
+      );
+      const insertar = (hash: string, user: string | null) =>
+        qr.query(
+          `INSERT INTO tokens_recuperacion (user_id, token_hash, expires_at)
+           VALUES ($1, $2, now() + interval '1 hour')`,
+          [user, hash],
+        );
+      await qr.query(`SAVEPOINT a`);
+      await expect(insertar('h0', null)).rejects.toThrow(
+        /ck_tokens_recuperacion_una_cuenta/,
+      );
+      await qr.query(`ROLLBACK TO SAVEPOINT a`);
+      await insertar('h1', usuario);
+      await qr.query(`SAVEPOINT b`);
+      await expect(insertar('h2', usuario)).rejects.toThrow(
+        /ux_tokens_recuperacion_viva_user/,
+      );
+      await qr.query(`ROLLBACK TO SAVEPOINT b`);
+      await qr.query(`UPDATE tokens_recuperacion SET reemplazada_en = now()`);
+      await insertar('h3', usuario);
+    });
+  });
+
+  it("'restablecer_contrasena' cabe en el CHECK de bitacora_plataforma", async () => {
+    await enTransaccion(async (qr) => {
+      await qr.query(
+        `INSERT INTO bitacora_plataforma (accion) VALUES ('restablecer_contrasena')`,
       );
     });
   });

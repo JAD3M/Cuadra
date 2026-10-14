@@ -25,6 +25,8 @@ const LISTA_BLANCA: ListaBlanca = {
   'auth/sesion.entity.ts': ['PlataformaUsuario'],
   // Relación por nombre en string, como Sesion: quién invitó (historia 1.5).
   'auth/invitacion.entity.ts': ['PlataformaUsuario'],
+  // Relación por nombre en string: de quién es el enlace (historia 1.6).
+  'auth/token-recuperacion.entity.ts': ['PlataformaUsuario'],
   // Fixture: inserta al dueño y limpia su rastro para probar invitar y aceptar.
   'invitaciones/invitaciones.integracion.spec.ts': [
     'plataforma_usuarios',

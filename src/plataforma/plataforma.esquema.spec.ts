@@ -241,9 +241,23 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 });
 
 describe('migración reversible', () => {
-  it('down y up de Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
-    // La última es Invitaciones: quita la tabla, los GRANT por columna y
-    // `invitar` de los dos CHECK.
+  it('down y up de TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
+    // La última es TokensRecuperacion: quita la tabla, el GRANT por columna
+    // sobre users y `restablecer_contrasena` del CHECK de plataforma.
+    await duenio.undoLastMigration();
+    const { n: tokens } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM information_schema.tables
+        WHERE table_schema='public' AND table_name = 'tokens_recuperacion'`,
+    );
+    expect(tokens).toBe(0);
+    await expect(
+      duenio.query(
+        `INSERT INTO bitacora_plataforma (accion) VALUES ('restablecer_contrasena')`,
+      ),
+    ).rejects.toThrow(/ck_bitacora_plataforma_accion/);
+    // Luego Invitaciones: quita la tabla, los GRANT por columna y `invitar`
+    // de los dos CHECK.
     await duenio.undoLastMigration();
     const { n: invitaciones } = await una<{ n: number }>(
       duenio,
