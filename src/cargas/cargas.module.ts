@@ -7,6 +7,7 @@ import { SugerenciasModule } from '../sugerencias/sugerencias.module';
 import { CargasController } from './cargas.controller';
 import { CargasService } from './cargas.service';
 import { COLA_CARGAS, ColaCargas } from './cola-cargas';
+import { procesadoresDeColas } from '../colas/procesar-colas';
 import { ProcesadorCargas } from './procesador-cargas';
 
 @Module({
@@ -33,6 +34,11 @@ import { ProcesadorCargas } from './procesador-cargas';
     }),
   ],
   controllers: [CargasController],
-  providers: [CargasService, ColaCargas, ProcesadorCargas],
+  providers: [
+    CargasService,
+    ColaCargas,
+    // Solo donde se consume la cola (worker; en desarrollo y pruebas, en línea).
+    ...procesadoresDeColas(ProcesadorCargas),
+  ],
 })
 export class CargasModule {}

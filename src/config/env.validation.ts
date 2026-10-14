@@ -110,6 +110,12 @@ const schema = z
       .regex(/^[a-z0-9_]+$/)
       .default('cuadra'),
     /**
+     * AD-17: si este proceso consume las colas. Sin definir, solo lo hace
+     * fuera de producción; el worker lo fija en 'true'. Ver
+     * colas/procesar-colas.ts, que lo lee antes de que corra esta validación.
+     */
+    PROCESAR_COLAS: vacioComoFaltante(z.enum(['true', 'false']).optional()),
+    /**
      * CU-17: sugerencia por IA. Todo opcional para que la app y el CI no
      * necesiten un secreto. Solo está activa con LLM_HABILITADO='true' y una
      * llave; sin llave, el módulo la deja inerte y avisa.
