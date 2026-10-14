@@ -19,11 +19,16 @@ El contexto completo (problema, arquitectura, decisiones e historias) está en
 
 ```bash
 cp .env.example .env
+export COMPOSE_FILE=docker-compose.dev.yml   # o ponlo en tu .env
 docker compose up -d --build
 docker compose exec api npm run migration:run
 docker compose exec api npm run seed
 docker compose exec api npm run demo
 ```
+
+El `docker-compose.yml` por defecto es el de producción (API y worker
+separados, secretos obligatorios, migraciones como paso explícito). Para
+desplegar y respaldar, ver [`docs/despliegue.md`](docs/despliegue.md).
 
 El último comando carga 40 facturas y 50 movimientos bancarios sintéticos de
 una ferretería y un conjunto chico de una segunda empresa, recorre el producto
