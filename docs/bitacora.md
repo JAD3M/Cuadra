@@ -5,6 +5,39 @@
 
 ### 14 oct 2026
 
+- **Historia 1.5 de la v2: invitar al primer administrador y aceptar la
+  invitación por correo (KAN-120, FR-39, FR-40, FR-43, FR-48, FR-61, AD-14).**
+  Rama `feat/v2-1-5-invitar-administrador` con ODD, desde `master` en
+  `f4cd5d0`:
+  - **T1 `8a713cb`:** puerto `ProveedorCorreo` con adaptador simulado (en
+    memoria, legible por las pruebas) y SMTP (`nodemailer`, variables
+    `CORREO_SMTP_*` y `CORREO_REMITENTE`). En producción, si falta alguna el
+    arranque falla nombrándolas todas.
+  - **T2 `2517cc7`:** tabla `invitaciones` (clase 2, token solo con su SHA-256,
+    un índice único parcial por empresa y correo vivo), GRANTs por columna y la
+    acción `invitar` en las dos bitácoras.
+  - **T3 `cebe2e3`:** `@Limite({ contarExitos: true })`, para que la ruta de
+    invitar también cuente los envíos exitosos (20 por hora y por IP).
+  - **T4 `f60d683`:** invitar no ramifica según exista o no la cuenta: siempre
+    guarda la invitación, escribe las dos bitácoras en una transacción y envía
+    el correo después del commit, así la respuesta es idéntica por
+    construcción. Aceptar crea la cuenta o reutiliza la existente **sin tocar
+    su contraseña** (decisión de la persona usuaria), da el rol `admin`,
+    consume el token (un solo éxito aun con aceptaciones concurrentes) y abre
+    sesión de empresa.
+  - **T5:** mockup acordado: artboards 10 y 11 con «Invitar administrador», y
+    artboards 12 y 13 nuevos con la página pública de aceptación. Etiqueta y
+    tono de `invitar` en la bitácora: `e90855d`.
+  - **T6 `9d25527`, `9550582`, `31f33cb`:** invitar desde la lista de empresas y
+    página pública `/invitacion/:token` (sin guarda, funciona con o sin sesión).
+- **Decisiones a revisar:** si el correo no sale, la API responde 503 con la
+  invitación ya guardada (re-invitar reemplaza el enlace); aceptar no escribe
+  bitácora porque no existe una acción para eso; una cuenta existente inactiva
+  recibe 403.
+- **Pendiente:** reenviar y cancelar invitaciones es de la épica 2; la
+  recuperación de contraseña es la 1.6.
+
+
 - **Historia 1.4 de la v2: crear una empresa con su RFC verificado (KAN-119,
   FR-39 parte, FR-49, AD-2, AD-5, AD-7, AD-13).** Rama
   `feat/v2-1-4-crear-empresa` con ODD, desde `master` en `e6cde86`:

@@ -635,6 +635,14 @@ JSONB para cuando el flujo básico ya corra.
 > genéricos, y alta en `bitacora_plataforma` y en la `bitacora` de la empresa
 > en una sola transacción. `companies` no tiene RLS; `cuadra_app` solo puede
 > insertar `rfc` y `razon_social`.
+>
+> Desde la historia 1.5 (14 oct 2026) el dueño invita al primer administrador
+> con `POST /plataforma/empresas/:id/invitaciones`; la persona acepta en
+> `/invitacion/:token`. El token es de un solo uso, se guarda con hash y vence
+> a los 7 días; la respuesta al invitar no revela si el correo tenía cuenta y
+> aceptar nunca cambia la contraseña de una cuenta existente. El correo sale
+> por `ProveedorCorreo` (simulado en desarrollo y pruebas, SMTP por variables
+> en producción).
 
 Una persona puede pertenecer a varias empresas (D-05). El login **no** puede
 saber a cuál va a entrar, así que el acceso se parte en dos pasos, cada uno

@@ -147,6 +147,33 @@ export function crearAcciones({
     tienda.enviar({ tipo: 'SELECCION_OK', empresaId });
   }
 
+  /**
+   * Tras aceptar una invitación el servidor ya puso la cookie de una sesión
+   * con empresa. Pide el contexto con ella, descarta todo lo de la sesión
+   * anterior (si la había) y entra. Si el contexto falla, rechaza sin tocar el
+   * estado.
+   */
+  async function abrirSesionDeInvitacion(): Promise<void> {
+    const desde = empezar();
+    const contexto = await api.fetch('/auth/contexto', {
+      schema: contextoSesion,
+      terminaSesion: false,
+    });
+    // Salió o se reinició la sesión mientras se pedía: esta respuesta ya no
+    // corresponde.
+    if (generacion !== desde) return;
+    generacion += 1;
+    email = null;
+    consultas.clear();
+    consultas.setQueryData(claveContexto(tienda.obtener().epoca + 1), contexto);
+    tienda.enviar({
+      tipo: 'SESION_ABIERTA',
+      usuario: contexto.usuario,
+      empresaId: contexto.empresa.id,
+    });
+    await conocerEmpresas();
+  }
+
   async function cambiarEmpresa(): Promise<void> {
     if (tienda.obtener().fase !== 'sesion') return;
     const desde = empezar();
@@ -368,6 +395,7 @@ export function crearAcciones({
   return {
     iniciarSesion,
     elegirEmpresa,
+    abrirSesionDeInvitacion,
     cambiarEmpresa,
     regresarSinCambiar,
     refrescarEmpresas,

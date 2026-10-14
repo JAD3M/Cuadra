@@ -28,6 +28,7 @@ const ACCIONES: AccionesSesion = {
   iniciarSesion: vi.fn(() => Promise.resolve()),
   elegirEmpresa: vi.fn(() => Promise.resolve()),
   cambiarEmpresa: vi.fn(() => Promise.resolve()),
+  abrirSesionDeInvitacion: vi.fn(() => Promise.resolve()),
   regresarSinCambiar: vi.fn(),
   refrescarEmpresas: vi.fn(() => Promise.resolve()),
   volverAlInicio: vi.fn(),
