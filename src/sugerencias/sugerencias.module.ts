@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { procesadoresDeColas } from '../colas/procesar-colas';
 import { ConciliacionModule } from '../conciliacion/conciliacion.module';
 import { AdaptadorAnthropic } from './adaptador-anthropic';
 import { COLA_SUGERENCIAS, ColaSugerencias } from './cola-sugerencias';
@@ -70,7 +71,8 @@ export function crearProveedor(config: ConfigService): ProveedorSugerencia {
     SugerenciasService,
     PersistenciaSugerencias,
     ColaSugerencias,
-    ProcesadorSugerencias,
+    // Solo donde se consume la cola (ver colas/procesar-colas.ts).
+    ...procesadoresDeColas(ProcesadorSugerencias),
     {
       provide: ProveedorSugerencia,
       inject: [ConfigService],
