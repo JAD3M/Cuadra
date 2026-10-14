@@ -5,6 +5,30 @@
 
 ### 14 oct 2026
 
+- **Historia 1.6 de la v2: recuperar la contraseña por correo (KAN-121,
+  FR-43, FR-44, AD-6, AD-14).** Rama `feat/v2-1-6-recuperar-contrasena` con
+  ODD, desde `master` en `5bdb4f7`:
+  - **T2 `e874d08`:** la política de contraseña v1 (12 a 256 caracteres) sale
+    de invitaciones a un validador compartido.
+  - **T1 `ff004bb`:** tabla `tokens_recuperacion` (clase 2, un enlace vivo por
+    cuenta, `user_id` o `plataforma_usuario_id`), `GRANT UPDATE (password_hash,
+    updated_at)` sobre `users` y acción `restablecer_contrasena` en la bitácora
+    de plataforma.
+  - **T3 `e2eebd2`:** pedir, consultar y restablecer bajo `auth/recuperacion`
+    para cuentas de empresa y del dueño. Respuesta uniforme, correo después del
+    commit, restablecer borra todas las sesiones de la cuenta y no abre
+    ninguna. En la bitácora de empresa se registra como `actualizar` sobre
+    `users`, sin acción nueva.
+  - **T4:** mockup «Recuperar contraseña» (tableros 14 y 15) y enlace en el
+    login, aprobado por la persona usuaria.
+  - **T5 `a57a50e`, `a7ebc58`, `cb6ecb8`:** pantallas `/recuperar` y
+    `/recuperar/:token` y enlace «¿Olvidaste tu contraseña?» en el login.
+  - **Decisión de la persona usuaria:** la recuperación incluye la cuenta del
+    dueño de plataforma. La pantalla no confirma si el correo existe, como
+    exige el criterio de la historia.
+  - **Verificación:** backend completo en verde (1141 pruebas) y frontend
+    (4155 pruebas), typecheck y lint limpios.
+
 - **Historia 1.5 de la v2: invitar al primer administrador y aceptar la
   invitación por correo (KAN-120, FR-39, FR-40, FR-43, FR-48, FR-61, AD-14).**
   Rama `feat/v2-1-5-invitar-administrador` con ODD, desde `master` en

@@ -643,6 +643,15 @@ JSONB para cuando el flujo básico ya corra.
 > aceptar nunca cambia la contraseña de una cuenta existente. El correo sale
 > por `ProveedorCorreo` (simulado en desarrollo y pruebas, SMTP por variables
 > en producción).
+>
+> Desde la historia 1.6 (14 oct 2026) cualquier cuenta, de empresa o del dueño
+> de plataforma, recupera su contraseña con `POST /auth/recuperacion`; la
+> persona la fija en `/recuperar/:token`. El token es de un solo uso, se guarda
+> con hash y vence a la hora; pedir otro deja inservible el anterior y la
+> respuesta no revela si el correo tenía cuenta. Al restablecer se borran todas
+> las sesiones de esa cuenta y no se abre ninguna: la persona entra después
+> por el login. La ruta de pedir usa el límite de la 1.2 contando también los
+> envíos exitosos.
 
 Una persona puede pertenecer a varias empresas (D-05). El login **no** puede
 saber a cuál va a entrar, así que el acceso se parte en dos pasos, cada uno

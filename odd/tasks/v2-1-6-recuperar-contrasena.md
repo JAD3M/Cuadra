@@ -43,7 +43,7 @@ Que una persona de una empresa recupere su contraseña desde un enlace de un sol
 | T3 | Backend: pedir (respuesta uniforme, correo tras commit, límite), consultar y restablecer (consume token, actualiza contraseña, borra sesiones), integración | delegada | [x] |
 | T4 | Mockup de «olvidé mi contraseña» y «restablecer» (estados: vigente, inválido, usado, caducado, enviado) acordado por la persona usuaria | inline | [x] canvas versiones 62-63, aprobado 2026-10-14 |
 | T5 | Frontend: enlace desde el login, dos pantallas públicas, tests | delegada | [x] a57a50e, a7ebc58, cb6ecb8 |
-| T6 | Docs: `CUADRA.md`, `docs/bitacora.md` | inline | [ ] |
+| T6 | Docs: `CUADRA.md`, `docs/bitacora.md` | inline | [x] commit de docs |
 
 Cada tarea cierra con un commit convencional; el hash se anota aquí.
 
