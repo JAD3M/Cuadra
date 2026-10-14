@@ -1,0 +1,42 @@
+/*
+ * Panel «Nueva empresa» de Plataforma.dc.html: tarjeta de 24 px de relleno,
+ * campos en rejilla de mínimo 260 px y acciones de 48 px. Solo tokens de rol.
+ */
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  padding: var(--space-24);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-sidebar);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-20);
+}
+
+/* El RFC va en monoespaciada y nunca se parte. */
+.rfc {
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-label);
+  white-space: nowrap;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.accion {
+  min-block-size: var(--control-height);
+  font-size: var(--text-base);
+}

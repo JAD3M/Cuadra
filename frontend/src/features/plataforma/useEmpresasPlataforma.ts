@@ -3,7 +3,7 @@ import { api, ApiError } from '@/shared/api';
 import { listaEmpresasPlataforma } from '@/shared/api/contratos/plataforma';
 import { CLAVE_PLATAFORMA } from '@/shared/sesion/plataforma';
 
-/** `GET /plataforma/empresas`: la lista del dueño (vacía hasta la 1.4). */
+/** `GET /plataforma/empresas`: la lista del dueño. */
 export function useEmpresasPlataforma() {
   return useQuery({
     queryKey: [CLAVE_PLATAFORMA, 'empresas'],

@@ -629,6 +629,12 @@ JSONB para cuando el flujo básico ya corra.
 > tipo `plataforma` para el dueño de Cuadra: sin `company_id`, con
 > `plataforma_usuario_id`, rutas bajo `/plataforma` y 403 si se cruzan los
 > dos mundos (AD-5).
+>
+> Desde la historia 1.4 (14 oct 2026) el dueño crea empresas desde
+> `POST /plataforma/empresas`: RFC normalizado en el servidor, único, sin
+> genéricos, y alta en `bitacora_plataforma` y en la `bitacora` de la empresa
+> en una sola transacción. `companies` no tiene RLS; `cuadra_app` solo puede
+> insertar `rfc` y `razon_social`.
 
 Una persona puede pertenecer a varias empresas (D-05). El login **no** puede
 saber a cuál va a entrar, así que el acceso se parte en dos pasos, cada uno

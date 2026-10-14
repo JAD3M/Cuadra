@@ -37,3 +37,17 @@
   margin: 0;
   color: var(--color-text-secondary);
 }
+
+/* Titulares a la izquierda y «Crear empresa» a la derecha; envuelve si no cabe. */
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-16);
+}
+
+.crear {
+  min-block-size: var(--control-height);
+  font-size: var(--text-base);
+}

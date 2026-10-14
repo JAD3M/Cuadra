@@ -1,0 +1,32 @@
+/* Aviso de éxito de Plataforma.dc.html: mismo molde que la alerta, en verde. */
+.aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-14) var(--space-16);
+  border: 1px solid var(--estado-conciliado-tile-border);
+  border-radius: var(--radius-md);
+  background: var(--estado-conciliado-tile-bg);
+}
+
+.icono {
+  flex-shrink: 0;
+  margin-block-start: 2px;
+  color: var(--estado-conciliado-accent);
+}
+
+.texto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.titulo {
+  color: var(--estado-conciliado-text);
+}
+
+.detalle {
+  font-size: var(--text-md);
+  color: var(--color-text-soft);
+}
