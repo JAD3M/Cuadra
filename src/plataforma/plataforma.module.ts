@@ -9,6 +9,7 @@ import { PlataformaAuthController } from './plataforma-auth.controller';
 import { PlataformaAuthService } from './plataforma-auth.service';
 import { PlataformaUsuario } from './plataforma-usuario.entity';
 import { PlataformaController } from './plataforma.controller';
+import { RecuperacionPlataforma } from './recuperacion-plataforma.service';
 import { RegistroPlataforma } from './registro-plataforma.service';
 
 /**
@@ -28,7 +29,8 @@ import { RegistroPlataforma } from './registro-plataforma.service';
     RegistroPlataforma,
     EmpresasPlataforma,
     InvitacionesPlataforma,
+    RecuperacionPlataforma,
   ],
-  exports: [RegistroPlataforma],
+  exports: [RegistroPlataforma, RecuperacionPlataforma],
 })
 export class PlataformaModule {}

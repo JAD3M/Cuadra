@@ -32,6 +32,11 @@ const LISTA_BLANCA: ListaBlanca = {
     'plataforma_usuarios',
     'bitacora_plataforma',
   ],
+  // Fixture: inserta al dueño y limpia su rastro para probar recuperar.
+  'recuperacion/recuperacion.integracion.spec.ts': [
+    'plataforma_usuarios',
+    'bitacora_plataforma',
+  ],
   // Fixture que inserta un dueño para probar la sesión de plataforma.
   'auth/auth.integracion.spec.ts': ['plataforma_usuarios'],
 };

@@ -14,6 +14,7 @@ import { ContextoEmpresaModule } from '../database/contexto-empresa.module';
 import { LimiteModule, PROVEEDORES_LIMITE } from '../limite/limite.module';
 import { OrigenGuard } from '../origen/origen.guard';
 import { InvitacionesModule } from '../invitaciones/invitaciones.module';
+import { RecuperacionModule } from '../recuperacion/recuperacion.module';
 
 @Module({
   controllers: [AuthController],
@@ -41,6 +42,8 @@ import { InvitacionesModule } from '../invitaciones/invitaciones.module';
     PlataformaModule,
     // Historia 1.5: consultar y aceptar el enlace de invitación (público).
     InvitacionesModule,
+    // Historia 1.6: recuperar la contraseña por correo (público).
+    RecuperacionModule,
     TypeOrmModule.forFeature([User, UserCompanyRole]),
   ],
 })

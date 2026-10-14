@@ -38,9 +38,9 @@ Que una persona de una empresa recupere su contraseña desde un enlace de un sol
 
 | ID | Tarea | Ruta | Estado |
 |----|-------|------|--------|
-| T1 | Migración `tokens_recuperacion` + GRANTs (incl. `UPDATE (password_hash, updated_at)` en `users`) + acciones de bitácora, entidad, espejo en frontend y pruebas de esquema y deriva | delegada | [ ] |
+| T1 | Migración `tokens_recuperacion` + GRANTs (incl. `UPDATE (password_hash, updated_at)` en `users`) + acciones de bitácora, entidad, espejo en frontend y pruebas de esquema y deriva | delegada | [x] |
 | T2 | Validador de política de contraseña compartido (invitaciones y recuperación) con sus pruebas | delegada | [x] |
-| T3 | Backend: pedir (respuesta uniforme, correo tras commit, límite), consultar y restablecer (consume token, actualiza contraseña, borra sesiones), integración | delegada | [ ] |
+| T3 | Backend: pedir (respuesta uniforme, correo tras commit, límite), consultar y restablecer (consume token, actualiza contraseña, borra sesiones), integración | delegada | [x] |
 | T4 | Mockup de «olvidé mi contraseña» y «restablecer» (estados: vigente, inválido, usado, caducado, enviado) acordado por la persona usuaria | inline | [ ] |
 | T5 | Frontend: enlace desde el login, dos pantallas públicas, tests | delegada | [ ] |
 | T6 | Docs: `CUADRA.md`, `docs/bitacora.md` | inline | [ ] |
@@ -49,7 +49,9 @@ Cada tarea cierra con un commit convencional; el hash se anota aquí.
 
 T4 bloquea a T5.
 
-- T2: commit "refactor(auth): extraer la política de contraseña v1 a un validador compartido"
+- T1: commit ff004bb "feat(auth): tabla de tokens de recuperación y acción de bitácora de plataforma"
+- T2: commit "refactor(auth): extraer la política de contraseña v1 a un validador compartido" (e874d08)
+- T3: commit "feat(recuperacion): pedir, consultar y restablecer la contraseña por correo" (hash en Progreso)
 
 ## Criterios de aceptación
 
@@ -65,3 +67,5 @@ Plan creado.
 
 - T2 hecha: `src/common/politica-contrasena.ts` (+ spec, RED observado); invitaciones la usa. Verificado: spec unitaria verde y `tsc --noEmit` limpio. Las pruebas de integración de invitaciones no se pudieron correr: no hay Postgres/Redis ni Docker activo en este entorno.
 - T1 y T3 bloqueadas por superficies fuera de lo autorizado (ver reporte): `src/plataforma/arquitectura.spec.ts` (regla AD-2), `src/plataforma/plataforma.esquema.spec.ts` (undoLastMigration), un servicio en `src/plataforma/`, y `frontend/src/features/bitacora/tonos.ts` si se agrega acción a `ACCIONES_BITACORA`.
+- T1 hecha (ff004bb): migración `1790709600000-TokensRecuperacion` (tabla clase 2, CHECK de una sola cuenta, un índice vivo por cuenta, GRANTs por columna incl. `UPDATE (password_hash, updated_at)` en `users`, `restablecer_contrasena` en el CHECK de plataforma), entidad, espejo en frontend, lista blanca AD-2 y specs de esquema, deriva y reversibilidad. Desviación: la migración se escribió antes que las pruebas de esquema (no se observó RED).
+- T3 hecha: módulo `src/recuperacion/` (POST pedir con `@Limite` y `contarExitos`, GET estado, POST restablecer) y `RecuperacionPlataforma` en `src/plataforma/` para la cuenta del dueño (AD-2). Si el mismo correo existe en los dos mundos, cada cuenta recibe su propio correo y enlace. Un fallo de envío se registra y no cambia la respuesta (un error delataría la cuenta). El enlace del correo es `<ORIGEN_AUTORIZADO>/recuperar/<token>`: T4/T5 deben usar esa ruta. Nota técnica: `qr.query` de TypeORM devuelve `[filas, n]` en UPDATE/DELETE, por eso se verifica con SELECT ... FOR UPDATE antes de actualizar.
