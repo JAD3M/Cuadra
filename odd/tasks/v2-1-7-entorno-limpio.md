@@ -66,3 +66,4 @@ T1-T4 hechas y verificadas (tsc, lint, prettier, build, 1158 pruebas).
 - T3: `docker-compose.yml` es producción; `docker-compose.dev.yml` es un archivo completo (no override), porque `:?` se evalúa por archivo. Redis con `noeviction` y `appendonly`. Migraciones compiladas verificadas contra una base temporal.
 - T4: `scripts/respaldo/{respaldar,restaurar,comun}.sh`; probado con la base local en una base temporal (16 tablas, conteos iguales; con un conteo alterado sale 1).
 - Pendiente de la persona usuaria: `.env.example` (ruta denegada) y `COMPOSE_FILE=docker-compose.dev.yml` en su `.env` de desarrollo.
+- Desviación de proceso: T2 (worker) se escribió junto con sus pruebas y no se observó RED. T1 sí tuvo RED. T3 y T4 son infraestructura sin prueba automática; se verificaron ejecutándolas.
