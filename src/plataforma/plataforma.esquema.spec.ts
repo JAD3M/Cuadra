@@ -241,8 +241,26 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 });
 
 describe('migración reversible', () => {
-  it('down y up de PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
-    // La última es el CHECK de acciones; la anterior, las tablas.
+  it('down y up de CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
+    // La última es CrearEmpresas: quita la columna, el GRANT y `crear_empresa`.
+    await duenio.undoLastMigration();
+    const { n: columnas } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM information_schema.columns
+        WHERE table_name = 'companies' AND column_name = 'separacion_funciones'`,
+    );
+    expect(columnas).toBe(0);
+    const { ok: insertaRfc } = await una<{ ok: boolean }>(
+      duenio,
+      `SELECT has_column_privilege('cuadra_app', 'companies', 'rfc', 'INSERT') AS ok`,
+    );
+    expect(insertaRfc).toBe(false);
+    await expect(
+      duenio.query(
+        `INSERT INTO bitacora_plataforma (accion) VALUES ('crear_empresa')`,
+      ),
+    ).rejects.toThrow(/ck_bitacora_plataforma_accion/);
+    // Luego, el CHECK de acciones; la anterior, las tablas.
     await duenio.undoLastMigration();
     const { n: checks } = await una<{ n: number }>(
       duenio,

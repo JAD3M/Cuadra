@@ -29,4 +29,11 @@ export class Company extends EntidadBase {
    */
   @Column({ type: 'numeric', precision: 18, scale: 4, default: 0 })
   toleranciaMonto: string;
+
+  /**
+   * Historia 1.4. La empresa nace con la separación de funciones activa; que
+   * sea configurable es de la épica 5.
+   */
+  @Column({ type: 'boolean', default: true })
+  separacionFunciones: boolean;
 }

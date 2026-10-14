@@ -334,12 +334,29 @@ describe('GET /plataforma/auth/me', () => {
 });
 
 describe('GET /plataforma/empresas', () => {
-  it('la sesión plataforma recibe la lista, vacía al inicio', async () => {
+  it('la sesión plataforma recibe las empresas reales con id, razón social y RFC', async () => {
     const res = await http()
       .get('/plataforma/empresas')
       .set('Cookie', await loginDueno())
       .expect(200);
-    expect(res.body).toEqual([]);
+    const lista = res.body as Array<Record<string, unknown>>;
+    const ferreteria = await una<{ razon_social: string }>(
+      ds,
+      'SELECT razon_social FROM companies WHERE id = $1',
+      [ferreteriaId],
+    );
+    expect(lista).toContainEqual({
+      id: ferreteriaId,
+      razonSocial: ferreteria.razon_social,
+      rfc: FERRETERIA,
+    });
+    for (const e of lista) {
+      expect(Object.keys(e).sort()).toEqual(['id', 'razonSocial', 'rfc']);
+    }
+    const nombres = lista.map((e) => e.razonSocial as string);
+    expect(nombres).toEqual(
+      [...nombres].sort((a, b) => a.localeCompare(b, 'es')),
+    );
   });
 
   it('sin sesión responde 401', async () => {
@@ -382,6 +399,224 @@ describe('GET /plataforma/empresas', () => {
     await http().get('/plataforma/empresas').set('Cookie', cookie).expect(403);
     const [fila] = await bitacoraDe('acceso_denegado', desde);
     expect(fila.company_id).toBeNull();
+  });
+});
+
+describe('POST /plataforma/empresas', () => {
+  const RFC_NUEVO = 'CNE240101AB3';
+  const creadas: string[] = [];
+
+  const crear = (cookie: string, cuerpo: Record<string, unknown>) =>
+    http().post('/plataforma/empresas').set('Cookie', cookie).send(cuerpo);
+
+  const empresasConRfc = async (rfc: string) =>
+    await filas<{ id: string }>(ds, 'SELECT id FROM companies WHERE rfc = $1', [
+      rfc,
+    ]);
+
+  afterAll(async () => {
+    // Las bitácoras son de solo agregar para cuadra_app; el dueño limpia.
+    for (const id of creadas) {
+      await ds.query('DELETE FROM bitacora WHERE company_id = $1', [id]);
+      await ds.query('DELETE FROM companies WHERE id = $1', [id]);
+    }
+  });
+
+  /** Falla todo INSERT de esa acción/entidad: simula una bitácora caída. */
+  async function romperBitacora(tabla: string, columna: string, valor: string) {
+    await ds.query(`
+      CREATE OR REPLACE FUNCTION fallar_bitacora_prueba() RETURNS trigger AS $$
+      BEGIN RAISE EXCEPTION 'bitacora caida a proposito'; END $$ LANGUAGE plpgsql`);
+    await ds.query(
+      `CREATE TRIGGER tg_fallar_bitacora_prueba BEFORE INSERT ON ${tabla}
+       FOR EACH ROW WHEN (NEW.${columna} = '${valor}')
+       EXECUTE FUNCTION fallar_bitacora_prueba()`,
+    );
+    return async () => {
+      await ds.query(`DROP TRIGGER tg_fallar_bitacora_prueba ON ${tabla}`);
+      await ds.query('DROP FUNCTION fallar_bitacora_prueba()');
+    };
+  }
+
+  it('crea la empresa con la separación de funciones activa y deja las dos bitácoras', async () => {
+    const desde = new Date();
+    const res = await crear(await loginDueno(), {
+      razonSocial: '  Comercial Nueva SA de CV ',
+      rfc: ` ${RFC_NUEVO.toLowerCase().slice(0, 6)} ${RFC_NUEVO.slice(6)} `,
+    }).expect(201);
+
+    const cuerpo = res.body as { id: string; razonSocial: string; rfc: string };
+    creadas.push(cuerpo.id);
+    expect(cuerpo).toEqual({
+      id: cuerpo.id,
+      razonSocial: 'Comercial Nueva SA de CV',
+      rfc: RFC_NUEVO,
+    });
+
+    const empresa = await una<{
+      rfc: string;
+      razon_social: string;
+      activa: boolean;
+      separacion_funciones: boolean;
+    }>(
+      ds,
+      `SELECT rfc, razon_social, activa, separacion_funciones
+         FROM companies WHERE id = $1`,
+      [cuerpo.id],
+    );
+    expect(empresa).toEqual({
+      rfc: RFC_NUEVO,
+      razon_social: 'Comercial Nueva SA de CV',
+      activa: true,
+      separacion_funciones: true,
+    });
+
+    const deEmpresa = await filas<{
+      user_id: string | null;
+      entidad: string;
+      entidad_id: string;
+      accion: string;
+      datos: Record<string, unknown>;
+    }>(
+      ds,
+      `SELECT user_id, entidad, entidad_id, accion, datos
+         FROM bitacora WHERE company_id = $1`,
+      [cuerpo.id],
+    );
+    expect(deEmpresa).toHaveLength(1);
+    expect(deEmpresa[0]).toMatchObject({
+      user_id: null,
+      entidad: 'companies',
+      entidad_id: cuerpo.id,
+      accion: 'crear',
+    });
+    expect(deEmpresa[0].datos).toMatchObject({
+      plataformaUsuarioId: duenoId,
+      rfc: RFC_NUEVO,
+    });
+
+    const dePlataforma = (await bitacoraDe('crear_empresa', desde)).filter(
+      (f) => f.company_id === cuerpo.id,
+    );
+    expect(dePlataforma).toHaveLength(1);
+    expect(dePlataforma[0].plataforma_usuario_id).toBe(duenoId);
+  });
+
+  it('el mismo RFC con minúsculas y espacios da 409 y no crea nada', async () => {
+    const cookie = await loginDueno();
+    const antes = await una<{ n: string }>(
+      ds,
+      'SELECT count(*)::text AS n FROM companies',
+    );
+    const desde = new Date();
+    const res = await crear(cookie, {
+      razonSocial: 'Otra razón',
+      rfc: ` ${RFC_NUEVO.toLowerCase()} `,
+    }).expect(409);
+    expect((res.body as { message: string }).message).toMatch(/ya pertenece/i);
+
+    const despues = await una<{ n: string }>(
+      ds,
+      'SELECT count(*)::text AS n FROM companies',
+    );
+    expect(despues.n).toBe(antes.n);
+    expect(await bitacoraDe('crear_empresa', desde)).toEqual([]);
+  });
+
+  it('dos altas simultáneas con el mismo RFC: una gana y la otra recibe 409', async () => {
+    const cookie = await loginDueno();
+    const cuerpo = { razonSocial: 'Carrera SA', rfc: 'CAR240101AB3' };
+    const respuestas = await Promise.all([
+      crear(cookie, cuerpo),
+      crear(cookie, cuerpo),
+    ]);
+    const estados = respuestas.map((r) => r.status).sort();
+    expect(estados).toEqual([201, 409]);
+    const ganadora = respuestas.find((r) => r.status === 201);
+    creadas.push((ganadora?.body as { id: string }).id);
+    expect(await empresasConRfc('CAR240101AB3')).toHaveLength(1);
+  });
+
+  it('un RFC con formato inválido da 400 que lo nombra', async () => {
+    const res = await crear(await loginDueno(), {
+      razonSocial: 'Mala SA',
+      rfc: 'ABC',
+    }).expect(400);
+    expect((res.body as { message: string }).message).toMatch(/formato/i);
+    expect(await empresasConRfc('ABC')).toEqual([]);
+  });
+
+  it.each(['XAXX010101000', 'xexx 010101 000'])(
+    'el RFC genérico %s da 400 que dice que es genérico',
+    async (rfc) => {
+      const res = await crear(await loginDueno(), {
+        razonSocial: 'Genérica SA',
+        rfc,
+      }).expect(400);
+      expect((res.body as { message: string }).message).toMatch(/genérico/i);
+    },
+  );
+
+  it.each([
+    ['sin razón social', { rfc: 'ZZZ240101AB3' }],
+    ['razón social en blanco', { razonSocial: '   ', rfc: 'ZZZ240101AB3' }],
+    ['sin RFC', { razonSocial: 'Sin RFC SA' }],
+    ['campos de más', { razonSocial: 'X', rfc: 'ZZZ240101AB3', activa: false }],
+  ])('rechaza con 400 un cuerpo %s', async (_nombre, cuerpo) => {
+    await crear(await loginDueno(), cuerpo).expect(400);
+    expect(await empresasConRfc('ZZZ240101AB3')).toEqual([]);
+  });
+
+  it('si falla la bitácora de la empresa, no se crea nada', async () => {
+    const restaurar = await romperBitacora('bitacora', 'accion', 'crear');
+    try {
+      const desde = new Date();
+      await crear(await loginDueno(), {
+        razonSocial: 'Rota Uno SA',
+        rfc: 'ROU240101AB3',
+      }).expect(500);
+      expect(await empresasConRfc('ROU240101AB3')).toEqual([]);
+      expect(await bitacoraDe('crear_empresa', desde)).toEqual([]);
+    } finally {
+      await restaurar();
+    }
+  });
+
+  it('si falla la bitácora de plataforma, no se crea la empresa ni su bitácora', async () => {
+    const restaurar = await romperBitacora(
+      'bitacora_plataforma',
+      'accion',
+      'crear_empresa',
+    );
+    try {
+      await crear(await loginDueno(), {
+        razonSocial: 'Rota Dos SA',
+        rfc: 'ROD240101AB3',
+      }).expect(500);
+      expect(await empresasConRfc('ROD240101AB3')).toEqual([]);
+    } finally {
+      await restaurar();
+    }
+  });
+
+  it('la empresa creada aparece en la lista del dueño', async () => {
+    const res = await http()
+      .get('/plataforma/empresas')
+      .set('Cookie', await loginDueno())
+      .expect(200);
+    expect(res.body).toContainEqual({
+      id: creadas[0],
+      razonSocial: 'Comercial Nueva SA de CV',
+      rfc: RFC_NUEVO,
+    });
+  });
+
+  it('sin sesión da 401 y una sesión de empresa da 403 sin crear nada', async () => {
+    const cuerpo = { razonSocial: 'Cruce SA', rfc: 'CRU240101AB3' };
+    await http().post('/plataforma/empresas').send(cuerpo).expect(401);
+    const cookie = await abrirSesion(ds, anaId, ferreteriaId);
+    await crear(cookie, cuerpo).expect(403);
+    expect(await empresasConRfc('CRU240101AB3')).toEqual([]);
   });
 });
 

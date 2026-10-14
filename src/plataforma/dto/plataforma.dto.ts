@@ -1,4 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
+import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 export class UsuarioPlataformaDto {
   @ApiProperty({ format: 'uuid' })
@@ -21,5 +23,26 @@ export class EmpresaPlataformaDto {
   razonSocial!: string;
 
   @ApiProperty()
+  rfc!: string;
+}
+
+export class CrearEmpresaDto {
+  @ApiProperty({ example: 'Ferretería del Bajío SA de CV', maxLength: 255 })
+  // Corre antes de validar: los espacios de los bordes no cuentan.
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString()
+  @IsNotEmpty({ message: 'La razón social no puede ir vacía' })
+  @MaxLength(255, { message: 'La razón social excede 255 caracteres' })
+  razonSocial!: string;
+
+  @ApiProperty({
+    example: 'FDB190215QK4',
+    description:
+      'Se normaliza en el servidor (mayúsculas, sin espacios) antes de validar y comparar.',
+  })
+  @IsString()
+  @MaxLength(64)
   rfc!: string;
 }
