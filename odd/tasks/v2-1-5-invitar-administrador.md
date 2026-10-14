@@ -39,10 +39,10 @@ Que el dueño invite por correo a la primera persona administradora de una empre
 
 | ID | Tarea | Ruta | Estado |
 |----|-------|------|--------|
-| T1 | Puerto `ProveedorCorreo`, adaptador simulado legible por pruebas y adaptador SMTP, validación de entorno que nombra las variables faltantes en producción, `.env.example` | delegada | [ ] |
-| T2 | Migración: `invitaciones` (clase 2), GRANTs por columna en `users` y `user_company_roles`, acción `invitar` en los CHECK de `bitacora` y `bitacora_plataforma`, espejo en el frontend y pruebas de esquema y deriva | delegada | [ ] |
-| T3 | Opción de `@Limite` para contar envíos exitosos, con sus pruebas | delegada | [ ] |
-| T4 | Backend: invitar (dueño) con respuesta uniforme y doble bitácora transaccional; consultar y aceptar el enlace (público) con cuenta nueva o reutilizada sin tocar su contraseña, consumo del token y sesión; integración | delegada | [ ] |
+| T1 | Puerto `ProveedorCorreo`, adaptador simulado legible por pruebas y adaptador SMTP, validación de entorno que nombra las variables faltantes en producción, `.env.example` | delegada | [x] `8a713cb` |
+| T2 | Migración: `invitaciones` (clase 2), GRANTs por columna en `users` y `user_company_roles`, acción `invitar` en los CHECK de `bitacora` y `bitacora_plataforma`, espejo en el frontend y pruebas de esquema y deriva | delegada | [x] `2517cc7` (parcial en el frontend: ver Progreso) |
+| T3 | Opción de `@Limite` para contar envíos exitosos, con sus pruebas | delegada | [x] `cebe2e3` |
+| T4 | Backend: invitar (dueño) con respuesta uniforme y doble bitácora transaccional; consultar y aceptar el enlace (público) con cuenta nueva o reutilizada sin tocar su contraseña, consumo del token y sesión; integración | delegada | [x] `f60d683` |
 | T5 | Mockup de invitar desde la lista y de la página de aceptación (cuenta nueva, cuenta existente, enlace inválido, usado, caducado o reemplazado) acordado por la persona usuaria | inline | [ ] |
 | T6 | Frontend: invitar desde la lista, página pública de aceptación, tests | delegada | [ ] |
 | T7 | Docs: `CUADRA.md`, `docs/bitacora.md` | inline | [ ] |
@@ -64,4 +64,8 @@ Cada tarea cierra con un commit convencional en la rama; el hash se anota aquí 
 
 ## Progreso
 
-- Exploración hecha; decisión sobre cuentas existentes tomada. Siguiente paso: T1.
+- Exploración hecha; decisión sobre cuentas existentes tomada.
+- T1 (delegada, `8a713cb`): `ProveedorCorreo` como clase abstracta; `CorreoSimulado` guarda los mensajes en memoria (`enviados`, `ultimoPara`, `limpiar`) y `AdaptadorSmtp` usa `nodemailer`. `crearProveedorCorreo` elige el adaptador y el esquema de entorno nombra todas las `CORREO_*` faltantes en producción.
+- T2 (delegada, `2517cc7`): migración `Invitaciones1790709500000` y entidad `Invitacion`. Columnas `expires_at`, `consumida_en`, `reemplazada_en`; índice único parcial `ux_invitaciones_viva`. `UPDATE` solo de `consumida_en`, `reemplazada_en` y `updated_at`; `INSERT` por columna en `users` y `user_company_roles`. El espejo del frontend (`tipos.ts`) ya lleva `invitar`; **falta** darle etiqueta y tono en `frontend/src/shared/dominio/etiquetas.ts` y `frontend/src/features/bitacora/tonos.ts` (fuera de la superficie del escritor), y hasta entonces `typecheck` y `resolucion.test.ts` del frontend fallan.
+- T3 (delegada, `cebe2e3`): `@Limite({ contarExitos: true })`; el guard no registra la reserva y el interceptor no la devuelve en un 2xx.
+- T4 (delegada, `f60d683`): invitar en `src/plataforma/invitaciones-plataforma.service.ts` (límite de 20 por hora y por IP contando éxitos; 503 si el correo no sale, ya con la invitación guardada) y consultar y aceptar en `src/invitaciones/` (200 con estado para cualquier token en el GET; 404 desconocido y 410 con `motivo` usada, caducada o reemplazada en el POST). La bitácora de empresa usa entidad `companies`, `user_id` nulo y el dueño en `datos`. Aceptar no escribe bitácora (no hay acción para eso en esta historia).

@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { normalizarEmail } from '../../users/email';
 
 export class UsuarioPlataformaDto {
   @ApiProperty({ format: 'uuid' })
@@ -45,4 +46,25 @@ export class CrearEmpresaDto {
   @IsString()
   @MaxLength(64)
   rfc!: string;
+}
+
+export class InvitarAdminDto {
+  @ApiProperty({
+    example: 'primera.admin@cliente.mx',
+    description:
+      'Correo de la persona que será administradora. Se normaliza en el servidor. El rol es siempre `admin`.',
+  })
+  // Corre antes de validar: '  Ana@FDB.mx ' llega como 'ana@fdb.mx'.
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? normalizarEmail(value) : value,
+  )
+  @IsEmail()
+  @MaxLength(320)
+  email!: string;
+}
+
+/** Idéntica exista o no la cuenta de ese correo (no revela cuentas). */
+export class InvitacionEnviadaDto {
+  @ApiProperty({ example: 'primera.admin@cliente.mx' })
+  email!: string;
 }

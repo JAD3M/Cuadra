@@ -47,8 +47,11 @@ export function huellaDeToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-/** 32 bytes aleatorios en base64url: cabe en una cookie sin codificar. */
-function nuevoToken(): string {
+/**
+ * 32 bytes aleatorios en base64url: cabe en una cookie y en un enlace sin
+ * codificar. Lo comparten la sesión y las invitaciones (historia 1.5).
+ */
+export function nuevoToken(): string {
   return randomBytes(32).toString('base64url');
 }
 

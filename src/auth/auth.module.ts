@@ -13,6 +13,7 @@ import { AccesosDenegados } from '../bitacora/accesos-denegados';
 import { ContextoEmpresaModule } from '../database/contexto-empresa.module';
 import { LimiteModule, PROVEEDORES_LIMITE } from '../limite/limite.module';
 import { OrigenGuard } from '../origen/origen.guard';
+import { InvitacionesModule } from '../invitaciones/invitaciones.module';
 
 @Module({
   controllers: [AuthController],
@@ -38,6 +39,8 @@ import { OrigenGuard } from '../origen/origen.guard';
     SesionesModule,
     // AD-5: el guard de sesión registra ahí los cruces entre mundos.
     PlataformaModule,
+    // Historia 1.5: consultar y aceptar el enlace de invitación (público).
+    InvitacionesModule,
     TypeOrmModule.forFeature([User, UserCompanyRole]),
   ],
 })
