@@ -45,7 +45,7 @@ Que el dueño invite por correo a la primera persona administradora de una empre
 | T4 | Backend: invitar (dueño) con respuesta uniforme y doble bitácora transaccional; consultar y aceptar el enlace (público) con cuenta nueva o reutilizada sin tocar su contraseña, consumo del token y sesión; integración | delegada | [x] `f60d683` |
 | T5 | Mockup de invitar desde la lista y de la página de aceptación (cuenta nueva, cuenta existente, enlace inválido, usado, caducado o reemplazado) acordado por la persona usuaria | inline | [x] canvas versión 60+, aprobado 2026-10-14 |
 | T6 | Frontend: invitar desde la lista, página pública de aceptación, tests | delegada | [x] `9d25527`, `9550582`, `31f33cb` |
-| T7 | Docs: `CUADRA.md`, `docs/bitacora.md` | inline | [ ] |
+| T7 | Docs: `CUADRA.md`, `docs/bitacora.md` | inline | [x] commit de docs |
 
 Cada tarea cierra con un commit convencional en la rama; el hash se anota aquí como evidencia. T5 bloquea a T6.
 
@@ -72,3 +72,4 @@ Cada tarea cierra con un commit convencional en la rama; el hash se anota aquí 
 - T5 (inline): mockup acordado: artboards 10 y 11 con la columna «Acciones», el botón «Invitar administrador» y el panel de correo (estados `cerrada`, `abierta`, `correo_invalido`, `enviada`, `sin_servicio`, `limite`; el texto de enviada es idéntico con o sin cuenta); artboards 12 y 13 nuevos con la página pública de aceptación (`cuenta_nueva`, `cuenta_existente`, `contrasena_corta`, `usada`, `caducada`, `reemplazada`, `desconocida`, `sin_cuenta_inactiva`); Bitácora con «Invitación enviada» (entidad `companies`). Etiqueta y tono de `invitar` en el frontend: `e90855d`.
 - T6 (delegada, `9d25527`, `9550582`, `31f33cb`): contratos zod en `shared/api/contratos/invitaciones.ts`; en plataforma, columna «Acciones», panel inline y aviso (el correo mostrado es el escrito, nunca el de la respuesta; 503, 429 y 400 con copia fija). Acción de sesión `abrirSesionDeInvitacion` (evento `SESION_ABIERTA`, vale desde cualquier fase: pide `/auth/contexto`, vacía la caché y entra). Página pública `/invitacion/:token` en `features/invitaciones`, sin guarda; el 410 vuelve a leer el enlace para conocer el motivo; la clave de consulta no lleva el token. RED observado en cada unidad (módulo o comportamiento ausente) y luego GREEN; `npm test` 255 archivos, 4120 pruebas verdes.
 - Siguiente paso: T7 (docs).
+- T7 (inline): entrada del 14 oct en `docs/bitacora.md` y nota en `CUADRA.md`. Historia 1.5 completa; pendiente armar el PR (en cadena si pasa de 400 líneas).
