@@ -596,6 +596,44 @@ describe('tolerancia de monto por empresa (CU-12)', () => {
   });
 });
 
+describe('companies: alta por la app (historia 1.4)', () => {
+  const insertar = (columna: string) =>
+    una<{ ok: boolean }>(
+      ds,
+      `SELECT has_column_privilege('cuadra_app', 'companies', $1, 'INSERT') AS ok`,
+      [columna],
+    );
+
+  it('cuadra_app puede insertar solo rfc y razon_social', async () => {
+    expect(await insertar('rfc')).toEqual({ ok: true });
+    expect(await insertar('razon_social')).toEqual({ ok: true });
+    for (const otra of [
+      'regimen_fiscal',
+      'activa',
+      'tolerancia_monto',
+      'separacion_funciones',
+    ]) {
+      expect(await insertar(otra)).toEqual({ ok: false });
+    }
+  });
+
+  it('separacion_funciones nace en true y no admite nulo', async () => {
+    const columna = await una<{ nulo: string; defecto: string }>(
+      ds,
+      `SELECT is_nullable AS nulo, column_default AS defecto
+         FROM information_schema.columns
+        WHERE table_name = 'companies' AND column_name = 'separacion_funciones'`,
+    );
+    expect(columna).toEqual({ nulo: 'NO', defecto: 'true' });
+    const empresa = await una<{ separacion_funciones: boolean }>(
+      ds,
+      `SELECT separacion_funciones FROM companies WHERE rfc = $1`,
+      ['FDB190215QK4'],
+    );
+    expect(empresa.separacion_funciones).toBe(true);
+  });
+});
+
 describe('semilla', () => {
   it('deja dos empresas, cuatro usuarios y cinco asignaciones de rol', async () => {
     expect(await una<Conteos>(ds, SQL_CONTEOS)).toEqual({

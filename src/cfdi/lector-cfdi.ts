@@ -10,6 +10,7 @@ import {
   sumar,
 } from '../common/dinero';
 import { TIPOS_COMPROBANTE } from '../common/entities/tipos';
+import { FORMATO_RFC } from '../common/rfc';
 import {
   type CfdiLeido,
   CfdiRechazado,
@@ -55,13 +56,6 @@ const DECIMALES_MONEDA: Readonly<Record<string, number>> = {
   JPY: 0,
   XXX: 0,
 };
-
-/**
- * Patrón de RFC del SAT: 3 letras (moral) o 4 (física), fecha AAMMDD válida
- * en forma, y homoclave de 3. Incluye Ñ y &, que sí existen en RFCs reales.
- */
-const RFC =
-  /^[A-ZÑ&]{3,4}\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])[A-Z\d]{2}[A\d]$/;
 
 const UUID = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 
@@ -358,7 +352,7 @@ function rfc(
   motivo: 'rfc_emisor' | 'rfc_receptor',
 ): string {
   const valor = atributo(hijo(comprobante, nodo), 'Rfc');
-  if (!valor || !RFC.test(valor)) {
+  if (!valor || !FORMATO_RFC.test(valor)) {
     throw new CfdiRechazado(
       motivo,
       `RFC del ${nodo.toLowerCase()} con formato inválido: ${valor ?? '(ausente)'}`,

@@ -1,22 +1,66 @@
 import type { ReactNode } from 'react';
-import { TEXTOS_PLATAFORMA } from '@/features/plataforma/textos';
+import {
+  TEXTOS_ALTA_EMPRESA,
+  TEXTOS_PLATAFORMA,
+} from '@/features/plataforma/textos';
+import { Button } from '@/shared/ui/Button';
+import { Tabla, Td, Th } from '@/shared/ui/Tabla';
 import estilos from './EmpresasPlataforma.module.css';
 
+/** Fila de la lista. Tipo propio: los componentes no importan la API. */
+export interface FilaEmpresaPlataforma {
+  id: string;
+  razonSocial: string;
+  rfc: string;
+}
+
 export interface EmpresasPlataformaProps {
-  /** Cuántas empresas hay; `null` mientras carga o si falló (ver `alerta`). */
-  total: number | null;
+  /** Las empresas; `null` mientras carga o si falló (ver `alerta`). */
+  empresas: readonly FilaEmpresaPlataforma[] | null;
   /** Alerta de fallo ya armada por el contenedor. */
   alerta?: ReactNode;
+  /** Acción del botón del estado vacío (abre el formulario de alta). */
+  onCrear?: () => void;
 }
 
 /**
- * Sección «Lista de empresas», con los tres estados del mockup: cargando
- * (barras), vacía y fallo (alerta). La lista con empresas la define la 1.4 con
- * su mockup; hasta entonces el backend devuelve siempre `[]`.
+ * Sección «Lista de empresas», con los cuatro estados del mockup: cargando
+ * (barras), vacía (con botón de crear), con datos (tabla de razón social y
+ * RFC) y fallo (alerta).
  */
-export function EmpresasPlataforma({ total, alerta }: EmpresasPlataformaProps) {
-  const vacia = total === 0;
-  const cargando = total === null && !alerta;
+export function EmpresasPlataforma({
+  empresas,
+  alerta,
+  onCrear,
+}: EmpresasPlataformaProps) {
+  const cargando = empresas === null && !alerta;
+
+  if (empresas !== null && empresas.length > 0) {
+    return (
+      <div className={estilos.tabla}>
+        <Tabla titulo={TEXTOS_PLATAFORMA.listaEmpresas}>
+          <thead>
+            <tr>
+              <Th>{TEXTOS_PLATAFORMA.columnaRazonSocial}</Th>
+              <Th className={estilos.sinPartir}>
+                {TEXTOS_PLATAFORMA.columnaRfc}
+              </Th>
+            </tr>
+          </thead>
+          <tbody>
+            {empresas.map((empresa) => (
+              <tr key={empresa.id}>
+                <Td>{empresa.razonSocial}</Td>
+                <Td className={estilos.rfc}>{empresa.rfc}</Td>
+              </tr>
+            ))}
+          </tbody>
+        </Tabla>
+      </div>
+    );
+  }
+
+  const vacia = empresas !== null;
   return (
     <section
       aria-label={TEXTOS_PLATAFORMA.listaEmpresas}
@@ -55,6 +99,11 @@ export function EmpresasPlataforma({ total, alerta }: EmpresasPlataformaProps) {
           <span className={estilos.detalle}>
             {TEXTOS_PLATAFORMA.vacioDetalle}
           </span>
+          {onCrear && (
+            <Button type="button" className={estilos.crear} onClick={onCrear}>
+              {TEXTOS_ALTA_EMPRESA.crear}
+            </Button>
+          )}
         </>
       )}
     </section>

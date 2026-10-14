@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SesionesModule } from '../auth/sesiones.module';
 import { BitacoraPlataforma } from './bitacora-plataforma.entity';
+import { EmpresasPlataforma } from './empresas-plataforma.service';
 import { PlataformaAuthController } from './plataforma-auth.controller';
 import { PlataformaAuthService } from './plataforma-auth.service';
 import { PlataformaUsuario } from './plataforma-usuario.entity';
@@ -19,7 +20,7 @@ import { RegistroPlataforma } from './registro-plataforma.service';
     TypeOrmModule.forFeature([PlataformaUsuario, BitacoraPlataforma]),
   ],
   controllers: [PlataformaAuthController, PlataformaController],
-  providers: [PlataformaAuthService, RegistroPlataforma],
+  providers: [PlataformaAuthService, RegistroPlataforma, EmpresasPlataforma],
   exports: [RegistroPlataforma],
 })
 export class PlataformaModule {}

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { bloqueCss, leerModuloCss, LITERAL_DE_COLOR } from './leerCss';
 
 const layout = leerModuloCss('app/shell/ShellLayout.module.css');
+const barra = leerModuloCss('app/shell/Sidebar.module.css');
 
 describe('contrato CSS del layout del shell', () => {
   it('la rejilla usa la columna lateral y una columna que puede encogerse', () => {
@@ -13,6 +14,19 @@ describe('contrato CSS del layout del shell', () => {
 
   it('la columna de contenido no desborda a la rejilla', () => {
     expect(bloqueCss(layout, '.columna')).toMatch(/min-inline-size:\s*0/);
+  });
+
+  it('en pantallas anchas la barra lateral queda fija a la altura de la ventana y desplaza solo su propio contenido', () => {
+    const anchas = barra.match(
+      /@media\s*\(width\s*>=\s*900px\)\s*\{\s*\.barra\s*\{([^}]*)\}/,
+    );
+    expect(anchas).not.toBeNull();
+    const reglas = anchas?.[1] ?? '';
+    expect(reglas).toMatch(/position:\s*sticky/);
+    expect(reglas).toMatch(/inset-block-start:\s*0/);
+    expect(reglas).toMatch(/block-size:\s*100vh/);
+    expect(reglas).toMatch(/align-self:\s*start/);
+    expect(reglas).toMatch(/overflow-y:\s*auto/);
   });
 
   it('el enlace de salto cumple el tamaño táctil mínimo', () => {
