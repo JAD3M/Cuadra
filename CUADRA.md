@@ -624,6 +624,11 @@ JSONB para cuando el flujo básico ya corra.
 > servidor puede cancelar y que vence tras 8 horas sin actividad. El JWT y
 > `JWT_SECRET` ya no existen. Lo que sigue describe la v1 y se conserva como
 > historial.
+>
+> Desde la historia 1.3 (13 oct 2026) `sesiones` también tiene sesiones de
+> tipo `plataforma` para el dueño de Cuadra: sin `company_id`, con
+> `plataforma_usuario_id`, rutas bajo `/plataforma` y 403 si se cruzan los
+> dos mundos (AD-5).
 
 Una persona puede pertenecer a varias empresas (D-05). El login **no** puede
 saber a cuál va a entrar, así que el acceso se parte en dos pasos, cada uno
