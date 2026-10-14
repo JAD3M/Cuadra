@@ -33,3 +33,11 @@
   min-block-size: var(--control-height-lg);
   font-size: var(--text-lg);
 }
+
+.olvido {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  font-size: var(--text-md);
+}

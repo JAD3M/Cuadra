@@ -98,6 +98,19 @@ describe('LoginPage: estructura', () => {
     expect(correo()).toBeInTheDocument();
   });
 
+  it('ofrece «¿Olvidaste tu contraseña?» hacia /recuperar, bajo la contraseña', () => {
+    montar();
+    const enlace = screen.getByRole('link', {
+      name: '¿Olvidaste tu contraseña?',
+    });
+    expect(enlace).toHaveAttribute('href', '/recuperar');
+    expect(
+      screen
+        .getByLabelText('Contraseña')
+        .compareDocumentPosition(enlace) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it('en una llegada en frío no hay aviso ni foco automático', () => {
     montar();
     expect(screen.queryByRole('status')).not.toBeInTheDocument();

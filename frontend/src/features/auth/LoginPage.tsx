@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { AvisoAuth } from '@/features/auth/components/AvisoAuth';
 import {
   FormularioLogin,
@@ -9,6 +9,7 @@ import {
 import { LayoutAuth } from '@/features/auth/components/LayoutAuth';
 import { textoAviso } from '@/features/auth/components/textos';
 import type { ValoresLogin } from '@/features/auth/esquemaLogin';
+import { TEXTOS_RECUPERACION } from '@/features/recuperacion/textos';
 import { mensajeDeError } from '@/shared/api';
 import {
   estadoAcceso,
@@ -84,6 +85,9 @@ export function LoginPage() {
         pendiente={acceso.isPending}
         fallo={acceso.isPending ? null : fallo}
         enfocarCorreo={enfocarCorreo}
+        enlaceOlvido={
+          <Link to="/recuperar">{TEXTOS_RECUPERACION.olvidaste}</Link>
+        }
         aviso={aviso ? <AvisoAuth enfocar>{aviso}</AvisoAuth> : undefined}
         onEnviar={(valores) => {
           setFallo(null);
