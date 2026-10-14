@@ -253,6 +253,18 @@ describe('guardas en el árbol de rutas', () => {
     ]);
   });
 
+  it('/recuperar y /recuperar/:token son públicas: ninguna guarda las envuelve', () => {
+    const libre = (ruta: string) => hijos.some((h) => h.path === ruta);
+    expect(libre('/recuperar')).toBe(true);
+    expect(libre('/recuperar/:token')).toBe(true);
+  });
+
+  it('con sesión, /recuperar no redirige', async () => {
+    const router = renderizar('/recuperar');
+    await screen.findByRole('heading', { level: 1 });
+    expect(router.state.location.pathname).toBe('/recuperar');
+  });
+
   it('sin sesión, una pantalla interna lleva a /login y la dirección es solo /login', () => {
     const router = renderizar('/casos/9?x=1#y', rutas, ESTADOS.anonymous);
     expect(router.state.location.pathname).toBe('/login');

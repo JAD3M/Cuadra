@@ -1,0 +1,50 @@
+/*
+ * Formularios de Recuperar.dc.html: columna de 420 px con 22 px entre
+ * bloques, botón de 52 px. Solo tokens de rol.
+ */
+.formulario {
+  inline-size: 100%;
+  max-inline-size: var(--auth-form-width);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-22);
+}
+
+.encabezado {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.etiqueta {
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  letter-spacing: var(--tracking-label-wide);
+  text-transform: uppercase;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-title-lg);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+}
+
+.apoyo {
+  margin: 0;
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.entrar {
+  min-block-size: var(--control-height-lg);
+  font-size: var(--text-lg);
+}
+
+.volver {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 44px;
+  font-size: var(--text-md);
+}
