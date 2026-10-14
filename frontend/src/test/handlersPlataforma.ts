@@ -74,6 +74,16 @@ const empresasSimuladas: EmpresaSimulada[] = [];
 /** Cuerpos recibidos por `POST /plataforma/empresas`, en orden. */
 export const cuerposCrearEmpresa: CuerpoCrearEmpresa[] = [];
 
+export interface CuerpoInvitar {
+  email?: unknown;
+}
+
+/** Invitaciones recibidas por `POST /plataforma/empresas/:id/invitaciones`. */
+export const invitacionesRecibidas: {
+  empresaId: string;
+  cuerpo: CuerpoInvitar;
+}[] = [];
+
 /** Deja en el servidor simulado estas empresas (y nada más). */
 export function sembrarEmpresasPlataforma(
   empresas: readonly EmpresaSimulada[],
@@ -137,6 +147,22 @@ export function crearHandlersPlataforma() {
       empresasSimuladas.push(empresa);
       return HttpResponse.json(empresa, { status: 201 });
     }),
+    // Como el backend: 404 si la empresa no existe, 400 sin correo, 201 con
+    // `{ email }` exista o no la cuenta (el cuerpo no distingue).
+    http.post(
+      '/api/plataforma/empresas/:id/invitaciones',
+      async ({ request, params }) => {
+        if (!haySesionPlataforma()) return rechazoDeSesion();
+        const cuerpo = (await request.json()) as CuerpoInvitar;
+        const empresaId = String(params['id']);
+        invitacionesRecibidas.push({ empresaId, cuerpo });
+        if (!empresasSimuladas.some((e) => e.id === empresaId)) {
+          return cuerpoDeError(404);
+        }
+        if (typeof cuerpo.email !== 'string') return cuerpoDeError(400);
+        return HttpResponse.json({ email: cuerpo.email }, { status: 201 });
+      },
+    ),
   ];
 }
 
@@ -145,6 +171,7 @@ export function usarHandlersPlataforma(): void {
   reiniciarSesionPlataforma();
   cuerposLogin.length = 0;
   cuerposCrearEmpresa.length = 0;
+  invitacionesRecibidas.length = 0;
   empresasSimuladas.length = 0;
   servidor.use(...crearHandlersPlataforma());
 }
@@ -189,6 +216,33 @@ export function empresasPlataformaLista(empresas: readonly object[]) {
   servidor.use(
     http.get('/api/plataforma/empresas', () =>
       HttpResponse.json([...empresas]),
+    ),
+  );
+}
+
+/** `POST /plataforma/empresas/:id/invitaciones` responde `status`. */
+export function invitarPlataformaFalla(status: number) {
+  servidor.use(
+    http.post('/api/plataforma/empresas/:id/invitaciones', () =>
+      cuerpoDeError(status),
+    ),
+  );
+}
+
+/** `POST /plataforma/empresas/:id/invitaciones` falla en la red. */
+export function invitarPlataformaRedDeFallo() {
+  servidor.use(
+    http.post('/api/plataforma/empresas/:id/invitaciones', () =>
+      HttpResponse.error(),
+    ),
+  );
+}
+
+/** `POST /plataforma/empresas/:id/invitaciones` devuelve este cuerpo con 201. */
+export function invitarPlataformaResponde(cuerpo: object) {
+  servidor.use(
+    http.post('/api/plataforma/empresas/:id/invitaciones', () =>
+      HttpResponse.json(cuerpo, { status: 201 }),
     ),
   );
 }

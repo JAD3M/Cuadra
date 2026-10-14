@@ -69,3 +69,8 @@
   min-block-size: var(--control-height);
   font-size: var(--text-base);
 }
+
+/* Columna «Acciones»: el botón no se parte. */
+.acciones {
+  white-space: nowrap;
+}
