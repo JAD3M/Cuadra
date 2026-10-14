@@ -7,3 +7,4 @@ export * from './cargas';
 export * from './tolerancia';
 export * from './bitacora';
 export * from './invitaciones';
+export * from './recuperacion';
