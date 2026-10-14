@@ -9,16 +9,23 @@ import { ControlTema } from '@/shared/tema';
 import { AlertaError } from '@/shared/ui/AlertaError';
 import { Button } from '@/shared/ui/Button';
 import { AvisoEmpresaCreada } from './components/AvisoEmpresaCreada';
-import { EmpresasPlataforma } from './components/EmpresasPlataforma';
+import { AvisoInvitacionEnviada } from './components/AvisoInvitacionEnviada';
+import {
+  EmpresasPlataforma,
+  type FilaEmpresaPlataforma,
+} from './components/EmpresasPlataforma';
 import { EncabezadoPlataforma } from './components/EncabezadoPlataforma';
 import {
   FormularioCrearEmpresa,
   type ValoresCrearEmpresa,
 } from './components/FormularioCrearEmpresa';
+import { FormularioInvitarAdmin } from './components/FormularioInvitarAdmin';
 import { describirFalloAlta, type FalloAlta } from './mensajesAlta';
+import { describirFalloInvitar, type FalloInvitar } from './mensajesInvitar';
 import estilos from './PlataformaPage.module.css';
 import { TEXTOS_ALTA_EMPRESA, TEXTOS_PLATAFORMA } from './textos';
 import { useCrearEmpresaPlataforma } from './useCrearEmpresaPlataforma';
+import { useInvitarAdminPlataforma } from './useInvitarAdminPlataforma';
 import { esFinDeSesion, useEmpresasPlataforma } from './useEmpresasPlataforma';
 
 /**
@@ -36,6 +43,44 @@ export function PlataformaPage() {
   const [formAbierto, setFormAbierto] = useState(false);
   const [creada, setCreada] = useState<string | null>(null);
   const [falloAlta, setFalloAlta] = useState<FalloAlta | null>(null);
+
+  const invitar = useInvitarAdminPlataforma();
+  const [invitando, setInvitando] = useState<FilaEmpresaPlataforma | null>(
+    null,
+  );
+  const [invitada, setInvitada] = useState<string | null>(null);
+  const [falloInvitar, setFalloInvitar] = useState<FalloInvitar | null>(null);
+
+  function abrirInvitar(empresa: FilaEmpresaPlataforma) {
+    invitar.reset();
+    setInvitada(null);
+    setFalloInvitar(null);
+    setInvitando(empresa);
+  }
+
+  function cerrarInvitar() {
+    invitar.reset();
+    setFalloInvitar(null);
+    setInvitando(null);
+  }
+
+  function enviarInvitacion(correo: string) {
+    if (!invitando) return;
+    setFalloInvitar(null);
+    setInvitada(null);
+    invitar.mutate(
+      { empresaId: invitando.id, email: correo },
+      {
+        onSuccess: () => {
+          // El correo que se muestra es el que se escribió, no el de la
+          // respuesta: nada de la pantalla depende de si la cuenta existía.
+          setInvitada(correo);
+          setInvitando(null);
+        },
+        onError: (error) => setFalloInvitar(describirFalloInvitar(error)),
+      },
+    );
+  }
 
   function abrirFormulario() {
     setCreada(null);
@@ -67,7 +112,9 @@ export function PlataformaPage() {
   // Si la API dice que la sesión ya no vale, la guarda lleva al acceso con el
   // aviso de sesión terminada.
   const finDeSesion =
-    esFinDeSesion(empresas.error) || esFinDeSesion(crear.error);
+    esFinDeSesion(empresas.error) ||
+    esFinDeSesion(crear.error) ||
+    esFinDeSesion(invitar.error);
   useEffect(() => {
     if (finDeSesion) terminar();
   }, [finDeSesion, terminar]);
@@ -127,9 +174,29 @@ export function PlataformaPage() {
             onCancelar={cerrarFormulario}
           />
         )}
+        {invitada !== null && <AvisoInvitacionEnviada correo={invitada} />}
+        {falloInvitar?.donde === 'alerta' && (
+          <AlertaError
+            titulo={falloInvitar.titulo}
+            detalle={falloInvitar.detalle}
+          />
+        )}
+        {invitando && (
+          <FormularioInvitarAdmin
+            key={invitando.id}
+            razonSocial={invitando.razonSocial}
+            pendiente={invitar.isPending}
+            errorCorreo={
+              falloInvitar?.donde === 'campo' ? falloInvitar.texto : undefined
+            }
+            onEnviar={enviarInvitacion}
+            onCancelar={cerrarInvitar}
+          />
+        )}
         <EmpresasPlataforma
           empresas={empresas.data ?? null}
           onCrear={abrirFormulario}
+          onInvitar={abrirInvitar}
           alerta={
             fallo ? (
               <AlertaError titulo={fallo.titulo} detalle={fallo.detalle} />

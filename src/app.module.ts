@@ -12,6 +12,7 @@ import { CasosModule } from './casos/casos.module';
 import { BitacoraModule } from './bitacora/bitacora.module';
 import { CargasModule } from './cargas/cargas.module';
 import { CompaniesModule } from './companies/companies.module';
+import { CorreoModule } from './correo/correo.module';
 import { ColasModule } from './colas/colas.module';
 import { ResolucionModule } from './resolucion/resolucion.module';
 import { ContextoEmpresaModule } from './database/contexto-empresa.module';
@@ -37,6 +38,7 @@ import { RedisModule } from './redis/redis.module';
     ContextoEmpresaModule,
     ColasModule,
     RedisModule,
+    CorreoModule,
     HealthModule,
     AuthModule,
     CargasModule,

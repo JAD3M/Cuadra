@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import type { InputHTMLAttributes, Ref } from 'react';
+import type { InputHTMLAttributes, ReactNode, Ref } from 'react';
 import estilos from './Campo.module.css';
 
 export interface CampoProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -9,6 +9,12 @@ export interface CampoProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string;
   /** Texto de apoyo bajo el control. */
   ayuda?: string;
+  /**
+   * Control embebido a la derecha del `input` (por ejemplo, mostrar u ocultar
+   * la contraseña). El `input` reserva espacio para que el texto no quede
+   * debajo.
+   */
+  accion?: ReactNode;
   /** Referencia al `input` (por ejemplo, para enfocarlo). */
   ref?: Ref<HTMLInputElement>;
 }
@@ -22,6 +28,7 @@ export function Campo({
   etiqueta,
   error,
   ayuda,
+  accion,
   id,
   className,
   ref,
@@ -43,14 +50,17 @@ export function Campo({
       <label htmlFor={idControl} className={estilos.etiqueta}>
         {etiqueta}
       </label>
-      <input
-        {...resto}
-        ref={ref}
-        id={idControl}
-        className={clases}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={descritoPor}
-      />
+      <div className={accion ? estilos.conAccion : estilos.envoltura}>
+        <input
+          {...resto}
+          ref={ref}
+          id={idControl}
+          className={clases}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={descritoPor}
+        />
+        {accion && <span className={estilos.accion}>{accion}</span>}
+      </div>
       {ayuda && (
         <p id={idAyuda} className={estilos.ayuda}>
           {ayuda}

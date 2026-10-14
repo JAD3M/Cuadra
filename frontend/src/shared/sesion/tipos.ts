@@ -99,6 +99,13 @@ export interface AccionesSesion {
    */
   elegirEmpresa(empresaId: string): Promise<void>;
   /**
+   * Aceptar una invitación: el servidor ya puso la cookie de una sesión con
+   * empresa. Pide el contexto con ella y entra, reemplazando cualquier sesión
+   * anterior y vaciando su caché. Rechaza sin cambiar el estado si el
+   * contexto falla.
+   */
+  abrirSesionDeInvitacion(): Promise<void>;
+  /**
    * Cambio directo de empresa: pide la lista y pasa a `selecting` con origen
    * `cambio`. La sesión actual sigue viva y la caché no se toca. Con un fallo
    * de red o 5xx rechaza y la sesión sigue en `ready`. Con un 401 (la cookie

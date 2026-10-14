@@ -45,3 +45,35 @@ describe('contrato CSS de AlertaError', () => {
     expect(css).not.toMatch(LITERAL_DE_COLOR);
   });
 });
+
+describe('contrato CSS del botón de mostrar contraseña', () => {
+  const css = leerModuloCss('shared/ui/CampoContrasena.module.css');
+  const campoCss = leerModuloCss('shared/ui/Campo.module.css');
+
+  it('el botón mide al menos el objetivo táctil y es transparente', () => {
+    const boton = bloqueCss(css, '.boton');
+    expect(boton).toMatch(/min-inline-size:\s*var\(--touch-min\)/);
+    expect(boton).toMatch(/min-block-size:\s*var\(--touch-min\)/);
+    expect(boton).toMatch(/background:\s*transparent/);
+    expect(boton).toMatch(/color:\s*var\(--color-link\)/);
+    expect(boton).toMatch(/font-size:\s*var\(--text-sm\)/);
+    expect(boton).toMatch(/font-weight:\s*var\(--weight-semibold\)/);
+  });
+
+  it('declara foco visible propio', () => {
+    expect(bloqueCss(css, '.boton:focus-visible')).toMatch(
+      /outline:\s*2px solid var\(--color-accent\)/,
+    );
+  });
+
+  it('el campo reserva espacio a la derecha para que el texto no quede bajo el botón', () => {
+    expect(bloqueCss(campoCss, '.conAccion .control')).toMatch(
+      /padding-inline-end:/,
+    );
+    expect(bloqueCss(campoCss, '.accion')).toMatch(/position:\s*absolute/);
+  });
+
+  it('solo usa tokens: sin literales de color', () => {
+    expect(css).not.toMatch(LITERAL_DE_COLOR);
+  });
+});

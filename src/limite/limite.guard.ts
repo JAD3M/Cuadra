@@ -83,7 +83,9 @@ export class LimiteGuard implements CanActivate {
       );
     }
 
-    reservasPorSolicitud.set(solicitud, clave);
+    // Sin reserva registrada el interceptor no devuelve el intento: así los
+    // 2xx también cuentan en las rutas con `contarExitos`.
+    if (!opciones.contarExitos) reservasPorSolicitud.set(solicitud, clave);
     return true;
   }
 }

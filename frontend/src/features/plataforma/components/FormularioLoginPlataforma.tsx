@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { AlertaError } from '@/shared/ui/AlertaError';
 import { Button } from '@/shared/ui/Button';
 import { Campo } from '@/shared/ui/Campo';
+import { CampoContrasena } from '@/shared/ui/CampoContrasena';
 import {
   esquemaLoginPlataforma,
   type ValoresLoginPlataforma,
@@ -103,9 +104,8 @@ export function FormularioLoginPlataforma({
         error={errors.email?.message}
         {...register('email')}
       />
-      <Campo
+      <CampoContrasena
         etiqueta="Contraseña"
-        type="password"
         autoComplete="current-password"
         error={errors.password?.message}
         aria-describedby={fallo ? idAlerta : undefined}

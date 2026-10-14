@@ -1,0 +1,33 @@
+/*
+ * Panel «Invitar administrador» de Plataforma.dc.html: la misma tarjeta que
+ * «Nueva empresa», con un solo campo de hasta 460 px. Solo tokens de rol.
+ */
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  padding: var(--space-24);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-sidebar);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.campo {
+  max-inline-size: 460px;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.accion {
+  min-block-size: var(--control-height);
+  font-size: var(--text-base);
+}
