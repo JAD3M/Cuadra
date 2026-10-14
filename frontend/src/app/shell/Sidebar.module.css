@@ -39,3 +39,18 @@
   gap: var(--space-12);
   margin-block-start: auto;
 }
+
+/*
+ * Pantallas anchas: la barra queda fija a la altura de la ventana y no se
+ * desplaza con el contenido; si no cabe, desplaza solo su propio contenido.
+ * Menos de 900 px es un panel bajo la barra superior (ShellLayout).
+ */
+@media (width >= 900px) {
+  .barra {
+    position: sticky;
+    inset-block-start: 0;
+    align-self: start;
+    block-size: 100vh;
+    overflow-y: auto;
+  }
+}
