@@ -1,4 +1,5 @@
 import type { Rol } from '../common/entities/tipos';
+import type { PermisoEmpresa } from './permisos/matriz';
 
 /** Tipo de sesión; ver `@Scope` en `decoradores.ts` para su semántica. */
 export type Scope = 'seleccion' | 'sesion' | 'plataforma';
@@ -60,6 +61,8 @@ export interface ContextoSesion {
   usuario: UsuarioPublico;
   empresa: EmpresaContexto;
   roles: Rol[];
+  /** Permisos de la matriz que tiene alguno de sus roles (unión). */
+  capacidades: PermisoEmpresa[];
 }
 
 /** Lo que devuelve el login: el token va a la cookie, nunca al cuerpo. */

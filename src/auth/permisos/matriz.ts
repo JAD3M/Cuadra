@@ -74,3 +74,21 @@ export const MATRIZ_PERMISOS: Record<Permiso, readonly Rol[]> = {
 export function rolesConPermiso(permiso: Permiso): readonly Rol[] {
   return MATRIZ_PERMISOS[permiso];
 }
+
+/** Permisos de empresa, en el orden de `PERMISOS` (sin los del dueño). */
+export const PERMISOS_EMPRESA: readonly PermisoEmpresa[] = PERMISOS.filter(
+  (permiso): permiso is PermisoEmpresa =>
+    !(PERMISOS_DUENO as readonly Permiso[]).includes(permiso),
+);
+
+/**
+ * Capacidades de una persona: los permisos de empresa que tiene alguno de
+ * sus roles (unión), en el orden de `PERMISOS` y sin repetidos. Es lo que el
+ * frontend usa para mostrar menú y botones; el servidor sigue decidiendo con
+ * `RolesGuard`.
+ */
+export function permisosDeRoles(roles: readonly Rol[]): PermisoEmpresa[] {
+  return PERMISOS_EMPRESA.filter((permiso) =>
+    MATRIZ_PERMISOS[permiso].some((rol) => roles.includes(rol)),
+  );
+}
