@@ -67,8 +67,8 @@ unidad de trabajo.
 
 ## Tareas
 
-- [x] **T1** Migración y entidad (`roles[]`, invitador de empresa), aceptación con todos los roles, ajustes de plataforma y de las pruebas de esquema. Ruta: delegada (escritor). Commit: ver Evidencia.
-- [ ] **T2** `POST /usuarios/invitaciones`: permiso, límite, respuesta uniforme, correo, bitácora con invitador y roles; pruebas de 403 con acceso denegado.
+- [x] **T1** Migración y entidad (`roles[]`, invitador de empresa), aceptación con todos los roles, ajustes de plataforma y de las pruebas de esquema. Ruta: delegada (escritor). Commit: `cd186fc`.
+- [x] **T2** `POST /usuarios/invitaciones`: permiso, límite, respuesta uniforme, correo, bitácora con invitador y roles; pruebas de 403 con acceso denegado. Ruta: delegada (escritor). Commit: ver `git log` (`feat(usuarios)`).
 - [ ] **T3** Mockup de la pantalla de Usuarios (invitar con roles), oscuro y claro, acordado con el usuario.
 - [ ] **T4** Interfaz: formulario de invitar con roles y mensajes, sobre el mockup aprobado.
 - [ ] **T5** Cierre: pruebas completas, bitácora, PRs en cadena.
@@ -91,8 +91,10 @@ acordado antes de la interfaz.
 
 ## Progreso
 
-T1 hecha (migración `1790709800000-InvitacionesMultirol`, entidad, aceptación con todos los roles). Siguiente paso: T2.
+T1 hecha (migración `1790709800000-InvitacionesMultirol`, entidad, aceptación con todos los roles). T2 hecha: `POST /usuarios/invitaciones` (`src/usuarios/`), `@Permiso('usuarios.gestionar')`, `@Limite({20, 3600, contarExitos})` igual que plataforma, respuesta `{ email, roles }`, bitácora `invitar` con `user_id` del invitador en la transacción de la petición y correo tras el COMMIT (503 si falla). Siguiente paso: T3 (mockup, espera aprobación).
 
 ## Evidencia
 
 T1: RED observado (column "roles" does not exist en esquema, plataforma.esquema e invitaciones); GREEN: npm test 58 suites / 1211 pruebas, typecheck, eslint, build y prettier --check limpios. Sin GRANT nuevo: INSERT de tabla ya cubre las columnas nuevas.
+
+T2: RED observado (`Cannot find module './usuarios.module'`); GREEN: 16 pruebas de `src/usuarios/invitar-usuarios.integracion.spec.ts`; npm test 59 suites / 1227 pruebas, typecheck, eslint, build y prettier --check limpios.

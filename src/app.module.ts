@@ -15,6 +15,7 @@ import { CompaniesModule } from './companies/companies.module';
 import { CorreoModule } from './correo/correo.module';
 import { ColasModule } from './colas/colas.module';
 import { ResolucionModule } from './resolucion/resolucion.module';
+import { UsuariosModule } from './usuarios/usuarios.module';
 import { ContextoEmpresaModule } from './database/contexto-empresa.module';
 import { RedisModule } from './redis/redis.module';
 
@@ -48,6 +49,7 @@ import { RedisModule } from './redis/redis.module';
     CasosModule,
     BitacoraModule,
     ResolucionModule,
+    UsuariosModule,
   ],
 })
 export class AppModule {}

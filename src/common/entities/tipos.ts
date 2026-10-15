@@ -86,8 +86,10 @@ export type ResultadoSugerencia = (typeof RESULTADOS_SUGERENCIA)[number];
 /**
  * 'acceso_denegado' (CU-03.3): un 403 por rol o por membresía. `entidad` es
  * 'companies' y `entidad_id` la empresa a la que se intentó entrar.
- * 'invitar' (historia 1.5): el dueño invitó a alguien a la empresa. `entidad`
- * es 'companies', `user_id` queda nulo y el dueño va en `datos`.
+ * 'invitar' (historias 1.5 y 2.3): alguien invitó a una persona a la empresa.
+ * `entidad` es 'companies'. Si invitó el dueño de la plataforma, `user_id`
+ * queda nulo y el dueño va en `datos`; si invitó una persona administradora de
+ * la empresa, `user_id` es esa persona y `datos` trae el correo y los roles.
  */
 export const ACCIONES_BITACORA = [
   'crear',
