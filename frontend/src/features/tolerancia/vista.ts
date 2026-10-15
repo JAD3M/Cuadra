@@ -1,7 +1,7 @@
 import { formatearInstante } from '@/features/caso/fecha';
 import type { CambioTolerancia } from '@/shared/api/contratos';
 import { formatearDecimalExacto } from '@/shared/dinero';
-import { ROLES_QUE_EDITAN_TOLERANCIA } from '@/shared/dominio';
+import { puede, type Permiso } from '@/shared/dominio';
 import type { EstadoCambios, FilaCambio } from './components/TarjetaCambios';
 import type { EstadoValor } from './components/TarjetaValor';
 import { clasificarErrorGuardado } from './errores';
@@ -17,13 +17,12 @@ import {
 // guardado en curso.
 
 /**
- * Quién ve el formulario: basta un rol de los que cambian la tolerancia. Un
- * usuario con varios roles edita si uno de ellos sirve. Es comodidad: el
- * servidor decide, y un rol viejo se degrada al aviso de «sin permiso» cuando
- * el PUT responde 403.
+ * Quién ve el formulario: quien tiene la capacidad `tolerancia.editar` que
+ * entregó el servidor. Es comodidad: el servidor decide, y una capacidad vieja
+ * se degrada al aviso de «sin permiso» cuando el PUT responde 403.
  */
-export const puedeEditar = (roles: readonly string[]): boolean =>
-  ROLES_QUE_EDITAN_TOLERANCIA.some((rol) => roles.includes(rol));
+export const puedeEditar = (capacidades: readonly Permiso[]): boolean =>
+  puede(capacidades, 'tolerancia.editar');
 
 export interface EntradaFormulario {
   /** Lo que escribió la persona; `null` mientras el campo siga sin tocar. */

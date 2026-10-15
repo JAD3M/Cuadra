@@ -124,7 +124,7 @@ export function ShellLayout() {
       return null;
   }
 
-  const { usuario, empresa, roles } = contexto;
+  const { usuario, empresa, roles, capacidades } = contexto;
   const manejador = coincidencias.at(-1)?.handle;
   const titulo = tituloDeRuta(manejador) ?? 'Cuadra';
   const subtitulo = subtituloDeRuta(manejador, empresa.razonSocial);
@@ -190,6 +190,7 @@ export function ShellLayout() {
             pendientes={pendientes}
             usuario={usuario}
             roles={roles}
+            capacidades={capacidades}
             controlTema={<ControlTema />}
             onCerrarSesion={cerrarSesion}
           />

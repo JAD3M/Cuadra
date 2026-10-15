@@ -1,8 +1,9 @@
 import {
-  ROLES_QUE_CARGAN,
   TIPO_CFDI,
   esActiva,
+  puede,
   type EstadoCarga,
+  type Permiso,
   type TipoCarga,
 } from '@/shared/dominio';
 import { clasificarErrorLectura } from './errores';
@@ -45,12 +46,12 @@ export function vistaHistorial({
 }
 
 /**
- * Quién puede subir cargas: basta un rol de los que cargan. Un usuario con
- * varios roles sube si uno de ellos sirve. Es comodidad: el servidor decide,
- * y un rol viejo se degrada al texto de «sin permiso» cuando el POST responde 403.
+ * Quién puede subir cargas: quien tiene la capacidad `cargas.cargar` que
+ * entregó el servidor. Es comodidad: el servidor decide, y una capacidad vieja
+ * se degrada al texto de «sin permiso» cuando el POST responde 403.
  */
-export const puedeSubir = (roles: readonly string[]): boolean =>
-  ROLES_QUE_CARGAN.some((rol) => roles.includes(rol));
+export const puedeSubir = (capacidades: readonly Permiso[]): boolean =>
+  puede(capacidades, 'cargas.cargar');
 
 /**
  * Qué muestra el panel de la carga recién subida. Los nombres evitan los

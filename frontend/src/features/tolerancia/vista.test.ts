@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError, ContratoError, NetworkError } from '@/shared/api';
 import type { CambioTolerancia } from '@/shared/api/contratos';
+import type { Permiso } from '@/shared/dominio';
 import {
   derivarFormulario,
   filasDeCambios,
@@ -12,19 +13,12 @@ import {
 
 describe('puedeEditar (TOL-8)', () => {
   it.each([
-    [['admin'], true],
-    [['contador', 'admin'], true],
-    [['admin', 'revisor'], true],
-    [['contador'], false],
-    [['revisor'], false],
-    [['contador', 'revisor'], false],
+    [['tolerancia.ver', 'tolerancia.editar'], true],
+    [['tolerancia.editar'], true],
+    [['tolerancia.ver', 'cargas.cargar'], false],
     [[], false],
-  ])('roles %j -> %s', (roles, esperado) => {
-    expect(puedeEditar(roles)).toBe(esperado);
-  });
-
-  it('el rol no se compara por mayúsculas: Admin no es admin', () => {
-    expect(puedeEditar(['Admin'])).toBe(false);
+  ])('capacidades %j -> %s', (capacidades, esperado) => {
+    expect(puedeEditar(capacidades as Permiso[])).toBe(esperado);
   });
 });
 

@@ -1,3 +1,6 @@
+import type { Permiso } from '@/shared/dominio';
+import { puede } from '@/shared/dominio';
+
 /** Identificador del icono decorativo de cada elemento de navegación. */
 export type IconoNav = 'bandeja' | 'cargas' | 'bitacora' | 'tolerancia';
 
@@ -14,6 +17,8 @@ export interface ElementoNav {
    */
   activoEn: readonly string[];
   icono: IconoNav;
+  /** Permiso de sección que hace visible el elemento (`/auth/contexto`). */
+  permiso: Permiso;
 }
 
 export const ELEMENTOS_NAV: readonly ElementoNav[] = [
@@ -23,6 +28,7 @@ export const ELEMENTOS_NAV: readonly ElementoNav[] = [
     ruta: '/bandeja',
     activoEn: ['/bandeja', '/casos'],
     icono: 'bandeja',
+    permiso: 'bandeja.ver',
   },
   {
     clave: 'cargas',
@@ -30,6 +36,7 @@ export const ELEMENTOS_NAV: readonly ElementoNav[] = [
     ruta: '/cargas',
     activoEn: ['/cargas'],
     icono: 'cargas',
+    permiso: 'cargas.ver',
   },
   {
     clave: 'bitacora',
@@ -37,6 +44,7 @@ export const ELEMENTOS_NAV: readonly ElementoNav[] = [
     ruta: '/bitacora',
     activoEn: ['/bitacora'],
     icono: 'bitacora',
+    permiso: 'bitacora.ver',
   },
   {
     clave: 'tolerancia',
@@ -44,6 +52,7 @@ export const ELEMENTOS_NAV: readonly ElementoNav[] = [
     ruta: '/tolerancia',
     activoEn: ['/tolerancia'],
     icono: 'tolerancia',
+    permiso: 'tolerancia.ver',
   },
 ];
 
@@ -56,5 +65,18 @@ function coincidePrefijo(ruta: string, prefijo: string): boolean {
 export function elementoActivo(ruta: string): ElementoNav | undefined {
   return ELEMENTOS_NAV.find((elemento) =>
     elemento.activoEn.some((prefijo) => coincidePrefijo(ruta, prefijo)),
+  );
+}
+
+/**
+ * Elementos que la persona ve, en el orden fijo del menú. Se filtra por las
+ * capacidades que entregó el servidor; ocultar es comodidad, el servidor
+ * responde 403 igual.
+ */
+export function elementosVisibles(
+  capacidades: readonly Permiso[],
+): readonly ElementoNav[] {
+  return ELEMENTOS_NAV.filter((elemento) =>
+    puede(capacidades, elemento.permiso),
   );
 }

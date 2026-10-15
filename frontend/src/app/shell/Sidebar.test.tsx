@@ -2,14 +2,22 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
-import { ETIQUETAS_ROL, type Rol } from '@/shared/dominio';
+import { ETIQUETAS_ROL, type Permiso, type Rol } from '@/shared/dominio';
 import { Sidebar } from './Sidebar';
+
+const TODAS: Permiso[] = [
+  'bandeja.ver',
+  'cargas.ver',
+  'bitacora.ver',
+  'tolerancia.ver',
+];
 
 function dibujar(
   ruta: string,
   opciones: {
     pendientes?: number;
     roles?: Rol[];
+    capacidades?: Permiso[];
     onCerrarSesion?: () => void;
   } = {},
 ) {
@@ -20,6 +28,7 @@ function dibujar(
         pendientes={opciones.pendientes}
         usuario={{ nombre: 'Luis Reyes' }}
         roles={opciones.roles ?? ['contador']}
+        capacidades={opciones.capacidades ?? TODAS}
         controlTema={<div data-testid="control-tema">tema</div>}
         onCerrarSesion={opciones.onCerrarSesion}
       />
@@ -28,6 +37,21 @@ function dibujar(
 }
 
 describe('Sidebar', () => {
+  it('sin capacidades de sección no hay enlaces; con las de auditor, solo Bandeja y Bitácora', () => {
+    const { unmount } = dibujar('/bandeja', { capacidades: [] });
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
+    unmount();
+    dibujar('/bandeja', { capacidades: ['bandeja.ver', 'bitacora.ver'] });
+    const nav = screen.getByRole('navigation', {
+      name: 'Navegación principal',
+    });
+    expect(
+      within(nav)
+        .getAllByRole('link')
+        .map((e) => e.getAttribute('href')),
+    ).toEqual(['/bandeja', '/bitacora']);
+  });
+
   it('expone la navegación principal con sus cuatro enlaces', () => {
     dibujar('/bandeja');
     const nav = screen.getByRole('navigation', {

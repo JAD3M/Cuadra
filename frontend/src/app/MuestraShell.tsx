@@ -17,6 +17,13 @@ const SESION_DE_EJEMPLO: ContextoSesion = {
     rfc: 'FDB190215QK4',
   },
   roles: ['revisor', 'admin'],
+  capacidades: [
+    'bandeja.ver',
+    'cargas.ver',
+    'bitacora.ver',
+    'tolerancia.ver',
+    'conciliaciones.resolver',
+  ],
 };
 
 /**
@@ -43,6 +50,7 @@ export function MuestraShell() {
         pendientes={PENDIENTES_DE_EJEMPLO}
         usuario={SESION_DE_EJEMPLO.usuario}
         roles={SESION_DE_EJEMPLO.roles}
+        capacidades={SESION_DE_EJEMPLO.capacidades}
         controlTema={<ControlTema />}
         onCerrarSesion={() => {}}
       />

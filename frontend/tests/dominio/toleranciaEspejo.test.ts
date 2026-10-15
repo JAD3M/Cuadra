@@ -8,7 +8,7 @@ import {
   DECIMALES_TOLERANCIA,
   ENTIDAD_EMPRESA,
   PATRON_TOLERANCIA,
-  ROLES_QUE_EDITAN_TOLERANCIA,
+  rolesConPermiso,
   TOLERANCIA_MAXIMA,
 } from '@/shared/dominio';
 import { rolesDeMatriz } from './extraerPermisos';
@@ -114,11 +114,11 @@ describe('roles que editan (@Permiso del PUT de src/companies/empresa.controller
   const controlador = leer('companies/empresa.controller.ts');
   const matriz = leer('auth/permisos/matriz.ts');
 
-  it('el PUT declara tolerancia.editar y la matriz le da ROLES_QUE_EDITAN_TOLERANCIA', () => {
+  it('el PUT declara tolerancia.editar y la matriz del backend coincide con el espejo', () => {
     const permiso = permisoDelPut(controlador);
     expect(permiso).toBe('tolerancia.editar');
     expect(rolesDeMatriz(matriz, permiso!)).toEqual([
-      ...ROLES_QUE_EDITAN_TOLERANCIA,
+      ...rolesConPermiso('tolerancia.editar'),
     ]);
   });
 
@@ -129,7 +129,7 @@ describe('roles que editan (@Permiso del PUT de src/companies/empresa.controller
     );
     expect(fuente).not.toBe(matriz);
     expect(rolesDeMatriz(fuente, 'tolerancia.editar')).not.toEqual([
-      ...ROLES_QUE_EDITAN_TOLERANCIA,
+      ...rolesConPermiso('tolerancia.editar'),
     ]);
   });
 

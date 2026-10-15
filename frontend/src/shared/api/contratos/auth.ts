@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PERMISOS } from '@/shared/dominio/permisos';
 import { ROLES } from '@/shared/dominio/tipos';
 
 // Contratos de la API de autenticación (CU-19). Se derivan de
@@ -9,6 +10,9 @@ import { ROLES } from '@/shared/dominio/tipos';
 
 /** Rol validado contra el espejo: uno desconocido falla en la frontera. */
 export const rol = z.enum(ROLES);
+
+/** Permiso validado contra el espejo de la matriz (`shared/dominio/permisos`). */
+export const permiso = z.enum(PERMISOS);
 
 const id = z.guid();
 const texto = z.string().min(1);
@@ -41,6 +45,8 @@ export const contextoSesion = z.object({
   usuario: usuarioPublico,
   empresa: empresaContexto,
   roles: z.array(rol),
+  /** Permisos de la matriz que tiene alguno de sus roles (unión). */
+  capacidades: z.array(permiso),
 });
 
 /**

@@ -63,7 +63,7 @@ eligió el usuario en la 2.1).
 ## Tareas
 
 - [x] **T1** Backend: `capacidades` en `/auth/contexto` (DTO, servicio, pruebas) y descripciones de rol con `auditor`. (ruta: delegada, escritor único)
-- [ ] **T2** Frontend: contrato `capacidades`, `puede`/hook, reemplazar `ROLES_QUE_*` en cargas y tolerancia.
+- [x] **T2** Frontend: contrato `capacidades`, `puede`/hook, reemplazar `ROLES_QUE_*` en cargas y tolerancia. (ruta: delegada, escritor único)
 - [ ] **T3** Menú filtrado por capacidad (`ELEMENTOS_NAV` con permiso, `Sidebar`) y pruebas por rol.
 - [ ] **T4** Detalle sin acciones para el auditor (nota de solo lectura), prueba «sin literales de rol» en shell y features.
 - [ ] **T5** Cierre: pruebas completas, bitácora, PR en cadena.
