@@ -89,9 +89,9 @@ export function CargasContenedor() {
     if (fallo !== null) alertaRef.current?.focus();
   }, [fallo]);
 
-  // La ruta ya exige sesión lista; si no lo está no hay roles que juzgar.
+  // La ruta ya exige sesión lista; si no lo está no hay capacidades que juzgar.
   if (sesion.status !== 'ready') return null;
-  const deshabilitadas = !puedeSubir(sesion.contexto.roles);
+  const deshabilitadas = !puedeSubir(sesion.contexto.capacidades);
   const subiendoCfdi = isPending && variables?.tipo === TIPO_CFDI;
   const subiendoCsv = isPending && variables?.tipo === TIPO_ESTADO_CUENTA;
   const perfil = perfilVigente(perfiles.data, perfilElegido);

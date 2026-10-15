@@ -1,4 +1,10 @@
 import { contextoSesion } from '@/shared/api/contratos';
+import {
+  MATRIZ_PERMISOS,
+  PERMISOS,
+  PERMISOS_DUENO,
+  type Rol,
+} from '@/shared/dominio';
 import type { SessionState } from '@/shared/sesion';
 
 // Cargas útiles de ejemplo con la forma exacta que responde la API (CU-19).
@@ -32,10 +38,24 @@ export const RESPUESTA_LOGIN = {
   empresas: EMPRESAS_DISPONIBLES,
 };
 
+/**
+ * Capacidades que el servidor entregaría para estos roles (unión de la matriz,
+ * sin permisos del dueño). Solo para fixtures: la aplicación las lee del
+ * servidor y nunca las deriva.
+ */
+export function capacidadesDeRoles(roles: readonly string[]): string[] {
+  return PERMISOS.filter(
+    (p) =>
+      !(PERMISOS_DUENO as readonly string[]).includes(p) &&
+      MATRIZ_PERMISOS[p].some((rol) => roles.includes(rol as Rol)),
+  );
+}
+
 export const CONTEXTO_SESION = {
   usuario: USUARIO,
   empresa: EMPRESA_CONTEXTO,
   roles: ['admin', 'contador'],
+  capacidades: capacidadesDeRoles(['admin', 'contador']),
 };
 
 /** Una sola empresa: la respuesta de `/auth/login` de un usuario con acceso a una. */
@@ -53,6 +73,7 @@ export const CONTEXTO_SESION_B = {
     rfc: EMPRESAS_DISPONIBLES[1]!.rfc,
   },
   roles: ['revisor'],
+  capacidades: capacidadesDeRoles(['revisor']),
 };
 
 /** Estado público `ready` ya resuelto, para pruebas que no ejercen la sesión. */

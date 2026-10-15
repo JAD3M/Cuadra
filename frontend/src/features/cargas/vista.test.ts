@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError, ContratoError, NetworkError } from '@/shared/api';
-import { TIPO_CFDI, TIPO_ESTADO_CUENTA } from '@/shared/dominio';
+import { TIPO_CFDI, TIPO_ESTADO_CUENTA, type Permiso } from '@/shared/dominio';
 import {
   derivarPanel,
   estadoActualizacion,
@@ -111,14 +111,13 @@ describe('vistaHistorial', () => {
 
 describe('puedeSubir', () => {
   it.each([
-    [['admin'], true],
-    [['contador'], true],
-    [['admin', 'contador'], true],
-    [['revisor', 'contador'], true],
-    [['revisor'], false],
+    [['cargas.ver', 'cargas.cargar'], true],
+    [['cargas.cargar'], true],
+    [['cargas.ver'], false],
+    [['bandeja.ver', 'conciliaciones.resolver'], false],
     [[], false],
-  ])('roles %j: %s', (roles, esperado) => {
-    expect(puedeSubir(roles)).toBe(esperado);
+  ])('capacidades %j: %s', (capacidades, esperado) => {
+    expect(puedeSubir(capacidades as Permiso[])).toBe(esperado);
   });
 });
 

@@ -1,4 +1,4 @@
-import type { EstadoCarga, Rol, TipoCarga } from './tipos';
+import type { EstadoCarga, TipoCarga } from './tipos';
 
 // Espejo de lo que el backend define para las cargas fuera de
 // src/common/entities/tipos.ts (CU-24, M9). El frontend no importa código del
@@ -35,12 +35,6 @@ export type ResultadoArchivo = (typeof RESULTADOS_ARCHIVO)[number];
 
 /** El resultado de un archivo o una fila que no entró (lleva `motivo`). */
 export const RESULTADO_ERROR = 'error' as const satisfies ResultadoArchivo;
-
-/** Roles que pueden subir cargas: los `@Roles` de los dos POST del backend. */
-export const ROLES_QUE_CARGAN = [
-  'admin',
-  'contador',
-] as const satisfies readonly Rol[];
 
 /** src/bancos/perfiles-bancarios.ts: el perfil si el POST no dice otro. */
 export const PERFIL_POR_DEFECTO = 'cuadra';

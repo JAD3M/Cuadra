@@ -57,3 +57,15 @@ export const MATRIZ_PERMISOS: Record<Permiso, readonly Rol[]> = {
 export function rolesConPermiso(permiso: Permiso): readonly Rol[] {
   return MATRIZ_PERMISOS[permiso];
 }
+
+/**
+ * ¿La persona tiene la capacidad? `capacidades` es la lista que entrega el
+ * servidor en `/auth/contexto`; aquí nunca se deriva de los roles. Es
+ * comodidad de pantalla: el servidor decide y responde 403.
+ */
+export function puede(
+  capacidades: readonly Permiso[],
+  permiso: Permiso,
+): boolean {
+  return capacidades.includes(permiso);
+}

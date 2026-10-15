@@ -104,6 +104,32 @@ describe('contratos de autenticación: formas incorrectas fallan', () => {
     expect(contextoSesion.safeParse(mala).success).toBe(false);
   });
 
+  it('conserva las capacidades que manda el servidor', () => {
+    const contexto = contextoSesion.parse({
+      ...CONTEXTO_SESION,
+      capacidades: ['bandeja.ver', 'bitacora.ver'],
+    });
+    expect(contexto.capacidades).toEqual(['bandeja.ver', 'bitacora.ver']);
+  });
+
+  it('rechaza un contexto sin capacidades, con un permiso desconocido o que no es arreglo', () => {
+    const { capacidades: _capacidades, ...sinCapacidades } = CONTEXTO_SESION;
+    void _capacidades;
+    expect(contextoSesion.safeParse(sinCapacidades).success).toBe(false);
+    expect(
+      contextoSesion.safeParse({
+        ...CONTEXTO_SESION,
+        capacidades: ['hacer.todo'],
+      }).success,
+    ).toBe(false);
+    expect(
+      contextoSesion.safeParse({
+        ...CONTEXTO_SESION,
+        capacidades: 'bandeja.ver',
+      }).success,
+    ).toBe(false);
+  });
+
   it('rechaza un contexto sin empresa', () => {
     const { empresa: _empresa, ...sinEmpresa } = CONTEXTO_SESION;
     void _empresa;

@@ -11,7 +11,11 @@ import {
 } from '@/shared/api/contratos';
 import type { SessionState } from '@/shared/sesion';
 import { crearCompuerta } from '@/test/compuerta';
-import { CONTEXTO_SESION, SESION_LISTA } from '@/test/fixtures';
+import {
+  CONTEXTO_SESION,
+  SESION_LISTA,
+  capacidadesDeRoles,
+} from '@/test/fixtures';
 import {
   detalleCarga,
   detalleCfdiConErrores,
@@ -37,7 +41,11 @@ import type { ConfigPolling } from './ContextoPolling';
 function sesionConRoles(roles: string[]): SessionState {
   return {
     ...SESION_LISTA,
-    contexto: contextoSesion.parse({ ...CONTEXTO_SESION, roles }),
+    contexto: contextoSesion.parse({
+      ...CONTEXTO_SESION,
+      roles,
+      capacidades: capacidadesDeRoles(roles),
+    }),
   } as SessionState;
 }
 

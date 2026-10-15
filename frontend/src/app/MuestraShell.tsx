@@ -17,6 +17,7 @@ const SESION_DE_EJEMPLO: ContextoSesion = {
     rfc: 'FDB190215QK4',
   },
   roles: ['revisor', 'admin'],
+  capacidades: ['bandeja.ver', 'bitacora.ver', 'conciliaciones.resolver'],
 };
 
 /**

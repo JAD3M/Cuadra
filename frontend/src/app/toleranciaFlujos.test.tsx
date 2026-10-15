@@ -27,6 +27,7 @@ import {
   CONTEXTO_SESION_B,
   EMPRESAS_DISPONIBLES,
   USUARIO,
+  capacidadesDeRoles,
 } from '@/test/fixtures';
 import { casoDeFila } from '@/test/fixturesCaso';
 import { FILAS_DEMO } from '@/test/fixturesBandeja';
@@ -135,8 +136,16 @@ async function intentarEnviar() {
 function contextoConRoles(rolesA: string[], rolesB?: string[]) {
   const contexto = () =>
     empresaDeLaSesion() === idB
-      ? { ...CONTEXTO_SESION_B, roles: rolesB ?? CONTEXTO_SESION_B.roles }
-      : { ...CONTEXTO_SESION, roles: rolesA };
+      ? {
+          ...CONTEXTO_SESION_B,
+          roles: rolesB ?? CONTEXTO_SESION_B.roles,
+          capacidades: capacidadesDeRoles(rolesB ?? CONTEXTO_SESION_B.roles),
+        }
+      : {
+          ...CONTEXTO_SESION,
+          roles: rolesA,
+          capacidades: capacidadesDeRoles(rolesA),
+        };
   servidor.use(
     http.post('/api/auth/empresa/:id', ({ params }) => {
       elegirEmpresaMock(String(params.id));

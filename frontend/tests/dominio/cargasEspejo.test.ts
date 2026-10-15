@@ -8,7 +8,7 @@ import {
   PERFIL_POR_DEFECTO,
   RESULTADOS_ARCHIVO,
   RESULTADO_ERROR,
-  ROLES_QUE_CARGAN,
+  rolesConPermiso,
 } from '@/shared/dominio';
 import {
   constantesNumericas,
@@ -60,12 +60,12 @@ describe('roles que cargan (@Permiso de src/cargas/cargas.controller.ts)', () =>
   const controlador = leer('cargas/cargas.controller.ts');
   const matriz = leer('auth/permisos/matriz.ts');
 
-  it('los dos POST declaran cargas.cargar y la matriz le da ROLES_QUE_CARGAN', () => {
+  it('los dos POST declaran cargas.cargar y la matriz del backend coincide con el espejo', () => {
     expect(
       permisosDelControlador(controlador).filter((p) => p !== 'cargas.ver'),
     ).toEqual(['cargas.cargar', 'cargas.cargar']);
     expect(rolesDeMatriz(matriz, 'cargas.cargar')).toEqual([
-      ...ROLES_QUE_CARGAN,
+      ...rolesConPermiso('cargas.cargar'),
     ]);
   });
 
@@ -76,7 +76,7 @@ describe('roles que cargan (@Permiso de src/cargas/cargas.controller.ts)', () =>
     );
     expect(fuente).not.toBe(matriz);
     expect(rolesDeMatriz(fuente, 'cargas.cargar')).not.toEqual([
-      ...ROLES_QUE_CARGAN,
+      ...rolesConPermiso('cargas.cargar'),
     ]);
   });
 });
