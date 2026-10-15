@@ -3,3 +3,11 @@
   max-inline-size: 760px;
   min-inline-size: 0;
 }
+
+/* Formulario (760 px) y lista de pendientes (1040 px) en una sola columna. */
+.columna {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+  min-inline-size: 0;
+}

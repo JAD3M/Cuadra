@@ -55,6 +55,17 @@ async function llenar(email: string, roles: string[]) {
   return u;
 }
 
+/**
+ * El aviso de éxito de invitar. Con la lista de pendientes en pantalla (2.4)
+ * hay más de un `status`, así que se busca por su texto.
+ */
+async function confirmacion(): Promise<HTMLElement> {
+  const titulo = await screen.findByText(
+    'Si el correo es válido, la persona recibirá una invitación.',
+  );
+  return titulo.closest('[role="status"]') as HTMLElement;
+}
+
 const SIN_PERMISO = 'No tienes permiso para esta acción.';
 
 describe('UsuariosPage: formulario de invitar', () => {
@@ -124,7 +135,7 @@ describe('UsuariosPage: formulario de invitar', () => {
       'Contador',
     ]);
     await u.click(enviar());
-    const estado = await screen.findByRole('status');
+    const estado = await confirmacion();
     expect(invitacionesUsuarioRecibidas).toEqual([
       { email: 'marta.nunez@ferreteria.mx', roles: ['contador', 'revisor'] },
     ]);
@@ -156,7 +167,7 @@ describe('UsuariosPage: formulario de invitar', () => {
     montar();
     const u = await llenar('marta@ferreteria.mx', ['Auditor']);
     await u.click(enviar());
-    const estado = await screen.findByRole('status');
+    const estado = await confirmacion();
     expect(estado).toHaveTextContent('marta@ferreteria.mx');
     expect(estado).not.toHaveTextContent('otra@cuenta.mx');
     expect(estado).toHaveTextContent(

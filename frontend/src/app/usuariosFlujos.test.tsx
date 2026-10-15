@@ -4,7 +4,10 @@ import { http, HttpResponse } from 'msw';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { CONTEXTO_SESION, capacidadesDeRoles } from '@/test/fixtures';
 import {
+  accionesPendientesRecibidas,
   invitacionesUsuarioRecibidas,
+  listadosPendientesPedidos,
+  pendientesDelMockup,
   usarHandlersUsuarios,
 } from '@/test/handlersUsuarios';
 import { elegirEmpresaMock, hayEmpresaElegida } from '@/test/sesionMock';
@@ -15,7 +18,7 @@ beforeAll(() => configure({ asyncUtilTimeout: 5000 }));
 afterAll(() => configure({ asyncUtilTimeout: 1000 }));
 
 beforeEach(() => {
-  usarHandlersUsuarios();
+  usarHandlersUsuarios(pendientesDelMockup());
 });
 
 /** La sesión entrega estos roles y las capacidades que el servidor derivaría. */
@@ -90,6 +93,50 @@ describe('flujos de usuarios: menú y pantalla (2.3)', () => {
     ]);
   });
 
+  it('el administrador ve las pendientes, reenvía una y cancela otra (2.4)', async () => {
+    montarApp('/usuarios');
+    await entrarALaApp();
+    const u = userEvent.setup();
+    const seccion = await screen.findByRole('region', {
+      name: 'Invitaciones pendientes',
+    });
+    expect(
+      await within(seccion).findByText('marta.nunez@ferreteria.mx'),
+    ).toBeInTheDocument();
+
+    await u.click(
+      screen.getByRole('button', {
+        name: 'Reenviar invitación a marta.nunez@ferreteria.mx',
+      }),
+    );
+    expect(await within(seccion).findByRole('status')).toHaveTextContent(
+      'Invitación reenviada a marta.nunez@ferreteria.mx. El enlace anterior ya no sirve.',
+    );
+
+    await u.click(
+      screen.getByRole('button', {
+        name: 'Cancelar invitación a luis.paredes@ferreteria.mx',
+      }),
+    );
+    await u.click(screen.getByRole('button', { name: 'Sí, cancelar' }));
+    expect(
+      await within(seccion).findByText(
+        'Invitación a luis.paredes@ferreteria.mx cancelada.',
+      ),
+    ).toBeInTheDocument();
+    expect(accionesPendientesRecibidas.map((a) => a.accion)).toEqual([
+      'reenviar',
+      'cancelar',
+    ]);
+    await waitFor(() =>
+      expect(
+        within(seccion).queryByText('luis.paredes@ferreteria.mx', {
+          selector: 'td',
+        }),
+      ).toBeNull(),
+    );
+  });
+
   it.each([['contador'], ['revisor'], ['auditor']])(
     'con el rol %s el menú no trae «Usuarios» y la ruta directa muestra sin permiso',
     async (rolDePrueba) => {
@@ -104,6 +151,11 @@ describe('flujos de usuarios: menú y pantalla (2.3)', () => {
       ).toBeNull();
       expect(screen.queryByRole('form')).toBeNull();
       expect(invitacionesUsuarioRecibidas).toHaveLength(0);
+      expect(
+        screen.queryByRole('region', { name: 'Invitaciones pendientes' }),
+      ).toBeNull();
+      // Sin `usuarios.ver` ni siquiera se pide la lista.
+      expect(listadosPendientesPedidos.cuenta).toBe(0);
     },
   );
 });
