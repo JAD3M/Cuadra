@@ -12,7 +12,12 @@ import { delay, http, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { SessionStateProvider } from '@/shared/sesion';
-import { SESION_LISTA } from '@/test/fixtures';
+import {
+  CONTEXTO_SESION,
+  SESION_LISTA,
+  capacidadesDeRoles,
+} from '@/test/fixtures';
+import { contextoSesion } from '@/shared/api/contratos';
 import {
   casoConciliado,
   casoSinMatch,
@@ -32,7 +37,18 @@ import { clienteDePruebas, sesionConEpoca } from '@/test/montarBandeja';
 import { servidor } from '@/test/servidor';
 import { CasoPage } from './CasoPage';
 
-function montar(movimientoId: string) {
+function sesionConRoles(roles: string[]): typeof SESION_LISTA {
+  return {
+    ...SESION_LISTA,
+    contexto: contextoSesion.parse({
+      ...CONTEXTO_SESION,
+      roles,
+      capacidades: capacidadesDeRoles(roles),
+    }),
+  } as typeof SESION_LISTA;
+}
+
+function montar(movimientoId: string, estado = SESION_LISTA) {
   const router = createMemoryRouter(
     [
       { path: '/casos/:movimientoId', element: <CasoPage /> },
@@ -42,7 +58,7 @@ function montar(movimientoId: string) {
   );
   render(
     <QueryClientProvider client={clienteDePruebas()}>
-      <SessionStateProvider estado={SESION_LISTA}>
+      <SessionStateProvider estado={estado}>
         <RouterProvider router={router} />
       </SessionStateProvider>
     </QueryClientProvider>,
@@ -79,6 +95,33 @@ function servirHistorial(
 function marcasDeCoincidencia() {
   return screen.queryAllByText('✓').filter((el) => el.closest('dd') !== null);
 }
+
+describe('CasoPage: acciones según las capacidades (2.2)', () => {
+  const NOTA = 'Solo lectura: tu rol no puede confirmar ni rechazar.';
+
+  it('con conciliaciones.resolver muestra «Tu decisión» y no la nota', async () => {
+    const caso = servir();
+    montar(caso.movimiento.id, sesionConRoles(['revisor']));
+    await screen.findByRole('button', { name: /Confirmar conciliación/ });
+    expect(
+      screen.getByRole('button', { name: /Rechazar/ }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(NOTA)).toBeNull();
+  });
+
+  it('sin la capacidad (auditor) ve el caso y la nota, sin confirmar ni rechazar', async () => {
+    const caso = servir();
+    montar(caso.movimiento.id, sesionConRoles(['auditor']));
+    await screen.findByRole('heading', {
+      level: 2,
+      name: caso.movimiento.descripcion,
+    });
+    expect(screen.getByText(NOTA)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Confirmar/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Rechazar/ })).toBeNull();
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+});
 
 describe('CasoPage', () => {
   it('lee el parámetro movimientoId y pide ese caso', async () => {

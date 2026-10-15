@@ -5,6 +5,30 @@
 
 ### 15 oct 2026
 
+- **Historia 2.2 de la v2: cada rol ve solo su menú y sus botones (FR-25,
+  FR-53, FR-54, AD-11, AD-12).** Rama `feat/v2-2-2-menu-y-botones-por-rol` con
+  ODD, desde `master` tras la 2.1. Antes de escribir código se actualizaron y
+  aprobaron los mockups: rol `auditor`, menú filtrado, detalle sin acciones
+  para el auditor y «No tienes permiso» en Cargas y Tolerancia.
+  - **T1 `43355fa`:** `capacidades` en `GET /auth/contexto`, la unión de los
+    permisos de la matriz que tienen los roles de la persona (sin permisos del
+    dueño); las descripciones de rol del DTO incluyen `auditor`.
+  - **T2 `af0ca06`:** el frontend lee `capacidades`; `puede()` sustituye a
+    `ROLES_QUE_CARGAN` y `ROLES_QUE_EDITAN_TOLERANCIA`, que desaparecen.
+  - **T3 `fb6bc17`:** `ELEMENTOS_NAV` declara el permiso de cada elemento y el
+    menú se filtra por capacidad.
+  - **T4 `d65f7c4`:** el panel confirmar/rechazar solo aparece con
+    `conciliaciones.resolver`; sin él, la nota «Solo lectura» del mockup. Una
+    prueba (`rolesSinLiterales`) falla si `app` o `features` vuelven a tener
+    literales de rol.
+  - **Decisión:** el acceso directo por URL a una sección sin permiso
+    conserva el estado «No tienes permiso» por el 403; no hay redirección de
+    ruta. Tres pruebas de flujo que entraban por el enlace del menú ahora
+    navegan con `router.navigate`.
+  - **Pendiente:** el menú de Usuarios y su pantalla llegan con la 2.5; la
+    unión de varios roles se prueba en el backend pero los mockups muestran un
+    rol a la vez. La prueba intermitente `CRL-3` sigue sin corregirse.
+
 - **Historia 2.1 de la v2: cada rol solo puede hacer lo que le corresponde
   (FR-25, FR-53, FR-55, AD-11, AD-7).** Rama `feat/v2-2-1-permisos-por-rol`
   con ODD, desde `master`. Abre la épica 2.

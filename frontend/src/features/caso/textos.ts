@@ -90,6 +90,8 @@ export const DECISION = {
   contador: (largo: number, maximo: number) => `${largo} / ${maximo}`,
   soloProponen:
     'El motor y la IA solo proponen. Solo una persona cierra un caso.',
+  /** Nota del detalle para quien no tiene `conciliaciones.resolver`. */
+  soloLectura: 'Solo lectura: tu rol no puede confirmar ni rechazar.',
 } as const;
 
 /** Lista de propuestas. */

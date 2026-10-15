@@ -4,10 +4,13 @@ import {
   ACCION_CONFIRMAR,
   ACCION_RECHAZAR,
   REGLA_REFERENCIA_MONTO_EXACTO,
+  puede,
 } from '@/shared/dominio';
+import { useSessionContext } from '@/shared/sesion';
 import { etiquetaCfdi } from '@/features/bandeja/etiquetaCfdi';
 import { useEpoca } from '@/features/bandeja/useEpoca';
 import { AlertaAccion } from './components/AlertaAccion';
+import { AvisoSoloLectura } from './components/AvisoSoloLectura';
 import { AvisoVarias } from './components/AvisoVarias';
 import { BannerResolucion } from './components/BannerResolucion';
 import { BloqueMovimiento } from './components/BloqueMovimiento';
@@ -61,6 +64,12 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
   const resolucion = useResolverCaso();
   const cliente = useQueryClient();
   const epoca = useEpoca();
+  // Comodidad: sin la capacidad no se dibujan los controles; el servidor
+  // responde 403 igual si alguien los fuerza.
+  const sesion = useSessionContext();
+  const puedeResolver =
+    sesion.status === 'ready' &&
+    puede(sesion.contexto.capacidades, 'conciliaciones.resolver');
   const alertaRef = useRef<HTMLDivElement>(null);
   const bannerRef = useRef<HTMLDivElement>(null);
   const descripcionRef = useRef<HTMLHeadingElement>(null);
@@ -188,42 +197,46 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
                 propuesta={expandida}
                 toleranciaMonto={caso.toleranciaMonto}
               />
-              <PanelDecision
-                key={expandida.conciliacionId}
-                etiquetaCfdi={etiquetaCfdi(expandida.cfdi)}
-                enviando={enviando}
-                deshabilitado={
-                  desactualizado ||
-                  errorAccion === 'conflicto' ||
-                  errorAccion === 'no_encontrado'
-                }
-                motivoLargoServidor={errorAccion === 'motivo_largo'}
-                onEditarMotivo={() => {
-                  if (errorAccion === 'motivo_largo') resolucion.reset();
-                }}
-                alerta={
-                  conAlerta ? (
-                    <AlertaAccion
-                      ref={alertaRef}
-                      tipo={errorAccion}
-                      onRecargar={() => void recargar()}
-                    />
-                  ) : null
-                }
-                onConfirmar={() =>
-                  resolucion.resolver({
-                    accion: ACCION_CONFIRMAR,
-                    conciliacionId: expandida.conciliacionId,
-                  })
-                }
-                onRechazar={(motivo) =>
-                  resolucion.resolver({
-                    accion: ACCION_RECHAZAR,
-                    conciliacionId: expandida.conciliacionId,
-                    motivo,
-                  })
-                }
-              />
+              {puedeResolver ? (
+                <PanelDecision
+                  key={expandida.conciliacionId}
+                  etiquetaCfdi={etiquetaCfdi(expandida.cfdi)}
+                  enviando={enviando}
+                  deshabilitado={
+                    desactualizado ||
+                    errorAccion === 'conflicto' ||
+                    errorAccion === 'no_encontrado'
+                  }
+                  motivoLargoServidor={errorAccion === 'motivo_largo'}
+                  onEditarMotivo={() => {
+                    if (errorAccion === 'motivo_largo') resolucion.reset();
+                  }}
+                  alerta={
+                    conAlerta ? (
+                      <AlertaAccion
+                        ref={alertaRef}
+                        tipo={errorAccion}
+                        onRecargar={() => void recargar()}
+                      />
+                    ) : null
+                  }
+                  onConfirmar={() =>
+                    resolucion.resolver({
+                      accion: ACCION_CONFIRMAR,
+                      conciliacionId: expandida.conciliacionId,
+                    })
+                  }
+                  onRechazar={(motivo) =>
+                    resolucion.resolver({
+                      accion: ACCION_RECHAZAR,
+                      conciliacionId: expandida.conciliacionId,
+                      motivo,
+                    })
+                  }
+                />
+              ) : (
+                <AvisoSoloLectura />
+              )}
               <ListaPropuestas
                 propuestas={caso.propuestas}
                 seleccionadaId={expandida.conciliacionId}
