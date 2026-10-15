@@ -3,7 +3,7 @@
 // si alguna lista cambia de valores, de orden o si el backend agrega una.
 // Al cambiar el backend, actualiza este archivo; el orden importa.
 
-export const ROLES = ['admin', 'contador', 'revisor'] as const;
+export const ROLES = ['admin', 'contador', 'revisor', 'auditor'] as const;
 export type Rol = (typeof ROLES)[number];
 
 export const TIPOS_CARGA = ['cfdi', 'estado_cuenta'] as const;

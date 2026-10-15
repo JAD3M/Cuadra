@@ -813,6 +813,29 @@ describe('invitaciones y altas por la app (historia 1.5)', () => {
     });
   });
 
+  it('el rol auditor cabe en el CHECK de invitaciones y de user_company_roles', async () => {
+    await enTransaccion(async (qr) => {
+      const emp = await empresaNueva(qr);
+      const { id: dueno } = await una<{ id: string }>(
+        qr,
+        `INSERT INTO plataforma_usuarios (correo, password_hash) VALUES ('d-aud@cuadra.test', 'h') RETURNING id`,
+      );
+      await qr.query(
+        `INSERT INTO invitaciones (company_id, email, rol, token_hash, expires_at, invitada_por_plataforma_usuario_id)
+         VALUES ($1, 'aud@x.test', 'auditor', 'h-aud', now(), $2)`,
+        [emp, dueno],
+      );
+      const { id: usuario } = await una<{ id: string }>(
+        qr,
+        `INSERT INTO users (email, nombre, password_hash) VALUES ('aud@x.test', 'Aud', 'h') RETURNING id`,
+      );
+      await qr.query(
+        `INSERT INTO user_company_roles (user_id, company_id, rol) VALUES ($1, $2, 'auditor')`,
+        [usuario, emp],
+      );
+    });
+  });
+
   it('el CHECK de rol solo admite los de ROLES', async () => {
     await enTransaccion(async (qr) => {
       const emp = await empresaNueva(qr);

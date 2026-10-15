@@ -20,7 +20,7 @@ export class HistorialController {
   constructor(private readonly bitacora: BitacoraService) {}
 
   @Get(':id/historial')
-  @Roles('admin', 'contador', 'revisor')
+  @Roles('admin', 'contador', 'revisor', 'auditor')
   @ApiOkResponse({ type: RespuestaHistorialDto })
   @ApiBadRequestResponse({ description: 'Id inválido.' })
   @ApiNotFoundResponse({ description: 'No existe en la empresa de la sesión.' })

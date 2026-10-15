@@ -241,8 +241,17 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 });
 
 describe('migración reversible', () => {
-  it('down y up de TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
-    // La última es TokensRecuperacion: quita la tabla, el GRANT por columna
+  it('down y up de RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
+    // La última es RolAuditor: devuelve los CHECK de rol a tres valores.
+    await duenio.undoLastMigration();
+    const { n: checkRol } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM pg_constraint
+        WHERE conname IN ('ck_user_company_roles_rol', 'ck_invitaciones_rol')
+          AND pg_get_constraintdef(oid) LIKE '%auditor%'`,
+    );
+    expect(checkRol).toBe(0);
+    // Luego TokensRecuperacion: quita la tabla, el GRANT por columna
     // sobre users y `restablecer_contrasena` del CHECK de plataforma.
     await duenio.undoLastMigration();
     const { n: tokens } = await una<{ n: number }>(
