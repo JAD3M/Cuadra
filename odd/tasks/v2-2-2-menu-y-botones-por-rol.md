@@ -64,8 +64,8 @@ eligió el usuario en la 2.1).
 
 - [x] **T1** Backend: `capacidades` en `/auth/contexto` (DTO, servicio, pruebas) y descripciones de rol con `auditor`. (ruta: delegada, escritor único)
 - [x] **T2** Frontend: contrato `capacidades`, `puede`/hook, reemplazar `ROLES_QUE_*` en cargas y tolerancia. (ruta: delegada, escritor único)
-- [ ] **T3** Menú filtrado por capacidad (`ELEMENTOS_NAV` con permiso, `Sidebar`) y pruebas por rol.
-- [ ] **T4** Detalle sin acciones para el auditor (nota de solo lectura), prueba «sin literales de rol» en shell y features.
+- [x] **T3** Menú filtrado por capacidad (`ELEMENTOS_NAV` con permiso, `Sidebar`) y pruebas por rol. (ruta: delegada, escritor único)
+- [x] **T4** Detalle sin acciones para el auditor (nota de solo lectura), prueba «sin literales de rol» en shell y features. (ruta: delegada, escritor único)
 - [ ] **T5** Cierre: pruebas completas, bitácora, PR en cadena.
 
 ## Criterios de aceptación
@@ -83,8 +83,29 @@ roles → unión; menú filtrado y con tema claro y oscuro.
 
 ## Progreso
 
-Sin tareas iniciadas. Siguiente paso: T1.
+T1-T4 hechas y comprobadas; falta T5 (cierre: bitácora, estado en CUADRA.md, PR en cadena).
+
+| Tarea | Commit |
+|-------|--------|
+| T1 | `43355fa` feat(permisos): capacidades de la persona en /auth/contexto |
+| T2 | `af0ca06` feat(frontend): capacidades de la sesión sustituyen a ROLES_QUE_* |
+| T3 | `fb6bc17` feat(frontend): menú filtrado por capacidades del servidor |
+| T4 | `d65f7c4` feat(frontend): detalle sin acciones para quien no puede resolver |
+
+Decisiones: sin rutas con redirección (fuera de alcance). La prueba
+`frontend/tests/dominio/rolesSinLiterales.test.ts` exceptúa solo datos de
+ejemplo de la galería (`features/kit/**`, `app/MuestraShell.tsx`). Los flujos
+de cargas y tolerancia que llegaban a la pantalla con el enlace del menú como
+revisor de B ahora navegan por ruta directa, porque ese rol ya no ve el enlace.
 
 ## Evidencia
 
-(pendiente)
+- T1 RED: `Tests: 14 failed, 90 passed` (permisosDeRoles is not defined);
+  GREEN: `npm test -- src/auth` 141 passed.
+- T2 RED: 9 failed, 577 passed (puede no existe; contrato sin capacidades).
+- T3/T4 RED: 7 failed (elementosVisibles, permiso por elemento, Sidebar, nota
+  del detalle); GREEN al implementar.
+- Final: backend `npm test` 58 suites / 1206 passed; `npm run lint` y
+  `npm run build` limpios; prettier de `src` y `scripts` limpio (el patrón
+  `test/**/*.ts` no encuentra archivos). Frontend: `npm test` 262 archivos /
+  4182 passed; lint, format:check y typecheck limpios.
