@@ -64,7 +64,7 @@ export class InvitarUsuariosService {
     await manager.query('RELEASE SAVEPOINT invitar_usuario');
 
     this.contexto.alConfirmar(() =>
-      this.enviar(companyId, empresa.razonSocial, email, roles, token),
+      this.enviarCorreo(companyId, empresa.razonSocial, email, roles, token),
     );
     return { email, roles };
   }
@@ -84,32 +84,26 @@ export class InvitarUsuariosService {
           AND cancelada_en IS NULL`,
       [companyId, email],
     );
-    const [invitacion] = await manager.query<Array<{ id: string }>>(
-      `INSERT INTO invitaciones
-         (company_id, email, roles, token_hash, expires_at, invitada_por_user_id)
-       VALUES ($1, $2, $3::text[], $4, now() + make_interval(days => $5), $6)
-       RETURNING id`,
-      [
-        companyId,
-        email,
-        roles,
-        huellaDeToken(token),
-        VIGENCIA_DIAS,
-        invitadorId,
-      ],
+    const invitacionId = await insertarInvitacionViva(
+      manager,
+      companyId,
+      invitadorId,
+      email,
+      roles,
+      token,
     );
     await manager.query(
       `INSERT INTO bitacora (company_id, user_id, entidad, entidad_id, accion, datos)
        VALUES ($1, $2, 'companies', $1, 'invitar', $3::jsonb)`,
-      [
-        companyId,
-        invitadorId,
-        JSON.stringify({ invitacionId: invitacion.id, email, roles }),
-      ],
+      [companyId, invitadorId, JSON.stringify({ invitacionId, email, roles })],
     );
   }
 
-  private async enviar(
+  /**
+   * Manda el correo con el enlace. Lo usan invitar y reenviar (historia 2.4):
+   * mismo texto y mismo 503 si el proveedor falla.
+   */
+  async enviarCorreo(
     companyId: string,
     razonSocial: string,
     email: string,
@@ -138,6 +132,28 @@ export class InvitarUsuariosService {
       );
     }
   }
+}
+
+/**
+ * Inserta la invitación viva (7 días, solo la huella del token) y devuelve su
+ * id. Quien llama debe haber dejado antes sin vida la anterior del correo.
+ */
+export async function insertarInvitacionViva(
+  manager: EntityManager,
+  companyId: string,
+  invitadorId: string,
+  email: string,
+  roles: Rol[],
+  token: string,
+): Promise<string> {
+  const [invitacion] = await manager.query<Array<{ id: string }>>(
+    `INSERT INTO invitaciones
+       (company_id, email, roles, token_hash, expires_at, invitada_por_user_id)
+     VALUES ($1, $2, $3::text[], $4, now() + make_interval(days => $5), $6)
+     RETURNING id`,
+    [companyId, email, roles, huellaDeToken(token), VIGENCIA_DIAS, invitadorId],
+  );
+  return invitacion.id;
 }
 
 function esViolacionUnica(error: unknown): boolean {

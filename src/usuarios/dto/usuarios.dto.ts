@@ -51,3 +51,39 @@ export class InvitacionUsuarioEnviadaDto {
   @ApiProperty({ enum: ROLES, isArray: true })
   roles!: Rol[];
 }
+
+/** Historia 2.4. Una invitación que nadie ha aceptado; nunca trae el token. */
+export class InvitacionPendienteDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'luis.mendoza@fdb.mx' })
+  email!: string;
+
+  @ApiProperty({ enum: ROLES, isArray: true })
+  roles!: Rol[];
+
+  @ApiProperty({ format: 'date-time' })
+  creadaEn!: string;
+
+  @ApiProperty({ format: 'date-time' })
+  venceEn!: string;
+
+  @ApiProperty({
+    description:
+      'Verdadero si el enlace ya venció. Sigue pendiente: se puede reenviar o cancelar.',
+  })
+  vencida!: boolean;
+
+  @ApiProperty({
+    nullable: true,
+    description:
+      'Nombre de quien invitó; nulo si la creó la plataforma al dar de alta la empresa.',
+  })
+  invitadaPor!: string | null;
+}
+
+export class InvitacionCanceladaDto {
+  @ApiProperty({ example: 'luis.mendoza@fdb.mx' })
+  email!: string;
+}

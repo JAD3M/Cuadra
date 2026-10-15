@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CorreoModule } from '../correo/correo.module';
+import { InvitacionesPendientesService } from './invitaciones-pendientes.service';
 import { InvitarUsuariosService } from './invitar-usuarios.service';
 import { UsuariosController } from './usuarios.controller';
 
@@ -11,6 +12,6 @@ import { UsuariosController } from './usuarios.controller';
 @Module({
   imports: [CorreoModule],
   controllers: [UsuariosController],
-  providers: [InvitarUsuariosService],
+  providers: [InvitarUsuariosService, InvitacionesPendientesService],
 })
 export class UsuariosModule {}

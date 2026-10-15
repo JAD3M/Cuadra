@@ -97,7 +97,8 @@ export class InvitacionesPlataforma {
       await qr.query(
         `UPDATE invitaciones SET reemplazada_en = now(), updated_at = now()
           WHERE company_id = $1 AND email = $2
-            AND consumida_en IS NULL AND reemplazada_en IS NULL`,
+            AND consumida_en IS NULL AND reemplazada_en IS NULL
+            AND cancelada_en IS NULL`,
         [companyId, email],
       );
       const [invitacion] = (await qr.query(
