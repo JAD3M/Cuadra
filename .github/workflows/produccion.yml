@@ -1,0 +1,155 @@
+name: Produccion
+
+# Construye la imagen de producción, la levanta con el docker-compose.yml real
+# y prueba migraciones, /health, Redis y el respaldo (Story 1.8, AD-17).
+# Solo corre si el cambio toca algo de lo que se despliega.
+on:
+  push:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - docker-compose*.yml
+      - src/database/migrations/**
+      - src/database/data-source.ts
+      - src/worker.ts
+      - src/colas/**
+      - src/config/**
+      - scripts/respaldo/**
+      - package.json
+      - package-lock.json
+      - .github/workflows/produccion.yml
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - docker-compose*.yml
+      - src/database/migrations/**
+      - src/database/data-source.ts
+      - src/worker.ts
+      - src/colas/**
+      - src/config/**
+      - scripts/respaldo/**
+      - package.json
+      - package-lock.json
+      - .github/workflows/produccion.yml
+
+jobs:
+  imagen-y-respaldo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: cuadra-ci
+      API_PUERTO: "3000"
+    steps:
+      - uses: actions/checkout@v4
+
+      # Secretos efímeros: aleatorios, hex (sin caracteres que escapar en las
+      # URLs), enmascarados en el log y nunca impresos.
+      - name: Generar .env efímero
+        run: |
+          set -euo pipefail
+          umask 077
+          postgres_password="$(openssl rand -hex 16)"
+          app_password="$(openssl rand -hex 16)"
+          smtp_password="$(openssl rand -hex 16)"
+          dueno_password="$(openssl rand -hex 16)"
+          for secreto in "$postgres_password" "$app_password" "$smtp_password" "$dueno_password"; do
+            echo "::add-mask::$secreto"
+          done
+          {
+            echo "NODE_ENV=production"
+            echo "POSTGRES_PASSWORD=$postgres_password"
+            echo "CUADRA_APP_PASSWORD=$app_password"
+            echo "ORIGEN_AUTORIZADO=http://localhost:5173"
+            echo "API_PUERTO=$API_PUERTO"
+            echo "CORREO_SMTP_HOST=smtp.invalid"
+            echo "CORREO_SMTP_PORT=587"
+            echo "CORREO_SMTP_USUARIO=ci"
+            echo "CORREO_SMTP_PASSWORD=$smtp_password"
+            echo "CORREO_REMITENTE=ci@cuadra.invalid"
+            echo "DUENO_CORREO=dueno@cuadra.invalid"
+            echo "DUENO_PASSWORD=$dueno_password"
+          } > .env
+
+      - name: Construir la imagen de producción
+        run: docker compose build
+
+      # Credenciales de desarrollo con NODE_ENV=production: el arranque debe
+      # fallar y nombrar la variable (nunca el valor).
+      - name: Prueba negativa de credenciales
+        run: |
+          set -uo pipefail
+          codigo=0
+          salida="$(docker run --rm \
+            -e NODE_ENV=production \
+            -e DATABASE_URL=postgres://cuadra:cuadra@localhost:5432/cuadra \
+            -e DATABASE_APP_URL=postgres://cuadra_app:cuadra_app@localhost:5432/cuadra \
+            -e REDIS_URL=redis://localhost:6379 \
+            -e ORIGEN_AUTORIZADO=http://localhost:5173 \
+            cuadra-api:latest node dist/main 2>&1)" || codigo=$?
+          echo "" | grep -E "Configuración inválida|DATABASE|CORREO" || true
+          if [ "$codigo" -eq 0 ]; then
+            echo "::error::la imagen arrancó con credenciales de desarrollo"
+            exit 1
+          fi
+          if ! echo "$salida" | grep -q "DATABASE_URL"; then
+            echo "::error::el error no nombra DATABASE_URL"
+            exit 1
+          fi
+
+      - name: Levantar PostgreSQL y Redis
+        run: docker compose up -d --wait postgres redis
+
+      - name: Redis con noeviction (AD-16)
+        run: |
+          set -euo pipefail
+          politica="$(docker compose exec -T redis redis-cli config get maxmemory-policy | tail -n 1 | tr -d '\r')"
+          echo "maxmemory-policy=$politica"
+          [ "$politica" = "noeviction" ]
+
+      - name: Migrar una base limpia
+        run: docker compose --profile tools run --rm migrate
+
+      - name: Sembrar datos de prueba con la siembra compilada
+        run: |
+          set -euo pipefail
+          docker compose run --rm --no-deps api node dist/database/seeds/seed.js
+          docker compose run --rm --no-deps api node dist/database/seeds/sembrar-dueno.js
+
+      - name: Levantar API y worker
+        run: docker compose up -d api worker
+
+      - name: Comprobar /health y el worker
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 30); do
+            if cuerpo="$(curl -fsS "http://localhost:${API_PUERTO}/health" 2>/dev/null)"; then
+              break
+            fi
+            cuerpo=""
+            sleep 2
+          done
+          [ -n "$cuerpo" ] || { echo "::error::/health no respondió 200"; exit 1; }
+          echo "$cuerpo"
+          echo "$cuerpo" | jq -e '.info.postgres.status == "up" and .info.redis.status == "up"' >/dev/null
+          # El worker sigue vivo tras unos segundos y no se reinició.
+          sleep 5
+          id="$(docker compose ps -q worker)"
+          [ -n "$id" ]
+          [ "$(docker inspect -f '{{.State.Running}}' "$id")" = "true" ]
+          [ "$(docker inspect -f '{{.RestartCount}}' "$id")" = "0" ]
+
+      - name: Respaldar y verificar con conteos
+        run: |
+          set -euo pipefail
+          COMPOSE="docker compose" scripts/respaldo/respaldar.sh --verificar cuadra "$RUNNER_TEMP/respaldos"
+
+      - name: Registros si algo falló
+        if: failure()
+        run: docker compose logs --no-color --tail=100
+
+      - name: Limpiar
+        if: always()
+        run: |
+          docker compose --profile tools down -v --remove-orphans
+          rm -f .env
