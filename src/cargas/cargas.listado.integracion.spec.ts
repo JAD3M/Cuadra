@@ -330,7 +330,9 @@ describe('CRL-3 alcance por empresa y solo lectura', () => {
     const texto = JSON.stringify(body);
     expect(texto).not.toContain('de-b.xml');
     expect(texto).not.toContain('Carmen');
-    expect(texto).not.toContain('77');
+    // El contador de la B es 77; se busca como valor aislado porque la
+    // subcadena aparece al azar dentro de UUIDs y fechas del JSON.
+    expect(texto).not.toMatch(/(?<![\w-])77(?![\w-])/);
     const deB = await listar(tokenCarmen).expect(200);
     expect(datos(deB.body).map((c) => c.nombreArchivo)).toEqual(['de-b.xml']);
   });
