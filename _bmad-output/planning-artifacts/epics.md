@@ -514,6 +514,40 @@ So that el despliegue sea repetible y no dependa de pasos que solo yo recuerdo.
 
 *Cubre: FR-56, FR-60. Arquitectura: AD-16, AD-17.*
 
+### Story 1.8: CI que construye la imagen y prueba el respaldo
+
+As a dueño de Cuadra,
+I want que la integración continua construya la imagen de producción y pruebe el respaldo,
+So that un cambio al Dockerfile, al compose o al worker no llegue a `master` sin haberse ejercitado.
+
+**Acceptance Criteria:**
+
+**Given** un PR que cambia el `Dockerfile`, el compose, las migraciones o el worker
+**When** corre la integración continua
+**Then** se construye la imagen de producción y el trabajo falla si la construcción falla
+
+**Given** la imagen construida
+**When** arranca con las variables de producción de prueba
+**Then** la API y el worker arrancan y `/health` informa PostgreSQL y Redis
+
+**Given** la imagen construida y una base limpia
+**When** se corre el paso `migrate`
+**Then** las migraciones compiladas terminan sin error
+
+**Given** la base migrada con datos de prueba
+**When** corre `respaldar.sh --verificar`
+**Then** el respaldo se restaura en una base limpia y los conteos coinciden, o el trabajo falla
+
+**Given** credenciales de desarrollo con `NODE_ENV=production`
+**When** arranca la API en la integración continua
+**Then** falla nombrando la variable, y esa falla es la que se espera
+
+**Given** el tiempo de la integración continua
+**When** el cambio no toca infraestructura
+**Then** estos trabajos no se ejecutan, para no alargar cada PR
+
+*Cubre: FR-56, FR-60. Arquitectura: AD-17. Nace de la 1.7, donde la integración continua no construía la imagen ni probaba el respaldo.*
+
 ## Epic 2: Equipo y permisos por rol
 
 El administrador invita a su gente, les da roles y los quita; cada rol ve y hace solo lo que le corresponde, y la bitácora muestra quién hizo qué.

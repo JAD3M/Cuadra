@@ -18,6 +18,7 @@
 | 1.5 | KAN-120 | Invitar al primer administrador y aceptar la invitación por correo |
 | 1.6 | KAN-121 | Recuperar la contraseña por correo |
 | 1.7 | KAN-122 | Levantar Cuadra en un entorno limpio, con secretos fuera del repositorio |
+| 1.8 | KAN-171 | CI que construye la imagen y prueba el respaldo |
 | 2.1 | KAN-123 | Cada rol solo puede hacer lo que le corresponde |
 | 2.2 | KAN-124 | Cada rol ve solo su menú y sus botones |
 | 2.3 | KAN-125 | Invitar usuarios a mi empresa con uno o más roles |
