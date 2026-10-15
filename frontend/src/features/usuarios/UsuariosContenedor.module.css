@@ -1,0 +1,5 @@
+/* Columna de Usuarios.dc.html: el contenido mide hasta 760 px. */
+.contenedor {
+  max-inline-size: 760px;
+  min-inline-size: 0;
+}
