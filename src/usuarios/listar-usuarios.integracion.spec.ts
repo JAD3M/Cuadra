@@ -339,6 +339,27 @@ describe('GET /usuarios', () => {
     });
   });
 
+  it('el dedup no distingue mayúsculas: activa y pendiente salen una sola vez, como activa', async () => {
+    const n = (contador += 1);
+    const guardado = `Mixta${n}@${DOMINIO}`;
+    const invitado = `mixta${n}@${DOMINIO}`;
+    const id = await crearUsuario(guardado, 'Persona Mixta', [
+      { companyId: empresaId, rol: 'contador' },
+    ]);
+    await invitacion(invitado, ['revisor']);
+
+    const filas = (await lista()).filter(
+      (p) => p.email.toLowerCase() === invitado,
+    );
+
+    expect(filas).toHaveLength(1);
+    expect(filas[0]).toMatchObject({
+      id,
+      estado: 'activo',
+      invitacionId: null,
+    });
+  });
+
   it('no lista a quien tiene la cuenta desactivada', async () => {
     const email = correoNuevo('inactivo');
     await crearUsuario(

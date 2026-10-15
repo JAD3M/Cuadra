@@ -106,4 +106,13 @@ cancelar invalidan también la lista.
   `Failed to resolve import "./useUsuarios"`.
 - GREEN: `npm test` (frontend): 269 archivos, 4306 pruebas pasan.
   `npm run lint`, `npm run format:check`, `npm run typecheck` sin errores.
+Revisión de T1+T2 aprobada. Observaciones 1 y 2 atendidas en un commit
+aparte (la 3 queda para después):
+- Prueba de integración del dedup sin distinguir mayúsculas (`Mixta@` vs
+  `mixta@`): pasó de entrada, no había bug en el servicio.
+- `usuarioListado` rechaza `pendiente` sin `invitacionId`/`venceEn`/`creadaEn`
+  y `activo` con `invitacionId`. RED: 2 pruebas fallan con `expected true to
+  be false`; GREEN: frontend 4308 pruebas, backend 1267, lint/format/typecheck
+  sin errores.
+
 Siguiente paso: T3 (mockup).

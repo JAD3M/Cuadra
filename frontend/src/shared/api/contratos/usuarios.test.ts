@@ -175,6 +175,23 @@ describe('contrato de la lista de usuarios (2.5)', () => {
     expect(usuariosListado.parse([activa, pendiente])).toHaveLength(2);
   });
 
+  it('rechaza una pendiente sin `invitacionId`, `venceEn` o `creadaEn`', () => {
+    for (const campo of ['invitacionId', 'venceEn', 'creadaEn']) {
+      expect(
+        usuarioListado.safeParse({ ...pendiente, [campo]: null }).success,
+      ).toBe(false);
+    }
+  });
+
+  it('rechaza una activa con `invitacionId`', () => {
+    expect(
+      usuarioListado.safeParse({
+        ...activa,
+        invitacionId: '22222222-2222-4222-8222-222222222222',
+      }).success,
+    ).toBe(false);
+  });
+
   it('rechaza un estado o un rol desconocido', () => {
     expect(
       usuarioListado.safeParse({ ...activa, estado: 'baja' }).success,

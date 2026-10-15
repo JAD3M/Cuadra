@@ -55,18 +55,39 @@ export const invitacionCancelada = z.object({ email: z.string() });
  * `invitacionId`, `venceEn`, `creadaEn` e `invitadaPor` solo vienen en las
  * pendientes. Nunca trae el token.
  */
-export const usuarioListado = z.object({
-  id: z.guid(),
-  email: z.string().min(1),
-  nombre: z.string().nullable(),
-  roles: z.array(rol),
-  estado: z.enum(['activo', 'pendiente']),
-  invitacionId: z.guid().nullable(),
-  vencida: z.boolean(),
-  venceEn: z.iso.datetime().nullable(),
-  creadaEn: z.iso.datetime().nullable(),
-  invitadaPor: z.string().nullable(),
-});
+export const usuarioListado = z
+  .object({
+    id: z.guid(),
+    email: z.string().min(1),
+    nombre: z.string().nullable(),
+    roles: z.array(rol),
+    estado: z.enum(['activo', 'pendiente']),
+    invitacionId: z.guid().nullable(),
+    vencida: z.boolean(),
+    venceEn: z.iso.datetime().nullable(),
+    creadaEn: z.iso.datetime().nullable(),
+    invitadaPor: z.string().nullable(),
+  })
+  .superRefine((fila, ctx) => {
+    // Una fila incoherente no se pinta: el servidor nunca la manda así.
+    if (fila.estado === 'pendiente') {
+      for (const campo of ['invitacionId', 'venceEn', 'creadaEn'] as const) {
+        if (fila[campo] === null) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [campo],
+            message: 'Una invitación pendiente trae este dato',
+          });
+        }
+      }
+    } else if (fila.invitacionId !== null) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['invitacionId'],
+        message: 'Una persona activa no tiene invitación',
+      });
+    }
+  });
 
 /** `GET /usuarios`: una fila por persona, ordenada por correo. */
 export const usuariosListado = z.array(usuarioListado);
