@@ -39,3 +39,53 @@ export function clasificarFalloInvitar(
   if (error instanceof NetworkError) return 'conexion';
   return 'otro';
 }
+
+export type ClaseFalloAccionPendiente =
+  'no_pendiente' | 'permiso' | 'limite' | 'envio' | 'conexion' | 'otro';
+
+export interface FalloAccionPendiente {
+  clase: ClaseFalloAccionPendiente;
+  /**
+   * Solo en `no_pendiente` por 409: el texto que el servidor manda («ya fue
+   * aceptada», «ya no está pendiente»). Es un mensaje para la persona, no el
+   * arreglo de validación de un 400, y el cuerpo no trae un código estable
+   * con el que distinguirlos.
+   */
+  mensaje?: string;
+}
+
+/**
+ * Clasifica el fallo de reenviar o cancelar una pendiente. 409: ya no es
+ * pendiente, con el mensaje del servidor; 404: la invitación ya no existe en
+ * la empresa (mismo texto genérico de «ya no está pendiente»). `null` para una
+ * cancelación y para un 401, que atiende la capa de sesión.
+ */
+export function clasificarFalloAccionPendiente(
+  error: unknown,
+): FalloAccionPendiente | null {
+  if (esCancelacion(error)) return null;
+  if (error instanceof ApiError) {
+    switch (error.statusCode) {
+      case 401:
+        return null;
+      case 403:
+        return { clase: 'permiso' };
+      case 404:
+        return { clase: 'no_pendiente' };
+      case 409: {
+        const mensaje = error.mensajes.find((m) => m.trim() !== '');
+        return mensaje === undefined
+          ? { clase: 'no_pendiente' }
+          : { clase: 'no_pendiente', mensaje };
+      }
+      case 429:
+        return { clase: 'limite' };
+      case 503:
+        return { clase: 'envio' };
+      default:
+        return { clase: 'otro' };
+    }
+  }
+  if (error instanceof NetworkError) return { clase: 'conexion' };
+  return { clase: 'otro' };
+}

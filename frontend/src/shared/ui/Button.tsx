@@ -1,11 +1,11 @@
-import type { ButtonHTMLAttributes } from 'react';
+import type { ComponentProps } from 'react';
 import estilos from './Button.module.css';
 
 export type VarianteButton = 'primario' | 'secundario' | 'peligro' | 'fantasma';
 
 export type TonoButton = 'acento' | 'conciliado' | 'sin_match';
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ButtonProps extends ComponentProps<'button'> {
   /**
    * `primario`: acción principal (confirmar). `secundario`: acción neutra
    * con borde (paginación). `peligro`: acción destructiva con contorno.

@@ -12,7 +12,7 @@ export interface EstadoTerminalInvitacionProps {
 
 /**
  * Enlace que ya no sirve (mockup `Invitacion.dc.html`: `usada`, `caducada`,
- * `reemplazada`, `desconocida` y `sin_cuenta_inactiva`). No muestra datos de
+ * `reemplazada`, `cancelada`, `desconocida` y `sin_cuenta_inactiva`). No muestra datos de
  * la empresa ni de la cuenta. Solo `usada` ofrece ir a iniciar sesión.
  */
 export function EstadoTerminalInvitacion({

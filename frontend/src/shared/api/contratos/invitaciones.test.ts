@@ -35,7 +35,7 @@ describe('contrato de invitaciones', () => {
     });
   });
 
-  it.each(['usada', 'caducada', 'reemplazada', 'desconocida'])(
+  it.each(['usada', 'caducada', 'reemplazada', 'cancelada', 'desconocida'])(
     'un enlace inválido por %s no trae datos',
     (motivo) => {
       const estado = estadoInvitacion.parse({

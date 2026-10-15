@@ -52,3 +52,41 @@ export const ALERTAS_INVITAR = {
     detalle: 'Inténtalo de nuevo en unos minutos.',
   },
 } as const;
+
+/**
+ * Invitaciones pendientes (mockup `Usuarios.dc.html`, vistas `pendientes*`).
+ * Los avisos de error reutilizan `ALERTAS_INVITAR`; el 409 usa el texto del
+ * servidor y este es solo el respaldo cuando no lo manda.
+ */
+export const PENDIENTES = {
+  titulo: 'Invitaciones pendientes',
+  ayuda:
+    'Personas invitadas que todavía no aceptan. Las más recientes van primero.',
+  tabla: 'Tabla de invitaciones pendientes',
+  columnas: {
+    correo: 'Correo',
+    roles: 'Roles',
+    enviada: 'Enviada',
+    vence: 'Vence',
+    invitadaPor: 'Invitada por',
+    acciones: 'Acciones',
+  },
+  plataforma: 'Plataforma',
+  vencida: 'Vencida',
+  cargando: 'Cargando invitaciones',
+  vacia:
+    'No hay invitaciones pendientes. Las que envíes aparecerán aquí hasta que se acepten.',
+  errorLista: 'No se pudo cargar las invitaciones.',
+  reintentar: 'Reintentar',
+  reenviar: 'Reenviar',
+  cancelar: 'Cancelar',
+  ariaReenviar: (correo: string) => `Reenviar invitación a ${correo}`,
+  ariaCancelar: (correo: string) => `Cancelar invitación a ${correo}`,
+  confirmarGrupo: 'Confirmar cancelación',
+  confirmarSi: 'Sí, cancelar',
+  confirmarVolver: 'Volver',
+  noPendiente: 'Esta invitación ya no está pendiente.',
+  reenviada: (correo: string) =>
+    `Invitación reenviada a ${correo}. El enlace anterior ya no sirve.`,
+  cancelada: (correo: string) => `Invitación a ${correo} cancelada.`,
+} as const;
