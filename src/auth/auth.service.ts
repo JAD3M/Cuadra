@@ -18,6 +18,7 @@ import type {
 } from './tipos';
 import { ROLES, type Rol } from '../common/entities/tipos';
 import { normalizarEmail } from '../users/email';
+import { permisosDeRoles } from './permisos/matriz';
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -174,6 +175,7 @@ export class AuthService implements OnModuleInit {
       throw new ForbiddenException('Sin acceso a esta empresa');
     }
     const { user, company } = filas[0];
+    const roles = this.ordenarRoles(filas.map((fila) => fila.rol));
     return {
       usuario: { id: user.id, nombre: user.nombre, email: user.email },
       empresa: {
@@ -181,7 +183,8 @@ export class AuthService implements OnModuleInit {
         razonSocial: company.razonSocial,
         rfc: company.rfc,
       },
-      roles: this.ordenarRoles(filas.map((fila) => fila.rol)),
+      roles,
+      capacidades: permisosDeRoles(roles),
     };
   }
 }

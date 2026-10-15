@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { ROLES, type Rol } from '../../common/entities/tipos';
+import { PERMISOS_EMPRESA, type PermisoEmpresa } from '../permisos/matriz';
 import type {
   ContextoSesion,
   EmpresaContexto,
@@ -36,7 +37,7 @@ export class EmpresaDisponibleDto implements EmpresaDisponible {
     enumName: 'Rol',
     isArray: true,
     description:
-      'Roles del usuario en la empresa. Orden fijo: admin, contador, revisor.',
+      'Roles del usuario en la empresa. Orden fijo: admin, contador, revisor, auditor.',
   })
   roles!: Rol[];
 }
@@ -64,9 +65,19 @@ export class ContextoSesionDto implements ContextoSesion {
     enumName: 'Rol',
     isArray: true,
     description:
-      'Roles vigentes en la empresa. Orden fijo: admin, contador, revisor.',
+      'Roles vigentes en la empresa. Orden fijo: admin, contador, revisor, auditor.',
   })
   roles!: Rol[];
+
+  @ApiProperty({
+    enum: PERMISOS_EMPRESA,
+    enumName: 'Permiso',
+    isArray: true,
+    description:
+      'Permisos de la matriz que tiene alguno de sus roles (unión), en orden fijo. El frontend los usa para mostrar menú y botones; el servidor sigue decidiendo con 403.',
+    example: ['bandeja.ver', 'bitacora.ver'],
+  })
+  capacidades!: PermisoEmpresa[];
 }
 
 /**

@@ -4,6 +4,7 @@ import {
   PERMISOS,
   PERMISOS_DUENO,
   PERMISOS_PROPIOS,
+  permisosDeRoles,
   rolesConPermiso,
 } from './matriz';
 
@@ -104,5 +105,47 @@ describe('matriz de permisos (FR-53)', () => {
   it('el dueño no es rol de empresa: sus permisos no tienen roles', () => {
     expect([...PERMISOS_DUENO]).toEqual(['plataforma.administrar']);
     for (const p of PERMISOS_DUENO) expect(rolesConPermiso(p)).toEqual([]);
+  });
+
+  describe('permisosDeRoles (capacidades de la persona)', () => {
+    it('el auditor solo ve secciones de lectura', () => {
+      expect(permisosDeRoles(['auditor'])).toEqual([
+        'bandeja.ver',
+        'bitacora.ver',
+      ]);
+    });
+
+    it('admin y contador reciben su propia lista y revisor no carga ni edita', () => {
+      expect(permisosDeRoles(['revisor'])).toEqual([
+        'bandeja.ver',
+        'bitacora.ver',
+        'conciliaciones.resolver',
+        'movimientos.descartar',
+        'movimientos.deshacer_descarte',
+        'conciliaciones.comentar',
+        'conciliaciones.reabrir',
+        'muestra.verificar',
+      ]);
+      expect(permisosDeRoles(['contador'])).toContain('cargas.cargar');
+      expect(permisosDeRoles(['contador'])).not.toContain('tolerancia.editar');
+      expect(permisosDeRoles(['admin'])).toContain('usuarios.gestionar');
+    });
+
+    it('varios roles son la unión, en el orden de PERMISOS y sin repetidos', () => {
+      const union = permisosDeRoles(['contador', 'auditor']);
+      expect(union).toEqual(permisosDeRoles(['contador']));
+      const orden = PERMISOS.filter((p) => union.includes(p));
+      expect(union).toEqual(orden);
+      expect(new Set(union).size).toBe(union.length);
+    });
+
+    it('nunca incluye permisos del dueño ni siquiera con todos los roles', () => {
+      const todos = permisosDeRoles([...ROLES]);
+      for (const p of PERMISOS_DUENO) expect(todos).not.toContain(p);
+    });
+
+    it('sin roles no hay capacidades', () => {
+      expect(permisosDeRoles([])).toEqual([]);
+    });
   });
 });

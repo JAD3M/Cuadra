@@ -8,6 +8,7 @@ import type { User } from '../users/user.entity';
 import type { UserCompanyRole } from '../companies/user-company-role.entity';
 import type { Rol } from '../common/entities/tipos';
 import { AuthService } from './auth.service';
+import { permisosDeRoles } from './permisos/matriz';
 import { PasswordHasher } from './password';
 import type { SesionesService } from './sesiones.service';
 
@@ -251,8 +252,17 @@ describe('AuthService.contexto', () => {
       usuario: user,
       empresa: EMPRESA_A,
       roles: ['admin', 'revisor'],
+      capacidades: permisosDeRoles(['admin', 'revisor']),
     });
     expect(contexto.usuario).not.toHaveProperty('passwordHash');
+  });
+
+  it('las capacidades son la unión de la matriz de sus roles, sin permisos del dueño', async () => {
+    buscarRoles.mockResolvedValueOnce([fila('auditor')]);
+
+    const contexto = await service.contexto(user.id, EMPRESA_A.id);
+
+    expect(contexto.capacidades).toEqual(['bandeja.ver', 'bitacora.ver']);
   });
 
   it('filtra por usuario, empresa y vigencia, sin pedir passwordHash', async () => {

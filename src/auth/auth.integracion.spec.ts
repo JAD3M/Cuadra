@@ -28,6 +28,7 @@ import {
   setCookieDe,
 } from '../testing/sesion-de-pruebas';
 import { COOKIE_SESION, huellaDeToken } from './sesiones.service';
+import { permisosDeRoles } from './permisos/matriz';
 import type { Express } from 'express';
 import type { Redis } from 'ioredis';
 import { Limite } from '../limite/limite.decorator';
@@ -681,6 +682,7 @@ describe('GET /auth/contexto', () => {
     usuario: { id: string; nombre: string; email: string };
     empresa: { id: string; razonSocial: string; rfc: string };
     roles: string[];
+    capacidades: string[];
   }
 
   const contexto = (token: string, ruta = '/auth/contexto') =>
@@ -707,6 +709,7 @@ describe('GET /auth/contexto', () => {
         rfc: FERRETERIA,
       },
       roles: ['contador'],
+      capacidades: permisosDeRoles(['contador']),
     });
     expect(JSON.stringify(res.body)).not.toMatch(/password/i);
   });
@@ -717,6 +720,92 @@ describe('GET /auth/contexto', () => {
     );
 
     expect((res.body as Contexto).roles).toEqual(['revisor']);
+  });
+
+  describe('capacidades (historia 2.2)', () => {
+    const capacidadesDe = async (token: string) =>
+      ((await contexto(token).expect(200)).body as Contexto).capacidades;
+
+    it('admin recibe todos los permisos de empresa de la matriz', async () => {
+      const caps = await capacidadesDe(await tokenSesion(ANA, FERRETERIA));
+
+      expect(caps).toEqual(permisosDeRoles(['admin']));
+      expect(caps).toContain('usuarios.gestionar');
+      expect(caps).toContain('tolerancia.editar');
+      expect(caps).not.toContain('plataforma.administrar');
+    });
+
+    it('contador carga y resuelve, pero no edita tolerancia ni gestiona usuarios', async () => {
+      const caps = await capacidadesDe(await tokenSesion(JORGE, FERRETERIA));
+
+      expect(caps).toEqual(permisosDeRoles(['contador']));
+      expect(caps).toContain('cargas.cargar');
+      expect(caps).toContain('conciliaciones.resolver');
+      expect(caps).not.toContain('tolerancia.editar');
+      expect(caps).not.toContain('usuarios.ver');
+    });
+
+    it('revisor resuelve pero no ve cargas ni tolerancia', async () => {
+      const caps = await capacidadesDe(await tokenSesion(JORGE, TRANSPORTES));
+
+      expect(caps).toEqual(permisosDeRoles(['revisor']));
+      expect(caps).toContain('conciliaciones.resolver');
+      expect(caps).not.toContain('cargas.ver');
+      expect(caps).not.toContain('tolerancia.ver');
+    });
+
+    it('auditor solo ve bandeja y bitácora, sin acciones', async () => {
+      await ds.query(
+        `INSERT INTO user_company_roles (user_id, company_id, rol)
+         VALUES ((SELECT id FROM users WHERE email = $1), $2, 'auditor')`,
+        [ANA, empresas.get(TRANSPORTES)],
+      );
+      try {
+        const caps = await capacidadesDe(await tokenSesion(ANA, TRANSPORTES));
+
+        expect(caps).toEqual(['bandeja.ver', 'bitacora.ver']);
+      } finally {
+        await ds.query(
+          `DELETE FROM user_company_roles
+            WHERE company_id = $1 AND rol = 'auditor'
+              AND user_id = (SELECT id FROM users WHERE email = $2)`,
+          [empresas.get(TRANSPORTES), ANA],
+        );
+      }
+    });
+
+    it('con varios roles es la unión, en orden estable', async () => {
+      await ds.query(
+        `INSERT INTO user_company_roles (user_id, company_id, rol)
+         VALUES ((SELECT id FROM users WHERE email = $1), $2, 'revisor')`,
+        [JORGE, empresas.get(FERRETERIA)],
+      );
+      try {
+        const caps = await capacidadesDe(await tokenSesion(JORGE, FERRETERIA));
+
+        expect(caps).toEqual(permisosDeRoles(['contador', 'revisor']));
+        expect(caps).toContain('cargas.cargar');
+        expect(caps).toContain('muestra.verificar');
+      } finally {
+        await ds.query(
+          `DELETE FROM user_company_roles
+            WHERE company_id = $1 AND rol = 'revisor'
+              AND user_id = (SELECT id FROM users WHERE email = $2)`,
+          [empresas.get(FERRETERIA), JORGE],
+        );
+      }
+    });
+
+    it('el cambio de empresa devuelve las capacidades de la nueva', async () => {
+      const res = await http()
+        .post(`/auth/empresa/${empresas.get(TRANSPORTES)}`)
+        .set('Cookie', await tokenSeleccion(JORGE))
+        .expect(200);
+
+      expect((res.body as Contexto).capacidades).toEqual(
+        permisosDeRoles(['revisor']),
+      );
+    });
   });
 
   it('con dos roles los devuelve en orden fijo', async () => {
