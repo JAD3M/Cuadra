@@ -86,10 +86,16 @@ async function put(email: string, rfc: string, cuerpo: unknown) {
 }
 
 describe('GET /empresa/tolerancia', () => {
+  it('el revisor no la ve (FR-53): 403 con el permiso tolerancia.ver', async () => {
+    const res = await get(JORGE, TRANSPORTES);
+    expect(res.status).toBe(403);
+    const [fila] = await bitacora('acceso_denegado');
+    expect(fila?.datos).toMatchObject({ permiso: 'tolerancia.ver' });
+  });
+
   it.each([
     ['admin', ANA, FERRETERIA],
     ['contador', LUIS, FERRETERIA],
-    ['revisor', JORGE, TRANSPORTES],
   ])(
     '%s la lee: estricta por omisión, como texto',
     async (_rol, email, rfc) => {

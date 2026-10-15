@@ -500,11 +500,11 @@ describe('perfiles de banco (CU-10)', () => {
     expect(mensaje(res)).toMatch(/UTF-8/);
   });
 
-  it('GET /bancos/perfiles: {id, nombre} de cada perfil, para cualquier rol', async () => {
-    // Jorge es revisor en Transportes: no sube, pero sí ve los perfiles.
+  it('GET /bancos/perfiles: {id, nombre} de cada perfil, para quien puede cargar', async () => {
+    // Ana es admin en Ferretería: sube, así que ve los perfiles.
     const res = await request(entorno.app.getHttpServer())
       .get('/bancos/perfiles')
-      .set('Cookie', await entorno.token(JORGE, TRANSPORTES))
+      .set('Cookie', await entorno.token(ANA, FERRETERIA))
       .expect(200);
 
     expect(res.body).toEqual([
@@ -512,5 +512,12 @@ describe('perfiles de banco (CU-10)', () => {
       { id: 'banco-sur', nombre: 'Banco del Sur (sintético)' },
       { id: 'cuadra', nombre: 'Formato canónico de Cuadra' },
     ]);
+  });
+
+  it('GET /bancos/perfiles: un revisor no sube, así que 403 (cargas.cargar)', async () => {
+    await request(entorno.app.getHttpServer())
+      .get('/bancos/perfiles')
+      .set('Cookie', await entorno.token(JORGE, TRANSPORTES))
+      .expect(403);
   });
 });

@@ -18,8 +18,9 @@ type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 export class EmpresaController {
   constructor(private readonly tolerancia: ToleranciaService) {}
 
-  /** Cualquier miembro de la empresa. */
+  /** `tolerancia.ver`: admin y contador (FR-53). */
   @Get('tolerancia')
+  @Permiso('tolerancia.ver')
   async obtener(
     @UsuarioActual() usuario: Sesion,
   ): Promise<ToleranciaRespuestaDto> {

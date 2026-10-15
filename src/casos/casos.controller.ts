@@ -8,7 +8,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { UsuarioAutenticado } from '../auth/tipos';
-import { UsuarioActual } from '../common/decorators/decoradores';
+import { Permiso, UsuarioActual } from '../common/decorators/decoradores';
 import { CasosService } from './casos.service';
 import { RespuestaCasoDto } from './dto/caso.dto';
 
@@ -22,6 +22,7 @@ export class CasosController {
   constructor(private readonly casos: CasosService) {}
 
   @Get(':movimientoId')
+  @Permiso('bandeja.ver')
   @ApiOkResponse({ type: RespuestaCasoDto })
   @ApiBadRequestResponse({ description: 'El id no es un UUID.' })
   @ApiUnauthorizedResponse({ description: 'Sin sesión válida.' })

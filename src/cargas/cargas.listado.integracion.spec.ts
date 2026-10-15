@@ -151,12 +151,9 @@ describe('CRL-1 endpoint, acceso y forma', () => {
     expect(contador.body).toEqual(admin.body);
   });
 
-  it('el revisor recibe lo mismo que el admin de su empresa', async () => {
+  it('el revisor no la consulta (FR-53): 403', async () => {
     await carga({ empresa: B, creada: dia(1), nombre: 'b.xml' });
-    const admin = await listar(tokenCarmen).expect(200);
-    const revisor = await listar(tokenJorge).expect(200);
-    expect(datos(revisor.body)).toHaveLength(1);
-    expect(revisor.body).toEqual(admin.body);
+    await listar(tokenJorge).expect(403);
   });
 
   it('sin token responde 401', async () => {
