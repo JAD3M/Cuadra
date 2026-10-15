@@ -90,6 +90,10 @@ export type ResultadoSugerencia = (typeof RESULTADOS_SUGERENCIA)[number];
  * `entidad` es 'companies'. Si invitó el dueño de la plataforma, `user_id`
  * queda nulo y el dueño va en `datos`; si invitó una persona administradora de
  * la empresa, `user_id` es esa persona y `datos` trae el correo y los roles.
+ * 'reenviar_invitacion' y 'cancelar_invitacion' (historia 2.4): una persona
+ * administradora reenvió o canceló una invitación pendiente. Misma forma que
+ * 'invitar': `entidad` 'companies', `user_id` quien actuó y `datos` con
+ * `invitacionId`, el correo y los roles.
  */
 export const ACCIONES_BITACORA = [
   'crear',
@@ -100,6 +104,8 @@ export const ACCIONES_BITACORA = [
   'rechazar',
   'acceso_denegado',
   'invitar',
+  'reenviar_invitacion',
+  'cancelar_invitacion',
 ] as const;
 export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 

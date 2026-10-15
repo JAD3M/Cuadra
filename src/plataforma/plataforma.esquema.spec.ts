@@ -241,8 +241,23 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 });
 
 describe('migración reversible', () => {
-  it('down y up de InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
-    // La última es InvitacionesMultirol: vuelve `rol` y quita `roles` y el
+  it('down y up de InvitacionesCancelables, InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
+    // La última es InvitacionesCancelables: quita `cancelada_en` y las dos
+    // acciones de invitación del CHECK de la bitácora.
+    await duenio.undoLastMigration();
+    const { n: columnaCancelada } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM information_schema.columns
+        WHERE table_name = 'invitaciones' AND column_name = 'cancelada_en'`,
+    );
+    expect(columnaCancelada).toBe(0);
+    await expect(
+      duenio.query(
+        `INSERT INTO bitacora (company_id, entidad, entidad_id, accion)
+         SELECT id, 'companies', id, 'cancelar_invitacion' FROM companies LIMIT 1`,
+      ),
+    ).rejects.toThrow(/ck_bitacora_accion/);
+    // Luego InvitacionesMultirol: vuelve `rol` y quita `roles` y el
     // invitador de empresa.
     await duenio.undoLastMigration();
     const { n: columnasMultirol } = await una<{ n: number }>(

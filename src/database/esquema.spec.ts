@@ -920,6 +920,51 @@ describe('invitaciones y altas por la app (historia 1.5)', () => {
     }
   });
 
+  it('cancelada_en: cuadra_app la actualiza y no actualiza el resto (historia 2.4)', async () => {
+    expect(await columna('invitaciones', 'cancelada_en', 'UPDATE')).toBe(true);
+    expect(await columna('invitaciones', 'cancelada_en', 'INSERT')).toBe(true);
+    expect(await columna('invitaciones', 'consumida_en', 'UPDATE')).toBe(true);
+    expect(await columna('invitaciones', 'reemplazada_en', 'UPDATE')).toBe(
+      true,
+    );
+    expect(await columna('invitaciones', 'updated_at', 'UPDATE')).toBe(true);
+    expect(await columna('invitaciones', 'roles', 'UPDATE')).toBe(false);
+  });
+
+  it('una invitación cancelada deja de ser la viva y libera el correo (historia 2.4)', async () => {
+    await enTransaccion(async (qr) => {
+      const emp = await empresaNueva(qr);
+      const { id: usuario } = await una<{ id: string }>(
+        qr,
+        `INSERT INTO users (email, nombre, password_hash) VALUES ('canc@x.test', 'Canc', 'h') RETURNING id`,
+      );
+      const insertar = (hash: string) =>
+        qr.query(
+          `INSERT INTO invitaciones (company_id, email, roles, token_hash, expires_at, invitada_por_user_id)
+           VALUES ($1, 'a@x.test', ARRAY['admin'], $2, now() + interval '7 days', $3)`,
+          [emp, hash, usuario],
+        );
+      await insertar('c1');
+      await qr.query(`SAVEPOINT s`);
+      await expect(insertar('c2')).rejects.toThrow(/ux_invitaciones_viva/);
+      await qr.query(`ROLLBACK TO SAVEPOINT s`);
+      await qr.query(`UPDATE invitaciones SET cancelada_en = now()`);
+      await insertar('c3');
+    });
+  });
+
+  it("'reenviar_invitacion' y 'cancelar_invitacion' caben en el CHECK de bitacora (historia 2.4)", async () => {
+    await enTransaccion(async (qr) => {
+      const emp = await empresaNueva(qr);
+      for (const accion of ['reenviar_invitacion', 'cancelar_invitacion']) {
+        await qr.query(
+          `INSERT INTO bitacora (company_id, entidad, entidad_id, accion) VALUES ($1, 'companies', $1, $2)`,
+          [emp, accion],
+        );
+      }
+    });
+  });
+
   it("'invitar' cabe en el CHECK de bitacora y bitacora_plataforma", async () => {
     await enTransaccion(async (qr) => {
       await qr.query(

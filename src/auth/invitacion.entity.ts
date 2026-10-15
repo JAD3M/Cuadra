@@ -9,14 +9,14 @@ import { listaSql, ROLES, type Rol } from '../common/entities/tipos';
  * Historia 1.5 (FR-40, AD-14). Invitación de un solo uso a una empresa. Es
  * identidad, no dominio: clase 2, sin RLS, porque se consulta con el enlace
  * antes de que exista sesión. Solo guarda el SHA-256 del token, nunca el
- * token. Estados: viva (ambas marcas nulas), consumida o reemplazada; la
- * caducidad se deriva de `expiresAt`. Solo hay una viva por (empresa, correo).
+ * token. Estados: viva (las tres marcas nulas), consumida, reemplazada o
+ * cancelada (historia 2.4); la caducidad se deriva de `expiresAt`. Solo hay una viva por (empresa, correo).
  */
 @Entity('invitaciones')
 @Index('ux_invitaciones_token_hash', ['tokenHash'], { unique: true })
 @Index('ux_invitaciones_viva', ['companyId', 'email'], {
   unique: true,
-  where: `consumida_en IS NULL AND reemplazada_en IS NULL`,
+  where: `consumida_en IS NULL AND reemplazada_en IS NULL AND cancelada_en IS NULL`,
 })
 @Check(
   'ck_invitaciones_roles',
@@ -50,6 +50,10 @@ export class Invitacion extends EntidadBase {
 
   @Column({ type: 'timestamptz', nullable: true })
   reemplazadaEn: Date | null;
+
+  /** Una persona administradora la canceló (historia 2.4). */
+  @Column({ type: 'timestamptz', nullable: true })
+  canceladaEn: Date | null;
 
   /**
    * Cuenta de plataforma que invitó (clase 3); la relación va por nombre.
