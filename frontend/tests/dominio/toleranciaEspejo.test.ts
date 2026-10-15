@@ -11,6 +11,7 @@ import {
   ROLES_QUE_EDITAN_TOLERANCIA,
   TOLERANCIA_MAXIMA,
 } from '@/shared/dominio';
+import { rolesDeMatriz } from './extraerPermisos';
 import {
   CAMBIOS_VISIBLES,
   LIMITE_CONSULTA_CAMBIOS,
@@ -47,12 +48,11 @@ function patronDelDto(fuente: string): string | undefined {
   return encontrada?.[1];
 }
 
-/** Los argumentos del `@Roles(...)` que precede al método `actualizar`. */
-function rolesDelPut(fuente: string): string[] | undefined {
-  const encontrada =
-    /@Put\('tolerancia'\)\s*@Roles\(([^)]*)\)\s*async actualizar/.exec(fuente);
-  if (encontrada === null) return undefined;
-  return [...(encontrada[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1]!);
+/** El permiso del `@Permiso(...)` que precede al método `actualizar`. */
+function permisoDelPut(fuente: string): string | undefined {
+  return /@Put\('tolerancia'\)\s*@Permiso\('([^']+)'\)\s*async actualizar/.exec(
+    fuente,
+  )?.[1];
 }
 
 /** Los literales `entidad`, `accion` y `campo` que audita el servicio. */
@@ -110,26 +110,33 @@ describe('tolerancia del DTO (src/companies/dto/tolerancia.dto.ts)', () => {
   });
 });
 
-describe('roles que editan (@Roles del PUT de src/companies/empresa.controller.ts)', () => {
+describe('roles que editan (@Permiso del PUT de src/companies/empresa.controller.ts)', () => {
   const controlador = leer('companies/empresa.controller.ts');
+  const matriz = leer('auth/permisos/matriz.ts');
 
-  it('el PUT lleva exactamente ROLES_QUE_EDITAN_TOLERANCIA', () => {
-    expect(rolesDelPut(controlador)).toEqual([...ROLES_QUE_EDITAN_TOLERANCIA]);
+  it('el PUT declara tolerancia.editar y la matriz le da ROLES_QUE_EDITAN_TOLERANCIA', () => {
+    const permiso = permisoDelPut(controlador);
+    expect(permiso).toBe('tolerancia.editar');
+    expect(rolesDeMatriz(matriz, permiso!)).toEqual([
+      ...ROLES_QUE_EDITAN_TOLERANCIA,
+    ]);
   });
 
-  it('ampliar el rol en el backend falla', () => {
-    const fuente = controlador.replace(
-      "@Roles('admin')",
-      "@Roles('admin', 'contador')",
+  it('ampliar el rol en la matriz falla', () => {
+    const fuente = matriz.replace(
+      "'tolerancia.editar': ['admin']",
+      "'tolerancia.editar': ['admin', 'contador']",
     );
-    expect(fuente).not.toBe(controlador);
-    expect(rolesDelPut(fuente)).not.toEqual([...ROLES_QUE_EDITAN_TOLERANCIA]);
+    expect(fuente).not.toBe(matriz);
+    expect(rolesDeMatriz(fuente, 'tolerancia.editar')).not.toEqual([
+      ...ROLES_QUE_EDITAN_TOLERANCIA,
+    ]);
   });
 
-  it('quitar el @Roles del PUT deja de extraerse', () => {
-    const fuente = controlador.replace("  @Roles('admin')\n", '');
+  it('quitar el @Permiso del PUT deja de extraerse', () => {
+    const fuente = controlador.replace("  @Permiso('tolerancia.editar')\n", '');
     expect(fuente).not.toBe(controlador);
-    expect(rolesDelPut(fuente)).toBeUndefined();
+    expect(permisoDelPut(fuente)).toBeUndefined();
   });
 });
 

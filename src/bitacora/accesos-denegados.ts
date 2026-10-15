@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TransaccionEmpresa } from '../database/transaccion-empresa';
 import type { Rol } from '../common/entities/tipos';
+import type { PermisoEmpresa } from '../auth/permisos/matriz';
 import { Bitacora } from './bitacora.entity';
 
 export interface AccesoDenegado {
@@ -9,8 +10,10 @@ export interface AccesoDenegado {
   userId: string;
   metodo: string;
   ruta: string;
-  /** Vacío si el endpoint solo exigía membresía. */
+  /** Los roles que tienen el permiso; vacío si solo exigía membresía. */
   rolesRequeridos: Rol[];
+  /** FR-55: el permiso de la matriz que faltó; nulo si solo exigía membresía. */
+  permiso?: PermisoEmpresa;
   /** Vacío si ya no es miembro de la empresa. */
   rolesDelUsuario: Rol[];
   ip?: string;
@@ -49,6 +52,9 @@ export class AccesosDenegados {
               acceso.rolesDelUsuario.length === 0
                 ? 'sin_membresia'
                 : 'rol_insuficiente',
+            ...(acceso.permiso === undefined
+              ? {}
+              : { permiso: acceso.permiso }),
             rolesRequeridos: acceso.rolesRequeridos,
             rolesDelUsuario: acceso.rolesDelUsuario,
           },

@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { permisosDelControlador, rolesDeMatriz } from './extraerPermisos';
 import {
   LIMITES_CARGA,
   PERFIL_POR_DEFECTO,
@@ -16,7 +17,6 @@ import {
   perfilPorDefecto,
   resultadosDeArchivo,
   resultadosDeFila,
-  rolesDelControlador,
 } from './extraerCargas';
 
 // Deriva de los espejos de cargas (CU-24, M9) contra el backend. Mismo
@@ -56,28 +56,28 @@ describe('resultados de la carga (src/cargas/carga.entity.ts)', () => {
   });
 });
 
-describe('roles que cargan (@Roles de src/cargas/cargas.controller.ts)', () => {
+describe('roles que cargan (@Permiso de src/cargas/cargas.controller.ts)', () => {
   const controlador = leer('cargas/cargas.controller.ts');
+  const matriz = leer('auth/permisos/matriz.ts');
 
-  it('hay exactamente dos @Roles, ambos iguales a ROLES_QUE_CARGAN', () => {
-    const roles = rolesDelControlador(controlador);
-    expect(roles).toHaveLength(2);
-    for (const lista of roles) expect(lista).toEqual([...ROLES_QUE_CARGAN]);
+  it('los dos POST declaran cargas.cargar y la matriz le da ROLES_QUE_CARGAN', () => {
+    expect(
+      permisosDelControlador(controlador).filter((p) => p !== 'cargas.ver'),
+    ).toEqual(['cargas.cargar', 'cargas.cargar']);
+    expect(rolesDeMatriz(matriz, 'cargas.cargar')).toEqual([
+      ...ROLES_QUE_CARGAN,
+    ]);
   });
 
-  it('agregar un rol en el backend falla', () => {
-    const fuente = controlador.replaceAll(
-      "@Roles('admin', 'contador')",
-      "@Roles('admin', 'contador', 'revisor')",
+  it('agregar un rol en la matriz falla', () => {
+    const fuente = matriz.replace(
+      "'cargas.cargar': ['admin', 'contador']",
+      "'cargas.cargar': ['admin', 'contador', 'revisor']",
     );
-    expect(fuente).not.toBe(controlador);
-    for (const lista of rolesDelControlador(fuente)) {
-      expect(lista).not.toEqual([...ROLES_QUE_CARGAN]);
-    }
-  });
-
-  it('GET /cargas no lleva @Roles: la lista queda abierta a todo rol', () => {
-    expect(rolesDelControlador(controlador)).toHaveLength(2);
+    expect(fuente).not.toBe(matriz);
+    expect(rolesDeMatriz(fuente, 'cargas.cargar')).not.toEqual([
+      ...ROLES_QUE_CARGAN,
+    ]);
   });
 });
 
