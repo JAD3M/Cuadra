@@ -31,6 +31,7 @@ import {
   setCookieDe,
 } from '../testing/sesion-de-pruebas';
 import request from '../testing/supertest-con-origen';
+import { UsuariosModule } from '../usuarios/usuarios.module';
 
 const PREFIJO_LIMITE = 'cuadra_test_invitaciones';
 process.env.COLA_PREFIJO = PREFIJO_LIMITE;
@@ -109,6 +110,7 @@ beforeAll(async () => {
         namingStrategy: new SnakeNamingStrategy(),
       }),
       AuthModule,
+      UsuariosModule,
     ],
   }).compile();
   app = modulo.createNestApplication();
@@ -762,5 +764,35 @@ describe('POST /auth/invitaciones/:token/aceptar', () => {
       await aceptar('z'.repeat(43), { password: PASSWORD_NUEVA }).expect(404);
     }
     await aceptar('z'.repeat(43), { password: PASSWORD_NUEVA }).expect(429);
+  });
+});
+
+describe('GET /usuarios/invitaciones: invitaciones de plataforma (historia 2.4)', () => {
+  it('la invitación al primer admin entra en pendientes de su empresa con invitadaPor nulo', async () => {
+    const email = correoNuevo();
+    await invitar(email, cookieDueno, ferreteriaId).expect(201);
+    const cookieAna = await abrirSesion(ds, anaId, ferreteriaId);
+    try {
+      const res = await http()
+        .get('/usuarios/invitaciones')
+        .set('Cookie', cookieAna)
+        .expect(200);
+      const lista = res.body as Array<{ email: string }>;
+      expect(lista.find((i) => i.email === email)).toMatchObject({
+        roles: ['admin'],
+        vencida: false,
+        invitadaPor: null,
+      });
+      expect(JSON.stringify(res.body)).not.toContain(
+        huellaDeToken(tokenDe(email)),
+      );
+    } finally {
+      await ds.query(`DELETE FROM invitaciones WHERE email = $1`, [email]);
+      await ds.query(
+        `DELETE FROM bitacora WHERE company_id = $1 AND datos->>'email' = $2`,
+        [ferreteriaId, email],
+      );
+      await ds.query(`DELETE FROM sesiones WHERE user_id = $1`, [anaId]);
+    }
   });
 });

@@ -75,8 +75,8 @@ Estrategia de cadena `stacked-to-main`, una rebanada por unidad de trabajo.
 
 ## Tareas
 
-- [x] **T1** Migración (`cancelada_en`, GRANT, índice, CHECK de acciones), tipos, motivo `cancelada` en la consulta del enlace y espejo de acciones en el frontend. Ruta: delegada (un escritor). Commit: ver `git log` (`feat(invitaciones): invitación cancelable...`).
-- [ ] **T2** Endpoints de listar, reenviar y cancelar: permisos, límite, bitácora con quién y cuándo, 409 claro, aislamiento por empresa; pruebas.
+- [x] **T1** Migración (`cancelada_en`, GRANT, índice, CHECK de acciones), tipos, motivo `cancelada` en la consulta del enlace y espejo de acciones en el frontend. Ruta: delegada (un escritor). Commit: `62aad81`.
+- [x] **T2** Endpoints de listar, reenviar y cancelar: permisos, límite, bitácora con quién y cuándo, 409 claro, aislamiento por empresa; pruebas. Ruta: delegada (un escritor). Commit: ver `git log` (`feat(usuarios): listar, reenviar y cancelar invitaciones pendientes`).
 - [ ] **T3** Mockup: lista de pendientes en Usuarios y estado «cancelada» de la invitación, oscuro y claro, acordado con el usuario.
 - [ ] **T4** Interfaz: lista de pendientes con reenviar y cancelar, y mensaje de enlace cancelado, sobre el mockup aprobado.
 - [ ] **T5** Cierre: pruebas completas, bitácora, PRs en cadena.
@@ -98,7 +98,7 @@ quién y cuándo; solo `admin`.
 
 ## Progreso
 
-T1 hecha. Siguiente paso: T2.
+T1 y T2 hechas. Siguiente paso: T3 (mockup, espera acuerdo del usuario).
 
 ## Evidencia
 
@@ -114,3 +114,13 @@ T1 hecha. Siguiente paso: T2.
   plataforma) aún no excluye las canceladas en su UPDATE de reemplazo; queda
   fuera del alcance de escritura de T1/T2. El efecto es que una cancelada del
   correo pasa a leerse como «reemplazada», lo cual es cierto.
+- T2 RED: `npm test -- src/usuarios` → 22 fallos de 39, todos por ruta
+  inexistente (`expected 200 "OK", got 404 "Not Found"`, 403/401/429/409/503
+  igual con 404).
+- T2 GREEN: `npm test` 59 suites / 1256 tests; typecheck, lint, build y
+  prettier limpios; frontend sin cambios (266 archivos / 4229 tests).
+- Decisiones de T2: cancelar responde `200 {email}`; reenviar `201 {email,
+  roles}` como invitar; la bitácora usa `entidad` `companies` y `entidad_id` la
+  empresa (como invitar) con `datos` `{invitacionId, email, roles}`; en
+  reenviar `invitacionId` es la fila nueva y se agrega `anteriorId`; el listado
+  va de la más reciente a la más antigua.
