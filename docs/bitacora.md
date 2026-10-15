@@ -5,6 +5,35 @@
 
 ### 15 oct 2026
 
+- **Historia 2.4 de la v2: reenviar o cancelar una invitación pendiente
+  (FR-42, FR-50, AD-14, AD-7).** Rama `feat/v2-2-4-reenviar-cancelar-invitacion`
+  con ODD, desde `master` tras la 2.3. El backend se hizo primero; el mockup
+  (lista de pendientes en Usuarios, estado «cancelada» de la invitación y las
+  dos acciones nuevas en la Bitácora) se creó y se aprobó antes de la interfaz.
+  - **T1 `62aad81`:** columna `invitaciones.cancelada_en` con GRANT UPDATE de
+    columna; el índice de invitación viva la excluye; acciones de bitácora
+    `reenviar_invitacion` y `cancelar_invitacion` en `ck_bitacora_accion`; el
+    enlace cancelado se consulta con el motivo `cancelada`.
+  - **T2 `85aafd1` y `0e9ea48`:** `GET /usuarios/invitaciones` (pendientes de
+    la empresa, las vencidas incluidas), `POST …/:id/reenviar` y
+    `POST …/:id/cancelar`. Aislamiento por `company_id`, 409 claro si ya fue
+    aceptada o ya no está pendiente, 404 de otra empresa, bitácora con quién
+    actuó y límite de peticiones. El reemplazo de la invitación de
+    plataforma también excluye las canceladas.
+  - **T4 (interfaz):** `1c7b36a` contrato, errores y textos, y el estado
+    cancelada de la pantalla de invitación; `f3298f7` hooks; `98fa707` tabla
+    con reenviar y cancelar y sus estados; `89125ff` la sección en la pantalla
+    de usuarios.
+  - **Decisiones:** cancelar usa su propia columna y no `reemplazada_en` (el
+    enlace dice «cancelada»); acciones de bitácora nuevas en lugar de reutilizar
+    `invitar`; «pendiente» incluye las vencidas porque es el caso de la
+    invitación perdida; reenviar reemplaza la fila y registra a quien reenvía;
+    en 409 la interfaz muestra el mensaje del servidor porque el cuerpo no trae
+    un código estable.
+  - **Pendiente:** la lista de usuarios de la empresa es de la 2.5 y cambiar o
+    quitar roles de la 2.6. La variante «no se puede cancelar» del mensaje de
+    invitación ya aceptada no está dibujada en el mockup.
+
 - **Historia 2.3 de la v2: invitar usuarios a mi empresa con uno o más roles
   (FR-41, FR-50, AD-14, AD-7).** Rama `feat/v2-2-3-invitar-usuarios` con ODD,
   desde `master` tras la 2.2. El backend se hizo primero; el mockup de

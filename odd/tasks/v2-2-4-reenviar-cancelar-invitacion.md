@@ -77,9 +77,9 @@ Estrategia de cadena `stacked-to-main`, una rebanada por unidad de trabajo.
 
 - [x] **T1** Migración (`cancelada_en`, GRANT, índice, CHECK de acciones), tipos, motivo `cancelada` en la consulta del enlace y espejo de acciones en el frontend. Ruta: delegada (un escritor). Commit: `62aad81`.
 - [x] **T2** Endpoints de listar, reenviar y cancelar: permisos, límite, bitácora con quién y cuándo, 409 claro, aislamiento por empresa; pruebas. Ruta: delegada (un escritor). Commit: ver `git log` (`feat(usuarios): listar, reenviar y cancelar invitaciones pendientes`).
-- [ ] **T3** Mockup: lista de pendientes en Usuarios y estado «cancelada» de la invitación, oscuro y claro, acordado con el usuario.
-- [ ] **T4** Interfaz: lista de pendientes con reenviar y cancelar, y mensaje de enlace cancelado, sobre el mockup aprobado.
-- [ ] **T5** Cierre: pruebas completas, bitácora, PRs en cadena.
+- [x] **T3** Mockup: lista de pendientes en Usuarios y estado «cancelada» de la invitación, oscuro y claro, acordado con el usuario (aprobado por el usuario el 2026-10-15).
+- [x] **T4** Interfaz: lista de pendientes con reenviar y cancelar, y mensaje de enlace cancelado, sobre el mockup aprobado. Ruta: delegada (un escritor). Commits: `a17cf24` (estado cancelada en la invitación) y `247fe7a` (lista de pendientes, reenviar y cancelar).
+- [x] **T5** Cierre: pruebas completas, bitácora, PRs en cadena. Ruta: inline. Seis rebanadas `stacked-to-main`; `CUADRA.md` no cambia (sigue el estado de la v1).
 
 ## Criterios de aceptación
 
@@ -98,7 +98,7 @@ quién y cuándo; solo `admin`.
 
 ## Progreso
 
-T1 y T2 hechas. Siguiente paso: T3 (mockup, espera acuerdo del usuario).
+T1 a T4 hechas. Siguiente paso: T5 (cierre: pruebas completas, bitácora, PRs en cadena).
 
 ## Evidencia
 
@@ -124,3 +124,22 @@ T1 y T2 hechas. Siguiente paso: T3 (mockup, espera acuerdo del usuario).
   empresa (como invitar) con `datos` `{invitacionId, email, roles}`; en
   reenviar `invitacionId` es la fila nueva y se agrega `anteriorId`; el listado
   va de la más reciente a la más antigua.
+- T3: mockup aprobado por el usuario el 2026-10-15.
+- T4 RED: `npx vitest run` sobre los contratos, la pantalla de invitación y
+  Usuarios → 18 fallos en contratos (`invitacionPendiente`, `invitacionesPendientes`,
+  `invitacionReenviada`, `invitacionCancelada` indefinidos) y `cancelada`
+  (`ZodError` en el enum de motivos, `Unable to find role="heading"`); luego 33
+  fallos en `InvitacionesPendientes.test.tsx` y el flujo de la app por
+  `Unable to find role="region" and name "Invitaciones pendientes"`.
+  `vencimiento.test.ts` se escribió junto con su módulo (sin RED separado).
+- T4 GREEN: `npm test` 268 archivos / 4286 tests; `npm run lint`,
+  `format:check` y `typecheck` limpios.
+- Decisiones de T4: los avisos de fila se guardan por correo (reenviar crea
+  fila con id nuevo); 409 muestra el mensaje del servidor (el cuerpo no trae
+  código estable) y no vuelve a pedir la lista; 404 usa «Esta invitación ya no
+  está pendiente.»; «Vence en N días» usa el reloj solo para el texto (mínimo 1
+  día) y `vencida` la decide el servidor; la fecha de envío es el día del ISO en
+  UTC como en la bandeja; la lista se ve con `usuarios.ver` y las acciones y el
+  formulario piden `usuarios.gestionar`; el foco va a «Volver» al abrir la
+  confirmación; la vencida usa `--color-danger-tint` porque
+  `--color-danger-chip` está aislado a la bitácora.

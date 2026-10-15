@@ -4,6 +4,7 @@ import { ordenarRoles, puede, type Rol } from '@/shared/dominio';
 import { useSessionContext } from '@/shared/sesion';
 import { ConfirmacionInvitacion } from './components/ConfirmacionInvitacion';
 import { FormularioInvitarUsuario } from './components/FormularioInvitarUsuario';
+import { InvitacionesPendientesContenedor } from './InvitacionesPendientesContenedor';
 import { clasificarFalloInvitar, type ClaseFalloInvitar } from './errores';
 import { ERROR_SIN_PERMISO } from './textos';
 import estilos from './UsuariosContenedor.module.css';
@@ -19,7 +20,9 @@ interface Enviada {
 
 /**
  * Contenedor de la pantalla de Usuarios: el formulario de invitar (con la
- * capacidad `usuarios.gestionar`) o el aviso de sin permiso. Es el único
+ * capacidad `usuarios.gestionar`), la lista de invitaciones pendientes (con
+ * `usuarios.ver`; reenviar y cancelar piden `usuarios.gestionar`) o el aviso
+ * de sin permiso. Es el único
  * sitio que junta la sesión, el hook y el estado; los componentes solo
  * reciben props. Mostrar u ocultar es comodidad: el servidor decide y
  * responde 403.
@@ -44,9 +47,13 @@ export function UsuariosContenedor() {
   // La ruta ya exige sesión lista; si no lo está no hay capacidades que juzgar.
   if (sesion.status !== 'ready') return null;
 
+  const puedeGestionar = puede(
+    sesion.contexto.capacidades,
+    'usuarios.gestionar',
+  );
+  const puedeVer = puede(sesion.contexto.capacidades, 'usuarios.ver');
   const sinPermiso =
-    !puede(sesion.contexto.capacidades, 'usuarios.gestionar') ||
-    fallo?.clase === 'permiso';
+    (!puedeGestionar && !puedeVer) || fallo?.clase === 'permiso';
 
   if (sinPermiso) {
     return (
@@ -56,15 +63,22 @@ export function UsuariosContenedor() {
     );
   }
 
+  const pendientes = puedeVer && (
+    <InvitacionesPendientesContenedor puedeGestionar={puedeGestionar} />
+  );
+
   if (enviada !== null) {
     return (
-      <section className={estilos.contenedor}>
-        <ConfirmacionInvitacion
-          email={enviada.email}
-          roles={enviada.roles}
-          onOtra={() => setEnviada(null)}
-        />
-      </section>
+      <div className={estilos.columna}>
+        <section className={estilos.contenedor}>
+          <ConfirmacionInvitacion
+            email={enviada.email}
+            roles={enviada.roles}
+            onOtra={() => setEnviada(null)}
+          />
+        </section>
+        {pendientes}
+      </div>
     );
   }
 
@@ -110,7 +124,7 @@ export function UsuariosContenedor() {
   }
 
   const claseFallo = fallo?.clase;
-  return (
+  const formulario = (
     <section className={estilos.contenedor}>
       <FormularioInvitarUsuario
         correo={correo}
@@ -130,5 +144,11 @@ export function UsuariosContenedor() {
         onEnviar={alEnviar}
       />
     </section>
+  );
+  return (
+    <div className={estilos.columna}>
+      {puedeGestionar && formulario}
+      {pendientes}
+    </div>
   );
 }
