@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { permisoTrasDecorador, rolesDeMatriz } from './extraerPermisos';
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -31,11 +32,9 @@ function enteroDeConstante(fuente: string, nombre: string): string | undefined {
   return encontrada?.[1];
 }
 
-/** Los argumentos del `@Roles(...)` que sigue a `@Get('usuarios')`. */
-function rolesDeUsuarios(fuente: string): string[] | undefined {
-  const encontrada = /@Get\('usuarios'\)\s*@Roles\(([^)]*)\)/.exec(fuente);
-  if (encontrada === null) return undefined;
-  return [...(encontrada[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1]!);
+/** El permiso del `@Permiso(...)` que sigue a `@Get('usuarios')`. */
+function permisoDeUsuarios(fuente: string): string | undefined {
+  return permisoTrasDecorador(fuente, "@Get('usuarios')");
 }
 
 /**
@@ -67,33 +66,36 @@ function clavesDeClase(fuente: string, nombre: string): string[] | undefined {
   );
 }
 
-describe('roles de GET /bitacora/usuarios (src/bitacora/bitacora.controller.ts)', () => {
+describe('roles de GET /bitacora/usuarios (@Permiso de src/bitacora/bitacora.controller.ts)', () => {
   const controlador = leer('bitacora/bitacora.controller.ts');
+  const matriz = leer('auth/permisos/matriz.ts');
 
-  it('el listado de personas lleva exactamente los cuatro roles de ROLES', () => {
-    expect(rolesDeUsuarios(controlador)).toEqual([...ROLES]);
+  it('el listado de personas declara bitacora.ver y la matriz le da los cuatro roles de ROLES', () => {
+    const permiso = permisoDeUsuarios(controlador);
+    expect(permiso).toBe('bitacora.ver');
+    expect(rolesDeMatriz(matriz, permiso!)).toEqual([...ROLES]);
   });
 
-  it('quitar un rol en el backend falla', () => {
-    const fuente = controlador.replace(
-      "@Get('usuarios')\n  @Roles('admin', 'contador', 'revisor', 'auditor')",
-      "@Get('usuarios')\n  @Roles('admin', 'contador', 'revisor')",
+  it('quitar un rol en la matriz falla', () => {
+    const fuente = matriz.replace(
+      "'bitacora.ver': ['admin', 'contador', 'revisor', 'auditor']",
+      "'bitacora.ver': ['admin', 'contador', 'revisor']",
     );
-    expect(fuente).not.toBe(controlador);
-    expect(rolesDeUsuarios(fuente)).not.toEqual([...ROLES]);
+    expect(fuente).not.toBe(matriz);
+    expect(rolesDeMatriz(fuente, 'bitacora.ver')).not.toEqual([...ROLES]);
   });
 
-  it('quitar el @Roles o la ruta deja de extraerse', () => {
-    const sinRoles = controlador.replace(
-      "  @Roles('admin', 'contador', 'revisor', 'auditor')\n  @ApiOkResponse({ type: RespuestaUsuariosBitacoraDto })",
+  it('quitar el @Permiso o la ruta deja de extraerse', () => {
+    const sinPermiso = controlador.replace(
+      "  @Permiso('bitacora.ver')\n  @ApiOkResponse({ type: RespuestaUsuariosBitacoraDto })",
       '  @ApiOkResponse({ type: RespuestaUsuariosBitacoraDto })',
     );
-    expect(sinRoles).not.toBe(controlador);
-    expect(rolesDeUsuarios(sinRoles)).toBeUndefined();
+    expect(sinPermiso).not.toBe(controlador);
+    expect(permisoDeUsuarios(sinPermiso)).toBeUndefined();
 
     const sinRuta = controlador.replace("@Get('usuarios')", "@Get('personas')");
     expect(sinRuta).not.toBe(controlador);
-    expect(rolesDeUsuarios(sinRuta)).toBeUndefined();
+    expect(permisoDeUsuarios(sinRuta)).toBeUndefined();
   });
 });
 

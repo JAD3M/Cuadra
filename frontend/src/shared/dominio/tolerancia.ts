@@ -14,7 +14,7 @@ export const DECIMALES_TOLERANCIA = 4;
 /** El regex exacto del DTO: sin signo, punto decimal, hasta 4 decimales. */
 export const PATRON_TOLERANCIA = /^\d+(\.\d{1,4})?$/;
 
-/** Roles que cambian la tolerancia: el `@Roles` del PUT /empresa/tolerancia. */
+/** Roles que cambian la tolerancia: la fila `tolerancia.editar` de la matriz del backend. */
 export const ROLES_QUE_EDITAN_TOLERANCIA = [
   'admin',
 ] as const satisfies readonly Rol[];

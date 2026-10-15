@@ -27,4 +27,28 @@ describe('AccesosDenegados', () => {
     expect(ejecutar).toHaveBeenCalledWith('empresa-a', expect.any(Function));
     expect(error).toHaveBeenCalledTimes(1);
   });
+
+  it('guarda en datos el permiso que faltó junto con los roles', async () => {
+    const insert = jest.fn().mockResolvedValue(undefined);
+    const ejecutar = jest.fn((_empresa: string, fn: (m: unknown) => unknown) =>
+      fn({ insert }),
+    );
+    const servicio = new AccesosDenegados({
+      ejecutar,
+    } as unknown as TransaccionEmpresa);
+
+    await servicio.registrar({ ...ACCESO, permiso: 'tolerancia.editar' });
+
+    expect(insert).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        accion: 'acceso_denegado',
+        datos: expect.objectContaining({
+          permiso: 'tolerancia.editar',
+          rolesRequeridos: ['admin'],
+          rolesDelUsuario: ['contador'],
+        }) as unknown,
+      }),
+    );
+  });
 });

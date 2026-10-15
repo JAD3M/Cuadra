@@ -2,7 +2,7 @@ import { Body, Controller, Get, Put, Req } from '@nestjs/common';
 import { ApiCookieAuth } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { UsuarioAutenticado } from '../auth/tipos';
-import { Roles, UsuarioActual } from '../common/decorators/decoradores';
+import { Permiso, UsuarioActual } from '../common/decorators/decoradores';
 import {
   ActualizarToleranciaDto,
   ToleranciaRespuestaDto,
@@ -30,7 +30,7 @@ export class EmpresaController {
 
   /** Solo admin. Aplica desde la siguiente conciliación; no la vuelve a correr. */
   @Put('tolerancia')
-  @Roles('admin')
+  @Permiso('tolerancia.editar')
   async actualizar(
     @UsuarioActual() usuario: Sesion,
     @Body() cuerpo: ActualizarToleranciaDto,

@@ -17,7 +17,7 @@ import {
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { UsuarioAutenticado } from '../auth/tipos';
-import { Roles, UsuarioActual } from '../common/decorators/decoradores';
+import { Permiso, UsuarioActual } from '../common/decorators/decoradores';
 import { RechazarDto, ResolucionRespuestaDto } from './dto/resolucion.dto';
 import { ResolucionService } from './resolucion.service';
 
@@ -32,7 +32,7 @@ export class ResolucionController {
 
   @Post(':id/confirmar')
   @HttpCode(200)
-  @Roles('admin', 'contador', 'revisor')
+  @Permiso('conciliaciones.resolver')
   @ApiOkResponse({ type: ResolucionRespuestaDto })
   @ApiBadRequestResponse({ description: 'Id inválido.' })
   @ApiNotFoundResponse({ description: 'No existe en la empresa de la sesión.' })
@@ -60,7 +60,7 @@ export class ResolucionController {
 
   @Post(':id/rechazar')
   @HttpCode(200)
-  @Roles('admin', 'contador', 'revisor')
+  @Permiso('conciliaciones.resolver')
   @ApiOkResponse({ type: ResolucionRespuestaDto })
   @ApiBadRequestResponse({ description: 'Id o motivo inválidos.' })
   @ApiNotFoundResponse({ description: 'No existe en la empresa de la sesión.' })

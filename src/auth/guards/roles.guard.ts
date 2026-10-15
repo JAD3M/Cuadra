@@ -5,13 +5,13 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import type { Rol } from '../../common/entities/tipos';
 import type { Scope } from '../tipos';
 import { AccesosDenegados } from '../../bitacora/accesos-denegados';
 import { AuthService } from '../auth.service';
+import { type PermisoEmpresa, rolesConPermiso } from '../permisos/matriz';
 import {
   LLAVE_PUBLICO,
-  LLAVE_ROLES,
+  LLAVE_PERMISO,
   LLAVE_SCOPE,
   type SolicitudAutenticada,
 } from '../../common/decorators/decoradores';
@@ -46,20 +46,19 @@ export class RolesGuard implements CanActivate {
       LLAVE_SCOPE,
       destinos,
     );
-    const requeridos =
-      this.reflector.getAllAndOverride<Rol[] | undefined>(
-        LLAVE_ROLES,
-        destinos,
-      ) ?? [];
+    const permiso = this.reflector.getAllAndOverride<
+      PermisoEmpresa | undefined
+    >(LLAVE_PERMISO, destinos);
+    const requeridos = permiso === undefined ? [] : rolesConPermiso(permiso);
     // Un endpoint que acepta la sesión sin empresa (elegir o cambiar de
     // empresa) no opera sobre la actual: no exige membresía en ella, para que
-    // quien perdió su rol pueda salir. Solo vale si no declara @Roles: si
-    // los declara, opera sobre la empresa y sigue el camino normal.
+    // quien perdió su rol pueda salir. Solo vale si no declara @Permiso: si
+    // lo declara, opera sobre la empresa y sigue el camino normal.
     const noOperaSobreLaEmpresa =
-      scopes?.includes('seleccion') === true && requeridos.length === 0;
+      scopes?.includes('seleccion') === true && permiso === undefined;
     if (noOperaSobreLaEmpresa) return true;
 
-    // Aun sin @Roles, una sesión exige membresía vigente en su empresa.
+    // Aun sin @Permiso, una sesión exige membresía vigente en su empresa.
     const roles = await this.authService.rolesEnEmpresa(
       user.userId,
       user.companyId,
@@ -70,7 +69,8 @@ export class RolesGuard implements CanActivate {
         userId: user.userId,
         metodo: solicitud.method,
         ruta: solicitud.path,
-        rolesRequeridos: requeridos,
+        rolesRequeridos: [...requeridos],
+        permiso,
         rolesDelUsuario: roles,
         ip: solicitud.ip,
         userAgent: solicitud.headers?.['user-agent'],
@@ -79,8 +79,8 @@ export class RolesGuard implements CanActivate {
     };
 
     if (roles.length === 0) return denegar('Sin acceso a esta empresa');
-    if (!requeridos.length) return true;
-    // D-08: basta con que uno de sus roles alcance.
+    if (permiso === undefined) return true;
+    // D-08: basta con que uno de sus roles tenga el permiso.
     if (roles.some((rol) => requeridos.includes(rol))) return true;
     return denegar('Rol insuficiente');
   }

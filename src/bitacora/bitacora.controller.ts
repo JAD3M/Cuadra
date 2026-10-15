@@ -6,7 +6,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { UsuarioAutenticado } from '../auth/tipos';
-import { Roles, UsuarioActual } from '../common/decorators/decoradores';
+import { Permiso, UsuarioActual } from '../common/decorators/decoradores';
 import { BitacoraService } from './bitacora.service';
 import {
   ConsultaBitacoraDto,
@@ -28,7 +28,7 @@ export class BitacoraController {
 
   /** Va antes que cualquier ruta con parámetro: `usuarios` no es un id. */
   @Get('usuarios')
-  @Roles('admin', 'contador', 'revisor', 'auditor')
+  @Permiso('bitacora.ver')
   @ApiOkResponse({ type: RespuestaUsuariosBitacoraDto })
   @ApiUnauthorizedResponse({ description: 'Sin sesión válida.' })
   usuarios(
@@ -38,7 +38,7 @@ export class BitacoraController {
   }
 
   @Get()
-  @Roles('admin', 'contador', 'revisor', 'auditor')
+  @Permiso('bitacora.ver')
   @ApiOkResponse({ type: RespuestaBitacoraDto })
   @ApiBadRequestResponse({ description: 'Parámetros de consulta inválidos.' })
   @ApiUnauthorizedResponse({ description: 'Sin sesión válida.' })

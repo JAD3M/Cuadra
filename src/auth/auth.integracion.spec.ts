@@ -19,7 +19,7 @@ import {
   urlDePruebas,
 } from '../database/testing/base-de-pruebas';
 import { AuthModule } from './auth.module';
-import { Roles, Scope } from '../common/decorators/decoradores';
+import { Permiso, Scope } from '../common/decorators/decoradores';
 import { TransaccionEmpresa } from '../database/transaccion-empresa';
 import {
   abrirSesion,
@@ -54,13 +54,13 @@ class ControladorDeDominio {
   }
 
   @Get('admin')
-  @Roles('admin')
+  @Permiso('tolerancia.editar')
   admin() {
     return { ok: true };
   }
 
   @Get('contador-o-revisor')
-  @Roles('contador', 'revisor')
+  @Permiso('conciliaciones.resolver')
   contadorORevisor() {
     return { ok: true };
   }
@@ -1322,6 +1322,7 @@ describe('Bitácora de accesos denegados', () => {
         metodo: 'GET',
         ruta: '/prueba/admin',
         motivo: 'rol_insuficiente',
+        permiso: 'tolerancia.editar',
         rolesRequeridos: ['admin'],
         rolesDelUsuario: ['contador'],
       },

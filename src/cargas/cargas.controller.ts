@@ -20,7 +20,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { UsuarioAutenticado } from '../auth/tipos';
-import { Roles, UsuarioActual } from '../common/decorators/decoradores';
+import { Permiso, UsuarioActual } from '../common/decorators/decoradores';
 import {
   ArchivosXmlGuard,
   CAMPO_ARCHIVOS,
@@ -53,7 +53,7 @@ export class CargasController {
    */
   @Post('cfdi')
   @HttpCode(HttpStatus.ACCEPTED)
-  @Roles('admin', 'contador')
+  @Permiso('cargas.cargar')
   @UseGuards(ArchivosXmlGuard)
   @UseInterceptors(YaExistiaInterceptor)
   @ApiConsumes('multipart/form-data')
@@ -84,7 +84,7 @@ export class CargasController {
    */
   @Post('estado-cuenta')
   @HttpCode(HttpStatus.ACCEPTED)
-  @Roles('admin', 'contador')
+  @Permiso('cargas.cargar')
   @UseGuards(EstadoDeCuentaGuard)
   @UseInterceptors(YaExistiaInterceptor)
   @ApiConsumes('multipart/form-data')
@@ -114,8 +114,8 @@ export class CargasController {
   }
 
   /**
-   * CU-24. Las últimas 20 cargas de la empresa, para el historial. Sin
-   * `@Roles`: cualquier rol con sesión vigente consulta. La empresa sale del
+   * CU-24. Las últimas 20 cargas de la empresa, para el historial. Con
+   * `cargas.ver`: admin y contador consultan (FR-53). La empresa sale del
    * token; ni `companyId` ni `limite` en la query se leen. Va antes de
    * `:id`.
    */

@@ -6,7 +6,7 @@ import {
   ApiOkResponse,
 } from '@nestjs/swagger';
 import type { UsuarioAutenticado } from '../auth/tipos';
-import { Roles, UsuarioActual } from '../common/decorators/decoradores';
+import { Permiso, UsuarioActual } from '../common/decorators/decoradores';
 import { BitacoraService } from './bitacora.service';
 import { RespuestaHistorialDto } from './dto/bitacora.dto';
 
@@ -20,7 +20,7 @@ export class HistorialController {
   constructor(private readonly bitacora: BitacoraService) {}
 
   @Get(':id/historial')
-  @Roles('admin', 'contador', 'revisor', 'auditor')
+  @Permiso('bitacora.ver')
   @ApiOkResponse({ type: RespuestaHistorialDto })
   @ApiBadRequestResponse({ description: 'Id inválido.' })
   @ApiNotFoundResponse({ description: 'No existe en la empresa de la sesión.' })

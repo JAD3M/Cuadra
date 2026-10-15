@@ -4,7 +4,7 @@ import {
   SetMetadata,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import type { Rol } from '../entities/tipos';
+import type { PermisoEmpresa } from '../../auth/permisos/matriz';
 import type {
   Scope as ScopeSesion,
   UsuarioAutenticado,
@@ -12,7 +12,7 @@ import type {
 
 export const LLAVE_PUBLICO = 'auth:publico';
 export const LLAVE_SCOPE = 'auth:scope';
-export const LLAVE_ROLES = 'auth:roles';
+export const LLAVE_PERMISO = 'auth:permiso';
 
 /** Deja pasar sin sesión. Solo para login, logout y health: todo lo demás la exige. */
 export const Publico = () => SetMetadata(LLAVE_PUBLICO, true);
@@ -26,17 +26,23 @@ export const Publico = () => SetMetadata(LLAVE_PUBLICO, true);
  * `/plataforma` lo declara, y solo una sesión de tipo `plataforma` la
  * alcanza. No se mezcla con los otros dos en una misma ruta.
  *
- * Un endpoint que acepta 'seleccion' y no declara `@Roles` no opera sobre
+ * Un endpoint que acepta 'seleccion' y no declara `@Permiso` no opera sobre
  * una empresa, así que `RolesGuard` no exige membresía en la de la sesión
  * (elegir o cambiar de empresa debe seguir posible aunque se haya perdido la
- * actual). Si además declara `@Roles`, sí opera sobre ella: se exigen
+ * actual). Si además declara `@Permiso`, sí opera sobre ella: se exigen
  * membresía y rol como en cualquier endpoint.
  */
 export const Scope = (...scopes: ScopeSesion[]) =>
   SetMetadata(LLAVE_SCOPE, scopes);
 
-/** Autoriza si cualquiera de los roles del usuario en la empresa está aquí (D-08). */
-export const Roles = (...roles: Rol[]) => SetMetadata(LLAVE_ROLES, roles);
+/**
+ * AD-11. El permiso de la matriz (src/auth/permisos/matriz.ts) que exige el
+ * endpoint. `RolesGuard` autoriza si cualquiera de los roles del usuario en la
+ * empresa lo tiene (D-08). Todo endpoint de empresa lo declara: una prueba de
+ * arquitectura falla si falta (junto con @Publico o @Scope).
+ */
+export const Permiso = (permiso: PermisoEmpresa) =>
+  SetMetadata(LLAVE_PERMISO, permiso);
 
 /** La petición ya pasó por `SesionCookieGuard`, así que `user` siempre existe. */
 export interface SolicitudAutenticada extends Request {
