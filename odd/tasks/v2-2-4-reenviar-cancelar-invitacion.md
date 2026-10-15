@@ -79,7 +79,7 @@ Estrategia de cadena `stacked-to-main`, una rebanada por unidad de trabajo.
 - [x] **T2** Endpoints de listar, reenviar y cancelar: permisos, límite, bitácora con quién y cuándo, 409 claro, aislamiento por empresa; pruebas. Ruta: delegada (un escritor). Commit: ver `git log` (`feat(usuarios): listar, reenviar y cancelar invitaciones pendientes`).
 - [x] **T3** Mockup: lista de pendientes en Usuarios y estado «cancelada» de la invitación, oscuro y claro, acordado con el usuario (aprobado por el usuario el 2026-10-15).
 - [x] **T4** Interfaz: lista de pendientes con reenviar y cancelar, y mensaje de enlace cancelado, sobre el mockup aprobado. Ruta: delegada (un escritor). Commits: `a17cf24` (estado cancelada en la invitación) y `247fe7a` (lista de pendientes, reenviar y cancelar).
-- [ ] **T5** Cierre: pruebas completas, bitácora, PRs en cadena.
+- [x] **T5** Cierre: pruebas completas, bitácora, PRs en cadena. Ruta: inline. Seis rebanadas `stacked-to-main`; `CUADRA.md` no cambia (sigue el estado de la v1).
 
 ## Criterios de aceptación
 
