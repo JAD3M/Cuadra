@@ -66,7 +66,7 @@ eligió el usuario en la 2.1).
 - [x] **T2** Frontend: contrato `capacidades`, `puede`/hook, reemplazar `ROLES_QUE_*` en cargas y tolerancia. (ruta: delegada, escritor único)
 - [x] **T3** Menú filtrado por capacidad (`ELEMENTOS_NAV` con permiso, `Sidebar`) y pruebas por rol. (ruta: delegada, escritor único)
 - [x] **T4** Detalle sin acciones para el auditor (nota de solo lectura), prueba «sin literales de rol» en shell y features. (ruta: delegada, escritor único)
-- [ ] **T5** Cierre: pruebas completas, bitácora, PR en cadena.
+- [x] **T5** Cierre: pruebas completas, bitácora, PR en cadena. Ruta: inline. `CUADRA.md` no cambia (sigue el estado de la v1).
 
 ## Criterios de aceptación
 
