@@ -31,7 +31,7 @@ interface FilaInvitacion {
   id: string;
   companyId: string;
   email: string;
-  rol: string;
+  roles: string[];
   razonSocial: string;
   consumida: boolean;
   reemplazada: boolean;
@@ -39,7 +39,7 @@ interface FilaInvitacion {
 }
 
 const SQL_INVITACION = `
-  SELECT i.id, i.company_id AS "companyId", i.email, i.rol,
+  SELECT i.id, i.company_id AS "companyId", i.email, i.roles,
          c.razon_social AS "razonSocial",
          i.consumida_en IS NOT NULL AS consumida,
          i.reemplazada_en IS NOT NULL AS reemplazada,
@@ -107,7 +107,7 @@ export class InvitacionesService {
 
   /**
    * Una sola transacción: bloquea la invitación, crea la cuenta o reutiliza
-   * la existente (sin tocar su contraseña), da el rol y consume el enlace.
+   * la existente (sin tocar su contraseña), da todos los roles de la invitación y consume el enlace.
    * La sesión se abre después del commit. Dos aceptaciones simultáneas se
    * serializan en el bloqueo y la segunda ve el enlace ya usado.
    */
@@ -160,9 +160,9 @@ export class InvitacionesService {
 
       await qr.query(
         `INSERT INTO user_company_roles (user_id, company_id, rol)
-         VALUES ($1, $2, $3)
+         SELECT $1::uuid, $2::uuid, r.rol FROM unnest($3::text[]) AS r(rol)
          ON CONFLICT (user_id, company_id, rol) DO NOTHING`,
-        [userId, fila.companyId, fila.rol],
+        [userId, fila.companyId, fila.roles],
       );
       await qr.query(
         `UPDATE invitaciones SET consumida_en = now(), updated_at = now() WHERE id = $1`,

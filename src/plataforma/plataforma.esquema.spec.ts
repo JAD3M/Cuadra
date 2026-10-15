@@ -241,8 +241,24 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 });
 
 describe('migración reversible', () => {
-  it('down y up de RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
-    // La última es RolAuditor: devuelve los CHECK de rol a tres valores.
+  it('down y up de InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
+    // La última es InvitacionesMultirol: vuelve `rol` y quita `roles` y el
+    // invitador de empresa.
+    await duenio.undoLastMigration();
+    const { n: columnasMultirol } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM information_schema.columns
+        WHERE table_name = 'invitaciones'
+          AND column_name IN ('roles', 'invitada_por_user_id')`,
+    );
+    expect(columnasMultirol).toBe(0);
+    const { n: columnaRol } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM information_schema.columns
+        WHERE table_name = 'invitaciones' AND column_name = 'rol'`,
+    );
+    expect(columnaRol).toBe(1);
+    // Luego RolAuditor: devuelve los CHECK de rol a tres valores.
     await duenio.undoLastMigration();
     const { n: checkRol } = await una<{ n: number }>(
       duenio,

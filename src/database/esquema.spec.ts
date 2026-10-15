@@ -799,8 +799,8 @@ describe('invitaciones y altas por la app (historia 1.5)', () => {
       );
       const insertar = (hash: string) =>
         qr.query(
-          `INSERT INTO invitaciones (company_id, email, rol, token_hash, expires_at, invitada_por_plataforma_usuario_id)
-           VALUES ($1, 'a@x.test', 'admin', $2, now() + interval '7 days', $3)`,
+          `INSERT INTO invitaciones (company_id, email, roles, token_hash, expires_at, invitada_por_plataforma_usuario_id)
+           VALUES ($1, 'a@x.test', ARRAY['admin'], $2, now() + interval '7 days', $3)`,
           [emp, hash, dueno],
         );
       await insertar('h1');
@@ -821,8 +821,8 @@ describe('invitaciones y altas por la app (historia 1.5)', () => {
         `INSERT INTO plataforma_usuarios (correo, password_hash) VALUES ('d-aud@cuadra.test', 'h') RETURNING id`,
       );
       await qr.query(
-        `INSERT INTO invitaciones (company_id, email, rol, token_hash, expires_at, invitada_por_plataforma_usuario_id)
-         VALUES ($1, 'aud@x.test', 'auditor', 'h-aud', now(), $2)`,
+        `INSERT INTO invitaciones (company_id, email, roles, token_hash, expires_at, invitada_por_plataforma_usuario_id)
+         VALUES ($1, 'aud@x.test', ARRAY['auditor','contador'], 'h-aud', now(), $2)`,
         [emp, dueno],
       );
       const { id: usuario } = await una<{ id: string }>(
@@ -836,7 +836,7 @@ describe('invitaciones y altas por la app (historia 1.5)', () => {
     });
   });
 
-  it('el CHECK de rol solo admite los de ROLES', async () => {
+  it('el CHECK de roles solo admite los de ROLES', async () => {
     await enTransaccion(async (qr) => {
       const emp = await empresaNueva(qr);
       const { id: dueno } = await una<{ id: string }>(
@@ -845,12 +845,79 @@ describe('invitaciones y altas por la app (historia 1.5)', () => {
       );
       await expect(
         qr.query(
-          `INSERT INTO invitaciones (company_id, email, rol, token_hash, expires_at, invitada_por_plataforma_usuario_id)
-           VALUES ($1, 'a@x.test', 'inventado', 'h', now(), $2)`,
+          `INSERT INTO invitaciones (company_id, email, roles, token_hash, expires_at, invitada_por_plataforma_usuario_id)
+           VALUES ($1, 'a@x.test', ARRAY['admin','inventado'], 'h', now(), $2)`,
           [emp, dueno],
         ),
-      ).rejects.toThrow(/ck_invitaciones_rol/);
+      ).rejects.toThrow(/ck_invitaciones_roles/);
     });
+  });
+
+  it('roles no puede ir vacío y reemplaza a la columna rol (historia 2.3)', async () => {
+    await enTransaccion(async (qr) => {
+      const emp = await empresaNueva(qr);
+      const { id: dueno } = await una<{ id: string }>(
+        qr,
+        `INSERT INTO plataforma_usuarios (correo, password_hash) VALUES ('d-inv3@cuadra.test', 'h') RETURNING id`,
+      );
+      await qr.query(`SAVEPOINT s`);
+      await expect(
+        qr.query(
+          `INSERT INTO invitaciones (company_id, email, roles, token_hash, expires_at, invitada_por_plataforma_usuario_id)
+           VALUES ($1, 'a@x.test', ARRAY[]::text[], 'h', now(), $2)`,
+          [emp, dueno],
+        ),
+      ).rejects.toThrow(/ck_invitaciones_roles/);
+      await qr.query(`ROLLBACK TO SAVEPOINT s`);
+      const { n } = await una<{ n: number }>(
+        qr,
+        `SELECT count(*)::int AS n FROM information_schema.columns
+          WHERE table_name = 'invitaciones' AND column_name = 'rol'`,
+      );
+      expect(n).toBe(0);
+    });
+  });
+
+  it('exactamente un invitador: de plataforma o de empresa (historia 2.3)', async () => {
+    await enTransaccion(async (qr) => {
+      const emp = await empresaNueva(qr);
+      const { id: dueno } = await una<{ id: string }>(
+        qr,
+        `INSERT INTO plataforma_usuarios (correo, password_hash) VALUES ('d-inv4@cuadra.test', 'h') RETURNING id`,
+      );
+      const { id: usuario } = await una<{ id: string }>(
+        qr,
+        `INSERT INTO users (email, nombre, password_hash) VALUES ('inv4@x.test', 'Inv', 'h') RETURNING id`,
+      );
+      const insertar = (
+        hash: string,
+        plataforma: string | null,
+        user: string | null,
+      ) =>
+        qr.query(
+          `INSERT INTO invitaciones (company_id, email, roles, token_hash, expires_at, invitada_por_plataforma_usuario_id, invitada_por_user_id)
+           VALUES ($1, $2, ARRAY['contador','revisor'], $3, now(), $4, $5)`,
+          [emp, `${hash}@x.test`, hash, plataforma, user],
+        );
+      await qr.query(`SAVEPOINT s`);
+      await expect(insertar('ninguno', null, null)).rejects.toThrow(
+        /ck_invitaciones_invitador/,
+      );
+      await qr.query(`ROLLBACK TO SAVEPOINT s`);
+      await expect(insertar('ambos', dueno, usuario)).rejects.toThrow(
+        /ck_invitaciones_invitador/,
+      );
+      await qr.query(`ROLLBACK TO SAVEPOINT s`);
+      await insertar('plataforma', dueno, null);
+      await insertar('empresa', null, usuario);
+    });
+  });
+
+  it('cuadra_app inserta roles e invitada_por_user_id y no los actualiza (historia 2.3)', async () => {
+    for (const c of ['roles', 'invitada_por_user_id']) {
+      expect(await columna('invitaciones', c, 'INSERT')).toBe(true);
+      expect(await columna('invitaciones', c, 'UPDATE')).toBe(false);
+    }
   });
 
   it("'invitar' cabe en el CHECK de bitacora y bitacora_plataforma", async () => {

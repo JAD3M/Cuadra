@@ -7,7 +7,7 @@ import type { App } from 'supertest/types';
 import { DataSource } from 'typeorm';
 import { AuthModule } from '../auth/auth.module';
 import { PasswordHasher } from '../auth/password';
-import { huellaDeToken } from '../auth/sesiones.service';
+import { huellaDeToken, nuevoToken } from '../auth/sesiones.service';
 import { validateEnv } from '../config/env.validation';
 import { configurarApp } from '../configurar-app';
 import { CorreoSimulado } from '../correo/correo-simulado';
@@ -235,12 +235,12 @@ describe('POST /plataforma/empresas/:id/invitaciones', () => {
 
     const fila = await una<{
       token_hash: string;
-      rol: string;
+      roles: string[];
       dias: number;
       invitada_por: string;
     }>(
       ds,
-      `SELECT token_hash, rol,
+      `SELECT token_hash, roles,
               round(extract(epoch FROM (expires_at - created_at)) / 86400)::int AS dias,
               invitada_por_plataforma_usuario_id AS invitada_por
          FROM invitaciones WHERE email = $1`,
@@ -248,7 +248,7 @@ describe('POST /plataforma/empresas/:id/invitaciones', () => {
     );
     expect(fila).toEqual({
       token_hash: huellaDeToken(token),
-      rol: 'admin',
+      roles: ['admin'],
       dias: 7,
       invitada_por: duenoId,
     });
@@ -647,6 +647,71 @@ describe('POST /auth/invitaciones/:token/aceptar', () => {
       [email],
     );
     expect(sesiones).toHaveLength(1);
+  });
+
+  /** Invitación de empresa (historia 2.3) con varios roles, sin pasar por la ruta. */
+  async function invitacionConRoles(
+    email: string,
+    roles: string[],
+  ): Promise<string> {
+    const token = nuevoToken();
+    await ds.query(
+      `INSERT INTO invitaciones (company_id, email, roles, token_hash, expires_at, invitada_por_user_id)
+       VALUES ($1, $2, $3::text[], $4, now() + interval '7 days', $5)`,
+      [empresaId, email, roles, huellaDeToken(token), anaId],
+    );
+    return token;
+  }
+
+  it('cuenta nueva: recibe todos los roles de la invitación (historia 2.3)', async () => {
+    const email = correoNuevo();
+    const token = await invitacionConRoles(email, ['contador', 'revisor']);
+
+    await aceptar(token, {
+      password: PASSWORD_NUEVA,
+      nombre: 'Varios Roles',
+    }).expect(200);
+
+    const roles = await filas<{ rol: string }>(
+      ds,
+      `SELECT r.rol FROM user_company_roles r JOIN users u ON u.id = r.user_id
+        WHERE u.email = $1 AND r.company_id = $2 ORDER BY r.rol`,
+      [email, empresaId],
+    );
+    expect(roles).toEqual([{ rol: 'contador' }, { rol: 'revisor' }]);
+  });
+
+  it('cuenta existente: suma los roles, no duplica y conserva los de otras empresas (historia 2.3)', async () => {
+    const email = `multirol@${DOMINIO}`;
+    const { id: userId } = await una<{ id: string }>(
+      ds,
+      `INSERT INTO users (email, nombre, password_hash) VALUES ($1, 'Multirol', 'h') RETURNING id`,
+      [email],
+    );
+    await ds.query(
+      `INSERT INTO user_company_roles (user_id, company_id, rol) VALUES ($1, $2, 'contador'), ($1, $3, 'revisor')`,
+      [userId, ferreteriaId, empresaId],
+    );
+    const token = await invitacionConRoles(email, ['revisor', 'auditor']);
+
+    const res = await aceptar(token).expect(200);
+
+    expect(res.body).toMatchObject({ cuentaNueva: false });
+    const enEmpresa = await filas<{ rol: string }>(
+      ds,
+      `SELECT rol FROM user_company_roles WHERE user_id = $1 AND company_id = $2 ORDER BY rol`,
+      [userId, empresaId],
+    );
+    expect(enEmpresa).toEqual([{ rol: 'auditor' }, { rol: 'revisor' }]);
+    const enOtra = await filas<{ rol: string }>(
+      ds,
+      `SELECT rol FROM user_company_roles WHERE user_id = $1 AND company_id = $2`,
+      [userId, ferreteriaId],
+    );
+    expect(enOtra).toEqual([{ rol: 'contador' }]);
+    await ds.query(`DELETE FROM user_company_roles WHERE user_id = $1`, [
+      userId,
+    ]);
   });
 
   it('los intentos fallidos cuentan para el límite', async () => {
