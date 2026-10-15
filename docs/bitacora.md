@@ -3,6 +3,34 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 15 oct 2026
+
+- **Historia 2.1 de la v2: cada rol solo puede hacer lo que le corresponde
+  (FR-25, FR-53, FR-55, AD-11, AD-7).** Rama `feat/v2-2-1-permisos-por-rol`
+  con ODD, desde `master`. Abre la épica 2.
+  - **T1 `14ea0e0`:** matriz FR-53 en `src/auth/permisos/matriz.ts`, rol
+    `auditor` en `ROLES` y migración reversible `RolAuditor` sobre los CHECK
+    de `user_company_roles` e `invitaciones`.
+  - **T2 `72bfca7`:** `@Permiso` sustituye a `@Roles`; `RolesGuard` evalúa la
+    matriz con los roles leídos de la base en cada petición. El acceso
+    denegado guarda `permiso` junto con los roles requeridos y los del
+    usuario.
+  - **T3 `ba9b62a`:** todos los endpoints de empresa declaran permiso; una
+    prueba de arquitectura falla si un método HTTP no declara `@Permiso`,
+    `@Publico` o `@Scope`.
+  - **T4 `55b5dad`:** espejo en `frontend/src/shared/dominio/permisos.ts` y
+    prueba de deriva contra la matriz del backend.
+  - **Decisión:** siguiendo FR-53, `cargas.ver` y `tolerancia.ver` dan 403 al
+    `revisor` y al `auditor`; hoy cualquier miembro las leía. Las acciones
+    «solo lo que confirmó o descartó» van marcadas `propio` y la historia que
+    las construya verifica la autoría; igual la condición de `muestra.verificar`.
+  - **Pendiente:** los menús siguen mostrando Cargas y Tolerancia al revisor
+    (muestran «sin permiso» por el 403) hasta la historia 2.2. Las
+    descripciones de rol de `src/auth/dto/respuestas.dto.ts` aún dicen «admin,
+    contador, revisor». La prueba `CRL-3` de `cargas.listado.integracion.spec.ts`
+    es intermitente por `not.toContain('77')` sobre JSON con UUID aleatorios;
+    no es de esta historia.
+
 ### 14 oct 2026
 
 - **Historia 1.8 de la v2: CI que construye la imagen y prueba el respaldo

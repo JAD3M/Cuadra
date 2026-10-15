@@ -59,7 +59,7 @@ Ruta por tarea y evidencia del disparador se anotan al ejecutar.
 - [x] **T2** `@Permiso` + `RolesGuard` evalúa la matriz; acceso denegado con rol y permiso; pruebas del guard y del auditor 403 en confirmar, rechazar y cargar. Ruta: delegada. Commit `72bfca7`.
 - [x] **T3** Declarar permiso en cada endpoint de empresa de la v1 + prueba de arquitectura (endpoint sin permiso falla). Ruta: delegada. Commit `ba9b62a`.
 - [x] **T4** Espejo en frontend + prueba de deriva; cambio de rol aplica en la siguiente petición (prueba de integración). Ruta: delegada. Commit `55b5dad`.
-- [ ] **T5** Cierre: `npm test`, `format:check`, bitácora, estado en `CUADRA.md`, PR.
+- [x] **T5** Cierre: `npm test`, `format:check`, bitácora, PR. Ruta: inline. `CUADRA.md` no cambia: sigue el estado de la v1 y las historias v2 solo van en la bitácora.
 
 ## Criterios de aceptación
 
