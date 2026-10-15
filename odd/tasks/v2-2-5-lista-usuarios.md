@@ -68,7 +68,7 @@ no ve la sección.
 - [x] **T1 — Backend `GET /usuarios`.** RED primero: aislamiento por empresa
   (usuario con roles en dos empresas), 403 para contador/revisor/auditor,
   estado pendiente/vencida, orden. Servicio + DTO + controlador + pruebas.
-- [ ] **T2 — Frontend base.** Contrato zod `usuarios`/`usuario`, hook de
+- [x] **T2 — Frontend base.** Contrato zod `usuarios`/`usuario`, hook de
   lectura, claves de query, textos y errores de lectura.
 - [ ] **T3 — Mockup.** Actualizar Usuarios (oscuro y claro) con la tabla única;
   acordar con el usuario antes de T4.
@@ -96,4 +96,14 @@ T1 hecha (commit en esta rama, ver `git log`). `GET /usuarios` en
 - RED: `npm test -- listar-usuarios` → 10 pruebas fallan con `expected 200 "OK", got 404`.
 - GREEN: mismo comando → 10 pasan. `npm test`: 60 suites, 1266 pruebas pasan.
   `npm run typecheck`, `npm run lint`, `npm run build` y prettier sin errores.
-Siguiente paso: T2.
+
+T2 hecha (commit en esta rama). Contrato `usuarioListado`/`usuariosListado`,
+clave `clavesUsuarios.lista`, hook `useUsuarios`, handler por defecto
+`GET /api/usuarios` (lista vacía) en `handlers.ts`; invitar, reenviar y
+cancelar invalidan también la lista.
+- RED: `npx vitest run usuarios.test.ts useUsuarios.test.tsx` → 3 fallan con
+  `ReferenceError: usuarioListado is not defined` y la suite del hook con
+  `Failed to resolve import "./useUsuarios"`.
+- GREEN: `npm test` (frontend): 269 archivos, 4306 pruebas pasan.
+  `npm run lint`, `npm run format:check`, `npm run typecheck` sin errores.
+Siguiente paso: T3 (mockup).

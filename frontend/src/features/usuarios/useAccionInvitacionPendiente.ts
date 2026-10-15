@@ -20,7 +20,10 @@ function useAccion<T>(accion: 'reenviar' | 'cancelar', schema: ZodType<T>) {
   const cliente = useQueryClient();
   const epoca = useEpoca();
   const invalidar = () =>
-    cliente.invalidateQueries({ queryKey: clavesUsuarios.pendientes(epoca) });
+    Promise.all([
+      cliente.invalidateQueries({ queryKey: clavesUsuarios.pendientes(epoca) }),
+      cliente.invalidateQueries({ queryKey: clavesUsuarios.lista(epoca) }),
+    ]);
   return useMutation<T, unknown, string>({
     gcTime: 0,
     mutationFn: (id) =>

@@ -27,6 +27,9 @@ export function useInvitarUsuario() {
       void cliente.invalidateQueries({
         queryKey: clavesUsuarios.pendientes(epoca),
       });
+      void cliente.invalidateQueries({
+        queryKey: clavesUsuarios.lista(epoca),
+      });
     },
     mutationFn: ({ email, roles }) =>
       api.fetch('/usuarios/invitaciones', {

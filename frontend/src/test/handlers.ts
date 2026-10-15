@@ -98,6 +98,8 @@ export const handlers = [
       ? HttpResponse.json(contextoDe(empresaDeLaSesion()))
       : sinSesion(),
   ),
+  // Lista de usuarios (2.5): vacía por defecto; las pruebas fijan la suya.
+  http.get('/api/usuarios', () => HttpResponse.json([])),
   ...bandeja.handlers,
   ...caso.handlers,
   ...cargas.handlers,
