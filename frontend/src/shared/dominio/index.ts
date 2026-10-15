@@ -5,6 +5,7 @@ export * from './acciones';
 export * from './resolucion';
 export * from './cargas';
 export {
+  DESCRIPCIONES_ROL,
   ETIQUETAS_ACCION_BITACORA,
   ETIQUETAS_ESTADO_BANDEJA,
   ETIQUETAS_ESTADO_CARGA,

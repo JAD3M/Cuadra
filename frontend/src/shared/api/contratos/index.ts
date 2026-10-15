@@ -8,3 +8,4 @@ export * from './tolerancia';
 export * from './bitacora';
 export * from './invitaciones';
 export * from './recuperacion';
+export * from './usuarios';
