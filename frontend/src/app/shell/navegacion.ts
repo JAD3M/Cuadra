@@ -2,11 +2,12 @@ import type { Permiso } from '@/shared/dominio';
 import { puede } from '@/shared/dominio';
 
 /** Identificador del icono decorativo de cada elemento de navegación. */
-export type IconoNav = 'bandeja' | 'cargas' | 'bitacora' | 'tolerancia';
+export type IconoNav =
+  'bandeja' | 'cargas' | 'bitacora' | 'tolerancia' | 'usuarios';
 
 export interface ElementoNav {
   /** Clave estable, también usada para localizar el contador de pendientes. */
-  clave: 'bandeja' | 'cargas' | 'bitacora' | 'tolerancia';
+  clave: 'bandeja' | 'cargas' | 'bitacora' | 'tolerancia' | 'usuarios';
   etiqueta: string;
   /** Destino del enlace. */
   ruta: string;
@@ -53,6 +54,14 @@ export const ELEMENTOS_NAV: readonly ElementoNav[] = [
     activoEn: ['/tolerancia'],
     icono: 'tolerancia',
     permiso: 'tolerancia.ver',
+  },
+  {
+    clave: 'usuarios',
+    etiqueta: 'Usuarios',
+    ruta: '/usuarios',
+    activoEn: ['/usuarios'],
+    icono: 'usuarios',
+    permiso: 'usuarios.ver',
   },
 ];
 
