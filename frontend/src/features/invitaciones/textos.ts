@@ -43,6 +43,10 @@ export const TERMINALES: Record<
     titulo: 'Esta invitación fue reemplazada',
     texto: 'Usa el enlace de la invitación más reciente que recibiste.',
   },
+  cancelada: {
+    titulo: 'Esta invitación fue cancelada',
+    texto: 'Pide a un administrador que te invite de nuevo.',
+  },
   desconocida: {
     titulo: 'No encontramos esta invitación',
     texto: 'Revisa que el enlace esté completo.',

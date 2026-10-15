@@ -15,7 +15,8 @@ export type EstadoServidorInvitacion =
   | { tipo: 'vigente'; requierePassword: boolean }
   | {
       tipo: 'invalida';
-      motivo: 'usada' | 'caducada' | 'reemplazada' | 'desconocida';
+      motivo:
+        'usada' | 'caducada' | 'reemplazada' | 'cancelada' | 'desconocida';
     }
   | { tipo: 'inactiva' };
 

@@ -197,6 +197,11 @@ describe('invitación: enlaces que no valen', () => {
       'Usa el enlace de la invitación más reciente que recibiste.',
     ],
     [
+      'cancelada',
+      'Esta invitación fue cancelada',
+      'Pide a un administrador que te invite de nuevo.',
+    ],
+    [
       'desconocida',
       'No encontramos esta invitación',
       'Revisa que el enlace esté completo.',
@@ -218,6 +223,15 @@ describe('invitación: enlaces que no valen', () => {
     expect(
       screen.getByRole('link', { name: 'Ir a iniciar sesión' }),
     ).toHaveAttribute('href', '/login');
+  });
+
+  it('cancelada no ofrece ir a iniciar sesión ni muestra datos de la empresa', async () => {
+    montar({ tipo: 'invalida', motivo: 'cancelada' });
+    await titulo();
+    expect(
+      screen.queryByRole('link', { name: 'Ir a iniciar sesión' }),
+    ).toBeNull();
+    expect(screen.queryByText(EMPRESA_INVITACION, { exact: false })).toBeNull();
   });
 
   it('caducada no ofrece ir a iniciar sesión', async () => {

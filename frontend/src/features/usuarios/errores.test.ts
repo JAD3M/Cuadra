@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError, NetworkError } from '@/shared/api';
-import { clasificarFalloInvitar } from './errores';
+import {
+  clasificarFalloAccionPendiente,
+  clasificarFalloInvitar,
+} from './errores';
 
 function apiError(statusCode: number) {
   return new ApiError(statusCode, 'texto del servidor', ['detalle']);
@@ -31,5 +34,47 @@ describe('clasificarFalloInvitar', () => {
 
   it('cualquier otra cosa cae en «otro»', () => {
     expect(clasificarFalloInvitar(new Error('x'))).toBe('otro');
+  });
+});
+
+describe('clasificarFalloAccionPendiente (2.4)', () => {
+  it.each([
+    [403, 'permiso'],
+    [404, 'no_pendiente'],
+    [429, 'limite'],
+    [503, 'envio'],
+    [500, 'otro'],
+    [400, 'otro'],
+  ])('el %i es «%s» y no lleva texto del servidor', (estado, clase) => {
+    expect(clasificarFalloAccionPendiente(apiError(estado))).toEqual({ clase });
+  });
+
+  it('un 409 lleva el mensaje que manda el servidor', () => {
+    expect(
+      clasificarFalloAccionPendiente(
+        new ApiError(409, 'Conflict', [
+          'Esta invitación ya fue aceptada y no se puede reenviar.',
+        ]),
+      ),
+    ).toEqual({
+      clase: 'no_pendiente',
+      mensaje: 'Esta invitación ya fue aceptada y no se puede reenviar.',
+    });
+  });
+
+  it('un 409 sin mensaje cae al texto de respaldo (sin `mensaje`)', () => {
+    expect(
+      clasificarFalloAccionPendiente(new ApiError(409, 'Conflict', [])),
+    ).toEqual({ clase: 'no_pendiente' });
+  });
+
+  it('un 401 y una cancelación no muestran nada; la red es de conexión', () => {
+    expect(clasificarFalloAccionPendiente(apiError(401))).toBeNull();
+    expect(
+      clasificarFalloAccionPendiente(new DOMException('x', 'AbortError')),
+    ).toBeNull();
+    expect(clasificarFalloAccionPendiente(new NetworkError())).toEqual({
+      clase: 'conexion',
+    });
   });
 });

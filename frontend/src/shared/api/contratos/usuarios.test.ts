@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { ROLES } from '@/shared/dominio';
-import { invitacionUsuarioEnviada, solicitudInvitarUsuario } from './usuarios';
+import {
+  invitacionCancelada,
+  invitacionPendiente,
+  invitacionReenviada,
+  invitacionUsuarioEnviada,
+  invitacionesPendientes,
+  solicitudInvitarUsuario,
+} from './usuarios';
 
 describe('contrato de invitar usuarios (2.3)', () => {
   it('la solicitud manda `email` y uno o más roles', () => {
@@ -64,5 +71,72 @@ describe('contrato de invitar usuarios (2.3)', () => {
       invitacionUsuarioEnviada.safeParse({ email: 'a@b.mx', roles: ['otro'] })
         .success,
     ).toBe(false);
+  });
+});
+
+const PENDIENTE = {
+  id: '11111111-1111-4111-8111-111111111111',
+  email: 'marta.nunez@ferreteria.mx',
+  roles: ['contador', 'revisor'],
+  creadaEn: '2026-10-14T15:00:00.000Z',
+  venceEn: '2026-10-21T15:00:00.000Z',
+  vencida: false,
+  invitadaPor: 'Ana Mendoza',
+};
+
+describe('contrato de invitaciones pendientes (2.4)', () => {
+  it('acepta una pendiente y ignora claves extra', () => {
+    expect(invitacionPendiente.parse({ ...PENDIENTE, x: 1 })).toEqual(
+      PENDIENTE,
+    );
+  });
+
+  it('`invitadaPor` puede ser nulo (la creó la plataforma)', () => {
+    expect(
+      invitacionPendiente.parse({ ...PENDIENTE, invitadaPor: null })
+        .invitadaPor,
+    ).toBeNull();
+  });
+
+  it('la lista acepta cero o más filas', () => {
+    expect(invitacionesPendientes.parse([])).toEqual([]);
+    expect(invitacionesPendientes.parse([PENDIENTE])).toHaveLength(1);
+  });
+
+  it.each([
+    ['sin id', { id: undefined }],
+    ['id que no es uuid', { id: 'abc' }],
+    ['correo vacío', { email: '' }],
+    ['sin roles', { roles: [] }],
+    ['rol desconocido', { roles: ['superusuario'] }],
+    ['fecha de envío ilegible', { creadaEn: 'ayer' }],
+    ['sin vencimiento', { venceEn: undefined }],
+    ['vencida que no es booleano', { vencida: 'no' }],
+    ['sin vencida', { vencida: undefined }],
+    ['invitadaPor ausente', { invitadaPor: undefined }],
+  ])('rechaza una pendiente mal formada: %s', (_caso, cambio) => {
+    expect(
+      invitacionPendiente.safeParse({ ...PENDIENTE, ...cambio }).success,
+    ).toBe(false);
+  });
+
+  it('una lista con una fila mal formada falla completa', () => {
+    expect(
+      invitacionesPendientes.safeParse([PENDIENTE, { ...PENDIENTE, id: 1 }])
+        .success,
+    ).toBe(false);
+  });
+
+  it('reenviar responde `email` y `roles`; cancelar solo `email`', () => {
+    expect(
+      invitacionReenviada.parse({ email: 'a@b.mx', roles: ['auditor'] }),
+    ).toEqual({ email: 'a@b.mx', roles: ['auditor'] });
+    expect(invitacionReenviada.safeParse({ email: 'a@b.mx' }).success).toBe(
+      false,
+    );
+    expect(invitacionCancelada.parse({ email: 'a@b.mx', x: 1 })).toEqual({
+      email: 'a@b.mx',
+    });
+    expect(invitacionCancelada.safeParse({}).success).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Contratos de las invitaciones (historia 1.5). Se derivan de
+// Contratos de las invitaciones (historias 1.5 y 2.4). Se derivan de
 // src/plataforma/dto/plataforma.dto.ts y src/invitaciones/dto/invitaciones.dto.ts.
 // Los objetos ignoran claves desconocidas; lo que falta falla en voz alta.
 // Aquí no hay montos ni tokens: el token viaja solo en la URL.
@@ -20,6 +20,7 @@ export const MOTIVOS_INVITACION_INVALIDA = [
   'usada',
   'caducada',
   'reemplazada',
+  'cancelada',
   'desconocida',
 ] as const;
 
