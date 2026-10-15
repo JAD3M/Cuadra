@@ -5,6 +5,35 @@
 
 ### 15 oct 2026
 
+- **Historia 2.3 de la v2: invitar usuarios a mi empresa con uno o más roles
+  (FR-41, FR-50, AD-14, AD-7).** Rama `feat/v2-2-3-invitar-usuarios` con ODD,
+  desde `master` tras la 2.2. El backend se hizo primero; el mockup de
+  Usuarios (invitar con roles, oscuro y claro, con «Usuarios» en el menú solo
+  para `admin`) se creó y se aprobó antes de escribir la interfaz.
+  - **T1 `cd186fc`:** migración reversible `InvitacionesMultirol`:
+    `invitaciones.roles text[]` con CHECK, `invitada_por_user_id` y CHECK de
+    que hay exactamente un invitador (usuario de empresa o dueño de la
+    plataforma). La aceptación asigna todos los roles y la cuenta existente
+    conserva los de otras empresas.
+  - **T2 `667f1ea`:** `POST /usuarios/invitaciones` con
+    `@Permiso('usuarios.gestionar')`, el mismo límite de peticiones que la ruta
+    de plataforma y respuesta idéntica exista o no la cuenta. Escribe `invitar`
+    en la bitácora de la empresa con quién invitó, el correo y los roles, y
+    manda el correo después del commit.
+  - **T4 (interfaz):** `c9e7650` contrato, descripciones de rol y hook;
+    `75916cd` pantalla con el formulario y todos sus estados; `8ee999e` ruta
+    `/usuarios` y menú gated por `usuarios.ver`.
+  - **Decisiones:** la respuesta devuelve `{ email, roles }`, que son los datos
+    enviados y no revelan nada de la cuenta; el formulario solo se muestra con
+    `usuarios.gestionar`. No hizo falta GRANT por columna: `cuadra_app` ya
+    tiene INSERT sobre `invitaciones`.
+  - **Incidente:** una corrida RED de la prueba de reversibilidad dejó la base
+    compartida `<base>_test` a medias de revertir y todas las suites fallaron;
+    se reseteó borrando `cuadra_test` (se recrea sola) tras comprobar que no
+    había conexiones.
+  - **Pendiente:** reenviar o cancelar invitaciones es de la 2.4, la lista de
+    usuarios de la 2.5 y cambiar roles de la 2.6.
+
 - **Historia 2.2 de la v2: cada rol ve solo su menú y sus botones (FR-25,
   FR-53, FR-54, AD-11, AD-12).** Rama `feat/v2-2-2-menu-y-botones-por-rol` con
   ODD, desde `master` tras la 2.1. Antes de escribir código se actualizaron y

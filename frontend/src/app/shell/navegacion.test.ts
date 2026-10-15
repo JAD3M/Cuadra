@@ -3,12 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { ELEMENTOS_NAV, elementoActivo, elementosVisibles } from './navegacion';
 
 describe('configuración de navegación', () => {
-  it('define los cuatro elementos en orden', () => {
+  it('define los cinco elementos en orden', () => {
     expect(ELEMENTOS_NAV.map((e) => e.etiqueta)).toEqual([
       'Bandeja',
       'Cargas',
       'Bitácora',
       'Tolerancia',
+      'Usuarios',
     ]);
   });
 
@@ -19,6 +20,7 @@ describe('configuración de navegación', () => {
     ['/cargas', 'Cargas'],
     ['/bitacora', 'Bitácora'],
     ['/tolerancia', 'Tolerancia'],
+    ['/usuarios', 'Usuarios'],
   ])('%s activa %s', (ruta, etiqueta) => {
     expect(elementoActivo(ruta)?.etiqueta).toBe(etiqueta);
   });
@@ -36,6 +38,7 @@ describe('configuración de navegación', () => {
       ['cargas', 'cargas.ver'],
       ['bitacora', 'bitacora.ver'],
       ['tolerancia', 'tolerancia.ver'],
+      ['usuarios', 'usuarios.ver'],
     ]);
   });
 
@@ -48,6 +51,11 @@ describe('configuración de navegación', () => {
       ['bandeja.ver', 'cargas.ver', 'tolerancia.ver', 'bitacora.ver'],
       ['Bandeja', 'Cargas', 'Bitácora', 'Tolerancia'],
     ],
+    [
+      ['bandeja.ver', 'bitacora.ver', 'usuarios.ver'],
+      ['Bandeja', 'Bitácora', 'Usuarios'],
+    ],
+    [['usuarios.gestionar'], []],
     [['cargas.cargar', 'conciliaciones.resolver'], []],
     [[], []],
   ])('con %j el menú es %j, en el orden fijo', (capacidades, etiquetas) => {

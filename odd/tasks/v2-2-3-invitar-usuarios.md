@@ -69,9 +69,9 @@ unidad de trabajo.
 
 - [x] **T1** Migración y entidad (`roles[]`, invitador de empresa), aceptación con todos los roles, ajustes de plataforma y de las pruebas de esquema. Ruta: delegada (escritor). Commit: `cd186fc`.
 - [x] **T2** `POST /usuarios/invitaciones`: permiso, límite, respuesta uniforme, correo, bitácora con invitador y roles; pruebas de 403 con acceso denegado. Ruta: delegada (escritor). Commit: ver `git log` (`feat(usuarios)`).
-- [ ] **T3** Mockup de la pantalla de Usuarios (invitar con roles), oscuro y claro, acordado con el usuario.
-- [ ] **T4** Interfaz: formulario de invitar con roles y mensajes, sobre el mockup aprobado.
-- [ ] **T5** Cierre: pruebas completas, bitácora, PRs en cadena.
+- [x] **T3** Mockup de la pantalla de Usuarios (invitar con roles), oscuro y claro, acordado con el usuario. Aprobado por el usuario el 2026-10-15 (`Usuarios.dc.html` y `UsuariosClaro.dc.html`).
+- [x] **T4** Interfaz: formulario de invitar con roles y mensajes, sobre el mockup aprobado. Ruta: delegada (escritor). Commit: ver `git log` (`feat(frontend)`).
+- [x] **T5** Cierre: pruebas completas, bitácora, PRs en cadena. Ruta: inline. Cinco rebanadas `stacked-to-main`; `CUADRA.md` no cambia (sigue el estado de la v1).
 
 ## Criterios de aceptación
 
@@ -91,10 +91,12 @@ acordado antes de la interfaz.
 
 ## Progreso
 
-T1 hecha (migración `1790709800000-InvitacionesMultirol`, entidad, aceptación con todos los roles). T2 hecha: `POST /usuarios/invitaciones` (`src/usuarios/`), `@Permiso('usuarios.gestionar')`, `@Limite({20, 3600, contarExitos})` igual que plataforma, respuesta `{ email, roles }`, bitácora `invitar` con `user_id` del invitador en la transacción de la petición y correo tras el COMMIT (503 si falla). Siguiente paso: T3 (mockup, espera aprobación).
+T1 hecha (migración `1790709800000-InvitacionesMultirol`, entidad, aceptación con todos los roles). T2 hecha: `POST /usuarios/invitaciones` (`src/usuarios/`), `@Permiso('usuarios.gestionar')`, `@Limite({20, 3600, contarExitos})` igual que plataforma, respuesta `{ email, roles }`, bitácora `invitar` con `user_id` del invitador en la transacción de la petición y correo tras el COMMIT (503 si falla). T3 hecha: mockup aprobado por el usuario el 2026-10-15. T4 hecha: ruta `/usuarios` con elemento de menú «Usuarios» (`usuarios.ver`) tras Tolerancia, formulario con correo y los cuatro roles (`usuarios.gestionar`), contratos zod `solicitudInvitarUsuario` / `invitacionUsuarioEnviada`, descripciones de rol en `shared/dominio` y estados enviando, éxito, error_correo, error_roles, límite (429), error_envio (503), error_conexion y error_permiso (403). Siguiente paso: T5 (cierre).
 
 ## Evidencia
 
 T1: RED observado (column "roles" does not exist en esquema, plataforma.esquema e invitaciones); GREEN: npm test 58 suites / 1211 pruebas, typecheck, eslint, build y prettier --check limpios. Sin GRANT nuevo: INSERT de tabla ya cubre las columnas nuevas.
 
 T2: RED observado (`Cannot find module './usuarios.module'`); GREEN: 16 pruebas de `src/usuarios/invitar-usuarios.integracion.spec.ts`; npm test 59 suites / 1227 pruebas, typecheck, eslint, build y prettier --check limpios.
+
+T4: RED observado (`Failed to resolve import "./usuarios"`, `"./errores"` y `"./UsuariosPage"`; `DESCRIPCIONES_ROL` indefinido; menú sin «Usuarios» en `navegacion.test.ts` y en los flujos de la app); GREEN: `npm test` 266 archivos / 4224 pruebas, `npm run lint`, `npm run format:check` y `npm run typecheck` limpios.

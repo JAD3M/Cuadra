@@ -30,6 +30,12 @@ import {
   TITULO_PAGINA as TITULO_TOLERANCIA,
 } from '@/features/tolerancia/textos';
 import { TolerPage } from '@/features/tolerancia/TolerPage';
+import {
+  SUBTITULO_PAGINA as SUBTITULO_USUARIOS,
+  TITULO_DOCUMENTO as TITULO_DOCUMENTO_USUARIOS,
+  TITULO_PAGINA as TITULO_USUARIOS,
+} from '@/features/usuarios/textos';
+import { UsuariosPage } from '@/features/usuarios/UsuariosPage';
 import { ShellLayout } from './shell/ShellLayout';
 import type { ManejadorRuta } from './manejadorRuta';
 import { RutaRaiz } from './RutaRaiz';
@@ -150,6 +156,15 @@ export const rutas: RouteObject[] = [
                 handle: {
                   titulo: TITULO_BITACORA,
                   subtitulo: SUBTITULO_BITACORA,
+                } satisfies ManejadorRuta,
+              },
+              {
+                path: '/usuarios',
+                element: <UsuariosPage />,
+                handle: {
+                  titulo: TITULO_USUARIOS,
+                  subtitulo: SUBTITULO_USUARIOS,
+                  tituloDocumento: TITULO_DOCUMENTO_USUARIOS,
                 } satisfies ManejadorRuta,
               },
             ],

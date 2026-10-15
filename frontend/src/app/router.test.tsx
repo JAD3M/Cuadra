@@ -250,6 +250,7 @@ describe('guardas en el árbol de rutas', () => {
       '/cargas',
       '/tolerancia',
       '/bitacora',
+      '/usuarios',
     ]);
   });
 
