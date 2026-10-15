@@ -71,7 +71,7 @@ unidad de trabajo.
 - [x] **T2** `POST /usuarios/invitaciones`: permiso, límite, respuesta uniforme, correo, bitácora con invitador y roles; pruebas de 403 con acceso denegado. Ruta: delegada (escritor). Commit: ver `git log` (`feat(usuarios)`).
 - [x] **T3** Mockup de la pantalla de Usuarios (invitar con roles), oscuro y claro, acordado con el usuario. Aprobado por el usuario el 2026-10-15 (`Usuarios.dc.html` y `UsuariosClaro.dc.html`).
 - [x] **T4** Interfaz: formulario de invitar con roles y mensajes, sobre el mockup aprobado. Ruta: delegada (escritor). Commit: ver `git log` (`feat(frontend)`).
-- [ ] **T5** Cierre: pruebas completas, bitácora, PRs en cadena.
+- [x] **T5** Cierre: pruebas completas, bitácora, PRs en cadena. Ruta: inline. Cinco rebanadas `stacked-to-main`; `CUADRA.md` no cambia (sigue el estado de la v1).
 
 ## Criterios de aceptación
 
