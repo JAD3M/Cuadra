@@ -5,6 +5,19 @@
 
 ### 14 oct 2026
 
+- **Historia 1.8 de la v2: CI que construye la imagen y prueba el respaldo
+  (KAN-171, FR-56, FR-60, AD-17).** Rama `feat/v2-1-8-ci-imagen-y-respaldo`
+  con ODD, desde `master` en `643f13e`. Nació de la pendiente que dejó la 1.7:
+  - **T1 `f45aeb6`:** workflow `produccion.yml` con filtro de rutas; construye
+    la imagen, prueba la falla por credenciales de desarrollo, comprueba
+    `noeviction`, migra, siembra, levanta API y worker, consulta `/health` y
+    corre `respaldar.sh --verificar`. Ensayado en local con el proyecto
+    `cuadra-ci`; `actionlint` sin hallazgos.
+  - **T2:** sección «Integración continua» en `docs/despliegue.md`.
+  - **Pendiente:** el workflow solo se confirma en verde al correr en GitHub
+    sobre el PR; la prueba de que `--verificar` falla con conteos distintos se
+    hizo en la 1.7 y no se repite en CI.
+
 - **Historia 1.7 de la v2: levantar Cuadra en un entorno limpio, con secretos
   fuera del repositorio (KAN-122, FR-56, FR-60, AD-16, AD-17).** Rama
   `feat/v2-1-7-entorno-limpio` con ODD, desde `master` en `b12d11a`:

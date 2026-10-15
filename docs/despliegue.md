@@ -65,6 +65,30 @@ siembra:
 `npm run seed`. Para no repetir `-f`, pon `COMPOSE_FILE=docker-compose.dev.yml`
 en tu `.env` de desarrollo.
 
+## Integración continua
+
+`.github/workflows/produccion.yml` ejercita lo que se despliega. Corre solo
+cuando un cambio toca el `Dockerfile`, el compose, las migraciones, el worker,
+las colas, la configuración, los scripts de respaldo o `package*.json`; un PR
+que no toca nada de eso no paga el tiempo.
+
+Con secretos efímeros y aleatorios (nunca del repositorio) hace, en orden, y
+falla en el primer paso que no se cumple:
+
+1. Construye la imagen de producción.
+2. Arranca la API con la contraseña `cuadra` y `NODE_ENV=production`: debe
+   fallar nombrando `DATABASE_URL`.
+3. Levanta PostgreSQL y Redis y comprueba que Redis esté en `noeviction`.
+4. Corre `migrate` sobre la base limpia y siembra datos de prueba.
+5. Levanta `api` y `worker`, y comprueba que `/health` informe PostgreSQL y
+   Redis en `up` y que el worker siga corriendo.
+6. Corre `respaldar.sh --verificar`: restaura en una base limpia y compara
+   conteos.
+
+Para repetirlo en local sin tocar tu entorno, usa un proyecto Compose aparte
+(`COMPOSE_PROJECT_NAME=cuadra-ci`), otro puerto (`API_PUERTO`) y un `--env-file`
+propio.
+
 ## Cómo se elegirá el host
 
 No se decide hasta que llegue un cliente real (AD-17); el compose y las
