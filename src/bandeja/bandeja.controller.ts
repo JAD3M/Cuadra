@@ -7,7 +7,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { UsuarioAutenticado } from '../auth/tipos';
-import { UsuarioActual } from '../common/decorators/decoradores';
+import { Permiso, UsuarioActual } from '../common/decorators/decoradores';
 import { BandejaService } from './bandeja.service';
 import {
   ConsultaBandejaDto,
@@ -18,13 +18,14 @@ import {
 /** La sesión (cookie, AD-6) ya la exige SesionCookieGuard; aquí solo se estrecha el tipo. */
 type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 
-/** CU-14. Bandeja de revisión: cualquier miembro de la empresa, solo lectura. */
+/** CU-14. Bandeja de revisión: solo lectura (`bandeja.ver`, también el auditor). */
 @ApiCookieAuth()
 @Controller('bandeja')
 export class BandejaController {
   constructor(private readonly bandeja: BandejaService) {}
 
   @Get()
+  @Permiso('bandeja.ver')
   @ApiOkResponse({ type: RespuestaBandejaDto })
   @ApiBadRequestResponse({ description: 'Parámetros de consulta inválidos.' })
   @ApiUnauthorizedResponse({ description: 'Sin sesión válida.' })
@@ -37,6 +38,7 @@ export class BandejaController {
 
   /** CU-22. Conteos por estado y monto por revisar; mismos roles que el listado. */
   @Get('resumen')
+  @Permiso('bandeja.ver')
   @ApiOkResponse({ type: ResumenBandejaDto })
   @ApiUnauthorizedResponse({ description: 'Sin sesión válida.' })
   @ApiForbiddenResponse({ description: 'Sin membresía vigente en la empresa.' })

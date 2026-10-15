@@ -120,6 +120,7 @@ export class CargasController {
    * `:id`.
    */
   @Get()
+  @Permiso('cargas.ver')
   @ApiOkResponse({ type: RespuestaListaCargasDto })
   @ApiUnauthorizedResponse({ description: 'Sin sesión válida.' })
   @ApiForbiddenResponse({ description: 'Sin membresía vigente en la empresa.' })
@@ -131,6 +132,7 @@ export class CargasController {
 
   /** La empresa sale del token; un `companyId` en la query no se lee. */
   @Get(':id')
+  @Permiso('cargas.ver')
   consultar(
     @UsuarioActual() usuario: Sesion,
     @Param('id', ParseUUIDPipe) id: string,

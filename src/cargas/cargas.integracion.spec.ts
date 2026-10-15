@@ -757,7 +757,7 @@ describe('GET /cargas/:id (CU-06, CU-07, CU-08)', () => {
   it('su empresa ve estado, contadores y resultado por archivo: 200', async () => {
     const res = await request(app.getHttpServer())
       .get(`/cargas/${cargaTransportes}`)
-      .set('Cookie', await tokenSesion(JORGE, TRANSPORTES))
+      .set('Cookie', await tokenSesion(CARMEN, TRANSPORTES))
       .expect(200);
 
     expect(res.body).toEqual({

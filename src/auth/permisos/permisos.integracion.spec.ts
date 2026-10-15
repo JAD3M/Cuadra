@@ -135,6 +135,45 @@ describe('auditor: solo consulta (FR-54)', () => {
     await http().get('/bitacora').set('Cookie', cookie).expect(200);
     expect(await denegados()).toHaveLength(0);
   });
+
+  it('no ve cargas ni tolerancia (FR-53): 403 con el permiso que faltó', async () => {
+    await comoRol('auditor');
+    const cookie = await entorno.token(LUIS, FERRETERIA);
+    await http().get('/cargas').set('Cookie', cookie).expect(403);
+    await http()
+      .get(`/cargas/${randomUUID()}`)
+      .set('Cookie', cookie)
+      .expect(403);
+    await http().get('/empresa/tolerancia').set('Cookie', cookie).expect(403);
+    await http().get('/bancos/perfiles').set('Cookie', cookie).expect(403);
+    const permisos = (await denegados()).map((d) => d.datos.permiso);
+    expect(permisos).toEqual([
+      'cargas.ver',
+      'cargas.ver',
+      'tolerancia.ver',
+      'cargas.cargar',
+    ]);
+  });
+
+  it('consulta el resumen y un caso: pasa el guard', async () => {
+    await comoRol('auditor');
+    const cookie = await entorno.token(LUIS, FERRETERIA);
+    await http().get('/bandeja/resumen').set('Cookie', cookie).expect(200);
+    await http()
+      .get(`/casos/${randomUUID()}`)
+      .set('Cookie', cookie)
+      .expect(404);
+  });
+});
+
+describe('FR-53: el revisor no ve cargas ni tolerancia', () => {
+  it('403 en ambas y sí consulta la bandeja', async () => {
+    await comoRol('revisor');
+    const cookie = await entorno.token(LUIS, FERRETERIA);
+    await http().get('/cargas').set('Cookie', cookie).expect(403);
+    await http().get('/empresa/tolerancia').set('Cookie', cookie).expect(403);
+    await http().get('/bandeja').set('Cookie', cookie).expect(200);
+  });
 });
 
 describe('AD-6: el cambio de rol aplica en la siguiente petición', () => {
