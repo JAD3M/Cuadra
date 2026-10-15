@@ -20,6 +20,20 @@ export const ETIQUETAS_ROL: Record<Rol, string> = {
 };
 
 /**
+ * Qué puede hacer cada rol, en una frase (mockup `Usuarios.dc.html`, lista de
+ * roles del formulario de invitar). Es un `Record<Rol, string>`: si el backend
+ * agrega un rol, esta tabla deja de compilar hasta describirlo. Es texto de
+ * ayuda: lo que cada rol puede hacer lo decide la matriz del servidor.
+ */
+export const DESCRIPCIONES_ROL: Record<Rol, string> = {
+  admin: 'Todo: cargas, confirmar y rechazar, tolerancia, bitácora y usuarios.',
+  contador:
+    'Sube cargas, confirma y rechaza casos; ve la tolerancia sin cambiarla.',
+  revisor: 'Confirma y rechaza casos y consulta la bitácora; no sube cargas.',
+  auditor: 'Solo lectura de la bandeja y la bitácora.',
+};
+
+/**
  * Texto visible de cada estado de la bandeja. Es un
  * `Record<EstadoBandeja, string>`: si el backend agrega un estado, esta tabla
  * deja de compilar hasta etiquetarlo.
