@@ -134,7 +134,9 @@ describe('matriz de permisos (FR-53)', () => {
     it('varios roles son la unión, en el orden de PERMISOS y sin repetidos', () => {
       const union = permisosDeRoles(['contador', 'auditor']);
       expect(union).toEqual(permisosDeRoles(['contador']));
-      const orden = PERMISOS.filter((p) => union.includes(p));
+      const orden = PERMISOS.filter((p) =>
+        (union as readonly string[]).includes(p),
+      );
       expect(union).toEqual(orden);
       expect(new Set(union).size).toBe(union.length);
     });
