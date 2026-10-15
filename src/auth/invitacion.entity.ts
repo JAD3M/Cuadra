@@ -2,6 +2,7 @@
 import { Check, Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { EntidadBase } from '../common/entities/base.entity';
 import { Company } from '../companies/company.entity';
+import { User } from '../users/user.entity';
 import { listaSql, ROLES, type Rol } from '../common/entities/tipos';
 
 /**
@@ -17,7 +18,14 @@ import { listaSql, ROLES, type Rol } from '../common/entities/tipos';
   unique: true,
   where: `consumida_en IS NULL AND reemplazada_en IS NULL`,
 })
-@Check('ck_invitaciones_rol', `rol IN (${listaSql(ROLES)})`)
+@Check(
+  'ck_invitaciones_roles',
+  `cardinality(roles) >= 1 AND roles <@ ARRAY[${listaSql(ROLES)}]::text[]`,
+)
+@Check(
+  'ck_invitaciones_invitador',
+  `(invitada_por_plataforma_usuario_id IS NULL) <> (invitada_por_user_id IS NULL)`,
+)
 export class Invitacion extends EntidadBase {
   @Column({ type: 'uuid' })
   companyId: string;
@@ -26,9 +34,9 @@ export class Invitacion extends EntidadBase {
   @Column({ type: 'varchar', length: 320 })
   email: string;
 
-  /** Hoy solo se invita con 'admin'; la 2.3 abre los demás. */
-  @Column({ type: 'varchar', length: 32 })
-  rol: Rol;
+  /** Uno o más roles que recibe quien acepta (historia 2.3); la plataforma invita con ['admin']. */
+  @Column({ type: 'text', array: true })
+  roles: Rol[];
 
   /** SHA-256 en hex del token del enlace. */
   @Column({ type: 'text' })
@@ -43,9 +51,16 @@ export class Invitacion extends EntidadBase {
   @Column({ type: 'timestamptz', nullable: true })
   reemplazadaEn: Date | null;
 
-  /** Cuenta de plataforma que invitó (clase 3); la relación va por nombre. */
-  @Column({ type: 'uuid' })
-  invitadaPorPlataformaUsuarioId: string;
+  /**
+   * Cuenta de plataforma que invitó (clase 3); la relación va por nombre.
+   * Exactamente uno de este y `invitadaPorUserId` está presente.
+   */
+  @Column({ type: 'uuid', nullable: true })
+  invitadaPorPlataformaUsuarioId: string | null;
+
+  /** Persona de la empresa que invitó (historia 2.3). */
+  @Column({ type: 'uuid', nullable: true })
+  invitadaPorUserId: string | null;
 
   @ManyToOne(() => Company, { onDelete: 'RESTRICT' })
   @JoinColumn({
@@ -60,4 +75,11 @@ export class Invitacion extends EntidadBase {
     foreignKeyConstraintName: 'fk_invitaciones_plataforma_usuario',
   })
   invitadaPor: unknown;
+
+  @ManyToOne(() => User, { onDelete: 'RESTRICT' })
+  @JoinColumn({
+    name: 'invitada_por_user_id',
+    foreignKeyConstraintName: 'fk_invitaciones_invitada_por_user',
+  })
+  invitadaPorUsuario: User | null;
 }

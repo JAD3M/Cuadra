@@ -102,13 +102,13 @@ export class InvitacionesPlataforma {
       );
       const [invitacion] = (await qr.query(
         `INSERT INTO invitaciones
-           (company_id, email, rol, token_hash, expires_at, invitada_por_plataforma_usuario_id)
-         VALUES ($1, $2, $3, $4, now() + make_interval(days => $5), $6)
+           (company_id, email, roles, token_hash, expires_at, invitada_por_plataforma_usuario_id)
+         VALUES ($1, $2, $3::text[], $4, now() + make_interval(days => $5), $6)
          RETURNING id`,
         [
           companyId,
           email,
-          ROL_INVITADO,
+          [ROL_INVITADO],
           huellaDeToken(token),
           VIGENCIA_DIAS,
           plataformaUsuarioId,
