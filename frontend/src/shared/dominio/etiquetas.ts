@@ -16,6 +16,7 @@ export const ETIQUETAS_ROL: Record<Rol, string> = {
   admin: 'Administrador',
   contador: 'Contador',
   revisor: 'Revisor',
+  auditor: 'Auditor',
 };
 
 /**
@@ -78,7 +79,7 @@ export const ETIQUETAS_TIPO_CARGA: Record<TipoCarga, string> = {
 };
 
 /**
- * Ordena los roles como en `ROLES` (admin, contador, revisor) sin importar el
+ * Ordena los roles como en `ROLES` (admin, contador, revisor, auditor) sin importar el
  * orden de entrada. No modifica el arreglo recibido. No deduplica: la
  * multiplicidad de la entrada se conserva (el contrato del backend no repite
  * roles y el diseño no define otra cosa).

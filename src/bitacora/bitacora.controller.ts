@@ -28,7 +28,7 @@ export class BitacoraController {
 
   /** Va antes que cualquier ruta con parámetro: `usuarios` no es un id. */
   @Get('usuarios')
-  @Roles('admin', 'contador', 'revisor')
+  @Roles('admin', 'contador', 'revisor', 'auditor')
   @ApiOkResponse({ type: RespuestaUsuariosBitacoraDto })
   @ApiUnauthorizedResponse({ description: 'Sin sesión válida.' })
   usuarios(
@@ -38,7 +38,7 @@ export class BitacoraController {
   }
 
   @Get()
-  @Roles('admin', 'contador', 'revisor')
+  @Roles('admin', 'contador', 'revisor', 'auditor')
   @ApiOkResponse({ type: RespuestaBitacoraDto })
   @ApiBadRequestResponse({ description: 'Parámetros de consulta inválidos.' })
   @ApiUnauthorizedResponse({ description: 'Sin sesión válida.' })

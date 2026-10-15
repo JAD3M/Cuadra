@@ -86,7 +86,7 @@ export class AuthService implements OnModuleInit {
     }));
   }
 
-  /** Orden fijo de ROLES (admin, contador, revisor), sin repetidos. */
+  /** Orden fijo de ROLES (admin, contador, revisor, auditor), sin repetidos. */
   private ordenarRoles(roles: Rol[]): Rol[] {
     return ROLES.filter((rol) => roles.includes(rol));
   }

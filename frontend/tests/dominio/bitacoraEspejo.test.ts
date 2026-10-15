@@ -70,14 +70,14 @@ function clavesDeClase(fuente: string, nombre: string): string[] | undefined {
 describe('roles de GET /bitacora/usuarios (src/bitacora/bitacora.controller.ts)', () => {
   const controlador = leer('bitacora/bitacora.controller.ts');
 
-  it('el listado de personas lleva exactamente los tres roles de ROLES', () => {
+  it('el listado de personas lleva exactamente los cuatro roles de ROLES', () => {
     expect(rolesDeUsuarios(controlador)).toEqual([...ROLES]);
   });
 
   it('quitar un rol en el backend falla', () => {
     const fuente = controlador.replace(
+      "@Get('usuarios')\n  @Roles('admin', 'contador', 'revisor', 'auditor')",
       "@Get('usuarios')\n  @Roles('admin', 'contador', 'revisor')",
-      "@Get('usuarios')\n  @Roles('admin', 'contador')",
     );
     expect(fuente).not.toBe(controlador);
     expect(rolesDeUsuarios(fuente)).not.toEqual([...ROLES]);
@@ -85,7 +85,7 @@ describe('roles de GET /bitacora/usuarios (src/bitacora/bitacora.controller.ts)'
 
   it('quitar el @Roles o la ruta deja de extraerse', () => {
     const sinRoles = controlador.replace(
-      "  @Roles('admin', 'contador', 'revisor')\n  @ApiOkResponse({ type: RespuestaUsuariosBitacoraDto })",
+      "  @Roles('admin', 'contador', 'revisor', 'auditor')\n  @ApiOkResponse({ type: RespuestaUsuariosBitacoraDto })",
       '  @ApiOkResponse({ type: RespuestaUsuariosBitacoraDto })',
     );
     expect(sinRoles).not.toBe(controlador);

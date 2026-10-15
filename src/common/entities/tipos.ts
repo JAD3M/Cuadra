@@ -3,7 +3,8 @@
 // agregar un valor es un ALTER ... DROP/ADD CONSTRAINT reversible dentro de
 // una transacción, mientras que ALTER TYPE ... ADD VALUE no se puede revertir.
 
-export const ROLES = ['admin', 'contador', 'revisor'] as const;
+/** `auditor` (v2, FR-54) solo consulta: la matriz de permisos vive en src/auth/permisos. */
+export const ROLES = ['admin', 'contador', 'revisor', 'auditor'] as const;
 export type Rol = (typeof ROLES)[number];
 
 export const TIPOS_CARGA = ['cfdi', 'estado_cuenta'] as const;
