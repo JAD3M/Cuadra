@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import type { Rol } from '@/shared/dominio';
-import { ELEMENTOS_NAV, elementoActivo } from './navegacion';
+import type { Permiso, Rol } from '@/shared/dominio';
+import { elementoActivo, elementosVisibles } from './navegacion';
 import { NavItem } from './NavItem';
 import { UserBlock } from './UserBlock';
 import estilos from './Sidebar.module.css';
@@ -12,6 +12,8 @@ export interface SidebarProps {
   pendientes?: number;
   usuario: { nombre: string };
   roles: readonly Rol[];
+  /** Capacidades de la sesión: deciden qué enlaces se dibujan. */
+  capacidades: readonly Permiso[];
   /** Control de tema; se dibuja justo encima del bloque de usuario. */
   controlTema: ReactNode;
   /** Cierra la sesión desde el bloque de usuario; ausente = sin botón. */
@@ -24,6 +26,7 @@ export function Sidebar({
   pendientes,
   usuario,
   roles,
+  capacidades,
   controlTema,
   onCerrarSesion,
 }: SidebarProps) {
@@ -47,7 +50,7 @@ export function Sidebar({
         <span className={estilos.nombreMarca}>Cuadra</span>
       </div>
       <nav className={estilos.nav} aria-label="Navegación principal">
-        {ELEMENTOS_NAV.map((elemento) => (
+        {elementosVisibles(capacidades).map((elemento) => (
           <NavItem
             key={elemento.clave}
             elemento={elemento}

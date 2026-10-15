@@ -326,7 +326,9 @@ describe('flujos de cargas: sesión y empresa', () => {
     await elegirEmpresaPorNombre(/Abarrotes/);
     await screen.findByRole('table');
     expect(router.state.location.pathname).toBe('/bandeja');
-    await usuario().click(screen.getByRole('link', { name: /^Cargas/ }));
+    // El revisor de B no tiene el enlace: se llega por la ruta directa.
+    await act(() => router.navigate('/cargas'));
+    await screen.findByRole('table');
     await celda('lote-de-la-empresa-B.xml');
     // El POST de A responde ahora, ya en la época de B.
     compuerta.abrir();
@@ -349,14 +351,16 @@ describe('flujos de cargas: sesión y empresa', () => {
   it('cambiar de empresa: no queda ningún dato de la lista ni del panel de A, y el revisor de B ve la tabla con las tarjetas apagadas', async () => {
     contextoPorEmpresa(idB);
     listasPorEmpresa();
-    await abrirCargas();
+    const { router } = await abrirCargas();
     await subirXml('de-la-empresa-A.xml');
     await within(regionDe(CFDI)).findByText(PROCESANDO);
     await celda(/de-la-empresa-A\.xml/);
     await usuario().click(cambiarEmpresa());
     await elegirEmpresaPorNombre(/Abarrotes/);
     await screen.findByRole('table');
-    await usuario().click(screen.getByRole('link', { name: /^Cargas/ }));
+    // El revisor de B no tiene el enlace: se llega por la ruta directa.
+    await act(() => router.navigate('/cargas'));
+    await screen.findByRole('table');
     await celda('lote-de-la-empresa-B.xml');
     expect(screen.queryByText(/de-la-empresa-A/)).toBeNull();
     expect(screen.queryByText(PROCESANDO)).toBeNull();

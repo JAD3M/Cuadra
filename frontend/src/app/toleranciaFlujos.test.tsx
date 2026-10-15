@@ -675,11 +675,12 @@ describe('flujos de tolerancia: encabezado con la empresa activa (Q8)', () => {
 
   it('tras cambiar de empresa el subtítulo muestra el nombre de B', async () => {
     contextoPorEmpresa(idB);
-    await abrir();
+    const { router } = await abrir();
     await usuario().click(cambiarEmpresa());
     await elegirEmpresaPorNombre(/Abarrotes/);
     await screen.findByRole('heading', { level: 1, name: /^Bandeja/ });
-    await usuario().click(screen.getByRole('link', { name: /^Tolerancia/ }));
+    // El revisor de B no tiene el enlace: se llega por la ruta directa.
+    await act(() => router.navigate('/tolerancia'));
     expect(
       await screen.findByText(
         `${EMPRESA_B} · aplica a movimientos y CFDI en MXN`,
