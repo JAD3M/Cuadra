@@ -24,6 +24,8 @@ const MENSAJES: Record<MotivoInvitacionInvalida, string> = {
   caducada: 'Esta invitación venció. Pide que te inviten de nuevo.',
   reemplazada:
     'Esta invitación fue reemplazada por una más reciente. Usa el enlace del correo nuevo.',
+  cancelada:
+    'Esta invitación fue cancelada. Pide a un administrador que te invite de nuevo.',
   desconocida: 'El enlace de invitación no es válido.',
 };
 
@@ -35,6 +37,7 @@ interface FilaInvitacion {
   razonSocial: string;
   consumida: boolean;
   reemplazada: boolean;
+  cancelada: boolean;
   caducada: boolean;
 }
 
@@ -43,6 +46,7 @@ const SQL_INVITACION = `
          c.razon_social AS "razonSocial",
          i.consumida_en IS NOT NULL AS consumida,
          i.reemplazada_en IS NOT NULL AS reemplazada,
+         i.cancelada_en IS NOT NULL AS cancelada,
          i.expires_at <= now() AS caducada
     FROM invitaciones i
     JOIN companies c ON c.id = i.company_id
@@ -50,6 +54,7 @@ const SQL_INVITACION = `
 
 function motivoInvalido(fila: FilaInvitacion): MotivoInvitacionInvalida | null {
   if (fila.consumida) return 'usada';
+  if (fila.cancelada) return 'cancelada';
   if (fila.reemplazada) return 'reemplazada';
   if (fila.caducada) return 'caducada';
   return null;

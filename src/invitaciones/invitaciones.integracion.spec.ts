@@ -445,6 +445,25 @@ describe('GET /auth/invitaciones/:token', () => {
     const res2 = await consultar(tokenDe(usada)).expect(200);
     expect(res2.body).toMatchObject({ estado: 'invalida', motivo: 'usada' });
   });
+
+  it('cancelada se distingue de reemplazada y de caducada (historia 2.4)', async () => {
+    const email = correoNuevo();
+    await invitar(email).expect(201);
+    // Caducada y cancelada a la vez: el motivo es la cancelación.
+    await ds.query(
+      `UPDATE invitaciones
+          SET cancelada_en = now(), expires_at = now() - interval '1 minute'
+        WHERE email = $1`,
+      [email],
+    );
+    const res = await consultar(tokenDe(email)).expect(200);
+    expect(res.body).toEqual({
+      estado: 'invalida',
+      motivo: 'cancelada',
+      empresa: null,
+      requierePassword: null,
+    });
+  });
 });
 
 describe('POST /auth/invitaciones/:token/aceptar', () => {
@@ -611,6 +630,30 @@ describe('POST /auth/invitaciones/:token/aceptar', () => {
     }).expect(410);
 
     expect(res.body).toMatchObject({ motivo: 'caducada' });
+    const usuarios = await filas(ds, `SELECT 1 FROM users WHERE email = $1`, [
+      email,
+    ]);
+    expect(usuarios).toHaveLength(0);
+  });
+
+  it('enlace cancelado: 410 con motivo cancelada y no crea la cuenta (historia 2.4)', async () => {
+    const email = correoNuevo();
+    await invitar(email).expect(201);
+    await ds.query(
+      `UPDATE invitaciones SET cancelada_en = now() WHERE email = $1`,
+      [email],
+    );
+
+    const res = await aceptar(tokenDe(email), {
+      password: PASSWORD_NUEVA,
+      nombre: 'Cancelada',
+    }).expect(410);
+
+    expect(res.body).toMatchObject({
+      motivo: 'cancelada',
+      message:
+        'Esta invitación fue cancelada. Pide a un administrador que te invite de nuevo.',
+    });
     const usuarios = await filas(ds, `SELECT 1 FROM users WHERE email = $1`, [
       email,
     ]);

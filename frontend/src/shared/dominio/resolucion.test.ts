@@ -29,6 +29,17 @@ describe('ETIQUETAS_ACCION_BITACORA', () => {
   });
 });
 
+describe('ETIQUETAS_ACCION_BITACORA (invitaciones, historia 2.4)', () => {
+  it('nombra reenviar y cancelar una invitación', () => {
+    expect(ETIQUETAS_ACCION_BITACORA.reenviar_invitacion).toBe(
+      'Invitación reenviada',
+    );
+    expect(ETIQUETAS_ACCION_BITACORA.cancelar_invitacion).toBe(
+      'Invitación cancelada',
+    );
+  });
+});
+
 describe('ETIQUETAS_ACCION_BITACORA (textos del historial de la maqueta)', () => {
   it('usa los textos aprobados para los eventos de una conciliación', () => {
     expect(ETIQUETAS_ACCION_BITACORA.crear).toBe('El motor propuso el CFDI');

@@ -7,6 +7,7 @@ export const MOTIVOS_INVITACION_INVALIDA = [
   'usada',
   'caducada',
   'reemplazada',
+  'cancelada',
   'desconocida',
 ] as const;
 export type MotivoInvitacionInvalida =

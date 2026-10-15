@@ -72,6 +72,8 @@ export const ACCIONES_BITACORA = [
   'rechazar',
   'acceso_denegado',
   'invitar',
+  'reenviar_invitacion',
+  'cancelar_invitacion',
 ] as const;
 export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 
