@@ -87,3 +87,57 @@ export class InvitacionCanceladaDto {
   @ApiProperty({ example: 'luis.mendoza@fdb.mx' })
   email!: string;
 }
+
+/** Historia 2.5. Una persona de la empresa: activa o con invitación pendiente. */
+export class UsuarioListadoDto {
+  @ApiProperty({
+    format: 'uuid',
+    description:
+      'Id del usuario si está activa; id de la invitación si está pendiente.',
+  })
+  id!: string;
+
+  @ApiProperty({ example: 'luis.mendoza@fdb.mx' })
+  email!: string;
+
+  @ApiProperty({
+    nullable: true,
+    description: 'Nulo mientras la persona no haya aceptado la invitación.',
+  })
+  nombre!: string | null;
+
+  @ApiProperty({
+    enum: ROLES,
+    isArray: true,
+    description:
+      'Roles en esta empresa; en una invitación pendiente, los roles invitados.',
+  })
+  roles!: Rol[];
+
+  @ApiProperty({ enum: ['activo', 'pendiente'] })
+  estado!: 'activo' | 'pendiente';
+
+  @ApiProperty({
+    format: 'uuid',
+    nullable: true,
+    description: 'Solo si está pendiente: la invitación a reenviar o cancelar.',
+  })
+  invitacionId!: string | null;
+
+  @ApiProperty({
+    description: 'Verdadero si la invitación pendiente ya venció.',
+  })
+  vencida!: boolean;
+
+  @ApiProperty({ format: 'date-time', nullable: true })
+  venceEn!: string | null;
+
+  @ApiProperty({ format: 'date-time', nullable: true })
+  creadaEn!: string | null;
+
+  @ApiProperty({
+    nullable: true,
+    description: 'Nombre de quien invitó; solo en pendientes.',
+  })
+  invitadaPor!: string | null;
+}

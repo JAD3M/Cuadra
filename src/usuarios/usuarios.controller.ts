@@ -30,13 +30,16 @@ import {
   InvitacionPendienteDto,
   InvitacionUsuarioEnviadaDto,
   InvitarUsuarioDto,
+  UsuarioListadoDto,
 } from './dto/usuarios.dto';
 import { InvitacionesPendientesService } from './invitaciones-pendientes.service';
 import { InvitarUsuariosService } from './invitar-usuarios.service';
+import { ListarUsuariosService } from './listar-usuarios.service';
 
 /**
- * Historias 2.3 y 2.4 (FR-41, FR-42, FR-50). Solo `admin`: `usuarios.gestionar`
- * para invitar, reenviar y cancelar; `usuarios.ver` para listar pendientes.
+ * Historias 2.3 a 2.5 (FR-41, FR-42, FR-47, FR-50). Solo `admin`:
+ * `usuarios.gestionar` para invitar, reenviar y cancelar; `usuarios.ver` para
+ * listar personas y pendientes.
  */
 @ApiTags('usuarios')
 @ApiCookieAuth()
@@ -45,7 +48,29 @@ export class UsuariosController {
   constructor(
     private readonly invitaciones: InvitarUsuariosService,
     private readonly pendientes: InvitacionesPendientesService,
+    private readonly usuarios: ListarUsuariosService,
   ) {}
+
+  @Get()
+  @Permiso('usuarios.ver')
+  @ApiOperation({
+    summary: 'Lista a las personas de la empresa con su estado',
+    description:
+      'Una fila por persona: activas con sus roles en esta empresa, e invitaciones pendientes (con `vencida`). Una persona activa con invitación abierta sale solo como activa. Orden por correo.',
+  })
+  @ApiOkResponse({ type: UsuarioListadoDto, isArray: true })
+  @ApiUnauthorizedResponse({ description: 'Sin sesión o venció.' })
+  @ApiForbiddenResponse({
+    description: 'No tiene el rol admin. Queda en la bitácora.',
+  })
+  listarUsuarios(
+    @UsuarioActual() actual: UsuarioAutenticado,
+  ): Promise<UsuarioListadoDto[]> {
+    if (actual.scope !== 'sesion') {
+      throw new UnauthorizedException('No autorizado');
+    }
+    return this.usuarios.listar(actual.companyId);
+  }
 
   @Post('invitaciones')
   @Permiso('usuarios.gestionar')
