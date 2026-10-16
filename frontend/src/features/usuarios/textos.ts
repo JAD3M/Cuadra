@@ -54,29 +54,33 @@ export const ALERTAS_INVITAR = {
 } as const;
 
 /**
- * Invitaciones pendientes (mockup `Usuarios.dc.html`, vistas `pendientes*`).
- * Los avisos de error reutilizan `ALERTAS_INVITAR`; el 409 usa el texto del
- * servidor y este es solo el respaldo cuando no lo manda.
+ * «Personas de tu empresa» (mockup `Usuarios.dc.html`, vistas `usuarios*`).
+ * Los avisos de error de fila reutilizan `ALERTAS_INVITAR`; el 409 usa el
+ * texto del servidor y `noPendiente` es solo el respaldo cuando no lo manda.
  */
-export const PENDIENTES = {
-  titulo: 'Invitaciones pendientes',
+export const PERSONAS = {
+  titulo: 'Personas de tu empresa',
   ayuda:
-    'Personas invitadas que todavía no aceptan. Las más recientes van primero.',
-  tabla: 'Tabla de invitaciones pendientes',
+    'Quién tiene acceso y con qué roles. Las invitaciones aún sin aceptar muestran su estado.',
+  tabla: 'Tabla de personas de tu empresa',
   columnas: {
     correo: 'Correo',
     roles: 'Roles',
+    estado: 'Estado',
     enviada: 'Enviada',
-    vence: 'Vence',
     invitadaPor: 'Invitada por',
     acciones: 'Acciones',
   },
-  plataforma: 'Plataforma',
+  /** Estado de una persona con cuenta. */
+  activo: 'Activo',
+  /** Estado de una invitación vigente; `dias` ya viene como «N día(s)». */
+  pendiente: (dias: string) => `Pendiente · vence en ${dias}`,
   vencida: 'Vencida',
-  cargando: 'Cargando invitaciones',
-  vacia:
-    'No hay invitaciones pendientes. Las que envíes aparecerán aquí hasta que se acepten.',
-  errorLista: 'No se pudo cargar las invitaciones.',
+  /** Enviada e Invitada por de una persona activa. */
+  sinDato: '—',
+  plataforma: 'Plataforma',
+  cargando: 'Cargando personas',
+  errorLista: 'No se pudo cargar la lista de personas.',
   reintentar: 'Reintentar',
   reenviar: 'Reenviar',
   cancelar: 'Cancelar',

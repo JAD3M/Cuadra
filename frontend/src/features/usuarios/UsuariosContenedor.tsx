@@ -4,7 +4,7 @@ import { ordenarRoles, puede, type Rol } from '@/shared/dominio';
 import { useSessionContext } from '@/shared/sesion';
 import { ConfirmacionInvitacion } from './components/ConfirmacionInvitacion';
 import { FormularioInvitarUsuario } from './components/FormularioInvitarUsuario';
-import { InvitacionesPendientesContenedor } from './InvitacionesPendientesContenedor';
+import { ListaUsuariosContenedor } from './ListaUsuariosContenedor';
 import { clasificarFalloInvitar, type ClaseFalloInvitar } from './errores';
 import { ERROR_SIN_PERMISO } from './textos';
 import estilos from './UsuariosContenedor.module.css';
@@ -20,7 +20,7 @@ interface Enviada {
 
 /**
  * Contenedor de la pantalla de Usuarios: el formulario de invitar (con la
- * capacidad `usuarios.gestionar`), la lista de invitaciones pendientes (con
+ * capacidad `usuarios.gestionar`), la lista de personas de la empresa (con
  * `usuarios.ver`; reenviar y cancelar piden `usuarios.gestionar`) o el aviso
  * de sin permiso. Es el único
  * sitio que junta la sesión, el hook y el estado; los componentes solo
@@ -63,8 +63,8 @@ export function UsuariosContenedor() {
     );
   }
 
-  const pendientes = puedeVer && (
-    <InvitacionesPendientesContenedor puedeGestionar={puedeGestionar} />
+  const personas = puedeVer && (
+    <ListaUsuariosContenedor puedeGestionar={puedeGestionar} />
   );
 
   if (enviada !== null) {
@@ -77,7 +77,7 @@ export function UsuariosContenedor() {
             onOtra={() => setEnviada(null)}
           />
         </section>
-        {pendientes}
+        {personas}
       </div>
     );
   }
@@ -148,7 +148,7 @@ export function UsuariosContenedor() {
   return (
     <div className={estilos.columna}>
       {puedeGestionar && formulario}
-      {pendientes}
+      {personas}
     </div>
   );
 }

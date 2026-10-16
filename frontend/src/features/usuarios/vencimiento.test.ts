@@ -5,6 +5,14 @@ const DIA = 86_400_000;
 const AHORA = Date.parse('2026-10-15T12:00:00.000Z');
 
 describe('textoVence', () => {
+  it('una pendiente sin fecha interpretable dice «Pendiente» y nunca NaN', () => {
+    for (const venceEn of ['', 'no-es-fecha']) {
+      const r = textoVence(venceEn, false, AHORA);
+      expect(r).toEqual({ texto: 'Pendiente', vencida: false });
+      expect(r.texto).not.toContain('NaN');
+    }
+  });
+
   it('una vencida (según el servidor) dice «Vencida» aunque la fecha sea futura', () => {
     expect(textoVence('2026-10-30T12:00:00.000Z', true, AHORA)).toEqual({
       texto: 'Vencida',
@@ -15,19 +23,19 @@ describe('textoVence', () => {
   it('una vigente cuenta los días que faltan, redondeando hacia arriba', () => {
     expect(
       textoVence(new Date(AHORA + 6 * DIA).toISOString(), false, AHORA).texto,
-    ).toBe('Vence en 6 días');
+    ).toBe('Pendiente · vence en 6 días');
     expect(
       textoVence(new Date(AHORA + 5.2 * DIA).toISOString(), false, AHORA).texto,
-    ).toBe('Vence en 6 días');
+    ).toBe('Pendiente · vence en 6 días');
   });
 
   it('un día se dice en singular y nunca baja de uno', () => {
     expect(
       textoVence(new Date(AHORA + 0.4 * DIA).toISOString(), false, AHORA).texto,
-    ).toBe('Vence en 1 día');
+    ).toBe('Pendiente · vence en 1 día');
     // El reloj del navegador no decide la validez: el servidor dijo vigente.
     const r = textoVence(new Date(AHORA - DIA).toISOString(), false, AHORA);
-    expect(r).toEqual({ texto: 'Vence en 1 día', vencida: false });
+    expect(r).toEqual({ texto: 'Pendiente · vence en 1 día', vencida: false });
   });
 });
 

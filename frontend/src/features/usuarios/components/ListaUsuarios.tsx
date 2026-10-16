@@ -3,17 +3,25 @@ import { ETIQUETAS_ROL, type Rol } from '@/shared/dominio';
 import { AlertaError } from '@/shared/ui/AlertaError';
 import { Button } from '@/shared/ui/Button';
 import { Tabla, Td, Th } from '@/shared/ui/Tabla';
-import { PENDIENTES } from '@/features/usuarios/textos';
-import estilos from './InvitacionesPendientes.module.css';
+import { PERSONAS } from '@/features/usuarios/textos';
+import estilos from './ListaUsuarios.module.css';
 
-/** Una fila lista para pintar: el contenedor ya resolvió textos y vencimiento. */
-export interface FilaPendiente {
+/**
+ * Una fila lista para pintar: el contenedor ya resolvió textos y vencimiento.
+ * `invitacionId` solo existe en las pendientes y es lo que usan las acciones;
+ * `id` es el de la fila (usuario si está activa, invitación si pendiente).
+ */
+export interface FilaPersona {
   id: string;
   email: string;
   roles: readonly Rol[];
-  enviada: string;
-  vence: string;
+  estado: 'activo' | 'pendiente';
+  invitacionId: string | null;
+  /** «Activo», «Pendiente · vence en N días» o «Vencida». */
+  estadoTexto: string;
   vencida: boolean;
+  /** Vacíos («—») en las activas. */
+  enviada: string | null;
   invitadaPor: string | null;
 }
 
@@ -23,9 +31,9 @@ export interface AvisoFila {
   texto: string;
 }
 
-export interface InvitacionesPendientesProps {
-  estado: 'cargando' | 'vacio' | 'error' | 'filas';
-  filas: readonly FilaPendiente[];
+export interface ListaUsuariosProps {
+  estado: 'cargando' | 'error' | 'filas';
+  filas: readonly FilaPersona[];
   /** Con `usuarios.gestionar`: sin ella no hay columna de acciones. */
   puedeGestionar: boolean;
   /** Avisos por correo de fila. */
@@ -39,21 +47,29 @@ export interface InvitacionesPendientesProps {
   /** Último fallo de una fila: objeto nuevo por vez, lleva el foco al aviso. */
   ultimoFallo: { email: string } | null;
   onReintentar(): void;
-  onReenviar(fila: FilaPendiente): void;
-  onPedirCancelar(fila: FilaPendiente): void;
-  onConfirmarCancelar(fila: FilaPendiente): void;
-  onVolver(fila: FilaPendiente): void;
+  onReenviar(fila: FilaPersona): void;
+  onPedirCancelar(fila: FilaPersona): void;
+  onConfirmarCancelar(fila: FilaPersona): void;
+  onVolver(fila: FilaPersona): void;
+}
+
+function claseEstado(fila: FilaPersona): string {
+  if (fila.estado === 'activo') return `${estilos.estado} ${estilos.activo}`;
+  return fila.vencida
+    ? `${estilos.estado} ${estilos.venc}`
+    : `${estilos.estado}`;
 }
 
 /**
- * Sección «Invitaciones pendientes» (mockup `Usuarios.dc.html`, vistas
- * `pendientes`, `pendientes_cargando`, `pendientes_vacio`, `pendientes_error`,
- * `confirmar_cancelar`, `reenviado`, `cancelada` y los errores de fila).
- * Presentacional: no sabe de la API. El foco: la confirmación de cancelar
+ * Sección «Personas de tu empresa» (mockup `Usuarios.dc.html`, vistas
+ * `usuarios`, `usuarios_cargando`, `usuarios_error`, `confirmar_cancelar`,
+ * `reenviado`, `cancelada` y los errores de fila). No hay estado vacío: la
+ * propia persona siempre está en su lista. Reenviar y cancelar solo en las
+ * pendientes; las activas no tienen acciones. Presentacional: no sabe de la API. El foco: la confirmación de cancelar
  * lleva el foco a «Volver» (la salida segura) y «Volver» lo devuelve al botón
  * que la abrió; un fallo o el aviso de cancelada lo reciben ellos mismos.
  */
-export function InvitacionesPendientes({
+export function ListaUsuarios({
   estado,
   filas,
   puedeGestionar,
@@ -67,7 +83,7 @@ export function InvitacionesPendientes({
   onPedirCancelar,
   onConfirmarCancelar,
   onVolver,
-}: InvitacionesPendientesProps) {
+}: ListaUsuariosProps) {
   const refVolver = useRef<HTMLButtonElement>(null);
   const refAviso = useRef<HTMLDivElement>(null);
   const botonesCancelar = useRef(new Map<string, HTMLButtonElement>());
@@ -87,18 +103,18 @@ export function InvitacionesPendientes({
 
   const columnas = puedeGestionar ? 6 : 5;
 
-  function volver(fila: FilaPendiente) {
+  function volver(fila: FilaPersona) {
     onVolver(fila);
     botonesCancelar.current.get(fila.id)?.focus();
   }
 
   return (
-    <section aria-labelledby="t-pendientes" className={estilos.tarjeta}>
+    <section aria-labelledby="t-personas" className={estilos.tarjeta}>
       <div className={estilos.cabecera}>
-        <h2 id="t-pendientes" className={estilos.titulo}>
-          {PENDIENTES.titulo}
+        <h2 id="t-personas" className={estilos.titulo}>
+          {PERSONAS.titulo}
         </h2>
-        <span className={estilos.ayuda}>{PENDIENTES.ayuda}</span>
+        <span className={estilos.ayuda}>{PERSONAS.ayuda}</span>
       </div>
 
       {aviso !== null && (
@@ -115,7 +131,7 @@ export function InvitacionesPendientes({
       {estado === 'cargando' && (
         <div aria-busy="true" className={estilos.esqueletos}>
           <span role="status" className={estilos.soloLector}>
-            {PENDIENTES.cargando}
+            {PERSONAS.cargando}
           </span>
           {[0, 1, 2].map((n) => (
             <div key={n} aria-hidden="true" className={estilos.esqueleto} />
@@ -123,15 +139,9 @@ export function InvitacionesPendientes({
         </div>
       )}
 
-      {estado === 'vacio' && (
-        <p role="status" className={estilos.vacia}>
-          {PENDIENTES.vacia}
-        </p>
-      )}
-
       {estado === 'error' && (
         <AlertaError
-          titulo={PENDIENTES.errorLista}
+          titulo={PERSONAS.errorLista}
           accion={
             <Button
               type="button"
@@ -139,27 +149,28 @@ export function InvitacionesPendientes({
               className={estilos.reintentar}
               onClick={onReintentar}
             >
-              {PENDIENTES.reintentar}
+              {PERSONAS.reintentar}
             </Button>
           }
         />
       )}
 
       {estado === 'filas' && (
-        <Tabla titulo={PENDIENTES.tabla}>
+        <Tabla titulo={PERSONAS.tabla}>
           <thead>
             <tr>
-              <Th>{PENDIENTES.columnas.correo}</Th>
-              <Th>{PENDIENTES.columnas.roles}</Th>
-              <Th>{PENDIENTES.columnas.enviada}</Th>
-              <Th>{PENDIENTES.columnas.vence}</Th>
-              <Th>{PENDIENTES.columnas.invitadaPor}</Th>
-              {puedeGestionar && <Th>{PENDIENTES.columnas.acciones}</Th>}
+              <Th>{PERSONAS.columnas.correo}</Th>
+              <Th>{PERSONAS.columnas.roles}</Th>
+              <Th>{PERSONAS.columnas.estado}</Th>
+              <Th>{PERSONAS.columnas.enviada}</Th>
+              <Th>{PERSONAS.columnas.invitadaPor}</Th>
+              {puedeGestionar && <Th>{PERSONAS.columnas.acciones}</Th>}
             </tr>
           </thead>
           <tbody>
             {filas.map((fila) => {
-              const abierta = confirmando === fila.id;
+              const pendiente = fila.estado === 'pendiente';
+              const abierta = pendiente && confirmando === fila.id;
               const avisoFila = avisos[fila.email];
               return (
                 <Fragment key={fila.id}>
@@ -174,56 +185,59 @@ export function InvitacionesPendientes({
                         ))}
                       </div>
                     </Td>
-                    <Td className={estilos.enviada}>{fila.enviada}</Td>
                     <Td>
-                      <span
-                        className={
-                          fila.vencida
-                            ? `${estilos.vence} ${estilos.venc}`
-                            : estilos.vence
-                        }
-                      >
-                        {fila.vence}
+                      <span className={claseEstado(fila)}>
+                        {fila.estadoTexto}
                       </span>
                     </Td>
                     <Td
+                      className={pendiente ? estilos.enviada : estilos.sinDato}
+                    >
+                      {pendiente ? fila.enviada : PERSONAS.sinDato}
+                    </Td>
+                    <Td
                       className={
-                        fila.invitadaPor === null
-                          ? estilos.quienPlataforma
-                          : estilos.quien
+                        pendiente && fila.invitadaPor !== null
+                          ? estilos.quien
+                          : estilos.quienPlataforma
                       }
                     >
-                      {fila.invitadaPor ?? PENDIENTES.plataforma}
+                      {!pendiente
+                        ? PERSONAS.sinDato
+                        : (fila.invitadaPor ?? PERSONAS.plataforma)}
                     </Td>
                     {puedeGestionar && (
                       <Td>
-                        <div className={estilos.acciones}>
-                          <Button
-                            type="button"
-                            variante="secundario"
-                            className={estilos.accion}
-                            aria-label={PENDIENTES.ariaReenviar(fila.email)}
-                            disabled={ocupado}
-                            onClick={() => onReenviar(fila)}
-                          >
-                            {PENDIENTES.reenviar}
-                          </Button>
-                          <Button
-                            type="button"
-                            variante="secundario"
-                            className={estilos.accion}
-                            aria-label={PENDIENTES.ariaCancelar(fila.email)}
-                            aria-expanded={abierta}
-                            disabled={ocupado}
-                            ref={(el) => {
-                              if (el) botonesCancelar.current.set(fila.id, el);
-                              else botonesCancelar.current.delete(fila.id);
-                            }}
-                            onClick={() => onPedirCancelar(fila)}
-                          >
-                            {PENDIENTES.cancelar}
-                          </Button>
-                        </div>
+                        {pendiente && (
+                          <div className={estilos.acciones}>
+                            <Button
+                              type="button"
+                              variante="secundario"
+                              className={estilos.accion}
+                              aria-label={PERSONAS.ariaReenviar(fila.email)}
+                              disabled={ocupado}
+                              onClick={() => onReenviar(fila)}
+                            >
+                              {PERSONAS.reenviar}
+                            </Button>
+                            <Button
+                              type="button"
+                              variante="secundario"
+                              className={estilos.accion}
+                              aria-label={PERSONAS.ariaCancelar(fila.email)}
+                              aria-expanded={abierta}
+                              disabled={ocupado}
+                              ref={(el) => {
+                                if (el)
+                                  botonesCancelar.current.set(fila.id, el);
+                                else botonesCancelar.current.delete(fila.id);
+                              }}
+                              onClick={() => onPedirCancelar(fila)}
+                            >
+                              {PERSONAS.cancelar}
+                            </Button>
+                          </div>
+                        )}
                       </Td>
                     )}
                   </tr>
@@ -232,7 +246,7 @@ export function InvitacionesPendientes({
                       <Td colSpan={columnas} className={estilos.extra}>
                         <div
                           role="group"
-                          aria-label={PENDIENTES.confirmarGrupo}
+                          aria-label={PERSONAS.confirmarGrupo}
                           className={estilos.confirmar}
                         >
                           <span className={estilos.confirmarTexto}>
@@ -250,7 +264,7 @@ export function InvitacionesPendientes({
                               disabled={ocupado}
                               onClick={() => onConfirmarCancelar(fila)}
                             >
-                              {PENDIENTES.confirmarSi}
+                              {PERSONAS.confirmarSi}
                             </Button>
                             <Button
                               type="button"
@@ -260,7 +274,7 @@ export function InvitacionesPendientes({
                               disabled={ocupado}
                               onClick={() => volver(fila)}
                             >
-                              {PENDIENTES.confirmarVolver}
+                              {PERSONAS.confirmarVolver}
                             </Button>
                           </div>
                         </div>

@@ -70,12 +70,15 @@ no ve la sección.
   estado pendiente/vencida, orden. Servicio + DTO + controlador + pruebas.
 - [x] **T2 — Frontend base.** Contrato zod `usuarios`/`usuario`, hook de
   lectura, claves de query, textos y errores de lectura.
-- [ ] **T3 — Mockup.** Actualizar Usuarios (oscuro y claro) con la tabla única;
-  acordar con el usuario antes de T4.
-- [ ] **T4 — Pantalla.** Tabla única con estado y acciones de la 2.4 en las
+- [x] **T3 — Mockup.** Actualizar Usuarios (oscuro y claro) con la tabla única;
+  acordar con el usuario antes de T4. Aprobado por el usuario el 2026-10-15
+  (canvas versión 77).
+- [x] **T4 — Pantalla.** Tabla única con estado y acciones de la 2.4 en las
   pendientes; estados de carga, vacío y error del mockup.
-- [ ] **T5 — Cierre.** Pruebas completas, bitácora, estado en `CUADRA.md`,
-  PRs (en cadena si pasa de 400 líneas).
+- [x] **T5 — Cierre.** Pruebas completas, bitácora, estado en `CUADRA.md`,
+  PRs (en cadena si pasa de 400 líneas). Ruta: delegada (un escritor).
+  Commits: `446e1c2` (arreglo «vence en NaN») y el de bitácora. `CUADRA.md` no
+  cambia (como en la 2.4, sigue el estado de la v1).
 
 ## Rutas y evidencia
 
@@ -115,4 +118,60 @@ aparte (la 3 queda para después):
   be false`; GREEN: frontend 4308 pruebas, backend 1267, lint/format/typecheck
   sin errores.
 
-Siguiente paso: T3 (mockup).
+T3 hecha: mockup `Usuarios.dc.html` y `UsuariosClaro.dc.html` aprobados por el
+usuario el 2026-10-15 (canvas versión 77).
+
+T4 hecha (commit en esta rama). La tabla «Invitaciones pendientes» se
+reemplazó por «Personas de tu empresa» alimentada por `useUsuarios`.
+- Columnas: Correo, Roles, Estado, Enviada, Invitada por, Acciones; filas en el
+  orden del servidor. Estado: «Activo», «Pendiente · vence en N días» (reglas
+  de `vencimiento.ts`, mínimo 1 día) o «Vencida» (decide `vencida` del
+  servidor). Activas: «—» en Enviada e Invitada por y celda de acciones vacía;
+  pendientes: Reenviar y Cancelar de la 2.4 (mismas decisiones, acciones por
+  `invitacionId`). Sin estado vacío; cargando («Cargando personas») y error
+  con «Reintentar» como en el mockup.
+- Código muerto retirado: `useInvitacionesPendientes`, `clavesUsuarios.pendientes`,
+  los esquemas `invitacionPendiente`/`invitacionesPendientes` y sus pruebas;
+  la invalidación de invitar, reenviar y cancelar queda solo sobre `lista`.
+  `useInvitarUsuario` ahora espera la invalidación (como las acciones).
+- Contrato: una activa con `invitacionId`, `venceEn`, `creadaEn` o
+  `invitadaPor` no nulos se rechaza.
+- Renombres: `ListaUsuarios`, `ListaUsuariosContenedor`, `PERSONAS` en
+  `textos.ts`; el handler de pruebas sirve `GET /api/usuarios`.
+- Chip vencida: `--color-danger-tint` (no `--color-danger-chip`, reservado a
+  la bitácora); activo: tokens `--estado-conciliado-*`.
+- RED: `npx vitest run src/features/usuarios src/shared/api/contratos/usuarios.test.ts src/app/usuariosFlujos.test.tsx`
+  → 49 pruebas fallan (37 en `ListaUsuarios.test.tsx`, 6 en
+  `UsuariosPage.test.tsx`, 3 del contrato `rechaza una activa con venceEn|creadaEn|invitadaPor`
+  con `expected true to be false`, 2 de `vencimiento`, 1 de `usuariosFlujos`).
+- GREEN: mismo comando → 7 archivos, 107 pruebas pasan. `npm test`: 269
+  archivos, 4302 pruebas pasan. `npm run lint`, `npm run format:check` y
+  `npm run typecheck` sin errores.
+
+T5 hecha. Arreglo previo al cierre: `textoVence` con una fecha no
+interpretable dice «Pendiente» y no «vence en NaN días».
+- RED: `npx vitest run src/features/usuarios/vencimiento.test.ts` → 1 falla
+  (`expected { texto: 'Pendiente · vence en 1 día' } to deeply equal 'Pendiente'`).
+- GREEN: mismo comando → 6 pasan.
+- Comprobaciones finales: backend `npm test` 60 suites y 1267 pruebas pasan;
+  `npm run typecheck`, `npm run lint`, `npm run build` y
+  `npx prettier --check "src/**/*.ts"` sin errores. Frontend `npm test` 269
+  archivos y 4303 pruebas pasan; `npm run lint`, `npm run format:check` y
+  `npm run typecheck` sin errores.
+
+### Revisión
+
+Tres revisiones nativas aprobadas (T1, T2 y T4), observaciones atendidas. La
+base por defecto era el commit del 13 oct y excedía el presupuesto del
+revisor: se revisó por rebanada con `--base-ref`.
+
+### Rebanadas (cadena `stacked-to-main`)
+
+| # | Contenido | Commits | Cambio |
+|---|-----------|---------|--------|
+| 1 | Backend `GET /usuarios` | `f3985bd` | 6 archivos, +588 −3 |
+| 2 | Contrato y hook del frontend | `87c542e`, `9012c3f` | 10 archivos, +333 −4 |
+| 3 | Pantalla, arreglo y docs | `b37b4a7`, `446e1c2`, bitácora | 17 archivos, +541 −411 (sin contar los docs) |
+
+La rebanada 3 pasa de 400 líneas por el código muerto retirado y los renombres
+(411 borradas); la parte nueva es menor.

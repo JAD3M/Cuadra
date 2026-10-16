@@ -1,10 +1,11 @@
 import { formatearFecha } from '@/features/bandeja/fecha';
-import { PENDIENTES } from './textos';
+import { PERSONAS } from './textos';
 
 const DIA_MS = 86_400_000;
 
 /**
- * Texto del vencimiento de una pendiente. Si vence o no lo dice el servidor
+ * Texto del estado de una pendiente («Pendiente · vence en N días» o
+ * «Vencida»). Si vence o no lo dice el servidor
  * (`vencida`); el reloj del navegador solo sirve para escribir cuántos días
  * faltan de una invitación que el servidor ya dio por vigente, y nunca baja
  * de un día.
@@ -14,10 +15,14 @@ export function textoVence(
   vencida: boolean,
   ahora: number = Date.now(),
 ): { texto: string; vencida: boolean } {
-  if (vencida) return { texto: PENDIENTES.vencida, vencida: true };
-  const dias = Math.max(1, Math.ceil((Date.parse(venceEn) - ahora) / DIA_MS));
+  if (vencida) return { texto: PERSONAS.vencida, vencida: true };
+  const fecha = Date.parse(venceEn);
+  // El contrato exige `venceEn` en una pendiente; si aun así no se entiende,
+  // se dice solo «Pendiente» en lugar de «vence en NaN días».
+  if (Number.isNaN(fecha)) return { texto: 'Pendiente', vencida: false };
+  const dias = Math.max(1, Math.ceil((fecha - ahora) / DIA_MS));
   return {
-    texto: dias === 1 ? 'Vence en 1 día' : `Vence en ${dias} días`,
+    texto: PERSONAS.pendiente(dias === 1 ? '1 día' : `${dias} días`),
     vencida: false,
   };
 }

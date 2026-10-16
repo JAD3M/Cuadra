@@ -4,23 +4,23 @@ import {
   useCancelarInvitacion,
   useReenviarInvitacion,
 } from './useAccionInvitacionPendiente';
-import { useInvitacionesPendientes } from './useInvitacionesPendientes';
+import { useUsuarios } from './useUsuarios';
 import {
-  InvitacionesPendientes,
+  ListaUsuarios,
   type AvisoFila,
-  type FilaPendiente,
-} from './components/InvitacionesPendientes';
+  type FilaPersona,
+} from './components/ListaUsuarios';
 import {
   clasificarFalloAccionPendiente,
   type FalloAccionPendiente,
 } from './errores';
-import { ALERTAS_INVITAR, ERROR_SIN_PERMISO, PENDIENTES } from './textos';
+import { ALERTAS_INVITAR, ERROR_SIN_PERMISO, PERSONAS } from './textos';
 import { textoEnviada, textoVence } from './vencimiento';
 
 function textoDelFallo(fallo: FalloAccionPendiente): string {
   switch (fallo.clase) {
     case 'no_pendiente':
-      return fallo.mensaje ?? PENDIENTES.noPendiente;
+      return fallo.mensaje ?? PERSONAS.noPendiente;
     case 'permiso':
       return ERROR_SIN_PERMISO.titulo;
     case 'limite':
@@ -34,23 +34,23 @@ function textoDelFallo(fallo: FalloAccionPendiente): string {
   }
 }
 
-export interface InvitacionesPendientesContenedorProps {
+export interface ListaUsuariosContenedorProps {
   /** `usuarios.gestionar`: sin ella la lista es de solo lectura. */
   puedeGestionar: boolean;
 }
 
 /**
- * Junta la lista de pendientes, reenviar y cancelar con su estado de fila. El
+ * Junta la lista de personas de la empresa, reenviar y cancelar con su estado de fila. El
  * servidor decide si la persona puede y si la invitación sigue pendiente; aquí
  * solo se muestra lo que respondió. Los avisos se guardan por correo porque
  * reenviar reemplaza la fila (id nuevo). Una acción nueva retira todos los
  * avisos anteriores; el 409 y el 404 no vuelven a pedir la lista, para que la
  * fila y su aviso sigan a la vista.
  */
-export function InvitacionesPendientesContenedor({
+export function ListaUsuariosContenedor({
   puedeGestionar,
-}: InvitacionesPendientesContenedorProps) {
-  const lista = useInvitacionesPendientes(true);
+}: ListaUsuariosContenedorProps) {
+  const lista = useUsuarios(true);
   const reenviar = useReenviarInvitacion();
   const cancelar = useCancelarInvitacion();
   const enVuelo = useRef(false);
@@ -63,23 +63,39 @@ export function InvitacionesPendientesContenedor({
 
   const ocupado = reenviar.isPending || cancelar.isPending;
 
-  const filas: FilaPendiente[] = (lista.data ?? []).map((i) => {
-    const vence = textoVence(i.venceEn, i.vencida);
+  const filas: FilaPersona[] = (lista.data ?? []).map((p) => {
+    const roles = ordenarRoles(p.roles);
+    if (p.estado === 'activo' || p.invitacionId === null) {
+      return {
+        id: p.id,
+        email: p.email,
+        roles,
+        estado: 'activo',
+        invitacionId: null,
+        estadoTexto: PERSONAS.activo,
+        vencida: false,
+        enviada: null,
+        invitadaPor: null,
+      };
+    }
+    const vence = textoVence(p.venceEn ?? '', p.vencida);
     return {
-      id: i.id,
-      email: i.email,
-      roles: ordenarRoles(i.roles),
-      enviada: textoEnviada(i.creadaEn),
-      vence: vence.texto,
+      id: p.id,
+      email: p.email,
+      roles,
+      estado: 'pendiente',
+      invitacionId: p.invitacionId,
+      estadoTexto: vence.texto,
       vencida: vence.vencida,
-      invitadaPor: i.invitadaPor,
+      enviada: p.creadaEn === null ? null : textoEnviada(p.creadaEn),
+      invitadaPor: p.invitadaPor,
     };
   });
 
-  let estado: 'cargando' | 'vacio' | 'error' | 'filas';
+  let estado: 'cargando' | 'error' | 'filas';
   if (lista.isPending && !lista.isError) estado = 'cargando';
   else if (lista.isError && lista.data === undefined) estado = 'error';
-  else estado = filas.length === 0 ? 'vacio' : 'filas';
+  else estado = 'filas';
 
   function empezar(): boolean {
     if (enVuelo.current) return false;
@@ -97,12 +113,12 @@ export function InvitacionesPendientesContenedor({
     setUltimoFallo({ email });
   }
 
-  function alReenviar(fila: FilaPendiente) {
-    if (!empezar()) return;
-    reenviar.mutate(fila.id, {
+  function alReenviar(fila: FilaPersona) {
+    if (fila.invitacionId === null || !empezar()) return;
+    reenviar.mutate(fila.invitacionId, {
       onSuccess: () =>
         setAvisos({
-          [fila.email]: { tipo: 'ok', texto: PENDIENTES.reenviada(fila.email) },
+          [fila.email]: { tipo: 'ok', texto: PERSONAS.reenviada(fila.email) },
         }),
       onError: (error) => fallar(fila.email, error),
       onSettled: () => {
@@ -111,10 +127,10 @@ export function InvitacionesPendientesContenedor({
     });
   }
 
-  function alConfirmarCancelar(fila: FilaPendiente) {
-    if (!empezar()) return;
-    cancelar.mutate(fila.id, {
-      onSuccess: () => setAviso({ texto: PENDIENTES.cancelada(fila.email) }),
+  function alConfirmarCancelar(fila: FilaPersona) {
+    if (fila.invitacionId === null || !empezar()) return;
+    cancelar.mutate(fila.invitacionId, {
+      onSuccess: () => setAviso({ texto: PERSONAS.cancelada(fila.email) }),
       onError: (error) => fallar(fila.email, error),
       onSettled: () => {
         enVuelo.current = false;
@@ -123,7 +139,7 @@ export function InvitacionesPendientesContenedor({
   }
 
   return (
-    <InvitacionesPendientes
+    <ListaUsuarios
       estado={estado}
       filas={filas}
       puedeGestionar={puedeGestionar}
