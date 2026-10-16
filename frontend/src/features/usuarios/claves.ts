@@ -6,9 +6,10 @@ export { useEpoca } from '@/features/bandeja/useEpoca';
 // segunda posición es la época de la sesión (un contador, nunca un token): al
 // cambiar de empresa o de cuenta ninguna lista anterior se sirve. Sin sesión
 // lista la época es `null` y la consulta está apagada. Invitar, reenviar y
-// cancelar invalidan `pendientes`.
+// cancelar invalidan `pendientes` y `lista`.
 
 export const clavesUsuarios = {
   pendientes: (epoca: EpocaBandeja) =>
     ['usuarios', epoca, 'invitaciones'] as const,
+  lista: (epoca: EpocaBandeja) => ['usuarios', epoca, 'lista'] as const,
 };

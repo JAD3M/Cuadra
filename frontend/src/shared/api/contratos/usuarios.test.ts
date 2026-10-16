@@ -7,6 +7,8 @@ import {
   invitacionUsuarioEnviada,
   invitacionesPendientes,
   solicitudInvitarUsuario,
+  usuarioListado,
+  usuariosListado,
 } from './usuarios';
 
 describe('contrato de invitar usuarios (2.3)', () => {
@@ -138,5 +140,73 @@ describe('contrato de invitaciones pendientes (2.4)', () => {
       email: 'a@b.mx',
     });
     expect(invitacionCancelada.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('contrato de la lista de usuarios (2.5)', () => {
+  const activa = {
+    id: '11111111-1111-4111-8111-111111111111',
+    email: 'ana@ferreteria.mx',
+    nombre: 'Ana Mendoza',
+    roles: ['admin'],
+    estado: 'activo',
+    invitacionId: null,
+    vencida: false,
+    venceEn: null,
+    creadaEn: null,
+    invitadaPor: null,
+  };
+  const pendiente = {
+    id: '22222222-2222-4222-8222-222222222222',
+    email: 'marta@ferreteria.mx',
+    nombre: null,
+    roles: ['contador', 'revisor'],
+    estado: 'pendiente',
+    invitacionId: '22222222-2222-4222-8222-222222222222',
+    vencida: true,
+    venceEn: '2026-10-10T15:00:00.000Z',
+    creadaEn: '2026-10-03T15:00:00.000Z',
+    invitadaPor: 'Ana Mendoza',
+  };
+
+  it('acepta una fila activa y una pendiente', () => {
+    expect(usuarioListado.parse(activa)).toEqual(activa);
+    expect(usuarioListado.parse(pendiente)).toEqual(pendiente);
+    expect(usuariosListado.parse([activa, pendiente])).toHaveLength(2);
+  });
+
+  it('rechaza una pendiente sin `invitacionId`, `venceEn` o `creadaEn`', () => {
+    for (const campo of ['invitacionId', 'venceEn', 'creadaEn']) {
+      expect(
+        usuarioListado.safeParse({ ...pendiente, [campo]: null }).success,
+      ).toBe(false);
+    }
+  });
+
+  it('rechaza una activa con `invitacionId`', () => {
+    expect(
+      usuarioListado.safeParse({
+        ...activa,
+        invitacionId: '22222222-2222-4222-8222-222222222222',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rechaza un estado o un rol desconocido', () => {
+    expect(
+      usuarioListado.safeParse({ ...activa, estado: 'baja' }).success,
+    ).toBe(false);
+    expect(
+      usuarioListado.safeParse({ ...activa, roles: ['dueno'] }).success,
+    ).toBe(false);
+  });
+
+  it('rechaza una fila sin `invitacionId` o con `vencida` no booleana', () => {
+    const sin: Record<string, unknown> = { ...activa };
+    delete sin['invitacionId'];
+    expect(usuarioListado.safeParse(sin).success).toBe(false);
+    expect(usuarioListado.safeParse({ ...activa, vencida: 'no' }).success).toBe(
+      false,
+    );
   });
 });

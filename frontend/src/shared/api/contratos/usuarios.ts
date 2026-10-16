@@ -48,6 +48,51 @@ export const invitacionReenviada = invitacionUsuarioEnviada;
 /** `POST /usuarios/invitaciones/:id/cancelar` (200). */
 export const invitacionCancelada = z.object({ email: z.string() });
 
+/**
+ * Una fila de `GET /usuarios` (historia 2.5), de `UsuarioListadoDto`: una
+ * persona de la empresa, activa o con invitación pendiente. `id` es el del
+ * usuario si está activa y el de la invitación si está pendiente;
+ * `invitacionId`, `venceEn`, `creadaEn` e `invitadaPor` solo vienen en las
+ * pendientes. Nunca trae el token.
+ */
+export const usuarioListado = z
+  .object({
+    id: z.guid(),
+    email: z.string().min(1),
+    nombre: z.string().nullable(),
+    roles: z.array(rol),
+    estado: z.enum(['activo', 'pendiente']),
+    invitacionId: z.guid().nullable(),
+    vencida: z.boolean(),
+    venceEn: z.iso.datetime().nullable(),
+    creadaEn: z.iso.datetime().nullable(),
+    invitadaPor: z.string().nullable(),
+  })
+  .superRefine((fila, ctx) => {
+    // Una fila incoherente no se pinta: el servidor nunca la manda así.
+    if (fila.estado === 'pendiente') {
+      for (const campo of ['invitacionId', 'venceEn', 'creadaEn'] as const) {
+        if (fila[campo] === null) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [campo],
+            message: 'Una invitación pendiente trae este dato',
+          });
+        }
+      }
+    } else if (fila.invitacionId !== null) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['invitacionId'],
+        message: 'Una persona activa no tiene invitación',
+      });
+    }
+  });
+
+/** `GET /usuarios`: una fila por persona, ordenada por correo. */
+export const usuariosListado = z.array(usuarioListado);
+
+export type UsuarioListado = z.infer<typeof usuarioListado>;
 export type InvitacionPendiente = z.infer<typeof invitacionPendiente>;
 export type InvitacionReenviada = z.infer<typeof invitacionReenviada>;
 export type InvitacionCancelada = z.infer<typeof invitacionCancelada>;
