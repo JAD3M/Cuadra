@@ -6,8 +6,8 @@ import { CONTEXTO_SESION, capacidadesDeRoles } from '@/test/fixtures';
 import {
   accionesPendientesRecibidas,
   invitacionesUsuarioRecibidas,
-  listadosPendientesPedidos,
-  pendientesDelMockup,
+  listadosUsuariosPedidos,
+  personasDelMockup,
   usarHandlersUsuarios,
 } from '@/test/handlersUsuarios';
 import { elegirEmpresaMock, hayEmpresaElegida } from '@/test/sesionMock';
@@ -18,7 +18,7 @@ beforeAll(() => configure({ asyncUtilTimeout: 5000 }));
 afterAll(() => configure({ asyncUtilTimeout: 1000 }));
 
 beforeEach(() => {
-  usarHandlersUsuarios(pendientesDelMockup());
+  usarHandlersUsuarios(personasDelMockup());
 });
 
 /** La sesión entrega estos roles y las capacidades que el servidor derivaría. */
@@ -93,15 +93,23 @@ describe('flujos de usuarios: menú y pantalla (2.3)', () => {
     ]);
   });
 
-  it('el administrador ve las pendientes, reenvía una y cancela otra (2.4)', async () => {
+  it('el administrador ve a las personas de su empresa, reenvía una invitación y cancela otra (2.4, 2.5)', async () => {
     montarApp('/usuarios');
     await entrarALaApp();
     const u = userEvent.setup();
     const seccion = await screen.findByRole('region', {
-      name: 'Invitaciones pendientes',
+      name: 'Personas de tu empresa',
     });
     expect(
       await within(seccion).findByText('marta.nunez@ferreteria.mx'),
+    ).toBeInTheDocument();
+    // Activas y pendientes en la misma tabla, con su estado.
+    expect(
+      within(seccion).getByText('ana.mendoza@ferreteria.mx'),
+    ).toBeInTheDocument();
+    expect(within(seccion).getAllByText('Activo')).toHaveLength(4);
+    expect(
+      within(seccion).getByText('Pendiente · vence en 6 días'),
     ).toBeInTheDocument();
 
     await u.click(
@@ -152,10 +160,10 @@ describe('flujos de usuarios: menú y pantalla (2.3)', () => {
       expect(screen.queryByRole('form')).toBeNull();
       expect(invitacionesUsuarioRecibidas).toHaveLength(0);
       expect(
-        screen.queryByRole('region', { name: 'Invitaciones pendientes' }),
+        screen.queryByRole('region', { name: 'Personas de tu empresa' }),
       ).toBeNull();
       // Sin `usuarios.ver` ni siquiera se pide la lista.
-      expect(listadosPendientesPedidos.cuenta).toBe(0);
+      expect(listadosUsuariosPedidos.cuenta).toBe(0);
     },
   );
 });

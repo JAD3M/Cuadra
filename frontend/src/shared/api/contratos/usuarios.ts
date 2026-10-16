@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ROLES } from '@/shared/dominio';
 
-// Contratos de la pantalla de Usuarios (historias 2.3 y 2.4). Se derivan de
+// Contratos de la pantalla de Usuarios (historias 2.3, 2.4 y 2.5). Se derivan de
 // src/usuarios/dto/usuarios.dto.ts. Aquí no hay montos ni tokens.
 
 const rol = z.enum(ROLES);
@@ -24,24 +24,6 @@ export const invitacionUsuarioEnviada = z.object({
   roles: z.array(rol),
 });
 
-/**
- * Una fila de `GET /usuarios/invitaciones` (historia 2.4): nunca trae el
- * token. `vencida` la decide el servidor; `invitadaPor` es nulo cuando la
- * creó la plataforma.
- */
-export const invitacionPendiente = z.object({
-  id: z.guid(),
-  email: z.string().min(1),
-  roles: z.array(rol).min(1),
-  creadaEn: z.iso.datetime(),
-  venceEn: z.iso.datetime(),
-  vencida: z.boolean(),
-  invitadaPor: z.string().nullable(),
-});
-
-/** `GET /usuarios/invitaciones`: las pendientes, la más reciente primero. */
-export const invitacionesPendientes = z.array(invitacionPendiente);
-
 /** `POST /usuarios/invitaciones/:id/reenviar` (201), igual que invitar. */
 export const invitacionReenviada = invitacionUsuarioEnviada;
 
@@ -52,8 +34,8 @@ export const invitacionCancelada = z.object({ email: z.string() });
  * Una fila de `GET /usuarios` (historia 2.5), de `UsuarioListadoDto`: una
  * persona de la empresa, activa o con invitación pendiente. `id` es el del
  * usuario si está activa y el de la invitación si está pendiente;
- * `invitacionId`, `venceEn`, `creadaEn` e `invitadaPor` solo vienen en las
- * pendientes. Nunca trae el token.
+ * `invitacionId`, `venceEn`, `creadaEn` e `invitadaPor` (nulo si la creó la
+ * plataforma) solo vienen en las pendientes. Nunca trae el token.
  */
 export const usuarioListado = z
   .object({
@@ -80,12 +62,21 @@ export const usuarioListado = z
           });
         }
       }
-    } else if (fila.invitacionId !== null) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['invitacionId'],
-        message: 'Una persona activa no tiene invitación',
-      });
+    } else {
+      for (const campo of [
+        'invitacionId',
+        'venceEn',
+        'creadaEn',
+        'invitadaPor',
+      ] as const) {
+        if (fila[campo] !== null) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [campo],
+            message: 'Una persona activa no tiene datos de invitación',
+          });
+        }
+      }
     }
   });
 
@@ -93,7 +84,6 @@ export const usuarioListado = z
 export const usuariosListado = z.array(usuarioListado);
 
 export type UsuarioListado = z.infer<typeof usuarioListado>;
-export type InvitacionPendiente = z.infer<typeof invitacionPendiente>;
 export type InvitacionReenviada = z.infer<typeof invitacionReenviada>;
 export type InvitacionCancelada = z.infer<typeof invitacionCancelada>;
 export type SolicitudInvitarUsuario = z.infer<typeof solicitudInvitarUsuario>;

@@ -14,28 +14,32 @@ import {
   accionPendienteFalla,
   accionPendienteRedDeFallo,
   accionesPendientesRecibidas,
-  invitacionPendiente,
-  listadosPendientesPedidos,
-  listarPendientesFalla,
-  listarPendientesRedDeFallo,
-  pendientesDelMockup,
+  listadosUsuariosPedidos,
+  listarUsuariosFalla,
+  listarUsuariosRedDeFallo,
+  personaActiva,
+  personaPendiente,
+  personasDelMockup,
   usarHandlersUsuarios,
 } from '@/test/handlersUsuarios';
 import { clienteDePruebas, envoltura } from '@/test/montarBandeja';
 import { servidor } from '@/test/servidor';
 import { UsuariosPage } from './UsuariosPage';
 
-// Historia 2.4: la lista de invitaciones pendientes con reenviar y cancelar,
-// sobre `Usuarios.dc.html` (vistas `pendientes*`, `confirmar_cancelar`,
+// Historia 2.5: la lista única «Personas de tu empresa» (activas y con
+// invitación pendiente) con reenviar y cancelar de la 2.4 en las pendientes,
+// sobre `Usuarios.dc.html` (vistas `usuarios*`, `confirmar_cancelar`,
 // `reenviado`, `cancelada`, `ya_aceptada`, `no_pendiente`,
 // `reenvio_error_envio` y `reenvio_limite`).
 
 const MARTA = 'marta.nunez@ferreteria.mx';
 const CAMILA = 'camila.ortega@ferreteria.mx';
 const RODRIGO = 'rodrigo.salas@ferreteria.mx';
+const ANA = 'ana.mendoza@ferreteria.mx';
+const TITULO = 'Personas de tu empresa';
 
 beforeEach(() => {
-  usarHandlersUsuarios(pendientesDelMockup());
+  usarHandlersUsuarios(personasDelMockup());
 });
 
 function montar(estado?: () => SessionState) {
@@ -54,8 +58,7 @@ function sesionConCapacidades(capacidades: string[]): SessionState {
   } as SessionState;
 }
 
-const seccion = () =>
-  screen.getByRole('region', { name: 'Invitaciones pendientes' });
+const seccion = () => screen.getByRole('region', { name: TITULO });
 const fila = (correo: string) =>
   within(seccion())
     .getAllByRole('row')
@@ -68,24 +71,21 @@ const cancelar = (correo: string) =>
 async function listaLista() {
   await within(
     await screen.findByRole('region', {
-      name: 'Invitaciones pendientes',
+      name: TITULO,
     }),
   ).findByRole('table');
 }
 
-describe('invitaciones pendientes: la lista', () => {
+describe('lista de usuarios: la lista', () => {
   it('muestra título, ayuda y las columnas del mockup', async () => {
     montar();
     await listaLista();
     expect(
-      within(seccion()).getByRole('heading', {
-        level: 2,
-        name: 'Invitaciones pendientes',
-      }),
+      within(seccion()).getByRole('heading', { level: 2, name: TITULO }),
     ).toBeInTheDocument();
     expect(
       within(seccion()).getByText(
-        'Personas invitadas que todavía no aceptan. Las más recientes van primero.',
+        'Quién tiene acceso y con qué roles. Las invitaciones aún sin aceptar muestran su estado.',
       ),
     ).toBeInTheDocument();
     const columnas = within(seccion())
@@ -94,25 +94,77 @@ describe('invitaciones pendientes: la lista', () => {
     expect(columnas).toEqual([
       'Correo',
       'Roles',
+      'Estado',
       'Enviada',
-      'Vence',
       'Invitada por',
       'Acciones',
     ]);
   });
 
-  it('cada fila trae correo, roles, fecha de envío, vencimiento e invitador', async () => {
+  it('ya no pide ni muestra la tabla de invitaciones pendientes', async () => {
+    montar();
+    await listaLista();
+    expect(
+      screen.queryByRole('region', { name: 'Invitaciones pendientes' }),
+    ).toBeNull();
+    expect(screen.getAllByRole('table')).toHaveLength(1);
+  });
+
+  it('respeta el orden del servidor (por correo), activas y pendientes juntas', async () => {
+    montar();
+    await listaLista();
+    const correos = within(seccion())
+      .getAllByRole('row')
+      .slice(1)
+      .map((f) => within(f).getAllByRole('cell')[0]!.textContent);
+    expect(correos).toEqual([
+      ANA,
+      CAMILA,
+      'jorge.tapia@ferreteria.mx',
+      'luis.paredes@ferreteria.mx',
+      'luis.reyes@ferreteria.mx',
+      MARTA,
+      RODRIGO,
+      'sofia.cardenas@ferreteria.mx',
+    ]);
+  });
+
+  it('una pendiente trae roles, estado con días, fecha de envío e invitador', async () => {
     montar();
     await listaLista();
     const marta = fila(MARTA);
     expect(within(marta).getByText('Contador')).toBeInTheDocument();
     expect(within(marta).getByText('Revisor')).toBeInTheDocument();
+    expect(
+      within(marta).getByText('Pendiente · vence en 6 días'),
+    ).toBeInTheDocument();
     expect(within(marta).getByText('2026-10-14')).toBeInTheDocument();
-    expect(within(marta).getByText('Vence en 6 días')).toBeInTheDocument();
     expect(within(marta).getByText('Ana Mendoza')).toBeInTheDocument();
     // Las de la plataforma no tienen persona que las invitara.
     expect(within(fila(CAMILA)).getByText('Plataforma')).toBeInTheDocument();
     expect(within(fila(CAMILA)).getByText('Administrador')).toBeInTheDocument();
+  });
+
+  it('una activa dice «Activo», lleva «—» en Enviada e Invitada por y no tiene acciones', async () => {
+    montar();
+    await listaLista();
+    const ana = fila(ANA);
+    expect(within(ana).getByText('Activo')).toBeInTheDocument();
+    expect(within(ana).getByText('Administrador')).toBeInTheDocument();
+    expect(within(ana).getAllByText('—')).toHaveLength(2);
+    expect(within(ana).queryAllByRole('button')).toHaveLength(0);
+    expect(within(ana).queryByText(/Pendiente/)).toBeNull();
+    // Solo las cuatro pendientes traen Reenviar y Cancelar.
+    expect(within(seccion()).getAllByRole('button')).toHaveLength(8);
+  });
+
+  it('una persona con varios roles los muestra todos', async () => {
+    usarHandlersUsuarios([personaActiva({ roles: ['revisor', 'contador'] })]);
+    montar();
+    await listaLista();
+    const ana = fila(ANA);
+    expect(within(ana).getByText('Contador')).toBeInTheDocument();
+    expect(within(ana).getByText('Revisor')).toBeInTheDocument();
   });
 
   it('una vencida dice «Vencida» y conserva Reenviar y Cancelar', async () => {
@@ -125,8 +177,8 @@ describe('invitaciones pendientes: la lista', () => {
 
   it('«vencida» la decide el servidor, no el reloj del navegador', async () => {
     usarHandlersUsuarios([
-      invitacionPendiente({ venceEnDias: -3, vencida: false }),
-      invitacionPendiente({
+      personaPendiente({ venceEnDias: -3, vencida: false }),
+      personaPendiente({
         id: '55555555-5555-4555-8555-555555555555',
         email: 'otra@ferreteria.mx',
         venceEnDias: 5,
@@ -136,6 +188,10 @@ describe('invitaciones pendientes: la lista', () => {
     montar();
     await listaLista();
     expect(within(fila(MARTA)).queryByText('Vencida')).toBeNull();
+    // El reloj solo escribe los días, y nunca baja de uno.
+    expect(
+      within(fila(MARTA)).getByText('Pendiente · vence en 1 día'),
+    ).toBeInTheDocument();
     expect(
       within(fila('otra@ferreteria.mx')).getByText('Vencida'),
     ).toBeInTheDocument();
@@ -151,49 +207,34 @@ describe('invitaciones pendientes: la lista', () => {
   it('mientras carga muestra un estado de carga y no la tabla', async () => {
     const compuerta = crearCompuerta();
     servidor.use(
-      http.get('/api/usuarios/invitaciones', async () => {
+      http.get('/api/usuarios', async () => {
         await compuerta.promesa;
-        return HttpResponse.json([]);
+        return HttpResponse.json([personaActiva()]);
       }),
     );
     montar();
-    const region = await screen.findByRole('region', {
-      name: 'Invitaciones pendientes',
-    });
+    const region = await screen.findByRole('region', { name: TITULO });
     expect(within(region).getByRole('status')).toHaveTextContent(
-      'Cargando invitaciones',
+      'Cargando personas',
     );
     expect(within(region).queryByRole('table')).toBeNull();
     compuerta.abrir();
-    expect(
-      await within(region).findByText(/No hay invitaciones pendientes/),
-    ).toBeInTheDocument();
+    expect(await within(region).findByText(ANA)).toBeInTheDocument();
   });
 
-  it('sin pendientes lo dice (pendientes_vacio)', async () => {
-    usarHandlersUsuarios([]);
-    montar();
-    expect(
-      await screen.findByText(
-        'No hay invitaciones pendientes. Las que envíes aparecerán aquí hasta que se acepten.',
-      ),
-    ).toBeInTheDocument();
-    expect(within(seccion()).queryByRole('table')).toBeNull();
-  });
-
-  it('si no carga muestra el error y «Reintentar» vuelve a pedirla (pendientes_error)', async () => {
-    listarPendientesFalla(500);
+  it('si no carga muestra el error y «Reintentar» vuelve a pedirla (usuarios_error)', async () => {
+    listarUsuariosFalla(500);
     montar();
     const alerta = await within(
-      await screen.findByRole('region', { name: 'Invitaciones pendientes' }),
+      await screen.findByRole('region', { name: TITULO }),
     ).findByRole('alert');
-    expect(alerta).toHaveTextContent('No se pudo cargar las invitaciones.');
+    expect(alerta).toHaveTextContent('No se pudo cargar la lista de personas.');
     // El formulario de invitar sigue disponible.
     expect(
       screen.getByRole('form', { name: 'Invitar a una persona' }),
     ).toBeInTheDocument();
 
-    usarHandlersUsuarios(pendientesDelMockup());
+    usarHandlersUsuarios(personasDelMockup());
     await userEvent
       .setup()
       .click(within(alerta).getByRole('button', { name: 'Reintentar' }));
@@ -201,33 +242,50 @@ describe('invitaciones pendientes: la lista', () => {
     expect(fila(MARTA)).toBeInTheDocument();
   });
 
-  it('un fallo de red en la lista muestra el mismo error', async () => {
-    listarPendientesRedDeFallo();
+  it('un 403 al listar muestra el mismo error y no la tabla', async () => {
+    listarUsuariosFalla(403);
     montar();
     expect(
-      await screen.findByText('No se pudo cargar las invitaciones.'),
+      await screen.findByText('No se pudo cargar la lista de personas.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('un fallo de red en la lista muestra el mismo error', async () => {
+    listarUsuariosRedDeFallo();
+    montar();
+    expect(
+      await screen.findByText('No se pudo cargar la lista de personas.'),
     ).toBeInTheDocument();
   });
 
   it('una lista que no cumple el contrato no se pinta', async () => {
     servidor.use(
-      http.get('/api/usuarios/invitaciones', () =>
-        HttpResponse.json([{ id: 1 }]),
-      ),
+      http.get('/api/usuarios', () => HttpResponse.json([{ id: 1 }])),
     );
     montar();
     expect(
-      await screen.findByText('No se pudo cargar las invitaciones.'),
+      await screen.findByText('No se pudo cargar la lista de personas.'),
     ).toBeInTheDocument();
     expect(screen.queryByRole('table')).toBeNull();
   });
+
+  it('sin filas no hay estado vacío del mockup: ni tabla de error ni texto de vacío', async () => {
+    usarHandlersUsuarios([]);
+    montar();
+    await within(
+      await screen.findByRole('region', { name: TITULO }),
+    ).findByRole('table');
+    expect(screen.queryByText(/No hay invitaciones/)).toBeNull();
+    expect(within(seccion()).queryByRole('alert')).toBeNull();
+  });
 });
 
-describe('invitaciones pendientes: reenviar', () => {
+describe('lista de usuarios: reenviar', () => {
   it('reenvía, avisa en la fila y la lista muestra el vencimiento nuevo', async () => {
     montar();
     await listaLista();
-    const antes = listadosPendientesPedidos.cuenta;
+    const antes = listadosUsuariosPedidos.cuenta;
     const u = userEvent.setup();
     await u.click(reenviar(MARTA));
     const estado = await within(seccion()).findByRole('status');
@@ -238,14 +296,16 @@ describe('invitaciones pendientes: reenviar', () => {
       { accion: 'reenviar', id: '11111111-1111-4111-8111-111111111111' },
     ]);
     await waitFor(() =>
-      expect(listadosPendientesPedidos.cuenta).toBeGreaterThan(antes),
+      expect(listadosUsuariosPedidos.cuenta).toBeGreaterThan(antes),
     );
     // La fila nueva (otro id) lleva el aviso y la caducidad renovada.
     await waitFor(() =>
       expect(
-        within(fila(MARTA)).getByText('Vence en 7 días'),
+        within(fila(MARTA)).getByText('Pendiente · vence en 7 días'),
       ).toBeInTheDocument(),
     );
+    // Reenviar nunca vuelve activa a nadie: sigue habiendo una sola fila suya.
+    expect(within(seccion()).getAllByText(MARTA)).toHaveLength(1);
     expect(within(seccion()).getByRole('status')).toHaveTextContent(
       'Invitación reenviada',
     );
@@ -308,10 +368,10 @@ describe('invitaciones pendientes: reenviar', () => {
     );
     montar();
     await listaLista();
-    const antes = listadosPendientesPedidos.cuenta;
+    const antes = listadosUsuariosPedidos.cuenta;
     await userEvent.setup().click(reenviar(MARTA));
     await within(seccion()).findByRole('alert');
-    expect(listadosPendientesPedidos.cuenta).toBe(antes);
+    expect(listadosUsuariosPedidos.cuenta).toBe(antes);
     expect(fila(MARTA)).toBeInTheDocument();
   });
 
@@ -332,14 +392,14 @@ describe('invitaciones pendientes: reenviar', () => {
     const u = userEvent.setup();
     await u.click(reenviar(MARTA));
     await within(seccion()).findByRole('alert');
-    usarHandlersUsuarios(pendientesDelMockup());
+    usarHandlersUsuarios(personasDelMockup());
     await u.click(reenviar(CAMILA));
     await within(seccion()).findByRole('status');
     expect(within(seccion()).queryByRole('alert')).toBeNull();
   });
 });
 
-describe('invitaciones pendientes: cancelar', () => {
+describe('lista de usuarios: cancelar', () => {
   it('Cancelar abre la confirmación en la fila, sin llamar a la API (confirmar_cancelar)', async () => {
     montar();
     await listaLista();
@@ -405,19 +465,23 @@ describe('invitaciones pendientes: cancelar', () => {
     expect(fila(CAMILA)).toBeInTheDocument();
   });
 
-  it('cancelar la última deja la lista vacía y conserva el aviso', async () => {
-    usarHandlersUsuarios([pendientesDelMockup()[0]!]);
+  it('cancelar la última pendiente conserva a las activas y el aviso', async () => {
+    usarHandlersUsuarios([personaPendiente(), personaActiva()]);
     montar();
     await listaLista();
     const u = userEvent.setup();
     await u.click(cancelar(MARTA));
     await u.click(screen.getByRole('button', { name: 'Sí, cancelar' }));
     expect(
-      await screen.findByText(/No hay invitaciones pendientes/),
+      await within(seccion()).findByText(`Invitación a ${MARTA} cancelada.`),
     ).toBeInTheDocument();
-    expect(
-      within(seccion()).getByText(`Invitación a ${MARTA} cancelada.`),
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        within(seccion()).queryByText(MARTA, { selector: 'td' }),
+      ).toBeNull(),
+    );
+    expect(fila(ANA)).toBeInTheDocument();
+    expect(within(seccion()).queryAllByRole('button')).toHaveLength(0);
   });
 
   it.each([
@@ -465,13 +529,18 @@ describe('invitaciones pendientes: cancelar', () => {
   });
 });
 
-describe('invitaciones pendientes: permisos y refresco', () => {
+describe('lista de usuarios: permisos y refresco', () => {
   it('sin `usuarios.gestionar` la lista no trae Reenviar ni Cancelar ni el formulario', async () => {
     const capacidades = capacidadesDeRoles(['admin']).filter(
       (c: string) => c !== 'usuarios.gestionar',
     );
     montar(() => sesionConCapacidades(capacidades));
     await listaLista();
+    // La lista sí se ve, con activas y pendientes; solo faltan las acciones.
+    expect(within(fila(ANA)).getByText('Activo')).toBeInTheDocument();
+    expect(
+      within(fila(MARTA)).getByText('Pendiente · vence en 6 días'),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Reenviar/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Cancelar/ })).toBeNull();
     expect(
@@ -487,10 +556,8 @@ describe('invitaciones pendientes: permisos y refresco', () => {
     expect(
       await screen.findByText('No tienes permiso para esta acción.'),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('region', { name: 'Invitaciones pendientes' }),
-    ).toBeNull();
-    expect(listadosPendientesPedidos.cuenta).toBe(0);
+    expect(screen.queryByRole('region', { name: TITULO })).toBeNull();
+    expect(listadosUsuariosPedidos.cuenta).toBe(0);
   });
 
   it('tras invitar, la lista se vuelve a pedir y trae la nueva', async () => {
@@ -505,7 +572,9 @@ describe('invitaciones pendientes: permisos y refresco', () => {
     );
     await waitFor(() =>
       expect(
-        within(seccion()).getByText('luis@ferreteria.mx'),
+        within(fila('luis@ferreteria.mx')).getByText(
+          'Pendiente · vence en 7 días',
+        ),
       ).toBeInTheDocument(),
     );
   });

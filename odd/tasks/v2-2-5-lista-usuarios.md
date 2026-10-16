@@ -70,9 +70,10 @@ no ve la sección.
   estado pendiente/vencida, orden. Servicio + DTO + controlador + pruebas.
 - [x] **T2 — Frontend base.** Contrato zod `usuarios`/`usuario`, hook de
   lectura, claves de query, textos y errores de lectura.
-- [ ] **T3 — Mockup.** Actualizar Usuarios (oscuro y claro) con la tabla única;
-  acordar con el usuario antes de T4.
-- [ ] **T4 — Pantalla.** Tabla única con estado y acciones de la 2.4 en las
+- [x] **T3 — Mockup.** Actualizar Usuarios (oscuro y claro) con la tabla única;
+  acordar con el usuario antes de T4. Aprobado por el usuario el 2026-10-15
+  (canvas versión 77).
+- [x] **T4 — Pantalla.** Tabla única con estado y acciones de la 2.4 en las
   pendientes; estados de carga, vacío y error del mockup.
 - [ ] **T5 — Cierre.** Pruebas completas, bitácora, estado en `CUADRA.md`,
   PRs (en cadena si pasa de 400 líneas).
@@ -115,4 +116,34 @@ aparte (la 3 queda para después):
   be false`; GREEN: frontend 4308 pruebas, backend 1267, lint/format/typecheck
   sin errores.
 
-Siguiente paso: T3 (mockup).
+T3 hecha: mockup `Usuarios.dc.html` y `UsuariosClaro.dc.html` aprobados por el
+usuario el 2026-10-15 (canvas versión 77).
+
+T4 hecha (commit en esta rama). La tabla «Invitaciones pendientes» se
+reemplazó por «Personas de tu empresa» alimentada por `useUsuarios`.
+- Columnas: Correo, Roles, Estado, Enviada, Invitada por, Acciones; filas en el
+  orden del servidor. Estado: «Activo», «Pendiente · vence en N días» (reglas
+  de `vencimiento.ts`, mínimo 1 día) o «Vencida» (decide `vencida` del
+  servidor). Activas: «—» en Enviada e Invitada por y celda de acciones vacía;
+  pendientes: Reenviar y Cancelar de la 2.4 (mismas decisiones, acciones por
+  `invitacionId`). Sin estado vacío; cargando («Cargando personas») y error
+  con «Reintentar» como en el mockup.
+- Código muerto retirado: `useInvitacionesPendientes`, `clavesUsuarios.pendientes`,
+  los esquemas `invitacionPendiente`/`invitacionesPendientes` y sus pruebas;
+  la invalidación de invitar, reenviar y cancelar queda solo sobre `lista`.
+  `useInvitarUsuario` ahora espera la invalidación (como las acciones).
+- Contrato: una activa con `invitacionId`, `venceEn`, `creadaEn` o
+  `invitadaPor` no nulos se rechaza.
+- Renombres: `ListaUsuarios`, `ListaUsuariosContenedor`, `PERSONAS` en
+  `textos.ts`; el handler de pruebas sirve `GET /api/usuarios`.
+- Chip vencida: `--color-danger-tint` (no `--color-danger-chip`, reservado a
+  la bitácora); activo: tokens `--estado-conciliado-*`.
+- RED: `npx vitest run src/features/usuarios src/shared/api/contratos/usuarios.test.ts src/app/usuariosFlujos.test.tsx`
+  → 49 pruebas fallan (37 en `ListaUsuarios.test.tsx`, 6 en
+  `UsuariosPage.test.tsx`, 3 del contrato `rechaza una activa con venceEn|creadaEn|invitadaPor`
+  con `expected true to be false`, 2 de `vencimiento`, 1 de `usuariosFlujos`).
+- GREEN: mismo comando → 7 archivos, 107 pruebas pasan. `npm test`: 269
+  archivos, 4302 pruebas pasan. `npm run lint`, `npm run format:check` y
+  `npm run typecheck` sin errores.
+
+Siguiente paso: T5 (cierre).
