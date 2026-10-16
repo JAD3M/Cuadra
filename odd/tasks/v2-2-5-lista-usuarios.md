@@ -75,8 +75,10 @@ no ve la sección.
   (canvas versión 77).
 - [x] **T4 — Pantalla.** Tabla única con estado y acciones de la 2.4 en las
   pendientes; estados de carga, vacío y error del mockup.
-- [ ] **T5 — Cierre.** Pruebas completas, bitácora, estado en `CUADRA.md`,
-  PRs (en cadena si pasa de 400 líneas).
+- [x] **T5 — Cierre.** Pruebas completas, bitácora, estado en `CUADRA.md`,
+  PRs (en cadena si pasa de 400 líneas). Ruta: delegada (un escritor).
+  Commits: `446e1c2` (arreglo «vence en NaN») y el de bitácora. `CUADRA.md` no
+  cambia (como en la 2.4, sigue el estado de la v1).
 
 ## Rutas y evidencia
 
@@ -146,4 +148,30 @@ reemplazó por «Personas de tu empresa» alimentada por `useUsuarios`.
   archivos, 4302 pruebas pasan. `npm run lint`, `npm run format:check` y
   `npm run typecheck` sin errores.
 
-Siguiente paso: T5 (cierre).
+T5 hecha. Arreglo previo al cierre: `textoVence` con una fecha no
+interpretable dice «Pendiente» y no «vence en NaN días».
+- RED: `npx vitest run src/features/usuarios/vencimiento.test.ts` → 1 falla
+  (`expected { texto: 'Pendiente · vence en 1 día' } to deeply equal 'Pendiente'`).
+- GREEN: mismo comando → 6 pasan.
+- Comprobaciones finales: backend `npm test` 60 suites y 1267 pruebas pasan;
+  `npm run typecheck`, `npm run lint`, `npm run build` y
+  `npx prettier --check "src/**/*.ts"` sin errores. Frontend `npm test` 269
+  archivos y 4303 pruebas pasan; `npm run lint`, `npm run format:check` y
+  `npm run typecheck` sin errores.
+
+### Revisión
+
+Tres revisiones nativas aprobadas (T1, T2 y T4), observaciones atendidas. La
+base por defecto era el commit del 13 oct y excedía el presupuesto del
+revisor: se revisó por rebanada con `--base-ref`.
+
+### Rebanadas (cadena `stacked-to-main`)
+
+| # | Contenido | Commits | Cambio |
+|---|-----------|---------|--------|
+| 1 | Backend `GET /usuarios` | `f3985bd` | 6 archivos, +588 −3 |
+| 2 | Contrato y hook del frontend | `87c542e`, `9012c3f` | 10 archivos, +333 −4 |
+| 3 | Pantalla, arreglo y docs | `b37b4a7`, `446e1c2`, bitácora | 17 archivos, +541 −411 (sin contar los docs) |
+
+La rebanada 3 pasa de 400 líneas por el código muerto retirado y los renombres
+(411 borradas); la parte nueva es menor.

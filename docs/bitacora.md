@@ -5,6 +5,35 @@
 
 ### 15 oct 2026
 
+- **Historia 2.5 de la v2: ver la lista de usuarios de mi empresa (FR-41,
+  FR-50, AD-14).** Rama `feat/v2-2-5-lista-usuarios` con ODD, desde la rama de
+  la 2.4. El backend se hizo primero; el mockup (tabla única de personas con
+  Estado, oscuro y claro) se creó y se aprobó antes de la interfaz.
+  - **T1 `f3985bd`:** `GET /usuarios` con `usuarios.ver`/`usuarios.gestionar`:
+    personas activas con sus roles de esa empresa y pendientes con su
+    invitación (vencimiento, envío, quién invitó). Una consulta con
+    `company_id` en ambas ramas.
+  - **T2 `87c542e` y `9012c3f`:** contrato `usuarioListado`, clave de query y
+    hook `useUsuarios`; prueba de integración del dedup sin distinguir
+    mayúsculas y contrato que rechaza `pendiente` sin datos de invitación y
+    `activo` con ellos.
+  - **T4 `b37b4a7`:** la tabla «Invitaciones pendientes» se reemplazó por
+    «Personas de tu empresa» (Correo, Roles, Estado, Enviada, Invitada por,
+    Acciones) con Reenviar y Cancelar de la 2.4 en las pendientes. Código
+    muerto retirado (`useInvitacionesPendientes` y sus esquemas).
+  - **Cierre `446e1c2`:** una pendiente sin fecha interpretable dice
+    «Pendiente», nunca «vence en NaN días».
+  - **Decisiones:** tabla única (opción A) y no dos secciones; la persona
+    activa gana sobre una invitación abierta del mismo correo; los usuarios
+    inactivos no se listan y sus invitados salen como pendientes; solo se
+    muestran los roles de esta empresa; el contrato rechaza campos de
+    invitación en las activas; sin estado vacío propio.
+  - **Revisión:** tres revisiones nativas aprobadas y sus observaciones
+    atendidas. La base por defecto era el commit del 13 oct y excedía el
+    presupuesto del revisor; se revisó por rebanada con `--base-ref`.
+  - **Pendiente:** cambiar o quitar roles es la 2.6; paginación y búsqueda no
+    están incluidas.
+
 - **Historia 2.4 de la v2: reenviar o cancelar una invitación pendiente
   (FR-42, FR-50, AD-14, AD-7).** Rama `feat/v2-2-4-reenviar-cancelar-invitacion`
   con ODD, desde `master` tras la 2.3. El backend se hizo primero; el mockup
