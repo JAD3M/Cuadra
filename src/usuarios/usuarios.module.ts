@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { CorreoModule } from '../correo/correo.module';
 import { InvitacionesPendientesService } from './invitaciones-pendientes.service';
 import { InvitarUsuariosService } from './invitar-usuarios.service';
+import { ListarUsuariosService } from './listar-usuarios.service';
 import { UsuariosController } from './usuarios.controller';
 
 /**
@@ -12,6 +13,10 @@ import { UsuariosController } from './usuarios.controller';
 @Module({
   imports: [CorreoModule],
   controllers: [UsuariosController],
-  providers: [InvitarUsuariosService, InvitacionesPendientesService],
+  providers: [
+    InvitarUsuariosService,
+    InvitacionesPendientesService,
+    ListarUsuariosService,
+  ],
 })
 export class UsuariosModule {}
