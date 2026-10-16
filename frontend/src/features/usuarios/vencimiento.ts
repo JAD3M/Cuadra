@@ -16,7 +16,11 @@ export function textoVence(
   ahora: number = Date.now(),
 ): { texto: string; vencida: boolean } {
   if (vencida) return { texto: PERSONAS.vencida, vencida: true };
-  const dias = Math.max(1, Math.ceil((Date.parse(venceEn) - ahora) / DIA_MS));
+  const fecha = Date.parse(venceEn);
+  // El contrato exige `venceEn` en una pendiente; si aun así no se entiende,
+  // se dice solo «Pendiente» en lugar de «vence en NaN días».
+  if (Number.isNaN(fecha)) return { texto: 'Pendiente', vencida: false };
+  const dias = Math.max(1, Math.ceil((fecha - ahora) / DIA_MS));
   return {
     texto: PERSONAS.pendiente(dias === 1 ? '1 día' : `${dias} días`),
     vencida: false,

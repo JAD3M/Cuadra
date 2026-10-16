@@ -5,6 +5,14 @@ const DIA = 86_400_000;
 const AHORA = Date.parse('2026-10-15T12:00:00.000Z');
 
 describe('textoVence', () => {
+  it('una pendiente sin fecha interpretable dice «Pendiente» y nunca NaN', () => {
+    for (const venceEn of ['', 'no-es-fecha']) {
+      const r = textoVence(venceEn, false, AHORA);
+      expect(r).toEqual({ texto: 'Pendiente', vencida: false });
+      expect(r.texto).not.toContain('NaN');
+    }
+  });
+
   it('una vencida (según el servidor) dice «Vencida» aunque la fecha sea futura', () => {
     expect(textoVence('2026-10-30T12:00:00.000Z', true, AHORA)).toEqual({
       texto: 'Vencida',
