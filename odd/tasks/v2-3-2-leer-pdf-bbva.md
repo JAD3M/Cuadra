@@ -59,13 +59,28 @@ motivo.
   Alternativa si falla bajo jest/ESM: `pdfjs-dist` (build legacy). Se confirma en
   el spike de T1 con RED/GREEN reales; el contrato del lector no cambia.
 
+- **Layout sintético de T2** (propuesto el 2026-10-27, SINTÉTICO: no es el
+  formato real de BBVA y debe validarse con un PDF real). Texto tal como lo
+  entrega la extracción, una línea por renglón:
+  - Encabezado: `Periodo DEL 01/10/2026 AL 31/10/2026`, `Moneda MXN`,
+    `Saldo Anterior 10,000.00`, `Saldo Final 11,250.50`.
+  - Movimiento: `DD/MMM DD/MMM <descripción> <importe> <saldo>`; la primera
+    fecha es la de operación (el año sale del periodo). Referencia opcional
+    como `Ref. <texto>` al final de la descripción.
+  - El texto extraído pierde la columna cargo/abono, así que el **signo se
+    deduce del saldo corrido** (saldo − saldo anterior = importe con signo). Si
+    no cuadra, la línea va a `lineasNoLeidas`; nunca se adivina el signo
+    (un falso positivo es peor que no conciliar).
+  - Sin `Moneda MXN` explícita en el encabezado, o con otra moneda, se rechaza
+    con `moneda_no_mxn`.
+
 ## Tareas
 
 - [x] **T1 — Adaptador de texto PDF + spike de librería.** RED primero: dado un
   PDF con texto devuelve el texto; sin texto/escaneado lanza el rechazo con
   código estable; confirma que la librería corre bajo jest del repo (ESM). Sin
   evidencia de RED no se avanza.
-- [ ] **T2 — Lector BBVA puro.** Pruebas con texto de ejemplo (no el binario):
+- [x] **T2 — Lector BBVA puro.** Pruebas con texto de ejemplo (no el binario):
   saldos, movimientos normalizados, líneas no leídas, rechazo si no es MXN.
   Fixture PDF sintético marcado en el repo.
 - [ ] **T3 — Carga por API.** Guard `.pdf` con magic bytes, ramificar por banco
@@ -98,3 +113,12 @@ Los seis criterios de la Story 3.2 en `epics.md`.
   No hizo falta `pdfjs-dist`. Contrato: `extraerTextoPdf(Buffer)` en
   `src/bancos/pdf/`; códigos `pdf_sin_texto` y `pdf_ilegible`. El backend no
   tiene script `format:check` (solo el frontend); se usó `prettier --check`.
+- 2026-10-27: T2 hecha. Ruta: escritor delegado (2+ archivos). RED: specs sin
+  módulo (`Cannot find module './lector-bbva'`, 2 suites); GREEN: 14 tests
+  nuevos. Suite backend 65 suites / 1377 tests, typecheck, build, lint y
+  prettier OK. Lector en `src/bancos/pdf/lector-bbva.ts` (aritmética con
+  `dinero`, sin flotantes). Una línea que no cuadra no mueve el saldo corrido,
+  así que las siguientes también van a `lineasNoLeidas` (nunca se adivina).
+  Fixture `src/bancos/fixtures/bbva-sintetico.pdf` (+ LEEME) con banner
+  ASCII: el helper pierde la É en Type1. Layout SINTÉTICO, falta PDF real.
+  Siguiente: T3.
