@@ -1,6 +1,6 @@
 // Constructores de los cuerpos multipart de las dos subidas. Los nombres de las
 // partes son los del backend: `archivos` (CFDI) y `archivo`, `banco`, `cuenta`,
-// `perfil` (estado de cuenta). No validan nada: la selección ya se evaluó y el
+// `perfil` (estado de cuenta); `archivo` y `banco` (lectura de PDF). No validan nada: la selección ya se evaluó y el
 // servidor es quien decide.
 
 /** CFDI: una parte `archivos` por XML y ninguna otra. */
@@ -29,5 +29,19 @@ export function construirFormEstadoCuenta(datos: DatosEstadoCuenta): FormData {
   if (datos.banco.trim() !== '') form.append('banco', datos.banco);
   if (datos.cuenta.trim() !== '') form.append('cuenta', datos.cuenta);
   if (datos.perfil !== null) form.append('perfil', datos.perfil);
+  return form;
+}
+
+export interface DatosLecturaPdf {
+  archivo: File;
+  /** El id del banco que lee el PDF (`bbva`). */
+  banco: string;
+}
+
+/** Lectura de PDF: `archivo` y `banco`, nada más. */
+export function construirFormLecturaPdf(datos: DatosLecturaPdf): FormData {
+  const form = new FormData();
+  form.append('archivo', datos.archivo);
+  form.append('banco', datos.banco);
   return form;
 }

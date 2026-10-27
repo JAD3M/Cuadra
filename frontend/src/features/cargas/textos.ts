@@ -192,6 +192,54 @@ export const TEXTO_MONEDA_NO_MXN = {
     'El estado de cuenta no está en MXN. Cuadra solo procesa estados de cuenta en pesos mexicanos.',
 } as const;
 
+/** Selector de formato de la tarjeta de estado de cuenta (mockup 2026-10-27). */
+export const FORMATO_ESTADO_CUENTA = {
+  grupo: 'Formato del estado de cuenta',
+  csv: 'CSV',
+  pdf: 'PDF BBVA',
+} as const;
+
+/** Modo PDF de la tarjeta: solo lectura, no se importa nada (historia 3.2). */
+export const TARJETA_ESTADO_CUENTA_PDF = {
+  limites: 'Solo .pdf · un archivo · hasta 10 MB',
+  leer: 'Leer estado de cuenta',
+  soloLectura: 'Solo lectura: no se importó nada.',
+} as const;
+
+export const LEYENDO = 'Leyendo…';
+export const LEYENDO_ESTADO_CUENTA = 'Leyendo el estado de cuenta…';
+
+export const RECHAZO_ESTADO_CUENTA_PDF = {
+  extension: 'Solo se aceptan archivos .pdf',
+  tamano: 'El archivo pasa de 10 MB',
+  // Un solo archivo: no hay tope de cantidad ni de total (ver RECHAZO_ESTADO_CUENTA).
+  cantidad: 'El archivo pasa de 10 MB',
+  total: 'El archivo pasa de 10 MB',
+} as const satisfies Record<MotivoRechazo, string>;
+
+/** Resultado de leer un PDF: «{n} movimientos leídos, {m} líneas no leídas.» (cifras aparte). */
+export const RESUMEN_LECTURA_PDF = {
+  movimientos: 'movimientos leídos,',
+  lineas: 'líneas no leídas.',
+} as const;
+export const SALDO_INICIAL = 'Saldo inicial';
+export const SALDO_FINAL = 'Saldo final';
+/** Marca de advertencia cuando hubo líneas que no se pudieron leer. */
+export const MARCA_LINEAS_NO_LEIDAS = 'líneas no leídas';
+
+/** PDF sin texto seleccionable: el texto es del frontend, por código de error. */
+export const TEXTO_PDF_SIN_TEXTO = {
+  titulo: 'No se pudo leer el PDF',
+  detalle:
+    'El PDF no tiene texto seleccionable (parece una imagen escaneada). Descarga el PDF desde el portal del banco.',
+} as const;
+
+/** PDF con un formato que el lector del banco no reconoce. */
+export const TEXTO_PDF_ILEGIBLE = {
+  titulo: 'No se pudo leer el PDF',
+  detalle: 'No reconocimos el formato del estado de cuenta BBVA.',
+} as const;
+
 /** CFDI en una moneda que Cuadra no concilia (mockup 2026-10-27). */
 export const LEYENDA_MONEDA_NO_SOPORTADA =
   '⚠ Se guardó, pero Cuadra no concilia monedas distintas de MXN.';

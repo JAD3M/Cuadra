@@ -6,6 +6,7 @@ import type {
   RespuestaCarga,
 } from '@/shared/api/contratos';
 import {
+  BANCOS_PDF,
   LIMITES_CARGA,
   PERFIL_POR_DEFECTO,
   TIPO_CFDI,
@@ -22,9 +23,21 @@ import { LISTA_DE_VEINTE, PERFILES, hace } from '@/test/fixturesCargas';
 //    validan como el servidor (400), responden 202 con una carga `pendiente` o
 //    200 con `yaExistia` si el mismo lote ya se subió, y la carga nueva
 //    aparece en la lista.
+//  - `POST /cargas/estado-cuenta/pdf` (historia 3.2): lee el PDF y responde 200
+//    con los saldos como cadenas y los conteos; no importa nada, no crea carga
+//    y no toca la lista.
 // El estado vive en memoria: `reiniciar()` lo devuelve al de arranque y la
 // preparación global de pruebas lo llama tras cada prueba. Una prueba mueve
 // una carga de estado con `avanzar` y retiene respuestas con `compuertas`.
+
+/** Lo que responde la lectura de un PDF de BBVA: saldos como cadenas decimales. */
+export const LECTURA_PDF = {
+  banco: 'bbva',
+  saldoInicial: '10000.00',
+  saldoFinal: '11250.50',
+  movimientosLeidos: 14,
+  lineasNoLeidas: 2,
+} as const;
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const LIMITE_LISTA = 20;
@@ -44,7 +57,7 @@ export interface ArchivoRecibido {
 
 /** Lo que recibió un POST de subida, para que la prueba lo inspeccione. */
 export interface SubidaRecibida {
-  ruta: 'cfdi' | 'estado-cuenta';
+  ruta: 'cfdi' | 'estado-cuenta' | 'estado-cuenta/pdf';
   archivos: ArchivoRecibido[];
   /** Campos de texto del multipart, en orden de llegada. */
   campos: Array<[string, string]>;
@@ -261,8 +274,43 @@ export function crearHandlersCargas(
     },
   );
 
+  const leerPdf = http.post(
+    '/api/cargas/estado-cuenta/pdf',
+    async ({ request }) => {
+      const recibida = await leerSubida(request, 'estado-cuenta/pdf');
+      subidas.push(recibida);
+      await compuertas.subida;
+      const [archivo] = recibida.archivos;
+      if (archivo === undefined || archivo.campo !== 'archivo') {
+        return ERROR_NEST(400, 'Falta el archivo en el campo "archivo"');
+      }
+      if (
+        !archivo.nombre
+          .toLowerCase()
+          .endsWith(LIMITES_CARGA.estadoCuentaPdf.extension)
+      ) {
+        return ERROR_NEST(
+          400,
+          `Solo se aceptan archivos ${LIMITES_CARGA.estadoCuentaPdf.extension}: "${archivo.nombre}"`,
+        );
+      }
+      const banco = recibida.campos.find(([n]) => n === 'banco')?.[1] ?? '';
+      if (!BANCOS_PDF.some((b) => b.id === banco)) {
+        return ERROR_NEST(400, 'Banco desconocido');
+      }
+      return HttpResponse.json(LECTURA_PDF);
+    },
+  );
+
   return {
-    handlers: [lista, detalle, listaDePerfiles, subirCfdi, subirEstadoCuenta],
+    handlers: [
+      lista,
+      detalle,
+      listaDePerfiles,
+      subirCfdi,
+      subirEstadoCuenta,
+      leerPdf,
+    ],
     /** Las cargas que sirve la lista, en el orden en que se guardaron. */
     filas: (): readonly ItemCarga[] => items,
     /** Reemplaza las cargas de la lista (y descarta los detalles propios). */
@@ -364,8 +412,12 @@ export function perfilesFalla(status: number) {
   );
 }
 
-type RutaDeSubida = 'cfdi' | 'estado-cuenta';
-const RUTAS_DE_SUBIDA: readonly RutaDeSubida[] = ['cfdi', 'estado-cuenta'];
+type RutaDeSubida = SubidaRecibida['ruta'];
+const RUTAS_DE_SUBIDA: readonly RutaDeSubida[] = [
+  'cfdi',
+  'estado-cuenta',
+  'estado-cuenta/pdf',
+];
 
 /** Los dos POST de subida responden `status` con un cuerpo de Nest (400, 403, 500). */
 export function subidaFalla(status: number, mensaje = 'detalle del servidor') {
@@ -472,5 +524,25 @@ export function subidaEstadoCuentaMonedaNoMxn() {
       },
       { status: 400 },
     ),
+  );
+}
+
+/**
+ * `POST /cargas/estado-cuenta/pdf` rechaza el PDF con un 400 de código estable
+ * (`pdf_sin_texto`, `pdf_ilegible`, `moneda_no_mxn`; historia 3.2).
+ */
+export function lecturaPdfRechazada(codigo: string, mensaje = 'detalle') {
+  return http.post('/api/cargas/estado-cuenta/pdf', () =>
+    HttpResponse.json(
+      { statusCode: 400, message: mensaje, error: codigo },
+      { status: 400 },
+    ),
+  );
+}
+
+/** `POST /cargas/estado-cuenta/pdf` responde 200 con un cuerpo fuera de contrato. */
+export function lecturaPdfFueraDeContrato() {
+  return http.post('/api/cargas/estado-cuenta/pdf', () =>
+    HttpResponse.json({ ...LECTURA_PDF, saldoInicial: 10000 }),
   );
 }

@@ -39,6 +39,17 @@ export const RESULTADO_ERROR = 'error' as const satisfies ResultadoArchivo;
 /** src/bancos/perfiles-bancarios.ts: el perfil si el POST no dice otro. */
 export const PERFIL_POR_DEFECTO = 'cuadra';
 
+/** Cómo se manda el estado de cuenta: el CSV se importa, el PDF solo se lee. */
+export type ModoEstadoCuenta = 'csv' | 'pdf';
+
+/**
+ * Bancos con lector de PDF (historia 3.2). No hay endpoint que los liste: es
+ * un espejo de `src/bancos/pdf/lectores-pdf.ts`. El `id` es lo que espera el
+ * POST (`banco`); el `nombre` es lo que ve la persona.
+ */
+export const BANCOS_PDF = [{ id: 'bbva', nombre: 'BBVA' }] as const;
+export const BANCO_PDF_BBVA = BANCOS_PDF[0].id;
+
 const MB = 1024 * 1024;
 
 /**
@@ -57,5 +68,10 @@ export const LIMITES_CARGA = {
     maxBytesPorArchivo: 10 * MB,
     maxBanco: 128,
     maxCuenta: 32,
+  },
+  /** `POST /cargas/estado-cuenta/pdf`: un solo `.pdf` de hasta 10 MB. */
+  estadoCuentaPdf: {
+    extension: '.pdf',
+    maxBytesPorArchivo: 10 * MB,
   },
 } as const;

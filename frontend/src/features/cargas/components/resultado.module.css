@@ -137,3 +137,49 @@
   min-inline-size: 0;
   overflow-wrap: anywhere;
 }
+
+/* Saldos de la lectura de un PDF (historia 3.2): rótulo y cifra, sin partirse. */
+.saldos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+}
+
+.saldoFila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-12);
+}
+
+.saldoRotulo {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.saldoValor {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Líneas que no se leyeron: ámbar con ⚠ y texto; el color nunca es el único canal. */
+.advertencia {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 2px var(--space-8);
+  border: 1px solid var(--estado-sin-match-tile-border);
+  border-radius: var(--radius-full);
+  background: var(--estado-sin-match-tint);
+  color: var(--estado-sin-match-text);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}

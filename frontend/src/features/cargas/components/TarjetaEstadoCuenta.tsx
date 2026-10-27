@@ -1,16 +1,26 @@
 import { useId, type ReactNode, type Ref } from 'react';
 import {
   REGLAS_ESTADO_CUENTA,
+  REGLAS_ESTADO_CUENTA_PDF,
   evaluarSeleccion,
 } from '@/features/cargas/seleccion';
 import {
   ELEGIR_ARCHIVO,
+  FORMATO_ESTADO_CUENTA,
+  LEYENDO,
   RECHAZO_ESTADO_CUENTA,
+  RECHAZO_ESTADO_CUENTA_PDF,
   SUBIENDO,
   TARJETA_ESTADO_CUENTA,
+  TARJETA_ESTADO_CUENTA_PDF,
 } from '@/features/cargas/textos';
-import { LIMITES_CARGA } from '@/shared/dominio';
+import {
+  BANCOS_PDF,
+  LIMITES_CARGA,
+  type ModoEstadoCuenta,
+} from '@/shared/dominio';
 import { Button } from '@/shared/ui/Button';
+import { AvisoYaExistia } from './AvisoYaExistia';
 import { CampoCuenta } from './CampoCuenta';
 import { CampoPerfil } from './CampoPerfil';
 import { ListaArchivos } from './ListaArchivos';
@@ -20,7 +30,10 @@ import campos from './campos.module.css';
 import estilos from './tarjeta.module.css';
 
 export interface TarjetaEstadoCuentaProps {
-  /** El CSV elegido, sin filtrar; `null` si aún no hay. */
+  /** Formato del estado de cuenta; por omisión CSV (se importa). El PDF solo se lee. */
+  modo?: ModoEstadoCuenta;
+  onModo?: (modo: ModoEstadoCuenta) => void;
+  /** El archivo elegido (CSV o PDF, según el modo), sin filtrar; `null` si aún no hay. */
   archivo: File | null;
   banco: string;
   cuenta: string;
@@ -50,11 +63,27 @@ export interface TarjetaEstadoCuentaProps {
   alerta?: ReactNode;
 }
 
+function botonTexto(esPdf: boolean, subiendo: boolean): string {
+  if (esPdf) {
+    return subiendo ? LEYENDO : TARJETA_ESTADO_CUENTA_PDF.leer;
+  }
+  return subiendo ? SUBIENDO : TARJETA_ESTADO_CUENTA.subir;
+}
+
+const MODOS: readonly { modo: ModoEstadoCuenta; texto: string }[] = [
+  { modo: 'csv', texto: FORMATO_ESTADO_CUENTA.csv },
+  { modo: 'pdf', texto: FORMATO_ESTADO_CUENTA.pdf },
+];
+
 /**
- * Tarjeta de estado de cuenta: banco, cuenta, perfil, un CSV y el botón de
- * subir. Solo presentación; el estado y el envío viven en el contenedor.
+ * Tarjeta de estado de cuenta. En modo CSV: banco, cuenta, perfil, un CSV y el
+ * botón de subir. En modo PDF (historia 3.2): solo el banco (fijo), un PDF y el
+ * botón de leer; no se importa nada. Solo presentación; el estado y el envío
+ * viven en el contenedor.
  */
 export function TarjetaEstadoCuenta({
+  modo = 'csv',
+  onModo,
   archivo,
   banco,
   cuenta,
@@ -76,10 +105,9 @@ export function TarjetaEstadoCuenta({
   const idTitulo = useId();
   const idBanco = useId();
   const inactiva = deshabilitada || subiendo;
-  const evaluados = evaluarSeleccion(
-    archivo === null ? [] : [archivo],
-    REGLAS_ESTADO_CUENTA,
-  );
+  const esPdf = modo === 'pdf';
+  const reglas = esPdf ? REGLAS_ESTADO_CUENTA_PDF : REGLAS_ESTADO_CUENTA;
+  const evaluados = evaluarSeleccion(archivo === null ? [] : [archivo], reglas);
   const aceptado = evaluados[0]?.motivo === null ? archivo : null;
 
   return (
@@ -87,40 +115,87 @@ export function TarjetaEstadoCuenta({
       <h2 id={idTitulo} className={`${estilos.rotulo} ${estilos.rotuloCsv}`}>
         {TARJETA_ESTADO_CUENTA.titulo}
       </h2>
-      <div className={estilos.rejilla}>
-        <div className={campos.campo}>
-          <label htmlFor={idBanco} className={campos.etiqueta}>
-            {TARJETA_ESTADO_CUENTA.banco}
-          </label>
-          <input
-            id={idBanco}
-            className={campos.control}
-            value={banco}
-            maxLength={LIMITES_CARGA.estadoCuenta.maxBanco}
-            disabled={inactiva}
-            onChange={(e) => onBanco(e.target.value)}
-          />
-        </div>
-        <CampoCuenta
-          valor={cuenta}
-          onCambiar={onCuenta}
-          deshabilitado={inactiva}
-        />
-        <div className={estilos.ancha}>
-          <CampoPerfil
-            perfiles={perfiles}
-            fallo={perfilesFallo}
-            valor={perfil ?? ''}
-            onCambiar={onPerfil}
-            onReintentar={onReintentarPerfiles}
-            deshabilitado={inactiva}
-          />
-        </div>
+      <div
+        className={estilos.modos}
+        role="group"
+        aria-label={FORMATO_ESTADO_CUENTA.grupo}
+      >
+        {MODOS.map(({ modo: m, texto }) => (
+          <button
+            key={m}
+            type="button"
+            className={estilos.modo}
+            aria-pressed={modo === m}
+            disabled={subiendo}
+            onClick={() => onModo?.(m)}
+          >
+            {texto}
+          </button>
+        ))}
       </div>
+      <div className={estilos.rejilla}>
+        {esPdf ? (
+          <div className={`${campos.campo} ${estilos.ancha}`}>
+            <label htmlFor={idBanco} className={campos.etiqueta}>
+              {TARJETA_ESTADO_CUENTA.banco}
+            </label>
+            {/* Lista fija: el lector de PDF existe solo para estos bancos. */}
+            <select
+              id={idBanco}
+              className={campos.control}
+              value={BANCOS_PDF[0].id}
+              disabled={inactiva}
+              onChange={() => undefined}
+            >
+              {BANCOS_PDF.map((banco) => (
+                <option key={banco.id} value={banco.id}>
+                  {banco.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <>
+            <div className={campos.campo}>
+              <label htmlFor={idBanco} className={campos.etiqueta}>
+                {TARJETA_ESTADO_CUENTA.banco}
+              </label>
+              <input
+                id={idBanco}
+                className={campos.control}
+                value={banco}
+                maxLength={LIMITES_CARGA.estadoCuenta.maxBanco}
+                disabled={inactiva}
+                onChange={(e) => onBanco(e.target.value)}
+              />
+            </div>
+            <CampoCuenta
+              valor={cuenta}
+              onCambiar={onCuenta}
+              deshabilitado={inactiva}
+            />
+            <div className={estilos.ancha}>
+              <CampoPerfil
+                perfiles={perfiles}
+                fallo={perfilesFallo}
+                valor={perfil ?? ''}
+                onCambiar={onPerfil}
+                onReintentar={onReintentarPerfiles}
+                deshabilitado={inactiva}
+              />
+            </div>
+          </>
+        )}
+      </div>
+      {esPdf ? (
+        <div role="status">
+          <AvisoYaExistia frases={[TARJETA_ESTADO_CUENTA_PDF.soloLectura]} />
+        </div>
+      ) : null}
       <div className={estilos.elegir}>
         <SelectorArchivos
           etiqueta={ELEGIR_ARCHIVO}
-          accept={REGLAS_ESTADO_CUENTA.extension}
+          accept={reglas.extension}
           variante="secundario"
           deshabilitado={inactiva}
           onElegir={(archivos) => onSeleccionar(archivos[0] ?? null)}
@@ -128,12 +203,16 @@ export function TarjetaEstadoCuenta({
       </div>
       <ListaArchivos
         archivos={evaluados}
-        motivos={RECHAZO_ESTADO_CUENTA}
+        motivos={esPdf ? RECHAZO_ESTADO_CUENTA_PDF : RECHAZO_ESTADO_CUENTA}
         rotulo={TARJETA_ESTADO_CUENTA.archivo}
         apagada={subiendo}
       />
       <div className={estilos.pie}>
-        <span className={estilos.ayuda}>{TARJETA_ESTADO_CUENTA.limites}</span>
+        <span className={estilos.ayuda}>
+          {esPdf
+            ? TARJETA_ESTADO_CUENTA_PDF.limites
+            : TARJETA_ESTADO_CUENTA.limites}
+        </span>
         <Button
           tono="sin_match"
           disabled={inactiva || aceptado === null}
@@ -141,10 +220,10 @@ export function TarjetaEstadoCuenta({
             if (aceptado !== null) onSubir(aceptado);
           }}
         >
-          {subiendo ? SUBIENDO : TARJETA_ESTADO_CUENTA.subir}
+          {botonTexto(esPdf, subiendo)}
         </Button>
       </div>
-      <RegionResultado subiendo={subiendo} regionRef={regionRef}>
+      <RegionResultado subiendo={subiendo && !esPdf} regionRef={regionRef}>
         {resultado}
       </RegionResultado>
       {alerta}

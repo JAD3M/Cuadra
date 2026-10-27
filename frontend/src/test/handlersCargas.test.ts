@@ -6,6 +6,7 @@ import {
   PERFILES,
 } from '@/test/fixturesCargas';
 import {
+  LECTURA_PDF,
   detalleFalla,
   listaFalla,
   listaRedDeFallo,
@@ -181,6 +182,29 @@ describe('POST de subida con estado', () => {
       body: formulario([['archivo', 'otro.csv']], { perfil: 'no-existe' }),
     });
     expect(malo.status).toBe(400);
+  });
+
+  it('lectura de PDF: 200 con saldos como cadenas, sin crear carga; extensión o banco malos 400', async () => {
+    const antes = cargas.filas().length;
+    const ok = await pedir('/cargas/estado-cuenta/pdf', {
+      method: 'POST',
+      body: formulario([['archivo', 'estado.pdf']], { banco: 'bbva' }),
+    });
+    expect(ok.status).toBe(200);
+    expect(ok.cuerpo).toEqual(LECTURA_PDF);
+    expect(cargas.filas()).toHaveLength(antes);
+    expect(cargas.subidas()[0]?.ruta).toBe('estado-cuenta/pdf');
+    expect(cargas.subidas()[0]?.campos).toEqual([['banco', 'bbva']]);
+    const csv = await pedir('/cargas/estado-cuenta/pdf', {
+      method: 'POST',
+      body: formulario([['archivo', 'movs.csv']], { banco: 'bbva' }),
+    });
+    expect(csv.status).toBe(400);
+    const otro = await pedir('/cargas/estado-cuenta/pdf', {
+      method: 'POST',
+      body: formulario([['archivo', 'estado.pdf']], { banco: 'otro' }),
+    });
+    expect(otro.status).toBe(400);
   });
 
   it('avanzar mueve la carga en lista y detalle a la vez', async () => {

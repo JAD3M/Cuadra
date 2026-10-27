@@ -9,6 +9,8 @@ import {
   ERROR_SIN_PERMISO,
   REINTENTAR,
   TEXTO_MONEDA_NO_MXN,
+  TEXTO_PDF_ILEGIBLE,
+  TEXTO_PDF_SIN_TEXTO,
 } from '@/features/cargas/textos';
 
 /**
@@ -20,6 +22,10 @@ export type FalloSubida =
   | { clase: 'rechazo'; detalle: string | null }
   /** 400 `moneda_no_mxn`: el estado de cuenta no está en pesos. */
   | { clase: 'moneda_no_mxn' }
+  /** 400 `pdf_sin_texto`: el PDF es una imagen, sin texto. */
+  | { clase: 'pdf_sin_texto' }
+  /** 400 `pdf_ilegible`: el PDF no tiene el formato del banco. */
+  | { clase: 'pdf_ilegible' }
   | { clase: 'demasiado_grande' }
   | { clase: 'sin_permiso' }
   | { clase: 'conexion' }
@@ -51,6 +57,10 @@ export function AlertaSubida({ fallo, onReintentar, ref }: AlertaSubidaProps) {
       );
     case 'moneda_no_mxn':
       return <AlertaError ref={ref} {...TEXTO_MONEDA_NO_MXN} />;
+    case 'pdf_sin_texto':
+      return <AlertaError ref={ref} {...TEXTO_PDF_SIN_TEXTO} />;
+    case 'pdf_ilegible':
+      return <AlertaError ref={ref} {...TEXTO_PDF_ILEGIBLE} />;
     case 'demasiado_grande':
       return <AlertaError ref={ref} {...ERROR_DEMASIADO_GRANDE} />;
     case 'sin_permiso':

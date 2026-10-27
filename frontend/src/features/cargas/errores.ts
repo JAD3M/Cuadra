@@ -9,11 +9,19 @@ import { ApiError, NetworkError } from '@/shared/api';
 /** Código `error` del 400 que rechaza un estado de cuenta que no es MXN. */
 export const CODIGO_MONEDA_NO_MXN = 'moneda_no_mxn';
 
+/** Códigos `error` del 400 de la lectura de un PDF (historia 3.2). */
+export const CODIGO_PDF_SIN_TEXTO = 'pdf_sin_texto';
+export const CODIGO_PDF_ILEGIBLE = 'pdf_ilegible';
+
 export type ClaseErrorSubida =
   /** `detalle`: motivo del servidor; `null` si no mandó ninguno. */
   | { clase: 'rechazo'; detalle: string | null }
   /** 400 `moneda_no_mxn`: el estado de cuenta no está en pesos (historia 3.1). */
   | { clase: 'moneda_no_mxn' }
+  /** 400 `pdf_sin_texto`: el PDF es una imagen escaneada, sin texto (historia 3.2). */
+  | { clase: 'pdf_sin_texto' }
+  /** 400 `pdf_ilegible`: el PDF no tiene el formato del banco (historia 3.2). */
+  | { clase: 'pdf_ilegible' }
   | { clase: 'demasiado_grande' }
   | { clase: 'sin_permiso' }
   | { clase: 'conexion' }
@@ -39,6 +47,12 @@ export function clasificarErrorSubida(error: unknown): ClaseErrorSubida | null {
       case 400: {
         if (error.error === CODIGO_MONEDA_NO_MXN) {
           return { clase: 'moneda_no_mxn' };
+        }
+        if (error.error === CODIGO_PDF_SIN_TEXTO) {
+          return { clase: 'pdf_sin_texto' };
+        }
+        if (error.error === CODIGO_PDF_ILEGIBLE) {
+          return { clase: 'pdf_ilegible' };
         }
         // class-validator puede devolver varios mensajes (M8).
         const detalle = error.mensajes.join(' ').trim();

@@ -86,10 +86,16 @@ motivo.
 - [x] **T3 — Carga por API.** Guard `.pdf` con magic bytes, ramificar por banco
   en `cargarEstadoCuenta`, rechazos (sin texto, >10 MB, no MXN) con código, y
   respuesta con el conteo de movimientos leídos sin importar nada.
-- [ ] **T4 — Frontend y cierre.** Textos, `accept`, variante de error, conteo;
-  suites completas, lint y `format:check`; bitácora; `CUADRA.md`; KAN-131; PR.
-  Mockup: si la pantalla necesita algo que no tiene, primero se actualiza el
-  mockup y se acuerda.
+- [x] **T4a — Frontend.** Selector de formato «CSV | PDF BBVA» en la tarjeta
+  de estado de cuenta, modo PDF (banco fijo, `accept=".pdf"`, aviso de solo
+  lectura, «Leer estado de cuenta» / «Leyendo…»), resultado con conteos y
+  saldos como cadenas, y alertas `pdf_sin_texto`, `pdf_ilegible`,
+  `moneda_no_mxn`. Mockup aprobado (2026-10-27, versión 85) como fuente de
+  verdad. Ruta: escritor delegado (2+ archivos). Evidencia en Progreso.
+- [ ] **T4b — Cierre.** Bitácora (`docs/bitacora.md`), estado en `CUADRA.md`,
+  KAN-131, revisión de la rama completa y PR (en cadena si pasa de 400 líneas).
+  Pendiente heredado de T3: `frontend/tests/dominio/cargasEspejo.test.ts`
+  espera dos POST con `cargas.cargar` y ahora hay tres.
 
 ## Aceptación
 
@@ -100,7 +106,7 @@ Los seis criterios de la Story 3.2 en `epics.md`.
 | Tarea | Ruta | Evidencia del disparador |
 |---|---|---|
 | Exploración | delegada (explorador) | >5 búsquedas en backend y frontend |
-| T1–T4 | escritor delegado, una tarea a la vez | 2+ archivos no triviales por tarea |
+| T1–T4a | escritor delegado, una tarea a la vez | 2+ archivos no triviales por tarea |
 
 ## Progreso
 
@@ -136,3 +142,18 @@ Los seis criterios de la Story 3.2 en `epics.md`.
   `banco` vacío o en blanco ahora es 400 "Falta el banco" (DTO con trim +
   `IsNotEmpty`); pruebas de archivo de 3 bytes y de 0 bytes (400); prueba de
   error inesperado del lector (500 genérico, sin filtrar mensaje ni guardar).
+- 2026-10-27: T4a hecha. Ruta: escritor delegado (2+ archivos). RED: 32 tests
+  fallidos de 110 y 2 suites sin módulo (`useLeerEstadoCuentaPdf`,
+  `ResultadoLecturaPdf`) antes de implementar. GREEN: specs nuevas y
+  cambiadas 8 archivos / 122 tests; suite frontend 278 de 279 archivos
+  (4496 de 4497 tests), typecheck, lint, `format:check` y build OK. La única
+  falla es `tests/dominio/cargasEspejo.test.ts` (fuera de la superficie de T4a;
+  ya fallaba antes de T4a por el tercer `@Permiso('cargas.cargar')` de T3):
+  se corrige en T4b. **Contrato frontend**: `useLeerEstadoCuentaPdf` (POST
+  multipart `archivo` + `banco=bbva`, no invalida el historial), schema
+  `respuestaLecturaPdf` con saldos `montoDecimal` (cadenas, formateo con
+  `decimal.js`). La lista de bancos del PDF es una constante espejo
+  (`BANCOS_PDF` en `shared/dominio/cargas.ts`) porque no hay endpoint. El kit
+  (`features/kit/SeccionCargas.tsx`) no muestra aún las vistas PDF (fuera de
+  la superficie): `modo` y `onModo` de la tarjeta son opcionales para no
+  romperlo.
