@@ -183,5 +183,5 @@ Los siete criterios de la Story 3.1 en `epics.md`.
   `typecheck`, `lint` (sin cambios extra), `prettier --check "src/**/*.ts"` y
   `build` limpios. Frontend `npx vitest run` 275 archivos, 4446 pruebas, 0
   fallas; `typecheck`, `lint`, `format:check` limpios.
-- Commit de T3b: ver `git log` (rama `feat/v2-3-1-04-historial-moneda`).
+- Commit de T3b: ca21de5.
 - Siguiente: T4.
