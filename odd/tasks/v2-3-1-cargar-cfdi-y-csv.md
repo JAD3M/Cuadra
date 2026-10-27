@@ -125,5 +125,5 @@ Los siete criterios de la Story 3.1 en `epics.md`.
   "src/**/*.ts"` y `npm run build` limpios. Roles: revisor 403 ya cubierto en
   ambos endpoints; auditor por la matriz (`matriz.spec.ts`).
   Pendiente para T2: espejo frontend de `ENTIDADES_BITACORA` (agregar `cargas`).
-- Commit de T1: ver abajo.
+- Commit de T1: e914ed8.
 - Siguiente: T2.
