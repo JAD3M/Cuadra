@@ -1,4 +1,8 @@
 import {
+  etiquetaMonedaNoSoportada,
+  LEYENDA_MONEDA_NO_SOPORTADA,
+} from '@/features/cargas/moneda';
+import {
   ESTADO_DE_ARCHIVO,
   LISTA_RESULTADO_ARCHIVOS,
   RESUMEN_CFDI,
@@ -11,7 +15,15 @@ export interface ArchivoResultado {
   resultado: ResultadoArchivo;
   /** Solo viene con el resultado de error. */
   motivo?: string;
+  /** Código de moneda de un CFDI que Cuadra no concilia (historia 3.1). */
+  moneda?: string;
+  /** El archivo se guardó, pero su moneda no es MXN ni XXX. */
+  monedaNoSoportada?: boolean;
 }
+
+/** El código de moneda de un archivo marcado; `null` si no lleva la marca. */
+const monedaMarcada = (r: ArchivoResultado): string | null =>
+  r.monedaNoSoportada === true && r.moneda ? r.moneda : null;
 
 export interface ResultadoCfdiProps {
   /** Archivos nuevos (`registrosOk`). */
@@ -47,6 +59,7 @@ export function ResultadoCfdi({
   conError,
   archivos,
 }: ResultadoCfdiProps) {
+  const hayMoneda = archivos.some((r) => monedaMarcada(r) !== null);
   return (
     <div className={estilos.caja}>
       <p className={estilos.resumen}>
@@ -85,6 +98,11 @@ export function ResultadoCfdi({
                       {r.motivo}
                     </span>
                   ) : null}
+                  {monedaMarcada(r) === null ? null : (
+                    <span className={estilos.moneda} data-moneda>
+                      {etiquetaMonedaNoSoportada(monedaMarcada(r) as string)}
+                    </span>
+                  )}
                 </span>
                 <span className={estilos.estado}>
                   {ESTADO_DE_ARCHIVO[r.resultado]}
@@ -94,6 +112,11 @@ export function ResultadoCfdi({
           </ul>
         </div>
       )}
+      {hayMoneda ? (
+        <span className={estilos.leyendaMoneda}>
+          {LEYENDA_MONEDA_NO_SOPORTADA}
+        </span>
+      ) : null}
     </div>
   );
 }

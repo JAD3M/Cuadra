@@ -41,3 +41,12 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/* Nota bajo los válidos: ámbar, en texto, sin partirse. */
+.nota {
+  display: block;
+  color: var(--estado-sin-match-text);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}

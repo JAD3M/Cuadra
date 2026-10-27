@@ -496,12 +496,9 @@ describe('RutaKit (galería de componentes)', () => {
       ).toBeInTheDocument();
     });
 
-    it('revisor: el aviso y todo apagado, sin ocultar nada', () => {
+    it('revisor: todo apagado, sin ocultar nada', () => {
       renderizar();
       const revisor = within(vista('revisor'));
-      expect(
-        revisor.getByText('Tu rol solo permite consultar las cargas.'),
-      ).toBeInTheDocument();
       expect(
         revisor.getByRole('button', { name: 'Subir 2 archivos' }),
       ).toBeDisabled();

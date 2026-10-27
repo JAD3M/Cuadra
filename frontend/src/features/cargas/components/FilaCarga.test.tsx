@@ -147,4 +147,23 @@ describe('FilaCarga', () => {
     const { celdas } = montar(itemCarga(1, { nombreArchivo: nombre }));
     expect(celdas[1]?.textContent).toBe(nombre);
   });
+
+  describe('nota de moneda no soportada (3.1)', () => {
+    it('bajo los válidos de una carga con archivos marcados va la nota', () => {
+      const { celdas } = montar({
+        ...itemCarga(1, { estado: 'procesada', registrosOk: 20 }),
+        monedaNoSoportada: 2,
+      });
+      expect(celdas[4]).toHaveTextContent('20');
+      expect(celdas[4]).toHaveTextContent('⚠ 2 con moneda no soportada');
+    });
+
+    it.each([[0], [undefined]])('con %s marcados no hay nota', (cantidad) => {
+      const { celdas } = montar({
+        ...itemCarga(1, { estado: 'procesada', registrosOk: 20 }),
+        monedaNoSoportada: cantidad,
+      });
+      expect(celdas[4]).not.toHaveTextContent('moneda no soportada');
+    });
+  });
 });

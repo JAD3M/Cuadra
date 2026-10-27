@@ -7,6 +7,7 @@ import {
 } from '@/shared/dominio';
 import { EstadoChip } from '@/shared/ui/EstadoChip';
 import { Td } from '@/shared/ui/Tabla';
+import { notaMonedaHistorial } from '@/features/cargas/moneda';
 import { SIN_DATO } from '@/features/cargas/textos';
 import { TONO_ESTADO_CARGA } from '@/features/cargas/tonos';
 import { BarraAvance } from './BarraAvance';
@@ -22,6 +23,11 @@ export interface FilaHistorial {
   registrosError: number;
   subidoPor: string | null;
   createdAt: string;
+  /**
+   * Cuántos archivos de la carga quedaron marcados «moneda no soportada».
+   * El listado del servidor aún no lo trae: ausente = sin nota.
+   */
+  monedaNoSoportada?: number;
 }
 
 export interface FilaCargaProps {
@@ -49,6 +55,9 @@ const MUESTRA_CONTADORES: Readonly<Record<EstadoCarga, boolean>> = {
  */
 export function FilaCarga({ carga }: FilaCargaProps) {
   const sinContadores = !MUESTRA_CONTADORES[carga.estado];
+  const nota = sinContadores
+    ? null
+    : notaMonedaHistorial(carga.monedaNoSoportada ?? 0);
   const resaltaError = !sinContadores && carga.registrosError > 0;
   return (
     <tr>
@@ -72,6 +81,7 @@ export function FilaCarga({ carga }: FilaCargaProps) {
         >
           {sinContadores ? SIN_DATO : carga.registrosOk}
         </span>
+        {nota === null ? null : <span className={estilos.nota}>{nota}</span>}
       </Td>
       <Td numerica>
         <span

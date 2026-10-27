@@ -125,4 +125,53 @@ describe('ResultadoCfdi', () => {
     montar(ARCHIVOS);
     expect(screen.queryByRole('button')).toBeNull();
   });
+
+  describe('moneda no soportada (3.1)', () => {
+    const CON_MARCA = [
+      {
+        archivo: 'usd.xml',
+        resultado: 'nuevo' as const,
+        moneda: 'USD',
+        monedaNoSoportada: true,
+      },
+      {
+        archivo: 'eur.xml',
+        resultado: 'ya_existia' as const,
+        moneda: 'EUR',
+        monedaNoSoportada: true,
+      },
+      { archivo: 'mxn.xml', resultado: 'nuevo' as const },
+    ];
+    const LEYENDA =
+      '⚠ Se guardó, pero Cuadra no concilia monedas distintas de MXN.';
+
+    it('el archivo marcado lleva su etiqueta con el código, en texto y bajo el nombre', () => {
+      montar(CON_MARCA);
+      const filas = within(screen.getByRole('list')).getAllByRole('listitem');
+      expect(filas[0]).toHaveTextContent('⚠ Moneda no soportada · USD');
+      expect(filas[1]).toHaveTextContent('⚠ Moneda no soportada · EUR');
+      expect(filas[2]).not.toHaveTextContent('Moneda no soportada');
+      // La carga y el archivo siguen con su estado de siempre.
+      expect(filas[0]).toHaveTextContent('Nuevo');
+      expect(filas[1]).toHaveTextContent('Ya existía');
+    });
+
+    it('la leyenda sale una sola vez, después de la lista, solo si hay alguna marca', () => {
+      montar(CON_MARCA);
+      const leyendas = screen.getAllByText(LEYENDA);
+      expect(leyendas).toHaveLength(1);
+      expect(
+        screen
+          .getByRole('list')
+          .compareDocumentPosition(leyendas[0] as HTMLElement) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it('sin ninguna marca no hay etiqueta ni leyenda', () => {
+      montar(ARCHIVOS);
+      expect(screen.queryByText(/Moneda no soportada/)).toBeNull();
+      expect(screen.queryByText(LEYENDA)).toBeNull();
+    });
+  });
 });

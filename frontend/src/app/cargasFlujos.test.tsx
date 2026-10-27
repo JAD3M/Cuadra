@@ -21,7 +21,12 @@ import type { ConfigPolling } from '@/features/cargas/ContextoPolling';
 import type { ItemCarga } from '@/shared/api/contratos';
 import { CLAVE_TEMA } from '@/shared/tema/tipos';
 import { crearCompuerta } from '@/test/compuerta';
-import { EMPRESAS_DISPONIBLES } from '@/test/fixtures';
+import {
+  CONTEXTO_SESION,
+  CONTEXTO_SESION_B,
+  EMPRESAS_DISPONIBLES,
+  capacidadesDeRoles,
+} from '@/test/fixtures';
 import { filaBandeja, idDe } from '@/test/fixturesBandeja';
 import {
   detalleCfdiConErrores,
@@ -30,7 +35,11 @@ import {
 } from '@/test/fixturesCargas';
 import { almacenes } from '@/test/handlers';
 import { contextoPorEmpresa, espiarSolicitudes } from '@/test/handlersAuth';
-import { empresaDeLaSesion } from '@/test/sesionMock';
+import {
+  elegirEmpresaMock,
+  empresaDeLaSesion,
+  hayEmpresaElegida,
+} from '@/test/sesionMock';
 import { listaFalla, type ParcheDeCarga } from '@/test/handlersCargas';
 import {
   elegirEmpresaPorNombre,
@@ -86,6 +95,32 @@ const parcheDe = (
   resultados: d.resultados,
   errorMensaje: d.errorMensaje,
 });
+
+/**
+ * Como `contextoPorEmpresa`, pero en la empresa B la persona entra con estos
+ * roles y las capacidades que el servidor derivaría (el fixture de B es revisor).
+ */
+function contextoPorEmpresaConRoles(idEmpresaB: string, roles: string[]) {
+  contextoPorEmpresa(idEmpresaB);
+  const contextoB = {
+    ...CONTEXTO_SESION_B,
+    roles,
+    capacidades: capacidadesDeRoles(roles),
+  };
+  servidor.use(
+    http.post('/api/auth/empresa/:id', ({ params }) => {
+      elegirEmpresaMock(String(params.id));
+      return HttpResponse.json(
+        params.id === idEmpresaB ? contextoB : CONTEXTO_SESION,
+      );
+    }),
+    http.get('/api/auth/contexto', () =>
+      hayEmpresaElegida() && empresaDeLaSesion() === idEmpresaB
+        ? HttpResponse.json(contextoB)
+        : undefined,
+    ),
+  );
+}
 
 async function abrirCargas(
   entrada = '/cargas',
@@ -314,7 +349,7 @@ describe('flujos de cargas: sesión y empresa', () => {
   }
 
   it('cambiar de empresa con un POST en vuelo: nada de A se ve ni se escribe en la época nueva (9.2)', async () => {
-    contextoPorEmpresa(idB);
+    contextoPorEmpresaConRoles(idB, ['contador']);
     listasPorEmpresa();
     espia = espiarSolicitudes();
     const { router } = await abrirCargas();
@@ -326,7 +361,6 @@ describe('flujos de cargas: sesión y empresa', () => {
     await elegirEmpresaPorNombre(/Abarrotes/);
     await screen.findByRole('table');
     expect(router.state.location.pathname).toBe('/bandeja');
-    // El revisor de B no tiene el enlace: se llega por la ruta directa.
     await act(() => router.navigate('/cargas'));
     await screen.findByRole('table');
     await celda('lote-de-la-empresa-B.xml');
@@ -348,7 +382,7 @@ describe('flujos de cargas: sesión y empresa', () => {
     ).toHaveLength(0);
   });
 
-  it('cambiar de empresa: no queda ningún dato de la lista ni del panel de A, y el revisor de B ve la tabla con las tarjetas apagadas', async () => {
+  it('cambiar de empresa: no queda ningún dato de la lista ni del panel de A, y el revisor de B solo ve el aviso de sin permiso', async () => {
     contextoPorEmpresa(idB);
     listasPorEmpresa();
     const { router } = await abrirCargas();
@@ -357,25 +391,16 @@ describe('flujos de cargas: sesión y empresa', () => {
     await celda(/de-la-empresa-A\.xml/);
     await usuario().click(cambiarEmpresa());
     await elegirEmpresaPorNombre(/Abarrotes/);
-    await screen.findByRole('table');
     // El revisor de B no tiene el enlace: se llega por la ruta directa.
     await act(() => router.navigate('/cargas'));
-    await screen.findByRole('table');
-    await celda('lote-de-la-empresa-B.xml');
+    expect(
+      await screen.findByText('No tienes permiso para esta acción.'),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/de-la-empresa-A/)).toBeNull();
     expect(screen.queryByText(PROCESANDO)).toBeNull();
-    expect(
-      screen.getByText('Tu rol solo permite consultar las cargas.'),
-    ).toBeInTheDocument();
-    for (const control of [
-      screen.getByLabelText('Elegir archivos'),
-      screen.getByLabelText('Elegir archivo'),
-      screen.getByLabelText('Banco'),
-      screen.getByLabelText('Cuenta'),
-      screen.getByRole('button', { name: 'Subir estado de cuenta' }),
-    ]) {
-      expect(control).toBeDisabled();
-    }
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.queryByLabelText('Elegir archivos')).toBeNull();
+    expect(screen.queryByLabelText('Elegir archivo')).toBeNull();
   });
 
   it('cerrar sesión con un POST en vuelo: no se escribe nada ni se pide nada más (9.3)', async () => {

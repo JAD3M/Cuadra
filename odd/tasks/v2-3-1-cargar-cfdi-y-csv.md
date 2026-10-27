@@ -78,7 +78,7 @@ motivo. `revisor` y `auditor` reciben 403 y no ven Cargas en su menú.
 - [x] **T2 — Contrato, hooks y espejo.** `resultados` con la marca de moneda y el
   motivo de rechazo en el contrato, deriva con el backend, textos y etiqueta
   «Con filas rechazadas».
-- [ ] **T3 — Pantalla.** Marca por archivo, leyenda, nota en el historial,
+- [x] **T3 — Pantalla.** Marca por archivo, leyenda, nota en el historial,
   estado de rechazo por moneda, `AvisoRevisor` retirado o justificado, prueba de
   flujo por rol (menú sin Cargas para revisor y auditor).
 - [ ] **T4 — Cierre.** Suites completas, lint y `format:check`, bitácora, KAN-130,
@@ -145,4 +145,23 @@ Los siete criterios de la Story 3.1 en `epics.md`.
   pruebas, 0 fallas; `npm run typecheck`, `npm run lint` y
   `npm run format:check` limpios.
 - Commit de T2: 385eff8.
-- Siguiente: T3.
+- 2026-10-27 T3 hecha (escritor delegado). RED observado: `ResultadoCfdi` 2
+  pruebas (sin etiqueta ni leyenda), `FilaCarga` 1 (sin nota), flujo
+  `cargasMoneda.test.tsx` 4 (marca CFDI y sin-permiso de revisor y auditor).
+  Caracterización (pasaron de inmediato, T2 ya cubría): rechazo por moneda del
+  CSV (alerta «Archivo rechazado», `role="alert"`, foco) y menú sin Cargas para
+  revisor/auditor; se probó que pueden fallar rompiendo a propósito
+  `AlertaSubida` y `navegacion.ts` (4 fallas) y se revirtió (diff limpio).
+  Decisiones: marca ámbar con tokens `--estado-sin-match-*` (⚠ + texto) bajo el
+  nombre y leyenda única bajo la lista; `CargasContenedor` sin `cargas.ver`
+  muestra solo «No tienes permiso para esta acción.» y no pide lista ni perfiles
+  (patrón de Usuarios; la ruta no tenía guarda de permiso, un revisor por URL
+  veía la pantalla con 403 en la lista); `AvisoRevisor`, su texto y su CSS se
+  retiraron (inalcanzable). Hueco: el listado `GET /cargas` no trae resultados
+  por archivo, así que `FilaCarga` acepta `monedaNoSoportada` opcional y
+  pinta la nota, pero nada lo alimenta aún (requiere cambio de backend: tarea
+  nueva). Fuera de la superficie, por necesidad: `features/kit/SeccionCargas.tsx`,
+  `app/RutaKit.test.tsx` y `tests/css/cargasTarjetas.test.ts` (referían el aviso).
+  Verificación (desde `frontend/`): `npx vitest run` 275 archivos, 4438 pruebas,
+  0 fallas; `typecheck`, `lint` y `format:check` limpios.
+- Siguiente: T4.
