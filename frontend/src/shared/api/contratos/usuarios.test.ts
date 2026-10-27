@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { ROLES } from '@/shared/dominio';
 import {
+  solicitudCambiarRoles,
+  usuarioRoles,
   invitacionCancelada,
   invitacionReenviada,
   invitacionUsuarioEnviada,
@@ -165,5 +167,51 @@ describe('contrato de la lista de usuarios (2.5)', () => {
     expect(usuarioListado.safeParse({ ...activa, vencida: 'no' }).success).toBe(
       false,
     );
+  });
+});
+
+describe('contrato de cambiar y quitar roles (2.6)', () => {
+  const ID = '55555555-5555-4555-8555-555555555551';
+
+  it('la solicitud manda de 1 a 4 roles del espejo', () => {
+    expect(
+      solicitudCambiarRoles.parse({ roles: ['contador', 'revisor'] }),
+    ).toEqual({ roles: ['contador', 'revisor'] });
+    expect(solicitudCambiarRoles.safeParse({ roles: [...ROLES] }).success).toBe(
+      true,
+    );
+  });
+
+  it('rechaza roles vacíos, desconocidos o ausentes', () => {
+    expect(solicitudCambiarRoles.safeParse({ roles: [] }).success).toBe(false);
+    expect(solicitudCambiarRoles.safeParse({ roles: ['dueno'] }).success).toBe(
+      false,
+    );
+    expect(solicitudCambiarRoles.safeParse({}).success).toBe(false);
+  });
+
+  it('rechaza más roles que el espejo', () => {
+    expect(
+      solicitudCambiarRoles.safeParse({ roles: [...ROLES, 'admin'] }).success,
+    ).toBe(false);
+  });
+
+  it('la respuesta trae id, correo y roles (vacíos si se quitó el acceso)', () => {
+    expect(
+      usuarioRoles.parse({ id: ID, email: 'a@b.mx', roles: ['auditor'] }),
+    ).toEqual({ id: ID, email: 'a@b.mx', roles: ['auditor'] });
+    expect(
+      usuarioRoles.parse({ id: ID, email: 'a@b.mx', roles: [] }).roles,
+    ).toEqual([]);
+  });
+
+  it('la respuesta rechaza un id que no es uuid o un rol desconocido', () => {
+    expect(
+      usuarioRoles.safeParse({ id: 'x', email: 'a@b.mx', roles: [] }).success,
+    ).toBe(false);
+    expect(
+      usuarioRoles.safeParse({ id: ID, email: 'a@b.mx', roles: ['dueno'] })
+        .success,
+    ).toBe(false);
   });
 });

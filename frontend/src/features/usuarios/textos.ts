@@ -94,3 +94,30 @@ export const PERSONAS = {
     `Invitación reenviada a ${correo}. El enlace anterior ya no sirve.`,
   cancelada: (correo: string) => `Invitación a ${correo} cancelada.`,
 } as const;
+
+/**
+ * Editar roles y quitar acceso (historia 2.6, mockup `Usuarios.dc.html`).
+ * `roles` ya viene como lista legible («Contador, Revisor»).
+ */
+export const ROLES_PERSONA = {
+  cambiar: 'Cambiar roles',
+  quitar: 'Quitar acceso',
+  guardar: 'Guardar cambios',
+  guardarYQuitar: 'Guardar y quitar acceso',
+  cancelar: 'Cancelar',
+  confirmarSi: 'Sí, quitar acceso',
+  volver: 'Volver',
+  sinRolesAviso:
+    'Sin ningún rol, la persona pierde el acceso a tu empresa. Conserva sus roles en otras empresas.',
+  aplicaSiguiente: 'El cambio aplica en su siguiente petición.',
+  confirmarQuitar: (correo: string) =>
+    `¿Quitar el acceso de ${correo} a tu empresa? Lo pierde de inmediato y sus sesiones en ella dejan de servir. Conserva sus roles en otras empresas.`,
+  ultimoAdmin:
+    'No se puede quitar ni degradar al único administrador. Asigna el rol de administrador a otra persona primero.',
+  errorGuardar: 'No se pudo guardar el cambio. Inténtalo de nuevo.',
+  errorQuitar: 'No se pudo quitar el acceso. Inténtalo de nuevo.',
+  rolesGuardados: (correo: string, roles: string) =>
+    `Roles de ${correo} actualizados: ${roles}. El cambio aplica en su siguiente petición.`,
+  accesoQuitado: (correo: string) =>
+    `Acceso de ${correo} a tu empresa quitado. Ya no puede entrar a ella.`,
+} as const;

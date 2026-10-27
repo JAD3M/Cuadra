@@ -26,7 +26,7 @@ export interface OpcionesCliente extends ConfiguracionCliente {
 }
 
 export interface OpcionesApi<T> {
-  method?: 'GET' | 'POST' | 'PUT';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   /**
    * Un `FormData` se envía tal cual, sin `Content-Type`: el navegador fija el
    * multipart con su frontera. Cualquier otro valor se envía como JSON.

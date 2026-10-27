@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ApiError, NetworkError } from '@/shared/api';
 import {
   clasificarFalloAccionPendiente,
+  clasificarFalloRoles,
   clasificarFalloInvitar,
 } from './errores';
 
@@ -76,5 +77,32 @@ describe('clasificarFalloAccionPendiente (2.4)', () => {
     expect(clasificarFalloAccionPendiente(new NetworkError())).toEqual({
       clase: 'conexion',
     });
+  });
+});
+
+describe('clasificarFalloRoles (2.6)', () => {
+  it.each([
+    [403, 'permiso'],
+    [404, 'no_encontrada'],
+    [429, 'limite'],
+    [400, 'otro'],
+    [500, 'otro'],
+  ])('el %i es «%s»', (estado, clase) => {
+    expect(clasificarFalloRoles(apiError(estado))).toBe(clase);
+  });
+
+  it('un 409 es el último administrador, sin depender del texto', () => {
+    expect(clasificarFalloRoles(new ApiError(409, 'Conflict', []))).toBe(
+      'ultimo_admin',
+    );
+  });
+
+  it('un 401 y una cancelación no muestran nada; la red es de conexión', () => {
+    expect(clasificarFalloRoles(apiError(401))).toBeNull();
+    expect(
+      clasificarFalloRoles(new DOMException('x', 'AbortError')),
+    ).toBeNull();
+    expect(clasificarFalloRoles(new NetworkError())).toBe('conexion');
+    expect(clasificarFalloRoles(new Error('x'))).toBe('otro');
   });
 });
