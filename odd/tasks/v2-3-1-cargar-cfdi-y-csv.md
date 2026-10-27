@@ -164,4 +164,5 @@ Los siete criterios de la Story 3.1 en `epics.md`.
   `app/RutaKit.test.tsx` y `tests/css/cargasTarjetas.test.ts` (referían el aviso).
   Verificación (desde `frontend/`): `npx vitest run` 275 archivos, 4438 pruebas,
   0 fallas; `typecheck`, `lint` y `format:check` limpios.
+- Commit de T3: 947c7cb.
 - Siguiente: T4.
