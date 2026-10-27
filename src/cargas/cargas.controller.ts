@@ -26,7 +26,9 @@ import {
   CAMPO_ARCHIVOS,
   CAMPO_ESTADO_CUENTA,
   EstadoDeCuentaGuard,
+  EstadoDeCuentaPdfGuard,
 } from './archivos.guard';
+import { LecturaPdfDto, RespuestaLecturaPdfDto } from './dto/lectura-pdf.dto';
 import { EstadoCuentaDto } from './dto/estado-cuenta.dto';
 import { RespuestaListaCargasDto } from './dto/lista-cargas.dto';
 import {
@@ -111,6 +113,35 @@ export class CargasController {
       archivo,
       cuerpo,
     );
+  }
+
+  /**
+   * Historia 3.2. Lee el PDF de un banco y responde cuántos movimientos
+   * leyó. No importa nada: ni carga, ni movimientos, ni bitácora, ni cola.
+   * Rechazos 400 con `error` estable: pdf_sin_texto, pdf_ilegible,
+   * moneda_no_mxn. Va antes de `:id`.
+   */
+  @Post('estado-cuenta/pdf')
+  @HttpCode(HttpStatus.OK)
+  @Permiso('cargas.cargar')
+  @UseGuards(EstadoDeCuentaPdfGuard)
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: [CAMPO_ESTADO_CUENTA, 'banco'],
+      properties: {
+        [CAMPO_ESTADO_CUENTA]: { type: 'string', format: 'binary' },
+        banco: { type: 'string', example: 'bbva', maxLength: 32 },
+      },
+    },
+  })
+  @ApiOkResponse({ type: RespuestaLecturaPdfDto })
+  leerEstadoCuentaPdf(
+    @UploadedFiles() [archivo]: ArchivoSubido[],
+    @Body() { banco }: LecturaPdfDto,
+  ): Promise<RespuestaLecturaPdfDto> {
+    return this.cargas.leerEstadoCuentaPdf(archivo, banco);
   }
 
   /**

@@ -23,7 +23,10 @@ import {
   SQL_ESTADO,
 } from './estado-de-carga';
 import { violaIndice } from './guardar-cfdi';
+import { BANCOS_PDF, lectorPdfDe } from '../bancos/pdf/lectores-pdf';
+import { extraerTextoPdf } from '../bancos/pdf/extraer-texto-pdf';
 import type { CargaListadaDto } from './dto/lista-cargas.dto';
+import type { RespuestaLecturaPdfDto } from './dto/lectura-pdf.dto';
 
 export type { EstadoDeCarga } from './estado-de-carga';
 
@@ -51,6 +54,16 @@ interface NuevaCarga {
   cuenta: string | null;
   /** Estado de cuenta: el perfil de banco con el que se validó (CU-10). */
   perfil: string | null;
+}
+
+/** El rechazo del archivo, a 400; con código estable si lo trae. */
+function comoBadRequest(error: unknown): unknown {
+  if (!(error instanceof EstadoDeCuentaRechazado)) return error;
+  return new BadRequestException(
+    error.codigo === undefined
+      ? error.message
+      : { statusCode: 400, message: error.message, error: error.codigo },
+  );
 }
 
 /** Tope de la columna `cargas.nombre_archivo`. */
@@ -143,14 +156,7 @@ export class CargasService {
     try {
       validado = validarEstadoDeCuenta(archivo.buffer, perfil);
     } catch (error) {
-      if (error instanceof EstadoDeCuentaRechazado) {
-        throw new BadRequestException(
-          error.codigo === undefined
-            ? error.message
-            : { statusCode: 400, message: error.message, error: error.codigo },
-        );
-      }
-      throw error;
+      throw comoBadRequest(error);
     }
     const hash = sha256(archivo.buffer);
     return this.registrar(companyId, userId, {
@@ -165,6 +171,36 @@ export class CargasService {
       cuenta: cuenta ?? null,
       perfil: perfil.id,
     });
+  }
+
+  /**
+   * Historia 3.2: lee un estado de cuenta en PDF y cuenta lo leído. No
+   * importa nada: sin carga, sin movimientos, sin bitácora, sin cola (guardar
+   * y cuadrar es la 3.3). No toca la base, así que no recibe la empresa.
+   * Nunca se registra el contenido del archivo.
+   */
+  async leerEstadoCuentaPdf(
+    archivo: ArchivoSubido,
+    banco: string,
+  ): Promise<RespuestaLecturaPdfDto> {
+    const lector = lectorPdfDe(banco);
+    if (!lector) {
+      throw new BadRequestException(
+        `Banco no soportado para PDF: "${banco.slice(0, 32)}". Disponibles: ${BANCOS_PDF.join(', ')}`,
+      );
+    }
+    try {
+      const leido = lector(await extraerTextoPdf(archivo.buffer));
+      return {
+        banco: banco.trim().toLowerCase(),
+        saldoInicial: leido.saldoInicial,
+        saldoFinal: leido.saldoFinal,
+        movimientosLeidos: leido.movimientos.length,
+        lineasNoLeidas: leido.lineasNoLeidas.length,
+      };
+    } catch (error) {
+      throw comoBadRequest(error);
+    }
   }
 
   /**
