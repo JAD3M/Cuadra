@@ -113,5 +113,5 @@ protegido; `cuadra_app` solo gana lo mínimo en la migración).
   `method` en `shared/api/client.ts`); el 409 se clasifica por código como
   `ultimo_admin`; 409 y 404 no invalidan la lista, un 2xx ilegible sí. Handlers
   msw `PATCH`/`DELETE` mantienen las personas coherentes (`accionRolesFalla`
-  fuerza errores). Commit: HASH_T2.
+  fuerza errores). Commit: caed56e.
 - Siguiente: T3.
