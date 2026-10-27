@@ -143,7 +143,11 @@ export class CargasService {
       validado = validarEstadoDeCuenta(archivo.buffer, perfil);
     } catch (error) {
       if (error instanceof EstadoDeCuentaRechazado) {
-        throw new BadRequestException(error.message);
+        throw new BadRequestException(
+          error.codigo === undefined
+            ? error.message
+            : { statusCode: 400, message: error.message, error: error.codigo },
+        );
       }
       throw error;
     }

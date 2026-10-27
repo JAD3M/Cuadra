@@ -18,11 +18,22 @@ const MAX_REFERENCIA = 128;
 
 /** El archivo entero no sirve: 400 en el POST, antes de guardar nada. */
 export class EstadoDeCuentaRechazado extends Error {
-  constructor(mensaje: string) {
+  constructor(
+    mensaje: string,
+    /** Código estable, solo en los rechazos que el cliente distingue. */
+    readonly codigo?: string,
+  ) {
     super(mensaje);
     this.name = 'EstadoDeCuentaRechazado';
   }
 }
+
+/** Historia 3.1. El archivo trae una moneda distinta de MXN: no se procesa. */
+export const MENSAJE_MONEDA_NO_MXN =
+  'El estado de cuenta no está en MXN. Cuadra solo procesa estados de cuenta en pesos mexicanos.';
+
+/** Código estable del rechazo anterior, para que el cliente no lea el texto. */
+export const CODIGO_MONEDA_NO_MXN = 'moneda_no_mxn';
 
 export interface FilaDelArchivo {
   /** Línea física del archivo original donde empieza la fila (preámbulo incluido). */
@@ -90,7 +101,11 @@ export function validarEstadoDeCuenta(
   }
 
   const [encabezado, ...datos] = leerFilas(texto, perfil);
-  if (!encabezado || !mismosEncabezados(encabezado.campos, perfil)) {
+  const iMoneda = encabezado ? posicionMoneda(encabezado.campos, perfil) : -1;
+  if (
+    !encabezado ||
+    !mismosEncabezados(sinColumna(encabezado.campos, iMoneda), perfil)
+  ) {
     const esperado = perfil.encabezados.join(perfil.separador);
     throw new EstadoDeCuentaRechazado(
       `Encabezados inválidos para el perfil "${perfil.id}": se esperan exactamente "${esperado}"` +
@@ -102,7 +117,39 @@ export function validarEstadoDeCuenta(
   if (datos.length === 0) {
     throw new EstadoDeCuentaRechazado('El archivo no trae movimientos');
   }
+  if (
+    iMoneda >= 0 &&
+    datos.some(({ campos }) => !esMxn(campos[iMoneda] ?? ''))
+  ) {
+    throw new EstadoDeCuentaRechazado(
+      MENSAJE_MONEDA_NO_MXN,
+      CODIGO_MONEDA_NO_MXN,
+    );
+  }
   return { texto, filas: datos.length };
+}
+
+/** Vacío cuenta como MXN: solo una moneda escrita y distinta rechaza. */
+function esMxn(valor: string): boolean {
+  const moneda = valor.trim().toUpperCase();
+  return moneda === '' || moneda === 'MXN';
+}
+
+/**
+ * Historia 3.1: dónde está la columna opcional `moneda` en el encabezado del
+ * archivo, o -1 si el perfil no la declara o el archivo no la trae.
+ */
+export function posicionMoneda(
+  encabezado: string[],
+  perfil: PerfilBancario,
+): number {
+  return perfil.columnaMoneda === undefined
+    ? -1
+    : encabezado.indexOf(perfil.columnaMoneda);
+}
+
+function sinColumna(campos: string[], indice: number): string[] {
+  return indice < 0 ? campos : campos.filter((_, i) => i !== indice);
 }
 
 function esUtf8Valido(buffer: Buffer): boolean {
@@ -213,15 +260,19 @@ function lineaDeInicio(lineaFinal: number, crudo: string): number {
  * siempre es de infraestructura (CU-06) y nunca de una fila.
  */
 export function leerMovimiento(
-  campos: string[],
+  camposDelArchivo: string[],
   perfil: PerfilBancario,
+  /** `posicionMoneda` del encabezado del archivo; -1 si no trae moneda. */
+  indiceMoneda = -1,
 ): MovimientoLeido | { motivo: string } {
   const { encabezados, columnas } = perfil;
-  if (campos.length !== encabezados.length) {
+  const esperadas = encabezados.length + (indiceMoneda >= 0 ? 1 : 0);
+  if (camposDelArchivo.length !== esperadas) {
     return {
-      motivo: `La fila tiene ${campos.length} columnas; se esperan ${encabezados.length}`,
+      motivo: `La fila tiene ${camposDelArchivo.length} columnas; se esperan ${esperadas}`,
     };
   }
+  const campos = sinColumna(camposDelArchivo, indiceMoneda);
   const valor = (encabezado: string) => campos[encabezados.indexOf(encabezado)];
 
   const fechaOriginal = valor(columnas.fecha);

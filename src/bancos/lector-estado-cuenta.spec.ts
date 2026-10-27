@@ -5,7 +5,9 @@ import {
   EstadoDeCuentaRechazado,
   leerFilas,
   leerMovimiento,
+  MENSAJE_MONEDA_NO_MXN,
   type MovimientoLeido,
+  posicionMoneda,
   validarEstadoDeCuenta,
 } from './lector-estado-cuenta';
 import { cargarPerfiles, esquemaPerfil, type PerfilBancario } from './perfil';
@@ -108,6 +110,68 @@ describe('perfil cuadra: el formato canónico de CU-09', () => {
       expect(
         rechazo(`${H}\r\n2026-09-01,A,,1\r\n2026-09-02,B,\0,2\r\n`),
       ).toMatch(/^Línea 3:/);
+    });
+  });
+
+  describe('columna opcional moneda (historia 3.1)', () => {
+    const HM = `${H},moneda`;
+
+    it('sin la columna, todo sigue igual: se asume MXN', () => {
+      expect(
+        validarEstadoDeCuenta(Buffer.from(`${H}\n2026-09-01,A,,1\n`), CUADRA)
+          .filas,
+      ).toBe(1);
+    });
+
+    it('con la columna y todo MXN (sin importar mayúsculas ni espacios, o vacío): entra', () => {
+      const texto = `${HM}\n2026-09-01,A,,1,MXN\n2026-09-02,B,,2, mxn \n2026-09-03,C,,3,\n`;
+
+      expect(validarEstadoDeCuenta(Buffer.from(texto), CUADRA).filas).toBe(3);
+    });
+
+    it('la columna puede ir en cualquier lugar del encabezado', () => {
+      const texto =
+        'fecha,moneda,descripcion,referencia,monto\n2026-09-01,MXN,A,,1\n';
+
+      expect(validarEstadoDeCuenta(Buffer.from(texto), CUADRA).filas).toBe(1);
+    });
+
+    it.each(['USD', 'usd', 'EUR', 'MXP'])(
+      'una fila en %s rechaza el archivo completo con el motivo',
+      (moneda) => {
+        const texto = `${HM}\n2026-09-01,A,,1,MXN\n2026-09-02,B,,2,${moneda}\n`;
+
+        expect(rechazo(texto)).toBe(MENSAJE_MONEDA_NO_MXN);
+      },
+    );
+
+    it('el motivo es el texto acordado', () => {
+      expect(MENSAJE_MONEDA_NO_MXN).toBe(
+        'El estado de cuenta no está en MXN. Cuadra solo procesa estados de cuenta en pesos mexicanos.',
+      );
+    });
+
+    it('posicionMoneda: el índice de la columna, o -1 si no viene', () => {
+      expect(posicionMoneda(HM.split(','), CUADRA)).toBe(4);
+      expect(posicionMoneda(H.split(','), CUADRA)).toBe(-1);
+      // Un perfil sin la columna declarada no la reconoce.
+      expect(posicionMoneda(HM.split(','), NORTE)).toBe(-1);
+    });
+
+    it('la fila se lee sin la columna moneda', () => {
+      const leido = leerMovimiento(
+        ['2026-09-01', 'A', '', '1', 'MXN'],
+        CUADRA,
+        4,
+      );
+
+      expect(leido).toMatchObject({ fecha: '2026-09-01', monto: '1' });
+    });
+
+    it('una fila con columnas de más con moneda cuenta las esperadas con ella', () => {
+      expect(leerMovimiento(['2026-09-01', 'A', '', '1'], CUADRA, 4)).toEqual({
+        motivo: 'La fila tiene 4 columnas; se esperan 5',
+      });
     });
   });
 

@@ -1,7 +1,7 @@
 import { type EntityManager, QueryFailedError } from 'typeorm';
-import { CfdiRechazado } from '../cfdi/cfdi-leido';
-import { leerCfdi } from '../cfdi/lector-cfdi';
-import type { ResultadoDeArchivo } from './carga.entity';
+import { type CfdiLeido, CfdiRechazado } from '../cfdi/cfdi-leido';
+import { esMonedaNoSoportada, leerCfdi } from '../cfdi/lector-cfdi';
+import type { MarcaDeMoneda, ResultadoDeArchivo } from './carga.entity';
 import type { ResultadoDeProceso } from './resultado-de-proceso';
 
 export const INDICE_UUID = 'ux_cfdi_company_id_uuid_fiscal';
@@ -32,8 +32,9 @@ export async function guardarCfdi(
     };
   }
   await manager.query('SAVEPOINT archivo');
+  let cfdi: CfdiLeido | undefined;
   try {
-    const cfdi = leerCfdi(contenido);
+    cfdi = leerCfdi(contenido);
     await manager.query(
       `INSERT INTO cfdi
          (company_id, carga_id, uuid_fiscal, rfc_emisor, rfc_receptor,
@@ -66,13 +67,17 @@ export async function guardarCfdi(
       ],
     );
     await manager.query('RELEASE SAVEPOINT archivo');
-    return { archivo: nombre, resultado: 'nuevo' };
+    return { archivo: nombre, resultado: 'nuevo', ...marcaDeMoneda(cfdi) };
   } catch (error) {
     if (violaIndice(error, INDICE_UUID)) {
       // Sin esto, el 23505 deja la transacción abortada y todo lo que sigue
       // falla con "current transaction is aborted".
       await manager.query('ROLLBACK TO SAVEPOINT archivo');
-      return { archivo: nombre, resultado: 'ya_existia' };
+      return {
+        archivo: nombre,
+        resultado: 'ya_existia',
+        ...(cfdi ? marcaDeMoneda(cfdi) : {}),
+      };
     }
     if (error instanceof CfdiRechazado) {
       await manager.query('ROLLBACK TO SAVEPOINT archivo');
@@ -80,6 +85,11 @@ export async function guardarCfdi(
     }
     throw error;
   }
+}
+
+/** Historia 3.1: la marca solo viaja cuando la moneda no es MXN ni XXX. */
+function marcaDeMoneda({ moneda }: CfdiLeido): MarcaDeMoneda {
+  return esMonedaNoSoportada(moneda) ? { monedaNoSoportada: true, moneda } : {};
 }
 
 export function violaIndice(error: unknown, indice: string): boolean {
