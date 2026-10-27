@@ -6,6 +6,7 @@ import {
   ACCION_CREAR,
   ACCION_RECHAZAR,
   CAMPO_TOLERANCIA,
+  ETIQUETAS_ROL,
   MOTIVO_ROL_INSUFICIENTE,
   MOTIVO_SIN_MEMBRESIA,
 } from '@/shared/dominio';
@@ -112,14 +113,21 @@ function roles(valor: unknown): string[] | undefined {
   return lista;
 }
 
+/** ` · permiso: p` si `datos.permiso` es texto; nada si falta o no lo es. */
+function sufijoPermiso(datos: Objeto): string {
+  const permiso = texto(datos.permiso);
+  return permiso === undefined ? '' : ` · permiso: ${permiso}`;
+}
+
 function detalleAccesoDenegado(datos: Objeto): string {
   const metodo = texto(datos.metodo);
   const ruta = texto(datos.ruta);
   if (metodo === undefined || ruta === undefined) return SIN_DETALLE;
   const peticion = `${metodo} ${ruta}`;
+  const permiso = sufijoPermiso(datos);
 
   if (datos.motivo === MOTIVO_SIN_MEMBRESIA) {
-    return `${peticion} · sin membresía en la empresa`;
+    return `${peticion} · sin membresía en la empresa${permiso}`;
   }
   if (datos.motivo !== MOTIVO_ROL_INSUFICIENTE) return SIN_DETALLE;
 
@@ -128,9 +136,95 @@ function detalleAccesoDenegado(datos: Objeto): string {
   if (requeridos === undefined || delUsuario === undefined) return SIN_DETALLE;
   // La denegación por segregación de funciones también se guarda como
   // `rol_insuficiente`, pero la persona SÍ tiene un rol requerido. Decir
-  // «requiere admin o contador, tiene contador» sería falso: se muestra «—».
-  if (requeridos.some((rol) => delUsuario.includes(rol))) return SIN_DETALLE;
-  return `${peticion} · rol insuficiente: requiere ${requeridos.join(' o ')}, tiene ${delUsuario.join(' y ')}`;
+  // «requiere admin o contador, tiene contador» sería falso: se conserva la
+  // petición (y el permiso) sin afirmar nada sobre los roles.
+  if (requeridos.some((rol) => delUsuario.includes(rol))) {
+    return `${peticion}${permiso}`;
+  }
+  return `${peticion} · rol insuficiente: requiere ${requeridos.join(' o ')}, tiene ${delUsuario.join(' y ')}${permiso}`;
+}
+
+// Acciones de administración (historia 2.7). El correo y los roles salen de
+// `datos`; lo que falta o viene mal formado se omite y, sin nada utilizable,
+// el detalle es «—». Nunca se inventa un dato (p. ej. el vencimiento de una
+// invitación no se guarda en `datos`, así que no se muestra).
+
+/** Roles de texto (la lista puede ir vacía), o `undefined` si no es una lista válida. */
+function listaDeRoles(valor: unknown): string[] | undefined {
+  if (!Array.isArray(valor)) return undefined;
+  const lista: string[] = [];
+  for (const rol of valor) {
+    const nombre = texto(rol);
+    if (nombre === undefined) return undefined;
+    lista.push(nombre);
+  }
+  return lista;
+}
+
+/** Etiqueta del rol; un valor que no es un rol conocido sale tal cual vino. */
+function etiquetaRol(rol: string): string {
+  return Object.hasOwn(ETIQUETAS_ROL, rol)
+    ? ETIQUETAS_ROL[rol as keyof typeof ETIQUETAS_ROL]
+    : rol;
+}
+
+/** `A`, `A y B`, `A, B y C`; «ninguno» si la lista está vacía. */
+function unirRoles(lista: string[]): string {
+  const nombres = lista.map(etiquetaRol);
+  const ultimo = nombres.pop();
+  if (ultimo === undefined) return 'ninguno';
+  return nombres.length === 0 ? ultimo : `${nombres.join(', ')} y ${ultimo}`;
+}
+
+/** Une los fragmentos presentes; «—» si no queda ninguno. */
+function unir(partes: Array<string | undefined>): string {
+  const presentes = partes.filter((p): p is string => p !== undefined);
+  return presentes.length === 0 ? SIN_DETALLE : presentes.join(' · ');
+}
+
+/** `roles: A y B`, o `undefined` si faltan o la lista está vacía. */
+function fragmentoRoles(valor: unknown, rotulo = 'roles'): string | undefined {
+  const lista = listaDeRoles(valor);
+  return lista === undefined || lista.length === 0
+    ? undefined
+    : `${rotulo}: ${unirRoles(lista)}`;
+}
+
+function conCorreo(datos: Objeto): string | undefined {
+  const email = texto(datos.email);
+  return email === undefined ? undefined : `correo: ${email}`;
+}
+
+function detalleInvitar(datos: Objeto): string {
+  return unir([conCorreo(datos), fragmentoRoles(datos.roles)]);
+}
+
+function detalleReenviar(datos: Objeto): string {
+  const correo = conCorreo(datos);
+  const rolesTexto = fragmentoRoles(datos.roles);
+  if (correo === undefined && rolesTexto === undefined) return SIN_DETALLE;
+  return unir([correo, 'enlace anterior invalidado', rolesTexto]);
+}
+
+function detalleCancelar(datos: Objeto): string {
+  return unir([conCorreo(datos)]);
+}
+
+function detalleCambiarRol(datos: Objeto): string {
+  const antes = listaDeRoles(datos.antes);
+  const despues = listaDeRoles(datos.despues);
+  const cambio =
+    antes === undefined || despues === undefined
+      ? undefined
+      : `roles: ${unirRoles(antes)} → ${unirRoles(despues)}`;
+  return unir([texto(datos.email), cambio]);
+}
+
+function detalleQuitarRol(datos: Objeto): string {
+  return unir([
+    texto(datos.email),
+    fragmentoRoles(datos.roles, 'roles quitados'),
+  ]);
 }
 
 /**
@@ -157,6 +251,16 @@ export function detalleEvento({
       return detalleActualizar(datos);
     case ACCION_ACCESO_DENEGADO:
       return detalleAccesoDenegado(datos);
+    case 'invitar':
+      return detalleInvitar(datos);
+    case 'reenviar_invitacion':
+      return detalleReenviar(datos);
+    case 'cancelar_invitacion':
+      return detalleCancelar(datos);
+    case 'cambiar_rol':
+      return detalleCambiarRol(datos);
+    case 'quitar_rol':
+      return detalleQuitarRol(datos);
     default:
       return SIN_DETALLE;
   }
