@@ -96,9 +96,6 @@ describe('CargasContenedor: roles', () => {
     async (roles) => {
       montar(roles);
       await esperarPerfiles();
-      expect(
-        screen.queryByText('Tu rol solo permite consultar las cargas.'),
-      ).toBeNull();
       expect(screen.getByLabelText('Elegir archivos')).toBeEnabled();
       expect(screen.getByLabelText('Elegir archivo')).toBeEnabled();
       expect(screen.getByLabelText('Banco')).toBeEnabled();
@@ -113,45 +110,31 @@ describe('CargasContenedor: roles', () => {
     expect(screen.getByLabelText('Elegir archivos')).toBeEnabled();
   });
 
-  it('un revisor ve el aviso y cada control deshabilitado, ninguno oculto (4.2)', async () => {
-    montar(['revisor']);
-    await esperarPerfiles();
-    expect(
-      screen.getByText('Tu rol solo permite consultar las cargas.'),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'Pide a un administrador o contador que suba los archivos.',
-      ),
-    ).toBeInTheDocument();
-    for (const control of [
-      screen.getByLabelText('Elegir archivos'),
-      screen.getByLabelText('Elegir archivo'),
-      screen.getByLabelText('Banco'),
-      screen.getByLabelText('Cuenta'),
-      screen.getByLabelText('Perfil de lectura'),
-      screen.getByRole('button', { name: 'Subir archivos' }),
-      botonCsv(),
-    ]) {
-      expect(control).toBeDisabled();
-    }
-  });
+  it.each([[['revisor']], [['auditor']]])(
+    'con %j solo se ve el aviso de sin permiso: ni tarjetas ni tabla (3.1)',
+    async (roles) => {
+      montar(roles);
+      const alerta = await screen.findByRole('alert');
+      expect(alerta).toHaveTextContent('No tienes permiso para esta acción.');
+      expect(alerta).toHaveTextContent(
+        'Si crees que es un error, pide acceso a un administrador de la empresa.',
+      );
+      expect(screen.queryByLabelText('Elegir archivos')).toBeNull();
+      expect(screen.queryByLabelText('Elegir archivo')).toBeNull();
+      expect(screen.queryByLabelText('Perfil de lectura')).toBeNull();
+      expect(screen.queryByRole('table')).toBeNull();
+    },
+  );
 
-  it('un revisor no puede enviar nada: ni por el selector ni soltando (4.2)', async () => {
+  it('sin cargas.ver no se pide nada al servidor: ni la lista ni los perfiles (3.1)', async () => {
     const espia = espiarSolicitudes();
     montar(['revisor']);
-    await esperarPerfiles();
-    // Control positivo: la lectura de perfiles sí salió.
-    expect(espia.cuantas('GET', '/api/bancos/perfiles')).toBe(1);
-    const u = usuario();
-    await u.upload(screen.getByLabelText('Elegir archivos'), xml('a.xml'));
-    await u.upload(screen.getByLabelText('Elegir archivo'), csv('a.csv'));
-    await u.click(botonCsv());
+    await screen.findByRole('alert');
     await esperarIntervalos();
-    expect(espia.solicitudes.filter((s) => s.metodo === 'POST')).toHaveLength(
-      0,
-    );
-    expect(screen.queryByRole('listitem')).toBeNull();
+    expect(
+      espia.solicitudes.filter((s) => s.ruta.startsWith('/api/cargas')),
+    ).toHaveLength(0);
+    expect(espia.cuantas('GET', '/api/bancos/perfiles')).toBe(0);
     espia.detener();
   });
 
@@ -163,9 +146,6 @@ describe('CargasContenedor: roles', () => {
     await u.upload(screen.getByLabelText('Elegir archivos'), xml('a.xml'));
     await u.click(botonCfdi(1));
     await waitFor(() => expect(botonCfdi(1)).toBeEnabled());
-    expect(
-      screen.queryByText('Tu rol solo permite consultar las cargas.'),
-    ).toBeNull();
     expect(screen.getByLabelText('Elegir archivos')).toBeEnabled();
   });
 });
@@ -901,9 +881,6 @@ describe('CargasContenedor: alertas de una subida que falla', () => {
     );
     expect(screen.queryByText(/acceso_denegado/)).toBeNull();
     expect(botonCfdi(1)).toBeEnabled();
-    expect(
-      screen.queryByText('Tu rol solo permite consultar las cargas.'),
-    ).toBeNull();
   });
 
   it('fallo de red: el texto de conectividad, Reintentar vuelve a enviar y la alerta desaparece al enviar (10.5, 10.7)', async () => {

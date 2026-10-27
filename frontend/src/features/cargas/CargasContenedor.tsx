@@ -3,13 +3,14 @@ import { useEffect, useRef, useState } from 'react';
 import {
   TIPO_CFDI,
   TIPO_ESTADO_CUENTA,
+  puede,
   type TipoCarga,
 } from '@/shared/dominio';
 import type { RespuestaCarga } from '@/shared/api/contratos';
+import { AlertaError } from '@/shared/ui/AlertaError';
 import { useSessionContext } from '@/shared/sesion';
 import { clavesCargas, useEpoca } from './claves';
 import { AlertaSubida, type FalloSubida } from './components/AlertaSubida';
-import { AvisoRevisor } from './components/AvisoRevisor';
 import { HistorialCargas } from './components/HistorialCargas';
 import { PanelCarga } from './components/PanelCarga';
 import { TarjetaCfdi } from './components/TarjetaCfdi';
@@ -17,6 +18,7 @@ import { TarjetaEstadoCuenta } from './components/TarjetaEstadoCuenta';
 import estilos from './CargasContenedor.module.css';
 import { clasificarErrorSubida } from './errores';
 import { perfilVigente } from './perfil';
+import { ERROR_SIN_PERMISO } from './textos';
 import {
   REGLAS_CFDI,
   REGLAS_ESTADO_CUENTA,
@@ -34,8 +36,11 @@ import {
 } from './vista';
 
 /**
- * Contenedor de la pantalla de cargas: el aviso de solo lectura, las tarjetas
- * de subida y el historial, en ese orden (Cargas.dc.html). Reúne rol,
+ * Contenedor de la pantalla de cargas. Sin `cargas.ver` (revisor, auditor)
+ * solo muestra el aviso de sin permiso y no pide nada al servidor, como la
+ * pantalla de Usuarios; el menú ya oculta la entrada y el servidor responde
+ * 403. Con acceso, las tarjetas de subida y el historial, en ese orden
+ * (Cargas.dc.html). Reúne rol,
  * selección, campos escritos y la mutación; las tarjetas solo reciben props.
  * El estado de la pantalla se deriva de lo que ya existe (sesión, mutación,
  * perfiles, lista): nada se guarda de más.
@@ -57,6 +62,21 @@ import {
  * proceso por el aviso con «Actualizar» (K5).
  */
 export function CargasContenedor() {
+  const sesion = useSessionContext();
+  // La ruta ya exige sesión lista; si no lo está no hay capacidades que juzgar.
+  if (sesion.status !== 'ready') return null;
+  if (!puede(sesion.contexto.capacidades, 'cargas.ver')) {
+    return (
+      <section aria-label="Sin permiso" className={estilos.contenedor}>
+        <AlertaError {...ERROR_SIN_PERMISO} />
+      </section>
+    );
+  }
+  return <CargasConAcceso />;
+}
+
+/** Las tarjetas y el historial; solo se monta con `cargas.ver`. */
+function CargasConAcceso() {
   const sesion = useSessionContext();
   const perfiles = usePerfiles();
   const { subir, isPending, variables } = useSubirCarga();
@@ -213,7 +233,6 @@ export function CargasContenedor() {
 
   return (
     <div className={estilos.contenedor}>
-      {deshabilitadas ? <AvisoRevisor /> : null}
       <div className={estilos.tarjetas}>
         <TarjetaCfdi
           archivos={archivosCfdi}

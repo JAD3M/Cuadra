@@ -77,12 +77,6 @@ export const ELEGIR_ARCHIVO = 'Elegir archivo';
 export const SUBIENDO = 'Subiendo…';
 export const SUBIENDO_ARCHIVOS = 'Subiendo tus archivos';
 
-/** Aviso de solo lectura: el rol no sube cargas. */
-export const AVISO_REVISOR = {
-  titulo: 'Tu rol solo permite consultar las cargas.',
-  detalle: 'Pide a un administrador o contador que suba los archivos.',
-} as const;
-
 /** Tarjeta de CFDI (mockup: «CFDI · XML»). */
 export const TARJETA_CFDI = {
   titulo: 'CFDI · XML',

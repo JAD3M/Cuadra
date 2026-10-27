@@ -8,7 +8,6 @@ const MODULOS = {
   fila: 'features/cargas/components/FilaArchivo.module.css',
   lista: 'features/cargas/components/ListaArchivos.module.css',
   campos: 'features/cargas/components/campos.module.css',
-  revisor: 'features/cargas/components/AvisoRevisor.module.css',
   tarjeta: 'features/cargas/components/tarjeta.module.css',
   region: 'features/cargas/components/RegionResultado.module.css',
   contenedor: 'features/cargas/CargasContenedor.module.css',
@@ -81,16 +80,6 @@ describe('contrato CSS de las tarjetas de subida', () => {
     expect(region).not.toMatch(/overflow:\s*hidden/);
     expect(bloqueCss(css.lista, '.region:focus-visible')).toContain(
       'var(--color-accent)',
-    );
-  });
-
-  it('el aviso de solo lectura usa la baldosa de sugerencia y no atenúa con opacity (G12)', () => {
-    const aviso = bloqueCss(css.revisor, '.aviso');
-    expect(aviso).toContain('var(--estado-sugerencia-tile-bg)');
-    expect(aviso).toContain('var(--estado-sugerencia-tile-border)');
-    expect(css.revisor).not.toMatch(/opacity/);
-    expect(bloqueCss(css.revisor, '.detalle')).toContain(
-      'var(--color-text-soft)',
     );
   });
 

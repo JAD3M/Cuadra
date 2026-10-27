@@ -316,9 +316,6 @@ describe('CargasPage: las 13 vistas de la pantalla completa', () => {
     expect(screen.getByLabelText('Elegir archivos')).toBeEnabled();
     expect(screen.getByText(LEYENDA)).toBeInTheDocument();
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(
-      screen.queryByText('Tu rol solo permite consultar las cargas.'),
-    ).toBeNull();
     expect(screen.queryByText('Cargas', { selector: 'h2' })).toBeNull();
   });
 
@@ -356,23 +353,13 @@ describe('CargasPage: las 13 vistas de la pantalla completa', () => {
     expect(screen.getByLabelText('Elegir archivo')).toBeEnabled();
   });
 
-  it('revisor: el aviso, las tarjetas con cada control apagado y la tabla a la vista (vista revisor)', async () => {
+  it('revisor: solo el aviso de sin permiso, sin tarjetas ni tabla (vista sin acceso)', async () => {
     montar(HOLGADO, ['revisor']);
-    await screen.findByRole('table');
-    await esperarPerfiles();
-    expect(
-      screen.getByText('Tu rol solo permite consultar las cargas.'),
-    ).toBeInTheDocument();
-    for (const control of [
-      screen.getByLabelText('Elegir archivos'),
-      screen.getByLabelText('Elegir archivo'),
-      screen.getByLabelText('Banco'),
-      screen.getByLabelText('Cuenta'),
-      screen.getByLabelText('Perfil de lectura'),
-      botonCsv(),
-    ]) {
-      expect(control).toBeDisabled();
-    }
+    const alerta = await screen.findByRole('alert');
+    expect(alerta).toHaveTextContent('No tienes permiso para esta acción.');
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.queryByLabelText('Elegir archivos')).toBeNull();
+    expect(screen.queryByLabelText('Elegir archivo')).toBeNull();
   });
 
   it('subiendo: solo la tarjeta que sube dice «Subiendo…» y el historial sigue (vista subiendo)', async () => {
@@ -640,16 +627,6 @@ describe('CargasPage: estructura y accesibilidad (12.1, 12.3)', () => {
       (e) => Number(e.getAttribute('tabindex')) > 0,
     );
     expect(positivos).toHaveLength(0);
-  });
-
-  it('el aviso del revisor va antes de las tarjetas, como en el mockup', async () => {
-    montar(HOLGADO, ['revisor']);
-    await screen.findByRole('table');
-    const aviso = screen.getByText('Tu rol solo permite consultar las cargas.');
-    expect(
-      aviso.compareDocumentPosition(tarjeta(CFDI)) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
   });
 
   it('las regiones de estado son corteses y los fallos son alertas', async () => {

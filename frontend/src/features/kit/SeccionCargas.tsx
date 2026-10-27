@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { AlertaSubida } from '@/features/cargas/components/AlertaSubida';
-import { AvisoRevisor } from '@/features/cargas/components/AvisoRevisor';
 import type { FilaHistorial } from '@/features/cargas/components/FilaCarga';
 import { HistorialCargas } from '@/features/cargas/components/HistorialCargas';
 import { ListaArchivos } from '@/features/cargas/components/ListaArchivos';
@@ -251,7 +250,6 @@ export function SeccionCargas() {
         <Historial vista="fallo" />
       </Bloque>
       <Bloque titulo="Vista: revisor">
-        <AvisoRevisor />
         <Pareja>
           <Cfdi archivos={XML_LISTOS} deshabilitada />
           <Csv archivo={CSV_LISTO} deshabilitada />
