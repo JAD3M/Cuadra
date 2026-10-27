@@ -43,19 +43,56 @@ const parser = new XMLParser({
 });
 
 /**
- * Decimales por moneda (c_Moneda del SAT) para redondear las sumas antes de
- * comparar. Una moneda fuera de la lista se rechaza: adivinar sus decimales
- * es adivinar si el total cuadra. XXX es la de los CFDI de pago.
+ * Decimales de las monedas que no usan 2 (ISO 4217), para redondear las sumas
+ * antes de comparar. Cualquier otra moneda bien formada usa 2. XXX es la de
+ * los CFDI de pago (sin moneda).
  */
-const DECIMALES_MONEDA: Readonly<Record<string, number>> = {
-  MXN: 2,
-  USD: 2,
-  EUR: 2,
-  CAD: 2,
-  GBP: 2,
-  JPY: 0,
-  XXX: 0,
-};
+const MONEDAS_SIN_DECIMALES = new Set([
+  'BIF',
+  'CLP',
+  'DJF',
+  'GNF',
+  'ISK',
+  'JPY',
+  'KMF',
+  'KRW',
+  'PYG',
+  'RWF',
+  'UGX',
+  'UYI',
+  'VND',
+  'VUV',
+  'XAF',
+  'XOF',
+  'XPF',
+  'XXX',
+]);
+const MONEDAS_DE_TRES_DECIMALES = new Set([
+  'BHD',
+  'IQD',
+  'JOD',
+  'KWD',
+  'LYD',
+  'OMR',
+  'TND',
+]);
+
+function decimalesDeMoneda(moneda: string): number {
+  if (MONEDAS_SIN_DECIMALES.has(moneda)) return 0;
+  return MONEDAS_DE_TRES_DECIMALES.has(moneda) ? 3 : 2;
+}
+
+/** `Moneda` bien formada: tres letras mayúsculas, como el c_Moneda del SAT. */
+const FORMATO_MONEDA = /^[A-Z]{3}$/;
+
+/**
+ * Historia 3.1: el CFDI en una moneda distinta de MXN se acepta pero queda
+ * marcado «moneda no soportada». XXX es «sin moneda» (CFDI de pago): no se
+ * marca.
+ */
+export function esMonedaNoSoportada(moneda: string): boolean {
+  return moneda !== 'MXN' && moneda !== 'XXX';
+}
 
 const UUID = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 
@@ -153,13 +190,13 @@ export function leerCfdi(xml: string): CfdiLeido {
   }
 
   const moneda = requerido(comprobante, 'Moneda');
-  const decimales = DECIMALES_MONEDA[moneda];
-  if (decimales === undefined) {
+  if (!FORMATO_MONEDA.test(moneda)) {
     throw new CfdiRechazado(
-      'moneda_no_soportada',
-      `Moneda sin decimales conocidos: ${moneda}`,
+      'campo_invalido',
+      `Moneda con formato inválido: ${moneda}; se esperan tres letras mayúsculas`,
     );
   }
+  const decimales = decimalesDeMoneda(moneda);
 
   const tipoCambio = montoOpcional(comprobante, 'TipoCambio');
   const subtotal = monto(comprobante, 'SubTotal');

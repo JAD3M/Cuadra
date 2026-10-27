@@ -58,7 +58,6 @@ export type MotivoRechazoCfdi =
   | 'rfc_emisor'
   | 'rfc_receptor'
   | 'uuid_ausente'
-  | 'moneda_no_soportada'
   | 'subtotal_no_cuadra'
   | 'descuento_no_cuadra'
   | 'total_no_cuadra';

@@ -347,11 +347,12 @@ fecha,descripcion,referencia,monto
 |---|---|
 | Codificación | UTF-8; el BOM se tolera. Latin-1 u otra → 400. |
 | Separador | Coma, con comillas dobles estándar: `""` dentro de comillas es una comilla, y un campo entre comillas puede traer comas y saltos de línea. Fin de línea LF o CRLF. |
-| Encabezados | Exactamente `fecha,descripcion,referencia,monto`, en ese orden y en minúsculas. Otro → 400. |
+| Encabezados | Exactamente `fecha,descripcion,referencia,monto`, en ese orden y en minúsculas, más la columna opcional `moneda`. Otro → 400. |
 | `fecha` | `AAAA-MM-DD`, un día que exista. |
 | `descripcion` | Obligatoria; no puede ser solo espacios. |
 | `referencia` | Opcional (vacía = sin referencia), máximo 128 caracteres. |
 | `monto` | Con signo: positivo = abono, negativo = cargo. Punto decimal, sin separador de miles ni notación científica, máximo 4 decimales y 14 enteros, distinto de 0. |
+| `moneda` | **Opcional**, en cualquier posición del encabezado. Si viene, toda fila debe decir `MXN` (sin importar mayúsculas ni espacios) o ir vacía; con cualquier otra moneda se rechaza el archivo completo (400, `error: "moneda_no_mxn"`: «El estado de cuenta no está en MXN. Cuadra solo procesa estados de cuenta en pesos mexicanos.»), sin carga ni movimientos. Sin la columna se asume MXN. Los perfiles de banco no la declaran. |
 
 - **Archivo completo, en el POST, antes de guardar nada:** extensión,
   UTF-8, sin bytes nulos, CSV bien formado (comillas cerradas), encabezados

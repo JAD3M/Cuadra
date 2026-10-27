@@ -1,7 +1,11 @@
 import type { EntityManager } from 'typeorm';
 import type { ResultadoDeFila } from '../cargas/carga.entity';
 import type { ResultadoDeProceso } from '../cargas/resultado-de-proceso';
-import { leerFilas, leerMovimiento } from './lector-estado-cuenta';
+import {
+  leerFilas,
+  leerMovimiento,
+  posicionMoneda,
+} from './lector-estado-cuenta';
 import type { PerfilBancario } from './perfil';
 
 /**
@@ -39,11 +43,14 @@ export async function procesarEstadoDeCuenta(
   }
 
   // La primera es el encabezado, ya validado en el POST.
-  const [, ...filas] = leerFilas(archivo.contenido, perfil);
+  const [encabezado, ...filas] = leerFilas(archivo.contenido, perfil);
+  // Historia 3.1: ya se validó en el POST que toda moneda sea MXN; aquí solo
+  // se salta la columna.
+  const iMoneda = posicionMoneda(encabezado.campos, perfil);
   const errores: ResultadoDeFila[] = [];
   let nuevos = 0;
   for (const { linea, campos } of filas) {
-    const leido = leerMovimiento(campos, perfil);
+    const leido = leerMovimiento(campos, perfil, iMoneda);
     if ('motivo' in leido) {
       errores.push({ fila: linea, resultado: 'error', motivo: leido.motivo });
       continue;

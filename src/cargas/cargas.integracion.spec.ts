@@ -606,7 +606,13 @@ describe('POST /cargas/cfdi, idempotencia (CU-07)', () => {
       });
       expect(carga.resultados).toEqual([
         { archivo: 'repetido.xml', resultado: 'ya_existia' },
-        { archivo: 'nuevo.xml', resultado: 'nuevo' },
+        // El de USD entra, con la marca de la historia 3.1.
+        {
+          archivo: 'nuevo.xml',
+          resultado: 'nuevo',
+          moneda: 'USD',
+          monedaNoSoportada: true,
+        },
       ]);
       // El CFDI previo sigue en su carga original; no se duplica.
       const [guardadoPrevio] = await enCfdi([previo.uuid]);
@@ -786,5 +792,236 @@ describe('GET /cargas/:id (CU-06, CU-07, CU-08)', () => {
       .expect(404);
 
     expect(ajena.body).toEqual(inexistente.body);
+  });
+});
+
+/** Historia 3.1: el mismo CFDI de USD, pero con otra moneda. */
+function cfdiEnMoneda(moneda: string) {
+  const { uuid, xml } = cfdi('usd-tipo-cambio.xml');
+  return { uuid, xml: xml.replace('Moneda="USD"', `Moneda="${moneda}"`) };
+}
+
+describe('POST /cargas/cfdi, marca de moneda no soportada (historia 3.1)', () => {
+  it.each(['USD', 'EUR', 'CHF'])(
+    '%s: se acepta, la carga queda procesada y el archivo lleva la marca',
+    async (moneda) => {
+      const token = await tokenSesion(LUIS, FERRETERIA);
+      const { uuid, xml } = cfdiEnMoneda(moneda);
+
+      const carga = await cargarYEsperar(token, [
+        { nombre: 'extranjera.xml', contenido: xml },
+      ]);
+
+      expect(carga).toMatchObject({
+        estado: 'procesada',
+        registrosOk: 1,
+        registrosError: 0,
+        resultados: [
+          {
+            archivo: 'extranjera.xml',
+            resultado: 'nuevo',
+            moneda,
+            monedaNoSoportada: true,
+          },
+        ],
+      });
+      const [guardado] = await filas<{ moneda: string }>(
+        ds,
+        'SELECT moneda FROM cfdi WHERE uuid_fiscal = $1',
+        [uuid],
+      );
+      expect(guardado.moneda).toBe(moneda);
+    },
+  );
+
+  it('MXN y XXX no llevan marca; en un lote solo se marca el que toca', async () => {
+    const token = await tokenSesion(LUIS, FERRETERIA);
+
+    const carga = await cargarYEsperar(token, [
+      { nombre: 'mxn.xml', contenido: cfdi('pue-valido.xml').xml },
+      { nombre: 'xxx.xml', contenido: cfdiEnMoneda('XXX').xml },
+      { nombre: 'eur.xml', contenido: cfdiEnMoneda('EUR').xml },
+    ]);
+
+    expect(carga.resultados).toEqual([
+      { archivo: 'mxn.xml', resultado: 'nuevo' },
+      { archivo: 'xxx.xml', resultado: 'nuevo' },
+      {
+        archivo: 'eur.xml',
+        resultado: 'nuevo',
+        moneda: 'EUR',
+        monedaNoSoportada: true,
+      },
+    ]);
+  });
+
+  it('el GET devuelve la marca y subir lo mismo responde yaExistia', async () => {
+    const token = await tokenSesion(LUIS, FERRETERIA);
+    const lote = [{ nombre: 'usd.xml', contenido: cfdiEnMoneda('USD').xml }];
+    const original = await cargarYEsperar(token, lote);
+
+    const consultada = await request(app.getHttpServer())
+      .get(`/cargas/${original.id}`)
+      .set('Cookie', token)
+      .expect(200);
+    const repetida = (await subir(token, lote).expect(200))
+      .body as RespuestaDeCarga;
+
+    expect((consultada.body as EstadoDeCarga).resultados).toEqual(
+      original.resultados,
+    );
+    expect(repetida).toEqual({ ...original, yaExistia: true });
+  });
+
+  it('una moneda mal formada es error del archivo, no de la carga', async () => {
+    const token = await tokenSesion(LUIS, FERRETERIA);
+
+    const carga = await cargarYEsperar(token, [
+      { nombre: 'mala.xml', contenido: cfdiEnMoneda('usd').xml },
+    ]);
+
+    expect(carga.estado).toBe('con_errores');
+    expect(motivoDe(carga, 'mala.xml')).toMatch(/Moneda/);
+  });
+});
+
+interface EntradaCargar {
+  company_id: string;
+  user_id: string | null;
+  entidad: string;
+  entidad_id: string;
+  accion: string;
+  datos: Record<string, unknown>;
+}
+
+function entradasDeCargar(cargaId: string) {
+  return filas<EntradaCargar>(
+    ds,
+    `SELECT company_id, user_id, entidad, entidad_id, accion, datos
+       FROM bitacora WHERE accion = 'cargar' AND entidad_id = $1`,
+    [cargaId],
+  );
+}
+
+describe('bitácora `cargar` al terminar la carga (FR-52)', () => {
+  it('procesada: una entrada con persona, empresa, archivo y resultado', async () => {
+    const token = await tokenSesion(LUIS, FERRETERIA);
+
+    const carga = await cargarYEsperar(token, [
+      { nombre: 'pue.xml', contenido: cfdi('pue-valido.xml').xml },
+      { nombre: 'usd.xml', contenido: cfdiEnMoneda('USD').xml },
+    ]);
+
+    expect(await entradasDeCargar(carga.id)).toEqual([
+      {
+        company_id: entorno.empresa(FERRETERIA),
+        user_id: entorno.persona(LUIS),
+        entidad: 'cargas',
+        entidad_id: carga.id,
+        accion: 'cargar',
+        datos: {
+          cargaId: carga.id,
+          tipo: 'cfdi',
+          archivo: '2 archivos: pue.xml, usd.xml',
+          estado: 'procesada',
+          registrosOk: 2,
+          registrosExistentes: 0,
+          registrosError: 0,
+          totalRegistros: 2,
+        },
+      },
+    ]);
+  });
+
+  it('con_errores: la entrada trae el estado y los conteos, nunca el contenido', async () => {
+    const token = await tokenSesion(ANA, FERRETERIA);
+
+    const carga = await cargarYEsperar(token, [
+      { nombre: 'ok.xml', contenido: cfdi('pue-valido.xml').xml },
+      { nombre: 'mal.xml', contenido: '<no-es-cfdi/>' },
+    ]);
+
+    const [entrada] = await entradasDeCargar(carga.id);
+    expect(entrada.user_id).toBe(entorno.persona(ANA));
+    expect(entrada.datos).toMatchObject({
+      estado: 'con_errores',
+      registrosOk: 1,
+      registrosError: 1,
+      totalRegistros: 2,
+    });
+    expect(JSON.stringify(entrada.datos)).not.toContain('no-es-cfdi');
+  });
+
+  it('fallida: también queda registrada', async () => {
+    const primero = cfdi('pue-valido.xml');
+    const segundo = cfdi('con-descuento.xml');
+
+    const carga = await conFalla(segundo.uuid, 'siempre', async () =>
+      cargarYEsperar(await tokenSesion(ANA, FERRETERIA), [
+        { nombre: 'primero.xml', contenido: primero.xml },
+        { nombre: 'segundo.xml', contenido: segundo.xml },
+      ]),
+    );
+
+    expect(carga.estado).toBe('fallida');
+    const [entrada, ...otras] = await entradasDeCargar(carga.id);
+    expect(otras).toEqual([]);
+    expect(entrada).toMatchObject({
+      user_id: entorno.persona(ANA),
+      entidad: 'cargas',
+      datos: { estado: 'fallida', tipo: 'cfdi', totalRegistros: 2 },
+    });
+  });
+
+  it('un reintento que acaba bien deja una sola entrada', async () => {
+    const primero = cfdi('pue-valido.xml');
+    const segundo = cfdi('con-descuento.xml');
+
+    const carga = await conFalla(segundo.uuid, 2, async () =>
+      cargarYEsperar(await tokenSesion(ANA, FERRETERIA), [
+        { nombre: 'primero.xml', contenido: primero.xml },
+        { nombre: 'segundo.xml', contenido: segundo.xml },
+      ]),
+    );
+
+    expect(carga.estado).toBe('procesada');
+    expect(await entradasDeCargar(carga.id)).toHaveLength(1);
+  });
+
+  it('subir lo mismo otra vez (yaExistia) no escribe otra entrada', async () => {
+    const token = await tokenSesion(LUIS, FERRETERIA);
+    const lote = [{ nombre: 'a.xml', contenido: cfdi('pue-valido.xml').xml }];
+    const original = await cargarYEsperar(token, lote);
+    const [{ n: antes }] = await filas<{ n: number }>(
+      ds,
+      "SELECT count(*)::int AS n FROM bitacora WHERE accion = 'cargar'",
+    );
+
+    await subir(token, lote).expect(200);
+    await subir(token, lote).expect(200);
+
+    const [{ n: despues }] = await filas<{ n: number }>(
+      ds,
+      "SELECT count(*)::int AS n FROM bitacora WHERE accion = 'cargar'",
+    );
+    expect(despues).toBe(antes);
+    expect(await entradasDeCargar(original.id)).toHaveLength(1);
+  });
+
+  it('cada entrada queda en la empresa de su carga', async () => {
+    const deFerreteria = await cargarYEsperar(
+      await tokenSesion(LUIS, FERRETERIA),
+      [{ nombre: 'f.xml', contenido: cfdi('pue-valido.xml').xml }],
+    );
+    const deTransportes = await cargarYEsperar(
+      await tokenSesion(CARMEN, TRANSPORTES),
+      [{ nombre: 't.xml', contenido: cfdi('pue-valido.xml').xml }],
+    );
+
+    const [f] = await entradasDeCargar(deFerreteria.id);
+    const [t] = await entradasDeCargar(deTransportes.id);
+    expect(f.company_id).toBe(entorno.empresa(FERRETERIA));
+    expect(t.company_id).toBe(entorno.empresa(TRANSPORTES));
+    expect(t.user_id).toBe(entorno.persona(CARMEN));
   });
 });

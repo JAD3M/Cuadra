@@ -3,7 +3,12 @@ import { join } from 'path';
 import { getMetadataArgsStorage } from 'typeorm';
 import { Cfdi } from './cfdi.entity';
 import { CfdiRechazado, type MotivoRechazoCfdi } from './cfdi-leido';
-import { DIGITOS_CFDI, LARGOS_CFDI, leerCfdi } from './lector-cfdi';
+import {
+  DIGITOS_CFDI,
+  esMonedaNoSoportada,
+  LARGOS_CFDI,
+  leerCfdi,
+} from './lector-cfdi';
 
 /**
  * CU-05. Todos los XML son sintéticos (src/cfdi/fixtures): RFCs del seed,
@@ -80,6 +85,33 @@ describe('lector de CFDI 4.0 (CU-05)', () => {
 
       expect(cfdi.moneda).toBe('USD');
       expect(cfdi.tipoCambio).toBe('17.234567');
+    });
+
+    // Historia 3.1: ya no hay lista de monedas; cualquier código bien formado
+    // entra y la marca "moneda no soportada" se deriva (no MXN ni XXX).
+    it.each(['EUR', 'CHF', 'JPY', 'CAD'])(
+      '%s: se acepta y queda marcada como moneda no soportada',
+      (moneda) => {
+        const xml = fixture('usd-tipo-cambio.xml').replace(
+          'Moneda="USD"',
+          `Moneda="${moneda}"`,
+        );
+
+        const cfdi = leerCfdi(xml);
+
+        expect(cfdi.moneda).toBe(moneda);
+        expect(esMonedaNoSoportada(cfdi.moneda)).toBe(true);
+      },
+    );
+
+    it('USD queda marcada; MXN y XXX no', () => {
+      expect(
+        esMonedaNoSoportada(leerCfdi(fixture('usd-tipo-cambio.xml')).moneda),
+      ).toBe(true);
+      expect(
+        esMonedaNoSoportada(leerCfdi(fixture('pue-valido.xml')).moneda),
+      ).toBe(false);
+      expect(esMonedaNoSoportada('XXX')).toBe(false);
     });
 
     it('Importes de 6 decimales que cuadran solo al redondear a centavos', () => {
@@ -170,6 +202,26 @@ describe('lector de CFDI 4.0 (CU-05)', () => {
 
       expect(error.motivo).toBe(motivo);
       expect(error.message).toMatch(mensaje);
+    });
+
+    it.each(['usd', 'US', 'USDX', '12A', 'U$D'])(
+      'Moneda mal formada (%s) → campo_invalido',
+      (moneda) => {
+        const xml = fixture('usd-tipo-cambio.xml').replace(
+          'Moneda="USD"',
+          `Moneda="${moneda}"`,
+        );
+        const error = rechazo(xml);
+
+        expect(error.motivo).toBe('campo_invalido');
+        expect(error.message).toMatch(/Moneda/);
+      },
+    );
+
+    it('sin Moneda → campo_invalido', () => {
+      const xml = fixture('usd-tipo-cambio.xml').replace(' Moneda="USD"', '');
+
+      expect(rechazo(xml).motivo).toBe('campo_invalido');
     });
 
     it('XML mal formado', () => {

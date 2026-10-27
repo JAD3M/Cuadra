@@ -12,11 +12,19 @@ import {
 } from '../common/entities/tipos';
 
 /**
+ * Historia 3.1: solo en el CFDI cuya moneda no es MXN ni XXX. Se acepta, pero
+ * queda marcado «moneda no soportada». No hay columna: se deriva al leer.
+ */
+export type MarcaDeMoneda =
+  | { monedaNoSoportada: true; moneda: string }
+  | { monedaNoSoportada?: undefined; moneda?: undefined };
+
+/**
  * Qué pasó con cada archivo del lote (CU-06, CU-07). `motivo` solo en
  * 'error'.
  */
 export type ResultadoDeArchivo =
-  | { archivo: string; resultado: 'nuevo' | 'ya_existia' }
+  | ({ archivo: string; resultado: 'nuevo' | 'ya_existia' } & MarcaDeMoneda)
   | { archivo: string; resultado: 'error'; motivo: string };
 
 /**

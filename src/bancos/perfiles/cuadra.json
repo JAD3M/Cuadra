@@ -11,6 +11,7 @@
     "referencia": "referencia",
     "monto": "monto"
   },
+  "columnaMoneda": "moneda",
   "formatoFecha": "AAAA-MM-DD",
   "separadorMiles": null,
   "separadorDecimal": "."

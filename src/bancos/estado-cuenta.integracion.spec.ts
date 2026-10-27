@@ -521,3 +521,113 @@ describe('perfiles de banco (CU-10)', () => {
       .expect(403);
   });
 });
+
+describe('POST /cargas/estado-cuenta, columna opcional moneda (historia 3.1)', () => {
+  it('con la columna y todo en MXN (o vacío): se procesa como siempre', async () => {
+    const carga = await cargarYEsperar(
+      await entorno.token(LUIS, FERRETERIA),
+      'con-moneda-mxn.csv',
+    );
+
+    expect(carga).toMatchObject({
+      estado: 'procesada',
+      totalRegistros: 3,
+      registrosOk: 3,
+      registrosError: 0,
+    });
+    expect((await movimientosDe(carga.id)).map((m) => m.monto)).toEqual([
+      '4466.5800',
+      '-12.5000',
+      '-1500.0000',
+    ]);
+  });
+
+  it('una fila que no es MXN: 400 con el motivo, sin carga ni movimientos', async () => {
+    const antes = await conteos();
+
+    const res = await subir(
+      await entorno.token(LUIS, FERRETERIA),
+      'con-moneda-usd.csv',
+      fixture('con-moneda-usd.csv'),
+    ).expect(400);
+
+    expect(res.body).toMatchObject({
+      statusCode: 400,
+      error: 'moneda_no_mxn',
+      message:
+        'El estado de cuenta no está en MXN. Cuadra solo procesa estados de cuenta en pesos mexicanos.',
+    });
+    expect(await conteos()).toEqual(antes);
+  });
+
+  it('sin la columna sigue siendo MXN: se procesa completo', async () => {
+    const token = await entorno.token(LUIS, FERRETERIA);
+    const contenido = Buffer.from(
+      `${fixture('valido-5.csv').toString('utf8')}2026-09-06,SIN MONEDA,,1.00\n`,
+    );
+    const res = await subir(token, 'sin-moneda.csv', contenido).expect(202);
+
+    const carga = await entorno.esperarFin(
+      token,
+      (res.body as RespuestaDeCarga).id,
+    );
+
+    expect(carga).toMatchObject({ estado: 'procesada', registrosOk: 6 });
+  });
+
+  it('un MXN repetido responde yaExistia', async () => {
+    const token = await entorno.token(LUIS, FERRETERIA);
+    // Ya lo subió la primera prueba de este bloque.
+    const repetida = await subir(
+      token,
+      'con-moneda-mxn.csv',
+      fixture('con-moneda-mxn.csv'),
+    ).expect(200);
+
+    expect(repetida.body).toMatchObject({ yaExistia: true });
+  });
+});
+
+describe('bitácora `cargar` del estado de cuenta (FR-52)', () => {
+  it('una entrada con la persona, el archivo y los conteos; la repetida no suma otra', async () => {
+    const token = await entorno.token(LUIS, FERRETERIA);
+    const contenido = Buffer.from(
+      `${fixture('una-malformada.csv').toString('utf8')}2026-09-07,PARA LA BITACORA,,2.00\n`,
+    );
+    const res = await subir(token, 'una-malformada.csv', contenido).expect(202);
+    const carga = await entorno.esperarFin(
+      token,
+      (res.body as RespuestaDeCarga).id,
+    );
+    await subir(token, 'una-malformada.csv', contenido).expect(200);
+
+    const entradas = await filas<{
+      company_id: string;
+      user_id: string;
+      entidad: string;
+      datos: Record<string, unknown>;
+    }>(
+      ds,
+      `SELECT company_id, user_id, entidad, datos FROM bitacora
+        WHERE accion = 'cargar' AND entidad_id = $1`,
+      [carga.id],
+    );
+    expect(entradas).toEqual([
+      {
+        company_id: entorno.empresa(FERRETERIA),
+        user_id: entorno.persona(LUIS),
+        entidad: 'cargas',
+        datos: {
+          cargaId: carga.id,
+          tipo: 'estado_cuenta',
+          archivo: 'una-malformada.csv',
+          estado: 'con_errores',
+          registrosOk: carga.registrosOk,
+          registrosExistentes: 0,
+          registrosError: carga.registrosError,
+          totalRegistros: carga.totalRegistros,
+        },
+      },
+    ]);
+  });
+});

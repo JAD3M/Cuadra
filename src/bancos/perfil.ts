@@ -40,6 +40,13 @@ export const esquemaPerfil = z
         abono: nombreDeColumna.optional(),
       })
       .strict(),
+    /**
+     * Historia 3.1: encabezado de una columna `moneda` OPCIONAL. No va en
+     * `encabezados` (que son los obligatorios): si el archivo la trae, en
+     * cualquier posición, toda fila debe decir MXN o ir vacía; si no, se
+     * asume MXN.
+     */
+    columnaMoneda: nombreDeColumna.optional(),
     formatoFecha: z.enum(['AAAA-MM-DD', 'DD/MM/AAAA', 'DD-MM-AAAA']),
     separadorMiles: z.enum([',', '.']).nullable(),
     separadorDecimal: z.enum(['.', ',']),
@@ -71,6 +78,16 @@ export const esquemaPerfil = z
         code: 'custom',
         path: ['encabezados'],
         message: 'Hay encabezados repetidos',
+      });
+    }
+    if (
+      perfil.columnaMoneda !== undefined &&
+      encabezados.includes(perfil.columnaMoneda)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['columnaMoneda'],
+        message: 'Es opcional: no puede estar también en "encabezados"',
       });
     }
     for (const [dato, encabezado] of Object.entries(columnas)) {

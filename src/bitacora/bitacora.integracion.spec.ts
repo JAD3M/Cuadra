@@ -461,13 +461,17 @@ describe('GET /bitacora (AU-20 a AU-26)', () => {
     expect(paginaDe(res)).toMatchObject({ datos: [], total: 0 });
   });
 
-  it('ENT-1: la lista canónica de entidades es conciliaciones y companies', () => {
-    expect([...ENTIDADES_BITACORA]).toEqual(['conciliaciones', 'companies']);
+  it('ENT-1: la lista canónica de entidades es conciliaciones, companies y cargas', () => {
+    expect([...ENTIDADES_BITACORA]).toEqual([
+      'conciliaciones',
+      'companies',
+      'cargas',
+    ]);
   });
 
   it('ENT-2: GET /bitacora no valida entidad: una fuera de la lista es 200 vacío', async () => {
     await evento();
-    const res = await bitacora('?entidad=cargas').expect(200);
+    const res = await bitacora('?entidad=otra_tabla').expect(200);
     expect(paginaDe(res)).toMatchObject({ datos: [], total: 0 });
   });
 

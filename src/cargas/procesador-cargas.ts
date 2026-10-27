@@ -14,6 +14,7 @@ import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import { ColaSugerencias } from '../sugerencias/cola-sugerencias';
 import { COLA_CARGAS, type TrabajoDeCarga } from './cola-cargas';
 import { procesarLoteCfdi } from './guardar-cfdi';
+import { registrarCargar } from './registrar-carga';
 
 interface CargaTomada {
   tipo: TipoCarga;
@@ -146,12 +147,13 @@ export class ProcesadorCargas extends WorkerHost {
       // inválido, la carga terminó.
       const estado: EstadoCarga = errores > 0 ? 'con_errores' : 'procesada';
 
-      await manager.query(
+      const [terminadas] = await manager.query<[{ id: string }[], number]>(
         `UPDATE cargas
             SET estado = $1, registros_ok = $2, registros_existentes = $3,
                 registros_error = $4, resultados = $5::jsonb,
                 procesada_at = now(), updated_at = now()
-          WHERE id = $6 AND company_id = $7 AND estado = 'procesando'`,
+          WHERE id = $6 AND company_id = $7 AND estado = 'procesando'
+          RETURNING id`,
         [
           estado,
           nuevos,
@@ -162,6 +164,9 @@ export class ProcesadorCargas extends WorkerHost {
           companyId,
         ],
       );
+      // FR-52. Solo si esta transacción fue la que la terminó.
+      if (terminadas.length > 0)
+        await registrarCargar(manager, companyId, cargaId);
     });
   }
 
@@ -170,16 +175,20 @@ export class ProcesadorCargas extends WorkerHost {
     companyId,
   }: TrabajoDeCarga): Promise<void> {
     try {
-      await this.transaccion.ejecutar(companyId, (manager) =>
-        manager.query(
+      await this.transaccion.ejecutar(companyId, async (manager) => {
+        const [marcadas] = await manager.query<[{ id: string }[], number]>(
           `UPDATE cargas
               SET estado = 'fallida', error_mensaje = $1,
                   procesada_at = now(), updated_at = now()
             WHERE id = $2 AND company_id = $3
-              AND estado IN ('pendiente', 'procesando')`,
+              AND estado IN ('pendiente', 'procesando')
+            RETURNING id`,
           [MENSAJE_FALLIDA, cargaId, companyId],
-        ),
-      );
+        );
+        // FR-52: la falla también es una carga que terminó.
+        if (marcadas.length > 0)
+          await registrarCargar(manager, companyId, cargaId);
+      });
     } catch (error) {
       // Si la base sigue caída, la carga se queda en 'procesando'. Ver el
       // pendiente de CU-08 en la bitácora.
