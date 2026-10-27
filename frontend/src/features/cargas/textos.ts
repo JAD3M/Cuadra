@@ -190,3 +190,14 @@ export const ERROR_OTRO = {
 export const SE_ACTUALIZA_SOLA = 'Se actualiza sola mientras procesa';
 export const LISTA_SIN_ACTUALIZAR = 'La lista dejó de actualizarse.';
 export const ACTUALIZAR = 'Actualizar';
+
+/** Estado de cuenta que no está en MXN: el texto es del frontend, por código de error. */
+export const TEXTO_MONEDA_NO_MXN = {
+  titulo: 'Archivo rechazado',
+  detalle:
+    'El estado de cuenta no está en MXN. Cuadra solo procesa estados de cuenta en pesos mexicanos.',
+} as const;
+
+/** CFDI en una moneda que Cuadra no concilia (mockup 2026-10-27). */
+export const LEYENDA_MONEDA_NO_SOPORTADA =
+  '⚠ Se guardó, pero Cuadra no concilia monedas distintas de MXN.';

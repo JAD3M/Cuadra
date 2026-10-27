@@ -11,6 +11,8 @@ import {
   listaRedDeFallo,
   perfilesFalla,
   subida413Html,
+  subidaCfdiConMonedaNoSoportada,
+  subidaEstadoCuentaMonedaNoMxn,
   subidaFalla,
   subidaFueraDeContrato,
   subidaRedDeFallo,
@@ -279,5 +281,37 @@ describe('ayudantes de fallo', () => {
 
     servidor.use(...subidaRedDeFallo());
     await expect(pedir('/cargas/cfdi', { method: 'POST' })).rejects.toThrow();
+  });
+});
+
+describe('manejadores de la historia 3.1 (moneda)', () => {
+  it('subidaCfdiConMonedaNoSoportada: 202 y un detalle con USD y EUR marcados', async () => {
+    servidor.use(...subidaCfdiConMonedaNoSoportada());
+    const subida = await pedir('/cargas/cfdi', { method: 'POST' });
+    expect(subida.status).toBe(202);
+    const creada = respuestaCarga.parse(subida.cuerpo);
+    const detalle = await pedir(`/cargas/${creada.id}`);
+    const parseado = respuestaCarga.parse({
+      ...(detalle.cuerpo as object),
+      yaExistia: false,
+    });
+    expect(parseado.estado).toBe('procesada');
+    expect(
+      parseado.resultados.map((r) =>
+        'monedaNoSoportada' in r ? (r.moneda ?? null) : null,
+      ),
+    ).toEqual(['USD', 'EUR', null]);
+  });
+
+  it('subidaEstadoCuentaMonedaNoMxn: 400 con error moneda_no_mxn', async () => {
+    servidor.use(subidaEstadoCuentaMonedaNoMxn());
+    const r = await pedir('/cargas/estado-cuenta', { method: 'POST' });
+    expect(r.status).toBe(400);
+    expect(r.cuerpo).toEqual({
+      statusCode: 400,
+      message:
+        'El estado de cuenta no está en MXN. Cuadra solo procesa estados de cuenta en pesos mexicanos.',
+      error: 'moneda_no_mxn',
+    });
   });
 });

@@ -45,6 +45,15 @@ const archivoSinError = z.object({
     'nuevo',
     'ya_existia',
   ] as const satisfies readonly ResultadoArchivo[]),
+  /**
+   * Solo en un CFDI cuya moneda no es MXN ni XXX (historia 3.1): el código de
+   * tres letras y la marca. El archivo se guardó; Cuadra no lo concilia.
+   */
+  moneda: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .optional(),
+  monedaNoSoportada: z.boolean().optional(),
 });
 const archivoConError = z.object({
   archivo: texto,
@@ -87,6 +96,7 @@ export const perfilesBancarios = z.array(
 export type ItemCarga = z.infer<typeof itemCarga>;
 export type RespuestaListaCargas = z.infer<typeof respuestaListaCargas>;
 export type ResultadoDeCarga = z.infer<typeof resultadoDeCarga>;
+export type ResultadoArchivoSinError = z.infer<typeof archivoSinError>;
 export type DetalleCarga = z.infer<typeof detalleCarga>;
 export type RespuestaCarga = z.infer<typeof respuestaCarga>;
 export type PerfilBancario = z.infer<typeof perfilesBancarios>[number];

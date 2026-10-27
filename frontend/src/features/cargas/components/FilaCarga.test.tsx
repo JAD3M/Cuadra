@@ -29,9 +29,9 @@ describe('FilaCarga', () => {
     expect(celdas).toHaveLength(8);
     expect(celdas[0]).toHaveTextContent('CFDI');
     expect(celdas[1]).toHaveTextContent('lote-1.xml');
-    expect(celdas[2]).toHaveTextContent('Con errores');
+    expect(celdas[2]).toHaveTextContent('Con filas rechazadas');
     expect(celdas[3]).toContainElement(
-      screen.getByRole('img', { name: 'Avance: Con errores' }),
+      screen.getByRole('img', { name: 'Avance: Con filas rechazadas' }),
     );
     expect(celdas[4]).toHaveTextContent('1204');
     expect(celdas[5]).toHaveTextContent('3');
@@ -55,7 +55,7 @@ describe('FilaCarga', () => {
     ['pendiente', 'Pendiente'],
     ['procesando', 'Procesando'],
     ['procesada', 'Procesada'],
-    ['con_errores', 'Con errores'],
+    ['con_errores', 'Con filas rechazadas'],
     ['fallida', 'Fallida'],
   ])('el chip de %s dice «%s» con su tono', (estado, etiqueta) => {
     const { celdas } = montar(itemCarga(1, { estado }));

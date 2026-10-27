@@ -86,7 +86,7 @@ export const ETIQUETAS_ESTADO_CARGA: Record<EstadoCarga, string> = {
   pendiente: 'Pendiente',
   procesando: 'Procesando',
   procesada: 'Procesada',
-  con_errores: 'Con errores',
+  con_errores: 'Con filas rechazadas',
   fallida: 'Fallida',
 };
 

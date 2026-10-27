@@ -43,7 +43,7 @@ describe('TablaCargas', () => {
       'Pendiente',
       'Procesando',
       'Procesada',
-      'Con errores',
+      'Con filas rechazadas',
       'Fallida',
     ];
     chips.forEach((chip, i) => {

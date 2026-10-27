@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ApiError, ContratoError, NetworkError } from '@/shared/api';
 import { mensajeDeError } from '@/shared/api/mensajes';
 import { clasificarErrorLectura, clasificarErrorSubida } from './errores';
+import { TEXTO_MONEDA_NO_MXN } from './textos';
 
 const api = (status: number, mensajes: string[] = []) =>
   new ApiError(status, 'Error', mensajes);
@@ -98,5 +99,41 @@ describe('API-20.5: mensajeDeError no cambia', () => {
       tipo: 'otro',
     });
     expect(JSON.stringify(mensaje)).not.toContain('texto del servidor');
+  });
+});
+
+describe('clasificarErrorSubida: estado de cuenta que no está en MXN', () => {
+  const MENSAJE =
+    'El estado de cuenta no está en MXN. Cuadra solo procesa estados de cuenta en pesos mexicanos.';
+
+  it('un 400 con error moneda_no_mxn es su propia clase', () => {
+    expect(
+      clasificarErrorSubida(new ApiError(400, 'moneda_no_mxn', [MENSAJE])),
+    ).toEqual({ clase: 'moneda_no_mxn' });
+  });
+
+  it('el texto sale de una constante del frontend, no del servidor', () => {
+    expect(TEXTO_MONEDA_NO_MXN).toEqual({
+      titulo: 'Archivo rechazado',
+      detalle: MENSAJE,
+    });
+    const clase = clasificarErrorSubida(
+      new ApiError(400, 'moneda_no_mxn', ['otro texto del servidor']),
+    );
+    expect(clase).toEqual({ clase: 'moneda_no_mxn' });
+    expect(JSON.stringify(clase)).not.toContain('otro texto');
+  });
+
+  it('otros 400 (o el mismo código con otro estado) conservan su clase', () => {
+    expect(clasificarErrorSubida(api(400, ['Falta el archivo']))).toEqual({
+      clase: 'rechazo',
+      detalle: 'Falta el archivo',
+    });
+    expect(
+      clasificarErrorSubida(new ApiError(400, 'Bad Request', [MENSAJE])),
+    ).toEqual({ clase: 'rechazo', detalle: MENSAJE });
+    expect(
+      clasificarErrorSubida(new ApiError(500, 'moneda_no_mxn', [MENSAJE])),
+    ).toEqual({ clase: 'otro' });
   });
 });

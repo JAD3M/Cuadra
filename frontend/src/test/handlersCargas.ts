@@ -405,3 +405,71 @@ export function subidaFueraDeContrato() {
     ),
   );
 }
+
+const ID_CARGA_MONEDAS = '00000000-0000-4000-8000-000000009801';
+
+/** Detalle de un CFDI procesado con un USD y un EUR marcados y uno en MXN. */
+export const DETALLE_CON_MONEDA_NO_SOPORTADA: DetalleCarga = {
+  id: ID_CARGA_MONEDAS,
+  estado: 'procesada',
+  totalRegistros: 3,
+  registrosOk: 3,
+  registrosExistentes: 0,
+  registrosError: 0,
+  resultados: [
+    {
+      archivo: 'factura-usd.xml',
+      resultado: 'nuevo',
+      moneda: 'USD',
+      monedaNoSoportada: true,
+    },
+    {
+      archivo: 'factura-eur.xml',
+      resultado: 'nuevo',
+      moneda: 'EUR',
+      monedaNoSoportada: true,
+    },
+    { archivo: 'factura-mxn.xml', resultado: 'nuevo' },
+  ],
+  errorMensaje: null,
+};
+
+/**
+ * `POST /cargas/cfdi` responde 202 y `GET /cargas/:id` ya la sirve procesada
+ * con USD y EUR marcados (historia 3.1). Se usa con `servidor.use(...)`.
+ */
+export function subidaCfdiConMonedaNoSoportada() {
+  return [
+    http.post('/api/cargas/cfdi', () =>
+      HttpResponse.json(
+        {
+          ...DETALLE_CON_MONEDA_NO_SOPORTADA,
+          estado: 'pendiente',
+          totalRegistros: 0,
+          registrosOk: 0,
+          resultados: [],
+          yaExistia: false,
+        },
+        { status: 202 },
+      ),
+    ),
+    http.get(`/api/cargas/${ID_CARGA_MONEDAS}`, () =>
+      HttpResponse.json(DETALLE_CON_MONEDA_NO_SOPORTADA),
+    ),
+  ];
+}
+
+/** `POST /cargas/estado-cuenta` rechaza el archivo: no está en MXN (400). */
+export function subidaEstadoCuentaMonedaNoMxn() {
+  return http.post('/api/cargas/estado-cuenta', () =>
+    HttpResponse.json(
+      {
+        statusCode: 400,
+        message:
+          'El estado de cuenta no está en MXN. Cuadra solo procesa estados de cuenta en pesos mexicanos.',
+        error: 'moneda_no_mxn',
+      },
+      { status: 400 },
+    ),
+  );
+}
