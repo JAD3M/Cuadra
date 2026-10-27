@@ -104,5 +104,5 @@ protegido; `cuadra_app` solo gana lo mínimo en la migración).
   sesión vieja responde 401 (sus sesiones en la empresa se cierran), no 403;
   candado advisory en vez de `FOR UPDATE`; también se tocó
   `plataforma.esquema.spec.ts` (la prueba de reversibilidad deshace ahora esta
-  migración primero). Commit: ver abajo.
+  migración primero). Commit: e4e94f2.
 - Siguiente: T2.
