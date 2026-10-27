@@ -114,7 +114,7 @@ describe('GET /bitacora: filtros', () => {
 
   it('una entidad que nadie escribió da una página vacía, no un 400', async () => {
     bitacora.establecer(EVENTOS_MAQUETA);
-    const { status, cuerpo } = await lista('entidad=cargas');
+    const { status, cuerpo } = await lista('entidad=nadie_la_escribio');
     expect(status).toBe(200);
     expect(cuerpo).toMatchObject({ datos: [], total: 0 });
   });

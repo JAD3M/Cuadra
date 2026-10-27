@@ -29,7 +29,7 @@ describe('leerFiltros: entidad', () => {
     expect(leer(`entidad=${entidad}`)).toEqual({ pagina: 1, entidad });
   });
 
-  it.each(['cargas', 'Companies', '', 'conciliaciones%20'])(
+  it.each(['tolerancias', 'Companies', '', 'conciliaciones%20'])(
     'descarta el valor inválido %j',
     (entidad) => {
       expect(leer(`entidad=${entidad}`)).toEqual(POR_DEFECTO);
@@ -40,7 +40,9 @@ describe('leerFiltros: entidad', () => {
     expect(leer('entidad=companies&entidad=conciliaciones').entidad).toBe(
       'companies',
     );
-    expect(leer('entidad=cargas&entidad=companies').entidad).toBeUndefined();
+    expect(
+      leer('entidad=tolerancias&entidad=companies').entidad,
+    ).toBeUndefined();
   });
 });
 
@@ -174,7 +176,7 @@ describe('serializar', () => {
     expect(
       serializar({
         pagina: 0,
-        entidad: 'cargas' as never,
+        entidad: 'tolerancias' as never,
         usuario: 'ana',
         desde: '2026-02-31',
       }),

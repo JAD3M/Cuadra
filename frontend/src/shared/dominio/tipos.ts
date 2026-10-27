@@ -79,7 +79,11 @@ export const ACCIONES_BITACORA = [
 ] as const;
 export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 
-export const ENTIDADES_BITACORA = ['conciliaciones', 'companies'] as const;
+export const ENTIDADES_BITACORA = [
+  'conciliaciones',
+  'companies',
+  'cargas',
+] as const;
 export type EntidadBitacora = (typeof ENTIDADES_BITACORA)[number];
 
 export const ACCIONES_BITACORA_PLATAFORMA = [
