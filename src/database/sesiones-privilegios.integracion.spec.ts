@@ -15,8 +15,10 @@ import {
  * como `cuadra_app`; el dueño del esquema solo migra.
  *
  * AD-2 prevé DELETE también en `invitaciones`, `tokens_recuperacion` y
- * `user_company_roles`; hoy no lo tienen, y esta prueba afirma la verdad
- * actual: solo `sesiones`. Cuando una de esas tablas lo gane, se actualiza aquí.
+ * `user_company_roles`. `user_company_roles` lo ganó en la historia 2.6
+ * (cambiar y quitar roles); `invitaciones` y `tokens_recuperacion` no lo
+ * tienen, y esta prueba afirma la verdad actual: solo `sesiones` y
+ * `user_company_roles`. Cuando otra tabla lo gane, se actualiza aquí.
  */
 
 let duenio: DataSource;
@@ -68,7 +70,7 @@ describe('permisos de cuadra_app sobre sesiones (historia 1.1)', () => {
     expect(rls).toBe(false);
   });
 
-  it('ninguna otra tabla pública da DELETE a cuadra_app', async () => {
+  it('solo sesiones y user_company_roles dan DELETE a cuadra_app', async () => {
     const tablas = await filas<{ tabla: string }>(
       app,
       `SELECT c.relname AS tabla
@@ -78,6 +80,26 @@ describe('permisos de cuadra_app sobre sesiones (historia 1.1)', () => {
           AND has_table_privilege('cuadra_app', c.oid, 'DELETE')
         ORDER BY c.relname`,
     );
-    expect(tablas.map((t) => t.tabla)).toEqual(['sesiones']);
+    expect(tablas.map((t) => t.tabla)).toEqual([
+      'sesiones',
+      'user_company_roles',
+    ]);
+  });
+});
+
+describe('permisos de cuadra_app sobre user_company_roles (historia 2.6)', () => {
+  it('puede borrar filas, y nada más que lo ya concedido', async () => {
+    const permiso = async (privilegio: string) =>
+      (
+        await una<{ permitido: boolean }>(
+          app,
+          `SELECT has_table_privilege('cuadra_app', 'user_company_roles', $1) AS permitido`,
+          [privilegio],
+        )
+      ).permitido;
+    expect(await permiso('DELETE')).toBe(true);
+    expect(await permiso('SELECT')).toBe(true);
+    expect(await permiso('UPDATE')).toBe(false);
+    expect(await permiso('TRUNCATE')).toBe(false);
   });
 });
