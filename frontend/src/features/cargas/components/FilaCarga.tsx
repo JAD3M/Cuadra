@@ -25,7 +25,7 @@ export interface FilaHistorial {
   createdAt: string;
   /**
    * Cuántos archivos de la carga quedaron marcados «moneda no soportada».
-   * El listado del servidor aún no lo trae: ausente = sin nota.
+   * El listado lo trae (0 = sin nota); ausente también es sin nota.
    */
   monedaNoSoportada?: number;
 }

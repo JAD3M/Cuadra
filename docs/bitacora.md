@@ -5,6 +5,39 @@
 
 ### 27 oct 2026
 
+- **Historia 3.1 de la v2: cargar CFDI y CSV sin duplicar nada (KAN-130, FR-4,
+  FR-5, FR-6, FR-9, FR-52 parte; AD-9, AD-16).** Ramas en cadena
+  `feat/v2-3-1-01-api-cargas`, `feat/v2-3-1-02-frontend-contrato-hook`,
+  `feat/v2-3-1-03-frontend-pantalla` y `feat/v2-3-1-04-historial-moneda` con
+  ODD, desde `master` tras la 2.7. Ratifica CU-08 y CU-09 de la v1: subir,
+  duplicados por hash, rechazos del CSV y permisos ya existían; faltaban la
+  entrada `cargar` de la bitácora y la marca de moneda. El mockup de Cargas
+  (marca por archivo, rechazo por moneda, «Con filas rechazadas», nota del
+  historial) se aprobó antes de la interfaz.
+  - **T1 `e914ed8`:** el worker escribe una entrada `cargar` al terminar cada
+    carga (procesada, con filas rechazadas o fallida), con persona, archivo y
+    conteos, en la misma transacción que deja el estado final; un archivo
+    repetido no escribe nada. El lector de CFDI acepta cualquier código de
+    moneda bien formado y `resultados` marca `{moneda, monedaNoSoportada}`
+    cuando no es MXN ni XXX. El CSV acepta una columna opcional `moneda` y
+    rechaza el archivo completo si alguna fila no dice MXN. Sin migración.
+  - **T2 `385eff8`:** contrato con la marca, clasificación del 400
+    `moneda_no_mxn`, textos, «Con filas rechazadas» y `cargas` en el espejo de
+    entidades de la bitácora.
+  - **T3 `947c7cb`:** marca por archivo y leyenda; `/cargas` ahora tiene guarda
+    de permiso (un revisor con la URL ya no ve la página) y se retiró
+    `AvisoRevisor`, que quedó inalcanzable.
+  - **T3b `ca21de5`:** `GET /cargas` devuelve `monedaNoSoportada` por carga y el
+    historial muestra «⚠ n con moneda no soportada». Faltaba esa pieza en
+    T1 a T3 aunque el mockup aprobado la mostraba.
+  - **Decisiones:** la marca se deriva de `moneda` (no MXN ni XXX), sin columna
+    nueva; la carga con marcas sigue procesada; sin columna `moneda` el CSV se
+    asume MXN, así que un CSV en dólares sin esa columna pasaría como pesos.
+  - **Pendiente (no bloquea):** una carga fallida que se reanuda deja una
+    segunda entrada `cargar` al terminar; el auditor no tiene prueba HTTP
+    propia de 403 en cargas (lo cubre la matriz de permisos); la copia de la
+    memoria de Engram quedó pendiente porque `mem_save` falló.
+
 - **Historia 2.7 de la v2: consultar la bitácora según mi rol (FR-51; deja
   visibles FR-50 y FR-55; AD-7).** Ramas en cadena
   `feat/v2-2-7-01-pruebas-bitacora`, `feat/v2-2-7-02-frontend-detalle` y

@@ -81,7 +81,9 @@ motivo. `revisor` y `auditor` reciben 403 y no ven Cargas en su menú.
 - [x] **T3 — Pantalla.** Marca por archivo, leyenda, nota en el historial,
   estado de rechazo por moneda, `AvisoRevisor` retirado o justificado, prueba de
   flujo por rol (menú sin Cargas para revisor y auditor).
-- [ ] **T4 — Cierre.** Suites completas, lint y `format:check`, bitácora, KAN-130,
+- [x] **T3b — Nota de moneda del historial.** `GET /cargas` trae
+  `monedaNoSoportada` por carga y la fila pinta la nota.
+- [x] **T4 — Cierre.** Suites completas, lint y `format:check`, bitácora, KAN-130,
   PRs en cadena. Revisión nativa única de la rama completa contra `master`,
   siguiendo el `START` que da la herramienta (con consentimiento).
 
@@ -165,4 +167,23 @@ Los siete criterios de la Story 3.1 en `epics.md`.
   Verificación (desde `frontend/`): `npx vitest run` 275 archivos, 4438 pruebas,
   0 fallas; `typecheck`, `lint` y `format:check` limpios.
 - Commit de T3: 947c7cb.
+- 2026-10-27 T3b hecha (escritor delegado, rama `feat/v2-3-1-04-historial-moneda`).
+  RED observado: backend `cargas.listado.integracion.spec.ts` 4 fallas (clave
+  `monedaNoSoportada` ausente del conjunto de claves; 0/1/2 marcas, estado de
+  cuenta/resultados nulos o no arreglo, y otra empresa devolvían `undefined`);
+  frontend contrato 7 fallas (`expected undefined to be 2`, `undefined to be
+  +0`, y -1, 1.5, "2", null, true aceptados). La prueba de `TablaCargas` pasó de
+  inmediato (caracterización: la fila ya recibe el objeto completo).
+  Decisiones: conteo en la misma sentencia de `listar` con subconsulta
+  `jsonb_array_elements` solo para `tipo = 'cfdi'` y `resultados` arreglo; sin
+  migración; sigue el filtro `company_id`. Contrato: `contador.default(0)`
+  (ausente = 0). Fuera de la superficie, por necesidad de tipos:
+  `frontend/src/test/fixturesCargas.ts`.
+  Verificación: backend `npm test` 62 suites, 1360 pruebas, 0 fallas;
+  `typecheck`, `lint` (sin cambios extra), `prettier --check "src/**/*.ts"` y
+  `build` limpios. Frontend `npx vitest run` 275 archivos, 4446 pruebas, 0
+  fallas; `typecheck`, `lint`, `format:check` limpios.
+- Commit de T3b: ca21de5.
 - Siguiente: T4.
+- 2026-10-27 T4 hecha: bitácora escrita (`docs/bitacora.md`). KAN-130 se cierra al integrar. Suites verificadas en T1 (1357 backend), T3b (1360 backend, 4446 frontend).
+- Siguiente: revisión única de la rama completa, PRs en cadena (4) y KAN-130.

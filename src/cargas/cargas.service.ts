@@ -76,6 +76,7 @@ interface FilaListada {
   subido_por: string | null;
   created_at: Date;
   procesada_at: Date | null;
+  moneda_no_soportada: number;
 }
 
 @Injectable()
@@ -218,7 +219,8 @@ export class CargasService {
 
   /**
    * CU-24: las últimas 20 cargas de la empresa. Una sola sentencia, solo
-   * lectura. `users` no tiene company_id: el nombre se alcanza a través de la
+   * lectura. `monedaNoSoportada` cuenta las marcas del jsonb `resultados` (solo
+   * CFDI), sin tocar las demás tablas. `users` no tiene company_id: el nombre se alcanza a través de la
    * carga ya filtrada por empresa. `id DESC` desempata `created_at` para que
    * el orden sea estable.
    */
@@ -227,7 +229,13 @@ export class CargasService {
       `SELECT c.id, c.tipo, c.nombre_archivo, c.estado, c.total_registros,
               c.registros_ok, c.registros_existentes, c.registros_error,
               c.banco, c.perfil, c.error_mensaje, u.nombre AS subido_por,
-              c.created_at, c.procesada_at
+              c.created_at, c.procesada_at,
+              CASE WHEN c.tipo = 'cfdi'
+                   AND jsonb_typeof(c.resultados) = 'array'
+                   THEN (SELECT count(*)::int
+                           FROM jsonb_array_elements(c.resultados) AS r
+                          WHERE r ->> 'monedaNoSoportada' = 'true')
+                   ELSE 0 END AS moneda_no_soportada
          FROM cargas c
          LEFT JOIN users u ON u.id = c.subido_por_id
         WHERE c.company_id = $1
@@ -250,6 +258,7 @@ export class CargasService {
       subidoPor: f.subido_por,
       createdAt: f.created_at.toISOString(),
       procesadaAt: f.procesada_at?.toISOString() ?? null,
+      monedaNoSoportada: f.moneda_no_soportada,
     }));
   }
 
