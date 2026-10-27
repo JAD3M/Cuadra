@@ -125,5 +125,5 @@ protegido; `cuadra_app` solo gana lo mínimo en la migración).
   tiene texto propio); los roles guardados se unen «A, B y C»; foco: primera
   casilla al abrir el editor, «Volver» en la confirmación, aviso de éxito o de
   acceso quitado y alerta de fallo. Pruebas de la lista en
-  `features/usuarios/ListaUsuarios.test.tsx`. Commit: pendiente.
+  `features/usuarios/ListaUsuarios.test.tsx`. Commit: f08df7b.
 - Siguiente: T4.
