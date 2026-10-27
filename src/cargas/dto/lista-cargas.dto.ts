@@ -46,6 +46,12 @@ export class CargaListadaDto {
   @ApiProperty({ example: '2026-09-30T12:00:00.000Z' }) createdAt: string;
   @ApiProperty({ nullable: true, type: String })
   procesadaAt: string | null;
+  @ApiProperty({
+    description:
+      "Archivos de un lote de CFDI marcados 'moneda no soportada'; 0 si no hay marcas o la carga es un estado de cuenta.",
+    minimum: 0,
+  })
+  monedaNoSoportada: number;
 }
 
 export class RespuestaListaCargasDto {

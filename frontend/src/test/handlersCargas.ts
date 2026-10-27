@@ -184,6 +184,7 @@ export function crearHandlersCargas(
       subidoPor: 'Luis Mendoza',
       // Siempre más nueva que cualquier fila de arranque.
       createdAt: hace(-creadas),
+      monedaNoSoportada: 0,
     };
     items = [item, ...items];
     const nuevo = detalleDeItem(item);

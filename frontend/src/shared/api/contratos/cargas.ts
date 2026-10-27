@@ -16,7 +16,7 @@ import {
 const texto = z.string().min(1);
 const contador = z.int().min(0);
 
-/** Una carga del historial: solo las ocho claves que pinta la tabla. */
+/** Una carga del historial: las claves que pinta la tabla. */
 export const itemCarga = z.object({
   id: z.guid(),
   tipo: z.enum(TIPOS_CARGA),
@@ -27,6 +27,11 @@ export const itemCarga = z.object({
   /** `null` cuando quien subió la carga ya no existe. */
   subidoPor: z.string().nullable(),
   createdAt: z.iso.datetime(),
+  /**
+   * Archivos del lote marcados «moneda no soportada» (historia 3.1). Una
+   * respuesta que no lo trae se lee como 0: no hay nota.
+   */
+  monedaNoSoportada: contador.default(0),
 });
 
 export const respuestaListaCargas = z.object({

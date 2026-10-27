@@ -50,6 +50,29 @@ const detalle = (o: Record<string, unknown> = {}) => ({
 });
 
 describe('respuestaListaCargas (API-18a)', () => {
+  it('conserva monedaNoSoportada del servidor (historia 3.1)', () => {
+    const [c] = respuestaListaCargas.parse({
+      datos: [item(1, { monedaNoSoportada: 2 })],
+    }).datos;
+    expect(c?.monedaNoSoportada).toBe(2);
+  });
+
+  it('una respuesta sin monedaNoSoportada se lee como 0', () => {
+    const [c] = respuestaListaCargas.parse({ datos: [item(1)] }).datos;
+    expect(c?.monedaNoSoportada).toBe(0);
+  });
+
+  it.each([[-1], [1.5], ['2'], [null], [true]])(
+    'monedaNoSoportada %j es un ContratoError',
+    (valor) => {
+      expect(
+        respuestaListaCargas.safeParse({
+          datos: [item(1, { monedaNoSoportada: valor })],
+        }).success,
+      ).toBe(false);
+    },
+  );
+
   it('acepta una lista con los cinco estados', () => {
     const datos = ESTADOS_CARGA.map((estado, i) => item(i + 1, { estado }));
     const parsed = respuestaListaCargas.parse({ datos });
@@ -88,6 +111,7 @@ describe('respuestaListaCargas (API-18a)', () => {
       'createdAt',
       'estado',
       'id',
+      'monedaNoSoportada',
       'nombreArchivo',
       'registrosError',
       'registrosOk',

@@ -68,6 +68,7 @@ interface Semilla {
   cuenta?: string | null;
   perfil?: string | null;
   procesadaAt?: string | null;
+  resultados?: unknown;
 }
 
 /**
@@ -87,7 +88,7 @@ async function carga(s: Semilla): Promise<string> {
         subido_por_id, banco, cuenta, perfil, procesada_at, created_at,
         resultados, error_mensaje)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-             $16, '[{"archivo":"a.xml","resultado":"nuevo"}]', NULL)`,
+             $16, $17::jsonb, NULL)`,
     [
       id,
       s.empresa,
@@ -105,6 +106,11 @@ async function carga(s: Semilla): Promise<string> {
       s.perfil ?? null,
       s.procesadaAt ?? null,
       s.creada ?? new Date().toISOString(),
+      JSON.stringify(
+        s.resultados === undefined
+          ? [{ archivo: 'a.xml', resultado: 'nuevo' }]
+          : s.resultados,
+      ),
     ],
   );
   return id;
@@ -134,6 +140,7 @@ interface ItemListado {
   subidoPor: string | null;
   createdAt: string;
   procesadaAt: string | null;
+  monedaNoSoportada: number;
 }
 
 const datos = (cuerpo: unknown) => (cuerpo as { datos: ItemListado[] }).datos;
@@ -208,6 +215,7 @@ describe('CRL-1 endpoint, acceso y forma', () => {
         'subidoPor',
         'createdAt',
         'procesadaAt',
+        'monedaNoSoportada',
       ].sort(),
     );
     expect(csv).toMatchObject({
@@ -387,5 +395,74 @@ describe('CRL-4 documentación y rutas vecinas', () => {
       .get('/cargas/no-es-uuid')
       .set('Cookie', tokenAna)
       .expect(400);
+  });
+});
+
+describe('CRL-moneda marcas de moneda no soportada por carga', () => {
+  const marca = (archivo: string) => ({
+    archivo,
+    resultado: 'nuevo',
+    moneda: 'EUR',
+    monedaNoSoportada: true,
+  });
+  const normal = (archivo: string) => ({ archivo, resultado: 'nuevo' });
+
+  it('cuenta las entradas marcadas: 0, 1 y 2', async () => {
+    await carga({ empresa: A, nombre: 'cero', creada: dia(1) });
+    await carga({
+      empresa: A,
+      nombre: 'una',
+      creada: dia(2),
+      resultados: [normal('a.xml'), marca('b.xml')],
+    });
+    await carga({
+      empresa: A,
+      nombre: 'dos',
+      creada: dia(3),
+      resultados: [marca('a.xml'), normal('b.xml'), marca('c.xml')],
+    });
+    const body = await cuerpo(listar(tokenAna).expect(200));
+    const por = Object.fromEntries(
+      datos(body).map((c) => [c.nombreArchivo, c.monedaNoSoportada]),
+    );
+    expect(por).toEqual({ cero: 0, una: 1, dos: 2 });
+  });
+
+  it('estado de cuenta, resultados nulos y no arreglo dan 0', async () => {
+    await carga({
+      empresa: A,
+      nombre: 'csv',
+      tipo: 'estado_cuenta',
+      creada: dia(1),
+      resultados: [marca('x')],
+    });
+    await carga({
+      empresa: A,
+      nombre: 'nulo',
+      creada: dia(3),
+      resultados: null,
+    });
+    await carga({
+      empresa: A,
+      nombre: 'objeto',
+      creada: dia(2),
+      resultados: { monedaNoSoportada: true },
+    });
+    const body = await cuerpo(listar(tokenAna).expect(200));
+    expect(datos(body).map((c) => c.monedaNoSoportada)).toEqual([0, 0, 0]);
+  });
+
+  it('las marcas de otra empresa no se cuentan', async () => {
+    await carga({
+      empresa: B,
+      nombre: 'de-b',
+      creada: dia(1),
+      resultados: [marca('a.xml'), marca('b.xml')],
+    });
+    await carga({ empresa: A, nombre: 'de-a', creada: dia(2) });
+    const body = await cuerpo(listar(tokenAna).expect(200));
+    expect(
+      datos(body).map((c) => [c.nombreArchivo, c.monedaNoSoportada]),
+    ).toEqual([['de-a', 0]]);
   });
 });

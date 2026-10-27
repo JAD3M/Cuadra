@@ -31,6 +31,7 @@ export function itemCarga(n: number, o: Partial<ItemCarga> = {}): ItemCarga {
     registrosError: 0,
     subidoPor: 'Luis Mendoza',
     createdAt: hace(n),
+    monedaNoSoportada: 0,
     ...o,
   };
 }

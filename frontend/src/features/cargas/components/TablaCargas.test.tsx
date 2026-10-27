@@ -53,6 +53,20 @@ describe('TablaCargas', () => {
     });
   });
 
+  it('pasa monedaNoSoportada a cada fila: la nota solo donde hay marcas', () => {
+    render(
+      <TablaCargas
+        cargas={[
+          itemCarga(1, { monedaNoSoportada: 2 }),
+          itemCarga(2, { monedaNoSoportada: 0 }),
+        ]}
+      />,
+    );
+    const [con, sin] = screen.getAllByRole('row').slice(1) as HTMLElement[];
+    expect(con).toHaveTextContent('⚠ 2 con moneda no soportada');
+    expect(sin).not.toHaveTextContent('moneda no soportada');
+  });
+
   it('conserva el orden recibido aunque las fechas no lo sigan', () => {
     const cargas = [itemCarga(9), itemCarga(1), itemCarga(5)];
     render(<TablaCargas cargas={cargas} />);
