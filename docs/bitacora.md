@@ -3,6 +3,42 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 27 oct 2026
+
+- **Historia 2.6 de la v2: cambiar o quitar los roles de una persona de mi
+  empresa (FR-45, FR-46, AD-2, AD-11).** Ramas en cadena
+  `feat/v2-2-6-01-api-roles`, `feat/v2-2-6-02-frontend-contrato-hook` y
+  `feat/v2-2-6-03-frontend-pantalla` con ODD, desde `master` tras la 2.5. El
+  backend se hizo primero; el mockup (editor de roles y confirmación de quitar
+  acceso en la tabla de Usuarios, oscuro y claro) se aprobó antes de la
+  interfaz.
+  - **T1 `e4e94f2`:** `PATCH /usuarios/:id/roles` reemplaza el conjunto de
+    roles y `DELETE /usuarios/:id/roles` quita el acceso. Bitácora
+    `cambiar_rol` y `quitar_rol` con quién y los roles. Migración con
+    `GRANT DELETE` sobre `user_company_roles` (sin UPDATE) y el CHECK de la
+    bitácora ampliado. Quitar acceso borra las sesiones de esa persona elegidas
+    en esa empresa; las de otras empresas siguen.
+  - **T2 `caed56e`:** contratos, hooks `useCambiarRoles` y `useQuitarAcceso`,
+    clasificador de errores, handlers msw y espejo de las dos acciones en la
+    bitácora del frontend. `api.fetch` aceptó PATCH y DELETE.
+  - **T3 `f08df7b`:** botones «Cambiar roles» y «Quitar acceso» en las filas
+    activas, editor `EditorRoles` y confirmación según el mockup. Con cero roles
+    el editor llama a quitar acceso.
+  - **Decisiones:** el último administrador no se puede quitar ni degradar
+    (409), tampoco al editarse a sí mismo; se serializa con un candado asesor
+    por empresa (`pg_advisory_xact_lock`) porque `FOR UPDATE` exige UPDATE y
+    `cuadra_app` solo recibe DELETE; tras quitar acceso la cookie vieja recibe
+    401, no 403; un PATCH con el mismo conjunto responde 200 sin escribir ni
+    registrar; el 404 usa el texto genérico de la acción.
+  - **Revisión:** dos revisiones nativas aprobadas (T1+T2 y T3). La base por
+    defecto traía el rango desde la 1.1 (581 archivos) porque `origin/HEAD`
+    apuntaba a `feat/v2-1-1-sesiones-con-cookie`; se corrigió con
+    `git remote set-head origin master` y se revisó por rebanada con
+    `--base-ref`.
+  - **Pendiente (no bloquea):** la prueba de concurrencia del último admin
+    acepta 401 o 409 para el perdedor; el `down` de la migración falla si ya
+    hay filas de bitácora con las acciones nuevas.
+
 ### 15 oct 2026
 
 - **Historia 2.5 de la v2: ver la lista de usuarios de mi empresa (FR-41,

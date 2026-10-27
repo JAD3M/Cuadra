@@ -77,7 +77,7 @@ degradar.
 - [x] **T3 — Pantalla.** Acciones en filas activas, editor de roles y confirmar
   quitar según el mockup; textos del error de último admin; pruebas de
   componente y de flujo.
-- [ ] **T4 — Cierre.** Suites completas, lint y `format:check`, bitácora
+- [x] **T4 — Cierre.** Suites completas, lint y `format:check`, bitácora
   (`docs/bitacora.md`), estado en `CUADRA.md`, PRs en cadena.
 
 ## Aceptación
@@ -126,4 +126,7 @@ protegido; `cuadra_app` solo gana lo mínimo en la migración).
   casilla al abrir el editor, «Volver» en la confirmación, aviso de éxito o de
   acceso quitado y alerta de fallo. Pruebas de la lista en
   `features/usuarios/ListaUsuarios.test.tsx`. Commit: f08df7b.
-- Siguiente: T4.
+- 2026-10-27 T4 hecha: bitácora (`docs/bitacora.md`) escrita. Suites completas
+  verificadas en T1 (1301 backend) y T3 (4357 frontend). Dos revisiones
+  nativas aprobadas. CUADRA.md no registra las historias v2, no se toca.
+- Siguiente: PRs en cadena (decisión del usuario).
