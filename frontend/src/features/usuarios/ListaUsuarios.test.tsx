@@ -13,7 +13,10 @@ import {
 import {
   accionPendienteFalla,
   accionPendienteRedDeFallo,
+  accionRolesFalla,
+  accionRolesRedDeFallo,
   accionesPendientesRecibidas,
+  accionesRolesRecibidas,
   listadosUsuariosPedidos,
   listarUsuariosFalla,
   listarUsuariosRedDeFallo,
@@ -36,6 +39,12 @@ const MARTA = 'marta.nunez@ferreteria.mx';
 const CAMILA = 'camila.ortega@ferreteria.mx';
 const RODRIGO = 'rodrigo.salas@ferreteria.mx';
 const ANA = 'ana.mendoza@ferreteria.mx';
+const LUIS = 'luis.reyes@ferreteria.mx';
+const JORGE = 'jorge.tapia@ferreteria.mx';
+const ID_LUIS = '55555555-5555-4555-8555-555555555551';
+const ID_ANA = '88888888-8888-4888-8888-888888888888';
+const ULTIMO_ADMIN =
+  'No se puede quitar ni degradar al único administrador. Asigna el rol de administrador a otra persona primero.';
 const TITULO = 'Personas de tu empresa';
 
 beforeEach(() => {
@@ -67,6 +76,15 @@ const reenviar = (correo: string) =>
   screen.getByRole('button', { name: `Reenviar invitación a ${correo}` });
 const cancelar = (correo: string) =>
   screen.getByRole('button', { name: `Cancelar invitación a ${correo}` });
+const cambiarRoles = (correo: string) =>
+  screen.getByRole('button', { name: `Cambiar roles de ${correo}` });
+const quitarAcceso = (correo: string) =>
+  screen.getByRole('button', { name: `Quitar acceso de ${correo}` });
+const casilla = (rol: string) =>
+  within(screen.getByRole('form', { name: 'Cambiar roles' })).getByRole(
+    'checkbox',
+    { name: new RegExp(`^${rol}`) },
+  );
 
 async function listaLista() {
   await within(
@@ -145,17 +163,21 @@ describe('lista de usuarios: la lista', () => {
     expect(within(fila(CAMILA)).getByText('Administrador')).toBeInTheDocument();
   });
 
-  it('una activa dice «Activo», lleva «—» en Enviada e Invitada por y no tiene acciones', async () => {
+  it('una activa dice «Activo», lleva «—» en Enviada e Invitada por y solo tiene Cambiar roles y Quitar acceso', async () => {
     montar();
     await listaLista();
     const ana = fila(ANA);
     expect(within(ana).getByText('Activo')).toBeInTheDocument();
     expect(within(ana).getByText('Administrador')).toBeInTheDocument();
     expect(within(ana).getAllByText('—')).toHaveLength(2);
-    expect(within(ana).queryAllByRole('button')).toHaveLength(0);
+    expect(
+      within(ana)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Cambiar roles', 'Quitar acceso']);
     expect(within(ana).queryByText(/Pendiente/)).toBeNull();
-    // Solo las cuatro pendientes traen Reenviar y Cancelar.
-    expect(within(seccion()).getAllByRole('button')).toHaveLength(8);
+    // Cuatro pendientes con Reenviar y Cancelar, cuatro activas con las nuevas.
+    expect(within(seccion()).getAllByRole('button')).toHaveLength(16);
   });
 
   it('una persona con varios roles los muestra todos', async () => {
@@ -202,6 +224,33 @@ describe('lista de usuarios: la lista', () => {
     await listaLista();
     expect(reenviar(MARTA)).toHaveTextContent('Reenviar');
     expect(cancelar(MARTA)).toHaveTextContent('Cancelar');
+    expect(cambiarRoles(LUIS)).toHaveTextContent('Cambiar roles');
+    expect(quitarAcceso(LUIS)).toHaveTextContent('Quitar acceso');
+    expect(cambiarRoles(LUIS)).toHaveAttribute('aria-expanded', 'false');
+    expect(quitarAcceso(LUIS)).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('las pendientes no traen Cambiar roles ni Quitar acceso, ni las activas Reenviar o Cancelar', async () => {
+    montar();
+    await listaLista();
+    expect(
+      within(fila(MARTA)).queryByRole('button', { name: /^Cambiar roles/ }),
+    ).toBeNull();
+    expect(
+      within(fila(MARTA)).queryByRole('button', { name: /^Quitar acceso/ }),
+    ).toBeNull();
+    expect(
+      within(fila(LUIS)).queryByRole('button', { name: /^Reenviar/ }),
+    ).toBeNull();
+    expect(
+      within(fila(LUIS)).queryByRole('button', { name: /^Cancelar/ }),
+    ).toBeNull();
+    expect(
+      screen.getAllByRole('button', { name: /^Cambiar roles/ }),
+    ).toHaveLength(4);
+    expect(
+      screen.getAllByRole('button', { name: /^Quitar acceso/ }),
+    ).toHaveLength(4);
   });
 
   it('mientras carga muestra un estado de carga y no la tabla', async () => {
@@ -481,7 +530,12 @@ describe('lista de usuarios: cancelar', () => {
       ).toBeNull(),
     );
     expect(fila(ANA)).toBeInTheDocument();
-    expect(within(seccion()).queryAllByRole('button')).toHaveLength(0);
+    // Ya no hay pendientes: solo quedan las acciones de la persona activa.
+    expect(
+      within(seccion())
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Cambiar roles', 'Quitar acceso']);
   });
 
   it.each([
@@ -543,6 +597,8 @@ describe('lista de usuarios: permisos y refresco', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Reenviar/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /^Cancelar/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Cambiar roles/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Quitar acceso/ })).toBeNull();
     expect(
       screen.queryByRole('form', { name: 'Invitar a una persona' }),
     ).toBeNull();
@@ -577,5 +633,373 @@ describe('lista de usuarios: permisos y refresco', () => {
         ),
       ).toBeInTheDocument(),
     );
+  });
+});
+
+describe('lista de usuarios: cambiar roles (2.6)', () => {
+  it('abre el editor con los roles actuales, sin llamar a la API (editar_roles)', async () => {
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(cambiarRoles(LUIS));
+    const editor = screen.getByRole('form', { name: 'Cambiar roles' });
+    expect(
+      within(editor).getByRole('group', { name: `Roles de ${LUIS}` }),
+    ).toBeInTheDocument();
+    expect(casilla('Contador')).toBeChecked();
+    expect(casilla('Administrador')).not.toBeChecked();
+    expect(casilla('Revisor')).not.toBeChecked();
+    expect(casilla('Auditor')).not.toBeChecked();
+    expect(cambiarRoles(LUIS)).toHaveAttribute('aria-expanded', 'true');
+    expect(quitarAcceso(LUIS)).toHaveAttribute('aria-expanded', 'false');
+    // El foco entra al editor, no se queda en la tabla.
+    expect(casilla('Administrador')).toHaveFocus();
+    expect(accionesRolesRecibidas).toHaveLength(0);
+  });
+
+  it('marcar y desmarcar solo cambia el borrador; nada se manda hasta guardar', async () => {
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(cambiarRoles(LUIS));
+    await u.click(casilla('Revisor'));
+    expect(casilla('Revisor')).toBeChecked();
+    await u.click(casilla('Revisor'));
+    expect(casilla('Revisor')).not.toBeChecked();
+    expect(accionesRolesRecibidas).toHaveLength(0);
+    // La fila sigue mostrando sus roles de siempre.
+    expect(within(fila(LUIS)).getByText('Contador')).toBeInTheDocument();
+  });
+
+  it('sin ningún rol avisa que pierde el acceso y el botón pasa a «Guardar y quitar acceso» (editar_roles_vacio)', async () => {
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(cambiarRoles(LUIS));
+    await u.click(casilla('Contador'));
+    expect(
+      within(screen.getByRole('form', { name: 'Cambiar roles' })).getByRole(
+        'status',
+      ),
+    ).toHaveTextContent(
+      'Sin ningún rol, la persona pierde el acceso a tu empresa. Conserva sus roles en otras empresas.',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Guardar y quitar acceso' }),
+    ).toBeInTheDocument();
+    expect(accionesRolesRecibidas).toHaveLength(0);
+    // Volver a marcar uno retira el aviso.
+    await u.click(casilla('Auditor'));
+    expect(
+      screen.getByRole('button', { name: 'Guardar cambios' }),
+    ).toBeInTheDocument();
+  });
+
+  it('guardar manda el conjunto final en el orden del espejo, avisa en la fila y la lista trae los roles nuevos (roles_guardados)', async () => {
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(cambiarRoles(LUIS));
+    await u.click(casilla('Revisor'));
+    await u.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    const aviso = await within(seccion()).findByText(
+      `Roles de ${LUIS} actualizados: Contador y Revisor. El cambio aplica en su siguiente petición.`,
+    );
+    expect(aviso).toHaveAttribute('role', 'status');
+    expect(accionesRolesRecibidas).toEqual([
+      { accion: 'cambiar', id: ID_LUIS, roles: ['contador', 'revisor'] },
+    ]);
+    expect(screen.queryByRole('form', { name: 'Cambiar roles' })).toBeNull();
+    expect(cambiarRoles(LUIS)).toHaveAttribute('aria-expanded', 'false');
+    await waitFor(() =>
+      expect(within(fila(LUIS)).getByText('Revisor')).toBeInTheDocument(),
+    );
+    expect(within(fila(LUIS)).getByText('Contador')).toBeInTheDocument();
+    // El aviso recibe el foco para quien navega con teclado.
+    expect(aviso).toHaveFocus();
+  });
+
+  it('con tres roles el aviso los une con comas y «y»', async () => {
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(cambiarRoles(LUIS));
+    await u.click(casilla('Administrador'));
+    await u.click(casilla('Revisor'));
+    await u.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    expect(
+      await within(seccion()).findByText(
+        `Roles de ${LUIS} actualizados: Administrador, Contador y Revisor. El cambio aplica en su siguiente petición.`,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('Cancelar cierra el editor sin guardar y devuelve el foco al botón', async () => {
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(cambiarRoles(LUIS));
+    await u.click(casilla('Auditor'));
+    await u.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('form', { name: 'Cambiar roles' })).toBeNull();
+    expect(cambiarRoles(LUIS)).toHaveFocus();
+    expect(cambiarRoles(LUIS)).toHaveAttribute('aria-expanded', 'false');
+    expect(accionesRolesRecibidas).toHaveLength(0);
+    // Al reabrir no queda el borrador anterior.
+    await u.click(cambiarRoles(LUIS));
+    expect(casilla('Auditor')).not.toBeChecked();
+  });
+
+  it('solo una fila abierta a la vez: editor, quitar y cancelar invitación se cierran entre sí', async () => {
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(cambiarRoles(LUIS));
+    await u.click(cambiarRoles(JORGE));
+    expect(screen.getAllByRole('form', { name: 'Cambiar roles' })).toHaveLength(
+      1,
+    );
+    expect(cambiarRoles(LUIS)).toHaveAttribute('aria-expanded', 'false');
+    expect(cambiarRoles(JORGE)).toHaveAttribute('aria-expanded', 'true');
+    await u.click(quitarAcceso(LUIS));
+    expect(screen.queryByRole('form', { name: 'Cambiar roles' })).toBeNull();
+    expect(
+      screen.getAllByRole('group', { name: 'Confirmar quitar acceso' }),
+    ).toHaveLength(1);
+    await u.click(cancelar(MARTA));
+    expect(
+      screen.queryByRole('group', { name: 'Confirmar quitar acceso' }),
+    ).toBeNull();
+    expect(
+      screen.getAllByRole('group', { name: 'Confirmar cancelación' }),
+    ).toHaveLength(1);
+    await u.click(cambiarRoles(LUIS));
+    expect(
+      screen.queryByRole('group', { name: 'Confirmar cancelación' }),
+    ).toBeNull();
+  });
+
+  it('guardar sin roles quita el acceso: llama a quitar, no a cambiar (acceso_quitado)', async () => {
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(cambiarRoles(LUIS));
+    await u.click(casilla('Contador'));
+    await u.click(
+      screen.getByRole('button', { name: 'Guardar y quitar acceso' }),
+    );
+    expect(await within(seccion()).findByRole('status')).toHaveTextContent(
+      `Acceso de ${LUIS} a tu empresa quitado. Ya no puede entrar a ella.`,
+    );
+    expect(accionesRolesRecibidas).toEqual([{ accion: 'quitar', id: ID_LUIS }]);
+    await waitFor(() =>
+      expect(
+        within(seccion()).queryByText(LUIS, { selector: 'td' }),
+      ).toBeNull(),
+    );
+  });
+
+  it('un 409 muestra el texto del último administrador en la fila y el editor sigue abierto (ultimo_admin)', async () => {
+    accionRolesFalla('cambiar', 409);
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(cambiarRoles(ANA));
+    await u.click(casilla('Administrador'));
+    await u.click(casilla('Contador'));
+    await u.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    const alerta = await within(seccion()).findByRole('alert');
+    expect(alerta).toHaveTextContent(ULTIMO_ADMIN);
+    expect(alerta).not.toHaveTextContent('texto del servidor');
+    expect(alerta).toHaveFocus();
+    expect(screen.getByRole('form', { name: 'Cambiar roles' })).toBeVisible();
+    expect(cambiarRoles(ANA)).toHaveAttribute('aria-expanded', 'true');
+    expect(accionesRolesRecibidas).toEqual([{ accion: 'cambiar', id: ID_ANA }]);
+  });
+
+  it('un fallo genérico al guardar dice «No se pudo guardar el cambio» y conserva el borrador (roles_error)', async () => {
+    accionRolesFalla('cambiar', 500);
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(cambiarRoles(LUIS));
+    await u.click(casilla('Revisor'));
+    await u.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    expect(await within(seccion()).findByRole('alert')).toHaveTextContent(
+      'No se pudo guardar el cambio. Inténtalo de nuevo.',
+    );
+    expect(casilla('Revisor')).toBeChecked();
+    expect(casilla('Contador')).toBeChecked();
+    expect(
+      screen.getByRole('button', { name: 'Guardar cambios' }),
+    ).toBeEnabled();
+  });
+
+  it('un 403 y la falta de conexión usan los textos compartidos', async () => {
+    accionRolesFalla('cambiar', 403);
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(cambiarRoles(LUIS));
+    await u.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    expect(await within(seccion()).findByRole('alert')).toHaveTextContent(
+      'No tienes permiso para esta acción.',
+    );
+    accionRolesRedDeFallo('cambiar');
+    await u.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() =>
+      expect(within(seccion()).getByRole('alert')).toHaveTextContent(
+        'No se pudo conectar con el servidor.',
+      ),
+    );
+  });
+
+  it('mientras guarda, los controles del editor esperan y no se duplica el envío', async () => {
+    const compuerta = crearCompuerta();
+    servidor.use(
+      http.patch('/api/usuarios/:id/roles', async ({ params }) => {
+        accionesRolesRecibidas.push({
+          accion: 'cambiar',
+          id: String(params['id']),
+        });
+        await compuerta.promesa;
+        return HttpResponse.json({
+          id: String(params['id']),
+          email: LUIS,
+          roles: ['contador'],
+        });
+      }),
+    );
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(cambiarRoles(LUIS));
+    await u.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Guardar cambios' }),
+      ).toBeDisabled(),
+    );
+    expect(casilla('Auditor')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled();
+    expect(cambiarRoles(JORGE)).toBeDisabled();
+    expect(quitarAcceso(JORGE)).toBeDisabled();
+    expect(reenviar(MARTA)).toBeDisabled();
+    compuerta.abrir();
+    await within(seccion()).findByRole('status');
+    expect(accionesRolesRecibidas).toHaveLength(1);
+  });
+});
+
+describe('lista de usuarios: quitar acceso (2.6)', () => {
+  it('Quitar acceso abre la confirmación con el foco en «Volver», sin llamar a la API (confirmar_quitar)', async () => {
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(quitarAcceso(LUIS));
+    const grupo = screen.getByRole('group', {
+      name: 'Confirmar quitar acceso',
+    });
+    expect(grupo).toHaveTextContent(
+      `¿Quitar el acceso de ${LUIS} a tu empresa? Lo pierde de inmediato y sus sesiones en ella dejan de servir. Conserva sus roles en otras empresas.`,
+    );
+    expect(
+      within(grupo).getByRole('button', { name: 'Sí, quitar acceso' }),
+    ).toBeInTheDocument();
+    expect(within(grupo).getByRole('button', { name: 'Volver' })).toHaveFocus();
+    expect(quitarAcceso(LUIS)).toHaveAttribute('aria-expanded', 'true');
+    expect(cambiarRoles(LUIS)).toHaveAttribute('aria-expanded', 'false');
+    expect(accionesRolesRecibidas).toHaveLength(0);
+  });
+
+  it('Volver cierra la confirmación, devuelve el foco y no quita nada', async () => {
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(quitarAcceso(LUIS));
+    await u.click(screen.getByRole('button', { name: 'Volver' }));
+    expect(
+      screen.queryByRole('group', { name: 'Confirmar quitar acceso' }),
+    ).toBeNull();
+    expect(quitarAcceso(LUIS)).toHaveFocus();
+    expect(quitarAcceso(LUIS)).toHaveAttribute('aria-expanded', 'false');
+    expect(accionesRolesRecibidas).toHaveLength(0);
+  });
+
+  it('«Sí, quitar acceso» quita, la fila sale y un aviso arriba lo confirma (acceso_quitado)', async () => {
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(quitarAcceso(LUIS));
+    await u.click(screen.getByRole('button', { name: 'Sí, quitar acceso' }));
+    const aviso = await within(seccion()).findByRole('status');
+    expect(aviso).toHaveTextContent(
+      `Acceso de ${LUIS} a tu empresa quitado. Ya no puede entrar a ella.`,
+    );
+    expect(aviso).toHaveFocus();
+    expect(accionesRolesRecibidas).toEqual([{ accion: 'quitar', id: ID_LUIS }]);
+    await waitFor(() =>
+      expect(
+        within(seccion()).queryByText(LUIS, { selector: 'td' }),
+      ).toBeNull(),
+    );
+    expect(fila(ANA)).toBeInTheDocument();
+  });
+
+  it('un 409 muestra el texto del último administrador y la confirmación sigue abierta (ultimo_admin_quitar)', async () => {
+    accionRolesFalla('quitar', 409);
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(quitarAcceso(ANA));
+    await u.click(screen.getByRole('button', { name: 'Sí, quitar acceso' }));
+    const alerta = await within(seccion()).findByRole('alert');
+    expect(alerta).toHaveTextContent(ULTIMO_ADMIN);
+    expect(alerta).not.toHaveTextContent('texto del servidor');
+    expect(alerta).toHaveFocus();
+    expect(
+      screen.getByRole('group', { name: 'Confirmar quitar acceso' }),
+    ).toBeVisible();
+    expect(fila(ANA)).toBeInTheDocument();
+  });
+
+  it('un fallo genérico dice «No se pudo quitar el acceso» y la persona sigue en la lista (acceso_error)', async () => {
+    accionRolesFalla('quitar', 500);
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(quitarAcceso(LUIS));
+    await u.click(screen.getByRole('button', { name: 'Sí, quitar acceso' }));
+    expect(await within(seccion()).findByRole('alert')).toHaveTextContent(
+      'No se pudo quitar el acceso. Inténtalo de nuevo.',
+    );
+    expect(fila(LUIS)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Sí, quitar acceso' }),
+    ).toBeEnabled();
+  });
+
+  it('sin conexión al quitar muestra el aviso de conexión', async () => {
+    accionRolesRedDeFallo('quitar');
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(quitarAcceso(LUIS));
+    await u.click(screen.getByRole('button', { name: 'Sí, quitar acceso' }));
+    expect(await within(seccion()).findByRole('alert')).toHaveTextContent(
+      'No se pudo conectar con el servidor.',
+    );
+  });
+
+  it('una acción nueva retira el aviso anterior de otra fila', async () => {
+    accionRolesFalla('quitar', 500);
+    montar();
+    await listaLista();
+    const u = userEvent.setup();
+    await u.click(quitarAcceso(LUIS));
+    await u.click(screen.getByRole('button', { name: 'Sí, quitar acceso' }));
+    await within(seccion()).findByRole('alert');
+    await u.click(cambiarRoles(JORGE));
+    expect(within(seccion()).queryByRole('alert')).toBeNull();
   });
 });

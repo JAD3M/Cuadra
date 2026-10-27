@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { CONTEXTO_SESION, capacidadesDeRoles } from '@/test/fixtures';
 import {
   accionesPendientesRecibidas,
+  accionesRolesRecibidas,
   invitacionesUsuarioRecibidas,
   listadosUsuariosPedidos,
   personasDelMockup,
@@ -139,6 +140,55 @@ describe('flujos de usuarios: menú y pantalla (2.3)', () => {
     await waitFor(() =>
       expect(
         within(seccion).queryByText('luis.paredes@ferreteria.mx', {
+          selector: 'td',
+        }),
+      ).toBeNull(),
+    );
+  });
+
+  it('el administrador cambia los roles de una persona y le quita el acceso a otra (2.6)', async () => {
+    montarApp('/usuarios');
+    await entrarALaApp();
+    const u = userEvent.setup();
+    const seccion = await screen.findByRole('region', {
+      name: 'Personas de tu empresa',
+    });
+    await within(seccion).findByText('luis.reyes@ferreteria.mx');
+
+    await u.click(
+      screen.getByRole('button', {
+        name: 'Cambiar roles de luis.reyes@ferreteria.mx',
+      }),
+    );
+    await u.click(
+      within(screen.getByRole('form', { name: 'Cambiar roles' })).getByRole(
+        'checkbox',
+        { name: /^Revisor/ },
+      ),
+    );
+    await u.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+    expect(await within(seccion).findByRole('status')).toHaveTextContent(
+      'Roles de luis.reyes@ferreteria.mx actualizados: Contador y Revisor. El cambio aplica en su siguiente petición.',
+    );
+
+    await u.click(
+      screen.getByRole('button', {
+        name: 'Quitar acceso de jorge.tapia@ferreteria.mx',
+      }),
+    );
+    await u.click(screen.getByRole('button', { name: 'Sí, quitar acceso' }));
+    expect(
+      await within(seccion).findByText(
+        'Acceso de jorge.tapia@ferreteria.mx a tu empresa quitado. Ya no puede entrar a ella.',
+      ),
+    ).toBeInTheDocument();
+    expect(accionesRolesRecibidas.map((a) => a.accion)).toEqual([
+      'cambiar',
+      'quitar',
+    ]);
+    await waitFor(() =>
+      expect(
+        within(seccion).queryByText('jorge.tapia@ferreteria.mx', {
           selector: 'td',
         }),
       ).toBeNull(),
