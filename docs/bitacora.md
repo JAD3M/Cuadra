@@ -5,6 +5,38 @@
 
 ### 27 oct 2026
 
+- **Historia 2.7 de la v2: consultar la bitácora según mi rol (FR-51; deja
+  visibles FR-50 y FR-55; AD-7).** Ramas en cadena
+  `feat/v2-2-7-01-pruebas-bitacora`, `feat/v2-2-7-02-frontend-detalle` y
+  `feat/v2-2-7-03-frontend-pantalla` con ODD, desde `master` tras la 2.6. El
+  backend ya cumplía casi todo, así que la historia fue sobre todo pruebas y el
+  texto del frontend; el mockup (cambiar y quitar rol, permiso faltante, estado
+  vacío) se aprobó antes de la interfaz.
+  - **T1 `a93dc7e`:** 15 pruebas de integración de la bitácora: los cuatro roles
+    ven las acciones de administración y `acceso_denegado`; aislamiento entre
+    empresas A y B (lista, total y filtros); ninguna ruta de escritura sobre
+    `/bitacora` ni `/bitacora/:id`; `cuadra_app` sin UPDATE en ninguna columna.
+    Sin migración ni cambios de producción.
+  - **T2 `05dc82f`:** `detalleEvento` redacta en español invitar, reenviar,
+    cancelar, cambiar_rol y quitar_rol (correo y roles) y agrega el permiso
+    faltante al acceso denegado. La regla D8 se acotó: `email` y `correo` solo
+    pueden aparecer en `detalle.ts`; `ip` y `userAgent` siguen prohibidos.
+  - **T3 `a9cc766`:** el filtro de Acción y el chip mostraban el valor crudo
+    (`cambiar_rol`); ahora dicen «Rol cambiado», «Invitación enviada», etc., como
+    el mockup. 24 pruebas de flujo para los cuatro roles, sin controles de
+    edición o borrado.
+  - **Decisiones:** se muestra el correo de la persona afectada a los cuatro
+    roles; invitar muestra los roles y no el vencimiento, porque `datos` no lo
+    trae; el aislamiento descansa en dos barreras (filtro del servicio y RLS) y
+    las pruebas solo fallan si faltan las dos.
+  - **Revisión:** tres revisiones nativas aprobadas, una por tarea y por
+    rebanada con `--base-ref`; el hook sigue proponiendo la rama completa contra
+    `master` como candidato sin revisar.
+  - **Pendiente (no bloquea):** el backend no registra hoy denegaciones por
+    segregación de funciones (el frontend ya las soporta); en la primera
+    corrida completa del backend fallaron dos pruebas que luego pasaron solas,
+    sin causa conocida.
+
 - **Historia 2.6 de la v2: cambiar o quitar los roles de una persona de mi
   empresa (FR-45, FR-46, AD-2, AD-11).** Ramas en cadena
   `feat/v2-2-6-01-api-roles`, `feat/v2-2-6-02-frontend-contrato-hook` y

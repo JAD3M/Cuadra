@@ -76,7 +76,7 @@ demuestra. Otra empresa no ve nada de la ajena.
   `bitacoraEspejo.test.ts` y `VACIO.detalle`, con pruebas.
 - [x] **T3 — Pantalla.** Filtro de acción con las acciones nuevas, entidad
   `companies`, pruebas de flujo para cada rol según el mockup aprobado.
-- [ ] **T4 — Cierre.** Suites completas, lint y `format:check`, bitácora
+- [x] **T4 — Cierre.** Suites completas, lint y `format:check`, bitácora
   (`docs/bitacora.md`), PRs en cadena.
 
 ## Aceptación
@@ -162,4 +162,5 @@ Los cinco criterios de la Story 2.7 en `epics.md`.
   - Verificación (frontend/): `npx vitest run` 274 archivos / 4412 pruebas
     verdes; `npm run typecheck`, `npm run lint`, `npm run format:check` limpios.
 - Commit T3: `a9cc766`.
-- Siguiente: T4.
+- 2026-10-27 T4 hecha: bitácora (`docs/bitacora.md`) escrita; tres revisiones nativas aprobadas. Suites verificadas por tarea (1318 backend, 4412 frontend).
+- Siguiente: PRs en cadena.
