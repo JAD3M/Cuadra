@@ -211,28 +211,30 @@ describe('detalleEvento: decisiones D17 a D21', () => {
     );
   });
 
-  it('la denegación por segregación de funciones (el usuario SÍ tiene el rol) muestra —', () => {
+  it('la denegación por segregación de funciones (el usuario SÍ tiene el rol) no afirma roles y no cae a —', () => {
     // El backend la guarda como rol_insuficiente aunque haya traslape entre lo
     // requerido y lo que tiene: afirmar "requiere admin o contador, tiene
-    // contador" sería falso.
+    // contador" sería falso. Se conserva la petición y, si existe, el permiso.
+    const traslape = {
+      rolesRequeridos: ['admin', 'contador'],
+      rolesDelUsuario: ['contador'],
+    };
     expect(
       detalleEvento({
         accion: 'acceso_denegado',
-        datos: denegado({
-          rolesRequeridos: ['admin', 'contador'],
-          rolesDelUsuario: ['contador'],
-        }),
+        datos: denegado(traslape),
       }),
-    ).toBe('—');
+    ).toBe('PUT /empresa/tolerancia');
     expect(
       detalleEvento({
         accion: 'acceso_denegado',
         datos: denegado({
-          rolesRequeridos: ['admin', 'contador'],
+          ...traslape,
           rolesDelUsuario: ['contador', 'revisor'],
+          permiso: 'tolerancia.editar',
         }),
       }),
-    ).toBe('—');
+    ).toBe('PUT /empresa/tolerancia · permiso: tolerancia.editar');
   });
 
   it('rol insuficiente con listas de roles vacías o mal formadas muestra —', () => {
@@ -465,5 +467,206 @@ describe('segmentosDeDetalle', () => {
       '$12345678901234.5678',
     ]);
     expect(segmentos.map((s) => s.texto).join('')).toBe(texto);
+  });
+});
+
+describe('detalleEvento: permiso faltante en acceso_denegado', () => {
+  it('rol insuficiente con permiso lo agrega al final', () => {
+    expect(
+      detalleEvento({
+        accion: 'acceso_denegado',
+        datos: denegado({ permiso: 'tolerancia.editar' }),
+      }),
+    ).toBe(
+      'PUT /empresa/tolerancia · rol insuficiente: requiere admin, tiene revisor · permiso: tolerancia.editar',
+    );
+  });
+
+  it('sin permiso, o con permiso mal formado, no deja separador colgante', () => {
+    for (const permiso of [undefined, '', 5, null, ['x']]) {
+      expect(
+        detalleEvento({
+          accion: 'acceso_denegado',
+          datos: denegado({ permiso }),
+        }),
+      ).toBe(
+        'PUT /empresa/tolerancia · rol insuficiente: requiere admin, tiene revisor',
+      );
+    }
+  });
+
+  it('sin membresía con permiso también lo muestra', () => {
+    expect(
+      detalleEvento({
+        accion: 'acceso_denegado',
+        datos: denegado({
+          motivo: 'sin_membresia',
+          permiso: 'bitacora.ver',
+          rolesDelUsuario: [],
+        }),
+      }),
+    ).toBe(
+      'PUT /empresa/tolerancia · sin membresía en la empresa · permiso: bitacora.ver',
+    );
+  });
+});
+
+describe('detalleEvento: acciones de administración (historia 2.7)', () => {
+  const EMAIL = 'luis.reyes@ferreteria.mx';
+  const admin = (accion: AccionBitacora, datos: unknown) =>
+    detalleEvento({ accion, datos });
+
+  describe('invitar', () => {
+    const datos = (o: Record<string, unknown> = {}) => ({
+      invitacionId: CFDI,
+      email: EMAIL,
+      roles: ['contador', 'revisor'],
+      ...o,
+    });
+    it('completo: correo y roles, sin inventar vencimiento', () => {
+      expect(admin('invitar', datos())).toBe(
+        `correo: ${EMAIL} · roles: Contador y Revisor`,
+      );
+    });
+    it('un solo rol y tres roles', () => {
+      expect(admin('invitar', datos({ roles: ['auditor'] }))).toBe(
+        `correo: ${EMAIL} · roles: Auditor`,
+      );
+      expect(
+        admin('invitar', datos({ roles: ['admin', 'contador', 'revisor'] })),
+      ).toBe(`correo: ${EMAIL} · roles: Administrador, Contador y Revisor`);
+    });
+    it('parcial: sin roles o sin correo', () => {
+      expect(admin('invitar', datos({ roles: undefined }))).toBe(
+        `correo: ${EMAIL}`,
+      );
+      expect(admin('invitar', datos({ email: undefined }))).toBe(
+        'roles: Contador y Revisor',
+      );
+    });
+    it('mal formado: degrada a lo usable o a —', () => {
+      expect(admin('invitar', datos({ roles: 'contador' }))).toBe(
+        `correo: ${EMAIL}`,
+      );
+      expect(admin('invitar', datos({ roles: [1] }))).toBe(`correo: ${EMAIL}`);
+      expect(admin('invitar', datos({ email: 7, roles: [] }))).toBe('—');
+      expect(admin('invitar', {})).toBe('—');
+    });
+  });
+
+  describe('reenviar_invitacion', () => {
+    const datos = (o: Record<string, unknown> = {}) => ({
+      invitacionId: CFDI,
+      anteriorId: MOV,
+      email: EMAIL,
+      roles: ['contador'],
+      ...o,
+    });
+    it('completo', () => {
+      expect(admin('reenviar_invitacion', datos())).toBe(
+        `correo: ${EMAIL} · enlace anterior invalidado · roles: Contador`,
+      );
+    });
+    it('parcial y mal formado', () => {
+      expect(admin('reenviar_invitacion', datos({ roles: undefined }))).toBe(
+        `correo: ${EMAIL} · enlace anterior invalidado`,
+      );
+      expect(admin('reenviar_invitacion', datos({ roles: {} }))).toBe(
+        `correo: ${EMAIL} · enlace anterior invalidado`,
+      );
+      expect(
+        admin('reenviar_invitacion', datos({ email: null, roles: null })),
+      ).toBe('—');
+      expect(admin('reenviar_invitacion', [])).toBe('—');
+    });
+  });
+
+  describe('cancelar_invitacion', () => {
+    it('muestra solo el correo', () => {
+      expect(
+        admin('cancelar_invitacion', {
+          invitacionId: CFDI,
+          email: EMAIL,
+          roles: ['contador'],
+        }),
+      ).toBe(`correo: ${EMAIL}`);
+    });
+    it('sin correo utilizable da —', () => {
+      expect(admin('cancelar_invitacion', { invitacionId: CFDI })).toBe('—');
+      expect(admin('cancelar_invitacion', { email: '' })).toBe('—');
+      expect(admin('cancelar_invitacion', { email: 3 })).toBe('—');
+      expect(admin('cancelar_invitacion', null)).toBe('—');
+    });
+  });
+
+  describe('cambiar_rol', () => {
+    const datos = (o: Record<string, unknown> = {}) => ({
+      usuarioId: CFDI,
+      email: EMAIL,
+      antes: ['contador'],
+      despues: ['contador', 'revisor'],
+      ...o,
+    });
+    it('completo, con etiquetas de rol', () => {
+      expect(admin('cambiar_rol', datos())).toBe(
+        `${EMAIL} · roles: Contador → Contador y Revisor`,
+      );
+    });
+    it('listas vacías se muestran como «ninguno»', () => {
+      expect(admin('cambiar_rol', datos({ antes: [] }))).toBe(
+        `${EMAIL} · roles: ninguno → Contador y Revisor`,
+      );
+      expect(admin('cambiar_rol', datos({ despues: [] }))).toBe(
+        `${EMAIL} · roles: Contador → ninguno`,
+      );
+    });
+    it('parcial: sin correo, o sin una de las listas', () => {
+      expect(admin('cambiar_rol', datos({ email: undefined }))).toBe(
+        'roles: Contador → Contador y Revisor',
+      );
+      expect(admin('cambiar_rol', datos({ antes: undefined }))).toBe(EMAIL);
+    });
+    it('mal formado', () => {
+      expect(admin('cambiar_rol', datos({ despues: 'revisor' }))).toBe(EMAIL);
+      expect(admin('cambiar_rol', datos({ antes: [null] }))).toBe(EMAIL);
+      expect(admin('cambiar_rol', { usuarioId: CFDI })).toBe('—');
+    });
+  });
+
+  describe('quitar_rol', () => {
+    const datos = (o: Record<string, unknown> = {}) => ({
+      usuarioId: CFDI,
+      email: EMAIL,
+      roles: ['auditor'],
+      ...o,
+    });
+    it('completo', () => {
+      expect(admin('quitar_rol', datos())).toBe(
+        `${EMAIL} · roles quitados: Auditor`,
+      );
+      expect(
+        admin('quitar_rol', datos({ roles: ['contador', 'auditor'] })),
+      ).toBe(`${EMAIL} · roles quitados: Contador y Auditor`);
+    });
+    it('parcial y mal formado', () => {
+      expect(admin('quitar_rol', datos({ roles: [] }))).toBe(EMAIL);
+      expect(admin('quitar_rol', datos({ roles: 'auditor' }))).toBe(EMAIL);
+      expect(admin('quitar_rol', datos({ email: undefined }))).toBe(
+        'roles quitados: Auditor',
+      );
+      expect(admin('quitar_rol', { usuarioId: CFDI, email: 1 })).toBe('—');
+    });
+  });
+
+  it('un rol desconocido se muestra tal cual vino, sin inventar etiqueta', () => {
+    expect(admin('quitar_rol', { email: EMAIL, roles: ['contable'] })).toBe(
+      `${EMAIL} · roles quitados: contable`,
+    );
+  });
+
+  it('el correo con HTML sale como texto', () => {
+    expect(admin('cancelar_invitacion', { email: '<b>x</b>@y.mx' })).toBe(
+      'correo: <b>x</b>@y.mx',
+    );
   });
 });

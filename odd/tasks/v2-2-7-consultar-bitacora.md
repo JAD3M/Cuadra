@@ -71,7 +71,7 @@ demuestra. Otra empresa no ve nada de la ajena.
   regla (mutación manual o aserción negativa). Pruebas: cuatro roles ×
   acciones de administración y `acceso_denegado`; aislamiento A/B; sin rutas de
   escritura sobre `/bitacora` y `/bitacora/:id`.
-- [ ] **T2 — Frontend: dominio y detalle.** `detalle.ts` con las frases, permiso
+- [x] **T2 — Frontend: dominio y detalle.** `detalle.ts` con las frases, permiso
   en `acceso_denegado`, regla D8 acotada, espejo de `datos` en
   `bitacoraEspejo.test.ts` y `VACIO.detalle`, con pruebas.
 - [ ] **T3 — Pantalla.** Filtro de acción con las acciones nuevas, entidad
@@ -117,4 +117,21 @@ Los cinco criterios de la Story 2.7 en `epics.md`.
     segunda corrida completa); `npm run typecheck`, `npm run lint` (sin cambios
     extra), `prettier --check` y `npm run build` limpios.
 - Commit T1: `a93dc7e`.
-- Siguiente: T2.
+- 2026-10-27, T2 hecha (rama `feat/v2-2-7-02-frontend-detalle`). RED primero:
+  19 pruebas rojas en `detalle.test.ts` (`expected '—' to be 'correo: …'`,
+  permiso ausente, segregación) y `EstadosBitacora.test.tsx` (texto vacío); 1
+  roja en `bitacoraAislamiento.test.ts` («detalle.ts es el único archivo que
+  nombra el correo»). Luego GREEN.
+  - `detalle.ts`: frases de invitar, reenviar, cancelar, cambiar_rol y quitar_rol
+    solo con campos de `datos` (sin vencimiento: `datos` no lo trae; invitar usa
+    roles); `acceso_denegado` agrega `· permiso: p`; la segregación (traslape de
+    roles) ya no da «—»: muestra `MÉTODO ruta[ · permiso: p]` sin afirmar roles.
+    Rol desconocido sale tal cual; sin dato usable, «—».
+  - D8 acotada: `email`/`correo` solo en `detalle.ts`; `ip`/`userAgent` prohibidos
+    en toda la feature; pruebas de que la regla falla en otro archivo.
+  - `VACIO.detalle` actualizado (y su prueba en `EstadosBitacora.test.tsx`).
+  - Sin cambios en contratos, etiquetas ni `bitacoraEspejo.test.ts` (no espeja `datos`).
+  - Verificación (frontend/): `npx vitest run` 272 archivos / 4379 pruebas verdes;
+    `npm run typecheck`, `npm run lint`, `npm run format:check` limpios.
+- Commit T2: `05dc82f`.
+- Siguiente: T3.

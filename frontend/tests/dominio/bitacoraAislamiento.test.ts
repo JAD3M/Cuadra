@@ -18,8 +18,9 @@ import { RAIZ_FRONTEND, RUTA_COLORES } from '../css/leerTokens';
 //    son de la tabla de la bitácora y de nadie más. Solo su módulo CSS los
 //    consume; ningún componente compartido ni otra pantalla los toca, así que
 //    cambiarlos no mueve nada fuera de la bitácora.
-// 3. D8: la pantalla nunca lee la ip, el agente de usuario ni el correo; el
-//    contrato los descarta y el código de la feature no los nombra.
+// 3. D8: la pantalla nunca lee la ip ni el agente de usuario, y el correo solo
+//    lo nombra `detalle.ts` (texto de las acciones de administración, historia
+//    2.7); el contrato descarta la ip, el agente y el correo del usuario.
 
 const RAIZ_SRC = path.join(RAIZ_FRONTEND, 'src');
 const RAIZ = path.join(RAIZ_SRC, 'features', 'bitacora');
@@ -139,10 +140,44 @@ describe('bitácora: los tokens nuevos de peligro están aislados', () => {
   });
 });
 
-describe('bitácora: nunca lee ip, agente de usuario ni correo (D8)', () => {
+const DETALLE = path.join(RAIZ, 'detalle.ts');
+
+/**
+ * D8 acotada (historia 2.7): `ip` y `userAgent` están prohibidos en toda la
+ * feature; `email` y `correo` solo en `detalle.ts`, que redacta el texto de las
+ * acciones de administración con el correo de la persona afectada.
+ */
+const PROHIBIDO_EN_TODA_LA_FEATURE = /\.ip\b|\bip:|userAgent/;
+const PROHIBIDO_FUERA_DEL_DETALLE = /\bemail\b|\bcorreo\b/;
+
+function violaD8(archivo: string, fuente: string): boolean {
+  const limpio = sinComentarios(fuente);
+  if (PROHIBIDO_EN_TODA_LA_FEATURE.test(limpio)) return true;
+  return archivo !== DETALLE && PROHIBIDO_FUERA_DEL_DETALLE.test(limpio);
+}
+
+describe('bitácora: nunca lee ip ni agente de usuario; el correo solo en detalle.ts (D8)', () => {
   it.each(codigo.map((f) => [relativo(f), f]))('%s', (_n, archivo) => {
-    expect(sinComentarios(leer(archivo))).not.toMatch(
-      /\.ip\b|\bip:|userAgent|\bemail\b|\bcorreo\b/,
+    expect(violaD8(archivo, leer(archivo))).toBe(false);
+  });
+
+  it('detalle.ts es el único archivo que nombra el correo', () => {
+    const nombran = codigo.filter((f) =>
+      PROHIBIDO_FUERA_DEL_DETALLE.test(sinComentarios(leer(f))),
     );
+    expect(nombran.map(relativo)).toEqual([relativo(DETALLE)]);
+  });
+
+  it('la regla falla si otro archivo usa email o correo', () => {
+    const tabla = path.join(RAIZ, 'components', 'TablaBitacora.tsx');
+    expect(violaD8(tabla, 'const x = evento.datos.email;')).toBe(true);
+    expect(violaD8(tabla, "const t = 'correo';")).toBe(true);
+    expect(violaD8(tabla, 'const x = evento.id;')).toBe(false);
+  });
+
+  it('en detalle.ts el correo se permite, pero ip y userAgent no', () => {
+    expect(violaD8(DETALLE, 'const e = datos.email;')).toBe(false);
+    expect(violaD8(DETALLE, 'const p = evento.ip;')).toBe(true);
+    expect(violaD8(DETALLE, 'const a = datos.userAgent;')).toBe(true);
   });
 });

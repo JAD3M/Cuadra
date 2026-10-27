@@ -11,7 +11,7 @@ describe('VacioBitacora', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Aquí aparecerá cada confirmación, rechazo, cambio de tolerancia y acceso denegado de la empresa.',
+        'Aquí aparecerá cada confirmación, rechazo, cambio de tolerancia, invitación, cambio de rol y acceso denegado de la empresa.',
       ),
     ).toBeInTheDocument();
     expect(screen.queryByRole('button')).toBeNull();

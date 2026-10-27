@@ -49,7 +49,7 @@ export const USUARIOS_ERROR = 'No se pudo cargar la lista de usuarios.';
 export const VACIO = {
   titulo: 'Aún no hay eventos en la bitácora.',
   detalle:
-    'Aquí aparecerá cada confirmación, rechazo, cambio de tolerancia y acceso denegado de la empresa.',
+    'Aquí aparecerá cada confirmación, rechazo, cambio de tolerancia, invitación, cambio de rol y acceso denegado de la empresa.',
 } as const;
 
 /** Ningún evento cumple los filtros. */
