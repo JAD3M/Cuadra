@@ -40,6 +40,13 @@ describe('ETIQUETAS_ACCION_BITACORA (invitaciones, historia 2.4)', () => {
   });
 });
 
+describe('ETIQUETAS_ACCION_BITACORA (roles, historia 2.6)', () => {
+  it('nombra cambiar y quitar un rol', () => {
+    expect(ETIQUETAS_ACCION_BITACORA.cambiar_rol).toBe('Rol cambiado');
+    expect(ETIQUETAS_ACCION_BITACORA.quitar_rol).toBe('Rol quitado');
+  });
+});
+
 describe('ETIQUETAS_ACCION_BITACORA (textos del historial de la maqueta)', () => {
   it('usa los textos aprobados para los eventos de una conciliación', () => {
     expect(ETIQUETAS_ACCION_BITACORA.crear).toBe('El motor propuso el CFDI');
