@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import type { DataSource } from 'typeorm';
+import * as extractor from '../bancos/pdf/extraer-texto-pdf';
 import { construirPdfSintetico } from '../bancos/pdf/pdf-sintetico';
 import { filas, una } from '../database/testing/base-de-pruebas';
 import request from '../testing/supertest-con-origen';
@@ -149,6 +150,26 @@ describe('POST /cargas/estado-cuenta/pdf (historia 3.2)', () => {
       expect(await conteos()).toEqual(antes);
     });
 
+    it('archivo de 3 bytes (más corto que la firma): pdf_ilegible', async () => {
+      const antes = await conteos();
+      const res = await subir(
+        await entorno.token(LUIS, FERRETERIA),
+        'corto.pdf',
+        Buffer.from('%PD'),
+      ).expect(400);
+      expect(cuerpo(res).error).toBe('pdf_ilegible');
+      expect(await conteos()).toEqual(antes);
+    });
+
+    it('archivo vacío (0 bytes): 400, nunca 5xx', async () => {
+      const res = await subir(
+        await entorno.token(LUIS, FERRETERIA),
+        'vacio0.pdf',
+        Buffer.alloc(0),
+      ).expect(400);
+      expect(cuerpo(res).message).toMatch(/archivo|PDF/i);
+    });
+
     it('PDF truncado con la firma correcta: pdf_ilegible', async () => {
       const res = await subir(
         await entorno.token(LUIS, FERRETERIA),
@@ -229,6 +250,19 @@ describe('POST /cargas/estado-cuenta/pdf (historia 3.2)', () => {
       expect(cuerpo(res).message).toMatch(/Banco no soportado.*bbva/);
     });
 
+    it.each([
+      ['vacío', ''],
+      ['solo espacios', '   '],
+    ])('banco %s: 400 "falta el banco"', async (_nombre, banco) => {
+      const res = await subir(
+        await entorno.token(LUIS, FERRETERIA),
+        'bbva.pdf',
+        BBVA,
+        banco,
+      ).expect(400);
+      expect(JSON.stringify(cuerpo(res).message)).toMatch(/Falta el banco/);
+    });
+
     it('sin banco', async () => {
       await subir(
         await entorno.token(LUIS, FERRETERIA),
@@ -237,6 +271,32 @@ describe('POST /cargas/estado-cuenta/pdf (historia 3.2)', () => {
         null,
       ).expect(400);
     });
+  });
+
+  it('error inesperado del lector: 500 genérico, sin filtrar nada ni guardar', async () => {
+    const secreto = 'SECRETO-INTERNO-del-lector';
+    const espia = jest
+      .spyOn(extractor, 'extraerTextoPdf')
+      .mockRejectedValueOnce(new Error(secreto));
+    try {
+      const antes = await conteos();
+      const res = await subir(
+        await entorno.token(LUIS, FERRETERIA),
+        'bbva.pdf',
+        BBVA,
+      ).expect(500);
+      expect(espia).toHaveBeenCalledTimes(1);
+      const texto = JSON.stringify(res.body) + res.text;
+      expect(texto).not.toContain(secreto);
+      expect(texto).not.toMatch(/stack|at .*\.ts|BBVA/i);
+      expect(res.body).toEqual({
+        statusCode: 500,
+        message: 'Internal server error',
+      });
+      expect(await conteos()).toEqual(antes);
+    } finally {
+      espia.mockRestore();
+    }
   });
 
   it('aislamiento: otra empresa no ve ni escribe nada de la primera', async () => {

@@ -132,3 +132,7 @@ Los seis criterios de la Story 3.2 en `epics.md`.
   no guarda nada. 400 con `error`: `pdf_sin_texto`, `pdf_ilegible`,
   `moneda_no_mxn`; sin periodo/saldos, 400 solo con mensaje; banco
   desconocido o ausente, 400. Ruta CSV intacta. Siguiente: T4.
+- 2026-10-27: seguimiento de la revisión de T3, tres hallazgos menores:
+  `banco` vacío o en blanco ahora es 400 "Falta el banco" (DTO con trim +
+  `IsNotEmpty`); pruebas de archivo de 3 bytes y de 0 bytes (400); prueba de
+  error inesperado del lector (500 genérico, sin filtrar mensaje ni guardar).
