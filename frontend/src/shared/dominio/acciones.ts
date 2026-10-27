@@ -14,3 +14,15 @@ export const ACCION_ACCESO_DENEGADO =
 /** Lo que una persona decide sobre una propuesta. */
 export const ACCIONES_RESOLUCION = [ACCION_CONFIRMAR, ACCION_RECHAZAR] as const;
 export type AccionResolucion = (typeof ACCIONES_RESOLUCION)[number];
+
+/**
+ * Las acciones de administración de usuarios: la bitácora las muestra con su
+ * etiqueta en español (Bitacora.dc.html); las demás, con el valor de la API.
+ */
+export const ACCIONES_ADMINISTRACION = [
+  'invitar',
+  'reenviar_invitacion',
+  'cancelar_invitacion',
+  'cambiar_rol',
+  'quitar_rol',
+] as const satisfies readonly AccionBitacora[];
