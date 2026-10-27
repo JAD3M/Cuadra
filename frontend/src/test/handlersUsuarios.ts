@@ -105,6 +105,15 @@ export interface AccionPendiente {
 
 /** Acciones de fila recibidas desde el último `usarHandlersUsuarios`. */
 export const accionesPendientesRecibidas: AccionPendiente[] = [];
+/** Cambio de roles recibido: `quitar` (DELETE) o `cambiar` (PATCH) con sus roles. */
+export interface AccionRoles {
+  accion: 'cambiar' | 'quitar';
+  id: string;
+  roles?: unknown;
+}
+
+/** Cambios de roles recibidos desde el último `usarHandlersUsuarios`. */
+export const accionesRolesRecibidas: AccionRoles[] = [];
 /** Cuántas veces se pidió `GET /usuarios`. */
 export const listadosUsuariosPedidos = { cuenta: 0 };
 
@@ -123,6 +132,7 @@ const RUTA_LISTA = '/api/usuarios';
 const RUTA = '/api/usuarios/invitaciones';
 const RUTA_REENVIAR = `${RUTA}/:id/reenviar`;
 const RUTA_CANCELAR = `${RUTA}/:id/cancelar`;
+const RUTA_ROLES = '/api/usuarios/:id/roles';
 
 function cuerpoDeError(status: number) {
   return HttpResponse.json(
@@ -145,6 +155,7 @@ function porCorreo(personas: UsuarioListado[]): UsuarioListado[] {
 export function usarHandlersUsuarios(personas: UsuarioListado[] = []): void {
   invitacionesUsuarioRecibidas.length = 0;
   accionesPendientesRecibidas.length = 0;
+  accionesRolesRecibidas.length = 0;
   listadosUsuariosPedidos.cuenta = 0;
   personasServidor = [...personas];
   servidor.use(
@@ -182,6 +193,30 @@ export function usarHandlersUsuarios(personas: UsuarioListado[] = []): void {
       if (!actual) return cuerpoDeError(404);
       personasServidor = personasServidor.filter((p) => p.invitacionId !== id);
       return HttpResponse.json({ email: actual.email }, { status: 200 });
+    }),
+    http.patch(RUTA_ROLES, async ({ params, request }) => {
+      const id = String(params['id']);
+      const { roles } = (await request.json()) as {
+        roles: UsuarioListado['roles'];
+      };
+      accionesRolesRecibidas.push({ accion: 'cambiar', id, roles });
+      const actual = personasServidor.find(
+        (p) => p.id === id && p.estado === 'activo',
+      );
+      if (!actual) return cuerpoDeError(404);
+      const nueva: UsuarioListado = { ...actual, roles };
+      personasServidor = personasServidor.map((p) => (p.id === id ? nueva : p));
+      return HttpResponse.json({ id, email: actual.email, roles });
+    }),
+    http.delete(RUTA_ROLES, ({ params }) => {
+      const id = String(params['id']);
+      accionesRolesRecibidas.push({ accion: 'quitar', id });
+      const actual = personasServidor.find(
+        (p) => p.id === id && p.estado === 'activo',
+      );
+      if (!actual) return cuerpoDeError(404);
+      personasServidor = personasServidor.filter((p) => p.id !== id);
+      return HttpResponse.json({ id, email: actual.email, roles: [] });
     }),
     http.post(RUTA, async ({ request }) => {
       const cuerpo = (await request.json()) as CuerpoInvitarUsuario;
@@ -287,5 +322,38 @@ export function invitarUsuarioConCompuerta(espera: Promise<void>): void {
 export function invitarUsuarioResponde(cuerpo: object): void {
   servidor.use(
     http.post(RUTA, () => HttpResponse.json(cuerpo, { status: 201 })),
+  );
+}
+
+/**
+ * Cambiar roles (`PATCH`) o quitar acceso (`DELETE`) responde `status` con
+ * este `mensaje` de Nest, sin tocar a las personas. Un 409 simula al único
+ * administrador.
+ */
+export function accionRolesFalla(
+  accion: 'cambiar' | 'quitar',
+  status: number,
+  mensaje = 'texto del servidor',
+): void {
+  const respuesta = ({ params }: { params: Record<string, unknown> }) => {
+    accionesRolesRecibidas.push({ accion, id: String(params['id']) });
+    return HttpResponse.json(
+      { statusCode: status, error: 'Error', message: mensaje },
+      { status },
+    );
+  };
+  servidor.use(
+    accion === 'cambiar'
+      ? http.patch(RUTA_ROLES, respuesta)
+      : http.delete(RUTA_ROLES, respuesta),
+  );
+}
+
+/** Cambiar roles o quitar acceso falla en la red. */
+export function accionRolesRedDeFallo(accion: 'cambiar' | 'quitar'): void {
+  servidor.use(
+    accion === 'cambiar'
+      ? http.patch(RUTA_ROLES, () => HttpResponse.error())
+      : http.delete(RUTA_ROLES, () => HttpResponse.error()),
   );
 }

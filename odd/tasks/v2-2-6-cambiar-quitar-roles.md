@@ -71,7 +71,7 @@ degradar.
   en bitácora con quién y roles, siguiente petición sin acceso, último admin
   (409), conserva roles en otras empresas, sesiones de la empresa cerradas.
   Servicio, DTO, controlador, migración y pruebas de GRANT y CHECK.
-- [ ] **T2 — Contrato, hooks y espejo.** Contratos zod, `useCambiarRoles` y
+- [x] **T2 — Contrato, hooks y espejo.** Contratos zod, `useCambiarRoles` y
   `useQuitarAcceso` (plantilla `useAccionInvitacionPendiente`), handlers msw,
   errores, acciones/etiquetas/tonos de bitácora con sus pruebas.
 - [ ] **T3 — Pantalla.** Acciones en filas activas, editor de roles y confirmar
@@ -105,4 +105,13 @@ protegido; `cuadra_app` solo gana lo mínimo en la migración).
   candado advisory en vez de `FOR UPDATE`; también se tocó
   `plataforma.esquema.spec.ts` (la prueba de reversibilidad deshace ahora esta
   migración primero). Commit: e4e94f2.
-- Siguiente: T2.
+- 2026-10-27 T2 hecha. RED: contrato 5 fallidas, `errores` 7, etiquetas 1,
+  tonos 1 y las dos suites de hooks sin resolver el módulo. GREEN tras
+  implementar. Verificación (desde `frontend/`): `npm test` 271 archivos,
+  4327 pruebas, 0 fallas; `typecheck`, `lint` y `format:check` limpios.
+  Decisiones: `api.fetch` ahora admite `PATCH` y `DELETE` (solo el tipo de
+  `method` en `shared/api/client.ts`); el 409 se clasifica por código como
+  `ultimo_admin`; 409 y 404 no invalidan la lista, un 2xx ilegible sí. Handlers
+  msw `PATCH`/`DELETE` mantienen las personas coherentes (`accionRolesFalla`
+  fuerza errores). Commit: caed56e.
+- Siguiente: T3.

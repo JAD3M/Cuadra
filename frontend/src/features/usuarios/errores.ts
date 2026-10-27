@@ -89,3 +89,35 @@ export function clasificarFalloAccionPendiente(
   if (error instanceof NetworkError) return { clase: 'conexion' };
   return { clase: 'otro' };
 }
+
+export type ClaseFalloRoles =
+  'ultimo_admin' | 'no_encontrada' | 'permiso' | 'limite' | 'conexion' | 'otro';
+
+/**
+ * Clasifica el fallo de cambiar roles o quitar acceso (historia 2.6). 409: el
+ * único administrador no se quita ni se degrada (por el código, no por el
+ * texto del servidor); 404: la persona ya no tiene roles en la empresa. `null`
+ * para una cancelación y para un 401, que atiende la capa de sesión. Nunca
+ * devuelve texto del servidor.
+ */
+export function clasificarFalloRoles(error: unknown): ClaseFalloRoles | null {
+  if (esCancelacion(error)) return null;
+  if (error instanceof ApiError) {
+    switch (error.statusCode) {
+      case 401:
+        return null;
+      case 403:
+        return 'permiso';
+      case 404:
+        return 'no_encontrada';
+      case 409:
+        return 'ultimo_admin';
+      case 429:
+        return 'limite';
+      default:
+        return 'otro';
+    }
+  }
+  if (error instanceof NetworkError) return 'conexion';
+  return 'otro';
+}

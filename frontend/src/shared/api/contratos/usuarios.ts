@@ -31,6 +31,26 @@ export const invitacionReenviada = invitacionUsuarioEnviada;
 export const invitacionCancelada = z.object({ email: z.string() });
 
 /**
+ * Cuerpo de `PATCH /usuarios/:id/roles` (historia 2.6): el conjunto final de
+ * roles en la empresa, de 1 a `ROLES.length`. Sin roles no se usa PATCH sino
+ * `DELETE /usuarios/:id/roles`.
+ */
+export const solicitudCambiarRoles = z.object({
+  roles: z.array(rol).min(1).max(ROLES.length),
+});
+
+/**
+ * Respuesta de `PATCH` y `DELETE /usuarios/:id/roles` (`UsuarioRolesDto`): la
+ * persona y sus roles en la empresa tras el cambio; vacíos si se le quitó el
+ * acceso.
+ */
+export const usuarioRoles = z.object({
+  id: z.guid(),
+  email: z.string().min(1),
+  roles: z.array(rol),
+});
+
+/**
  * Una fila de `GET /usuarios` (historia 2.5), de `UsuarioListadoDto`: una
  * persona de la empresa, activa o con invitación pendiente. `id` es el del
  * usuario si está activa y el de la invitación si está pendiente;
@@ -84,6 +104,8 @@ export const usuarioListado = z
 export const usuariosListado = z.array(usuarioListado);
 
 export type UsuarioListado = z.infer<typeof usuarioListado>;
+export type SolicitudCambiarRoles = z.infer<typeof solicitudCambiarRoles>;
+export type UsuarioRoles = z.infer<typeof usuarioRoles>;
 export type InvitacionReenviada = z.infer<typeof invitacionReenviada>;
 export type InvitacionCancelada = z.infer<typeof invitacionCancelada>;
 export type SolicitudInvitarUsuario = z.infer<typeof solicitudInvitarUsuario>;
