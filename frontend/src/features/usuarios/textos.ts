@@ -105,13 +105,20 @@ export const ROLES_PERSONA = {
   guardar: 'Guardar cambios',
   guardarYQuitar: 'Guardar y quitar acceso',
   cancelar: 'Cancelar',
+  formulario: 'Cambiar roles',
+  /** Principio de la leyenda del editor; sigue el correo de la persona. */
+  rolesDe: 'Roles de ',
+  ariaCambiar: (correo: string) => `Cambiar roles de ${correo}`,
+  ariaQuitar: (correo: string) => `Quitar acceso de ${correo}`,
+  confirmarGrupo: 'Confirmar quitar acceso',
   confirmarSi: 'Sí, quitar acceso',
   volver: 'Volver',
   sinRolesAviso:
     'Sin ningún rol, la persona pierde el acceso a tu empresa. Conserva sus roles en otras empresas.',
   aplicaSiguiente: 'El cambio aplica en su siguiente petición.',
-  confirmarQuitar: (correo: string) =>
-    `¿Quitar el acceso de ${correo} a tu empresa? Lo pierde de inmediato y sus sesiones en ella dejan de servir. Conserva sus roles en otras empresas.`,
+  /** Lo que sigue al correo en la confirmación de quitar acceso. */
+  confirmarQuitarResto:
+    'a tu empresa? Lo pierde de inmediato y sus sesiones en ella dejan de servir. Conserva sus roles en otras empresas.',
   ultimoAdmin:
     'No se puede quitar ni degradar al único administrador. Asigna el rol de administrador a otra persona primero.',
   errorGuardar: 'No se pudo guardar el cambio. Inténtalo de nuevo.',
@@ -121,3 +128,9 @@ export const ROLES_PERSONA = {
   accesoQuitado: (correo: string) =>
     `Acceso de ${correo} a tu empresa quitado. Ya no puede entrar a ella.`,
 } as const;
+
+/** «Contador», «Contador y Revisor», «Administrador, Contador y Revisor». */
+export function unirRoles(etiquetas: readonly string[]): string {
+  if (etiquetas.length <= 1) return etiquetas.join('');
+  return `${etiquetas.slice(0, -1).join(', ')} y ${etiquetas[etiquetas.length - 1]}`;
+}

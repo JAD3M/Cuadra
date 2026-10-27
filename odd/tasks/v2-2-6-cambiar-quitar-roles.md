@@ -74,7 +74,7 @@ degradar.
 - [x] **T2 — Contrato, hooks y espejo.** Contratos zod, `useCambiarRoles` y
   `useQuitarAcceso` (plantilla `useAccionInvitacionPendiente`), handlers msw,
   errores, acciones/etiquetas/tonos de bitácora con sus pruebas.
-- [ ] **T3 — Pantalla.** Acciones en filas activas, editor de roles y confirmar
+- [x] **T3 — Pantalla.** Acciones en filas activas, editor de roles y confirmar
   quitar según el mockup; textos del error de último admin; pruebas de
   componente y de flujo.
 - [ ] **T4 — Cierre.** Suites completas, lint y `format:check`, bitácora
@@ -114,4 +114,16 @@ protegido; `cuadra_app` solo gana lo mínimo en la migración).
   `ultimo_admin`; 409 y 404 no invalidan la lista, un 2xx ilegible sí. Handlers
   msw `PATCH`/`DELETE` mantienen las personas coherentes (`accionRolesFalla`
   fuerza errores). Commit: caed56e.
-- Siguiente: T3.
+- 2026-10-27 T3 hecha. RED: `EditorRoles.test.tsx` sin resolver el módulo y 23
+  pruebas fallidas de 127 en `src/features/usuarios` + `usuariosFlujos`
+  (botones, editor y confirmación inexistentes). GREEN: 136 de 136. Verificación
+  (desde `frontend/`): `npx vitest run` 272 archivos, 4357 pruebas, 0 fallas;
+  `typecheck`, `lint` y `format:check` limpios. Decisiones: nuevo
+  `EditorRoles` presentacional; borrador y mutaciones en el contenedor; guardar
+  con borrador vacío llama a quitar (no PATCH); un fallo deja abierto el editor
+  o la confirmación; el 404 usa el texto genérico de la acción (el mockup no
+  tiene texto propio); los roles guardados se unen «A, B y C»; foco: primera
+  casilla al abrir el editor, «Volver» en la confirmación, aviso de éxito o de
+  acceso quitado y alerta de fallo. Pruebas de la lista en
+  `features/usuarios/ListaUsuarios.test.tsx`. Commit: pendiente.
+- Siguiente: T4.
