@@ -116,4 +116,5 @@ Los cinco criterios de la Story 2.7 en `epics.md`.
     `bitacora-solo-lectura` y `auth.integracion`, que pasan solas y en la
     segunda corrida completa); `npm run typecheck`, `npm run lint` (sin cambios
     extra), `prettier --check` y `npm run build` limpios.
+- Commit T1: `a93dc7e`.
 - Siguiente: T2.
