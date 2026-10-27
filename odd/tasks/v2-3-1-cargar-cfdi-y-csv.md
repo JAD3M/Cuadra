@@ -144,4 +144,5 @@ Los siete criterios de la Story 3.1 en `epics.md`.
   Verificación (desde `frontend/`): `npx vitest run` 275 archivos, 4427
   pruebas, 0 fallas; `npm run typecheck`, `npm run lint` y
   `npm run format:check` limpios.
+- Commit de T2: 385eff8.
 - Siguiente: T3.
