@@ -77,7 +77,7 @@ describe('CargasPage: historial', () => {
       'Pendiente',
       'Procesando',
       'Procesada',
-      'Con errores',
+      'Con filas rechazadas',
       'Fallida',
     ]) {
       expect(within(tabla).getByText(chip)).toBeInTheDocument();

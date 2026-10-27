@@ -251,3 +251,53 @@ describe('ContratoError', () => {
     }
   });
 });
+
+describe('resultados de CFDI con moneda no soportada (historia 3.1)', () => {
+  const marcado = {
+    archivo: 'usd.xml',
+    resultado: 'nuevo',
+    moneda: 'USD',
+    monedaNoSoportada: true,
+  };
+
+  it('conserva moneda y monedaNoSoportada cuando vienen', () => {
+    const d = detalleCarga.parse(
+      detalle({
+        estado: 'procesada',
+        resultados: [
+          marcado,
+          { ...marcado, archivo: 'b.xml', resultado: 'ya_existia' },
+        ],
+      }),
+    );
+    expect(d.resultados[0]).toEqual(marcado);
+    expect(d.resultados[1]).toMatchObject({
+      resultado: 'ya_existia',
+      moneda: 'USD',
+      monedaNoSoportada: true,
+    });
+  });
+
+  it('un archivo sin marca sigue siendo válido y no inventa las claves', () => {
+    const d = detalleCarga.parse(detalle());
+    expect(d.resultados[0]).toEqual({ archivo: 'a.xml', resultado: 'nuevo' });
+    expect(d.resultados[0]).not.toHaveProperty('moneda');
+    expect(d.resultados[0]).not.toHaveProperty('monedaNoSoportada');
+  });
+
+  it('una marca mal formada es ContratoError-able: falla el contrato', () => {
+    for (const mala of [
+      { moneda: 'US' },
+      { moneda: 'DÓLAR' },
+      { moneda: 840 },
+      { monedaNoSoportada: 'true' },
+      { monedaNoSoportada: 1 },
+    ]) {
+      expect(
+        detalleCarga.safeParse(
+          detalle({ resultados: [{ ...marcado, ...mala }] }),
+        ).success,
+      ).toBe(false);
+    }
+  });
+});

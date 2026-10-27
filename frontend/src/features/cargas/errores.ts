@@ -6,9 +6,14 @@ import { ApiError, NetworkError } from '@/shared/api';
 // bandeja. El único texto del servidor que se conserva es el motivo de un 400,
 // y se muestra como texto plano.
 
+/** Código `error` del 400 que rechaza un estado de cuenta que no es MXN. */
+export const CODIGO_MONEDA_NO_MXN = 'moneda_no_mxn';
+
 export type ClaseErrorSubida =
   /** `detalle`: motivo del servidor; `null` si no mandó ninguno. */
   | { clase: 'rechazo'; detalle: string | null }
+  /** 400 `moneda_no_mxn`: el estado de cuenta no está en pesos (historia 3.1). */
+  | { clase: 'moneda_no_mxn' }
   | { clase: 'demasiado_grande' }
   | { clase: 'sin_permiso' }
   | { clase: 'conexion' }
@@ -32,6 +37,9 @@ export function clasificarErrorSubida(error: unknown): ClaseErrorSubida | null {
       case 401:
         return null;
       case 400: {
+        if (error.error === CODIGO_MONEDA_NO_MXN) {
+          return { clase: 'moneda_no_mxn' };
+        }
         // class-validator puede devolver varios mensajes (M8).
         const detalle = error.mensajes.join(' ').trim();
         return { clase: 'rechazo', detalle: detalle === '' ? null : detalle };

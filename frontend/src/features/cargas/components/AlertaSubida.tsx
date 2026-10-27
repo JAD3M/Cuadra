@@ -8,6 +8,7 @@ import {
   ERROR_RECHAZO_CARGA,
   ERROR_SIN_PERMISO,
   REINTENTAR,
+  TEXTO_MONEDA_NO_MXN,
 } from '@/features/cargas/textos';
 
 /**
@@ -17,6 +18,8 @@ import {
 export type FalloSubida =
   /** `detalle`: motivo del servidor, solo para mostrarlo como texto; `null` si no mandó ninguno. */
   | { clase: 'rechazo'; detalle: string | null }
+  /** 400 `moneda_no_mxn`: el estado de cuenta no está en pesos. */
+  | { clase: 'moneda_no_mxn' }
   | { clase: 'demasiado_grande' }
   | { clase: 'sin_permiso' }
   | { clase: 'conexion' }
@@ -46,6 +49,8 @@ export function AlertaSubida({ fallo, onReintentar, ref }: AlertaSubidaProps) {
           detalle={fallo.detalle ?? undefined}
         />
       );
+    case 'moneda_no_mxn':
+      return <AlertaError ref={ref} {...TEXTO_MONEDA_NO_MXN} />;
     case 'demasiado_grande':
       return <AlertaError ref={ref} {...ERROR_DEMASIADO_GRANDE} />;
     case 'sin_permiso':

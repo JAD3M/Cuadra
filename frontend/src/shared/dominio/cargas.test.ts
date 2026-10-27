@@ -41,12 +41,12 @@ describe('FASE_CARGA, esActiva y esConcluida', () => {
 });
 
 describe('etiquetas de carga', () => {
-  it('estado: Pendiente, Procesando, Procesada, Con errores, Fallida', () => {
+  it('estado: Pendiente, Procesando, Procesada, Con filas rechazadas, Fallida', () => {
     expect(ESTADOS_CARGA.map((e) => ETIQUETAS_ESTADO_CARGA[e])).toEqual([
       'Pendiente',
       'Procesando',
       'Procesada',
-      'Con errores',
+      'Con filas rechazadas',
       'Fallida',
     ]);
   });

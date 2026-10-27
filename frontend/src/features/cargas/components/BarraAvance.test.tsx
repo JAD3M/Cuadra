@@ -24,7 +24,7 @@ describe('BarraAvance', () => {
 
   it.each<[EstadoCarga, string, string]>([
     ['procesada', 'Avance: Procesada', 'verde'],
-    ['con_errores', 'Avance: Con errores', 'naranja'],
+    ['con_errores', 'Avance: Con filas rechazadas', 'naranja'],
     ['fallida', 'Avance: Fallida', 'roja'],
   ])('%s: relleno completo como imagen «%s»', (estado, nombre, avance) => {
     render(<BarraAvance estado={estado} />);

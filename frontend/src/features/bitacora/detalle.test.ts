@@ -670,3 +670,23 @@ describe('detalleEvento: acciones de administración (historia 2.7)', () => {
     );
   });
 });
+
+describe('detalleEvento: cargar con los datos de la historia 3.1', () => {
+  it('no se rompe con la forma que escribe el worker (da —)', () => {
+    expect(
+      detalleEvento({
+        accion: 'cargar',
+        datos: {
+          cargaId: '00000000-0000-4000-8000-000000000001',
+          tipo: 'cfdi',
+          archivo: 'lote.xml',
+          estado: 'procesada',
+          registrosOk: 3,
+          registrosExistentes: 1,
+          registrosError: 0,
+          totalRegistros: 4,
+        },
+      }),
+    ).toBe('—');
+  });
+});

@@ -75,7 +75,7 @@ motivo. `revisor` y `auditor` reciben 403 y no ven Cargas en su menú.
   marca en `resultados`; XXX y MXN sin marca; CSV con columna `moneda` ≠ MXN
   rechazado completo con motivo; sin columna = MXN. Ajusta las pruebas del
   lector que esperaban el rechazo por lista.
-- [ ] **T2 — Contrato, hooks y espejo.** `resultados` con la marca de moneda y el
+- [x] **T2 — Contrato, hooks y espejo.** `resultados` con la marca de moneda y el
   motivo de rechazo en el contrato, deriva con el backend, textos y etiqueta
   «Con filas rechazadas».
 - [ ] **T3 — Pantalla.** Marca por archivo, leyenda, nota en el historial,
@@ -126,4 +126,22 @@ Los siete criterios de la Story 3.1 en `epics.md`.
   ambos endpoints; auditor por la matriz (`matriz.spec.ts`).
   Pendiente para T2: espejo frontend de `ENTIDADES_BITACORA` (agregar `cargas`).
 - Commit de T1: e914ed8.
-- Siguiente: T2.
+- 2026-10-27 T2 hecha (escritor delegado). RED observado antes de implementar
+  (13 pruebas en rojo en 10 archivos): `moneda.test.ts` sin módulo
+  (`Failed to resolve import "./moneda"`), contrato (`moneda` y
+  `monedaNoSoportada` descartados por zod; marca mal formada aceptada),
+  `errores.test.ts` (400 `moneda_no_mxn` caía en `rechazo`), manejadores
+  nuevos inexistentes, etiqueta `Con filas rechazadas` y
+  `tests/dominio/deriva.test.ts` (espejo sin `cargas`).
+  Decisiones: `moneda` = 3 letras mayúsculas opcional y `monedaNoSoportada`
+  booleano opcional en los resultados `nuevo`/`ya_existia`; clase de error
+  `moneda_no_mxn` por `ApiError.error` (texto fijo en `textos.ts`,
+  `TEXTO_MONEDA_NO_MXN`); helpers en `features/cargas/moneda.ts`
+  (`etiquetaMonedaNoSoportada`, `contarMonedaNoSoportada`,
+  `notaMonedaHistorial`, que da `null` con 0); `AlertaSubida.tsx` ganó el caso
+  `moneda_no_mxn` solo para que compile (T3 lo afina); pruebas que usaban
+  `cargas` como entidad inexistente ahora usan otros nombres.
+  Verificación (desde `frontend/`): `npx vitest run` 275 archivos, 4427
+  pruebas, 0 fallas; `npm run typecheck`, `npm run lint` y
+  `npm run format:check` limpios.
+- Siguiente: T3.
