@@ -133,4 +133,5 @@ Los cinco criterios de la Story 2.7 en `epics.md`.
   - Sin cambios en contratos, etiquetas ni `bitacoraEspejo.test.ts` (no espeja `datos`).
   - Verificación (frontend/): `npx vitest run` 272 archivos / 4379 pruebas verdes;
     `npm run typecheck`, `npm run lint`, `npm run format:check` limpios.
+- Commit T2: `05dc82f`.
 - Siguiente: T3.
