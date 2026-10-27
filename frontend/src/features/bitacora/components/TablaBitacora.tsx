@@ -8,6 +8,7 @@ import {
   NOMBRE_TABLA,
   SISTEMA,
 } from '@/features/bitacora/textos';
+import { textoAccion } from '@/features/bitacora/textoAccion';
 import { TONOS_ACCION } from '@/features/bitacora/tonos';
 import estilos from './TablaBitacora.module.css';
 
@@ -72,7 +73,7 @@ function FilaEvento({ evento, zona }: { evento: EventoTabla; zona?: string }) {
       </Td>
       <Td>
         <span className={`${estilos.chip} ${estilos[tono]}`} data-tono={tono}>
-          {evento.accion}
+          {textoAccion(evento.accion)}
         </span>
       </Td>
       <Td>

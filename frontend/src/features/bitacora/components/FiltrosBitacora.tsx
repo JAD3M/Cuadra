@@ -6,6 +6,7 @@ import {
   type EntidadBitacora,
 } from '@/shared/dominio';
 import { esRangoInvertido } from '@/features/bitacora/fechas';
+import { textoAccion } from '@/features/bitacora/textoAccion';
 import type { FiltrosBitacora } from '@/features/bitacora/filtrosUrl';
 import {
   FILTROS,
@@ -128,7 +129,7 @@ export function FiltrosBitacora({
           <option value="">{FILTROS.todas}</option>
           {ACCIONES_BITACORA.map((accion) => (
             <option key={accion} value={accion}>
-              {accion}
+              {textoAccion(accion)}
             </option>
           ))}
         </select>

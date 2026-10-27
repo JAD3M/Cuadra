@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { eventoBitacora, type EventoBitacora } from '@/shared/api/contratos';
 import { ACCIONES_BITACORA } from '@/shared/dominio';
 import { EVENTOS_MAQUETA, eventoDeBitacora } from '@/test/fixturesBitacora';
+import { textoAccion } from '@/features/bitacora/textoAccion';
 import { TONOS_ACCION } from '@/features/bitacora/tonos';
 import { TablaBitacora } from './TablaBitacora';
 
@@ -144,7 +145,7 @@ describe('TablaBitacora: chips de acción', () => {
     );
     montar(eventos);
     for (const accion of ACCIONES_BITACORA) {
-      const chip = screen.getByText(accion, { selector: 'span' });
+      const chip = screen.getByText(textoAccion(accion), { selector: 'span' });
       expect(chip).toHaveAttribute('data-tono', TONOS_ACCION[accion]);
     }
   });

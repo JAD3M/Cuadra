@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ACCIONES_BITACORA, ENTIDADES_BITACORA } from '@/shared/dominio';
+import { textoAccion } from '@/features/bitacora/textoAccion';
 import type { FiltrosBitacora as Filtros } from '@/features/bitacora/filtrosUrl';
 import {
   FiltrosBitacora,
@@ -59,10 +60,13 @@ describe('FiltrosBitacora: estructura', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
-  it('entidad y acción listan los valores de la API, sin traducir', () => {
+  it('entidad lista los valores de la API y acción, los de la API salvo la administración en español', () => {
     montar();
     expect(opciones('Entidad')).toEqual(['Todas', ...ENTIDADES_BITACORA]);
-    expect(opciones('Acción')).toEqual(['Todas', ...ACCIONES_BITACORA]);
+    expect(opciones('Acción')).toEqual([
+      'Todas',
+      ...ACCIONES_BITACORA.map(textoAccion),
+    ]);
   });
 
   it('usuario lista a las personas en el orden recibido', () => {
