@@ -74,7 +74,7 @@ demuestra. Otra empresa no ve nada de la ajena.
 - [x] **T2 — Frontend: dominio y detalle.** `detalle.ts` con las frases, permiso
   en `acceso_denegado`, regla D8 acotada, espejo de `datos` en
   `bitacoraEspejo.test.ts` y `VACIO.detalle`, con pruebas.
-- [ ] **T3 — Pantalla.** Filtro de acción con las acciones nuevas, entidad
+- [x] **T3 — Pantalla.** Filtro de acción con las acciones nuevas, entidad
   `companies`, pruebas de flujo para cada rol según el mockup aprobado.
 - [ ] **T4 — Cierre.** Suites completas, lint y `format:check`, bitácora
   (`docs/bitacora.md`), PRs en cadena.
@@ -135,3 +135,31 @@ Los cinco criterios de la Story 2.7 en `epics.md`.
     `npm run typecheck`, `npm run lint`, `npm run format:check` limpios.
 - Commit T2: `05dc82f`.
 - Siguiente: T3.
+- 2026-10-27, T3 hecha (rama `feat/v2-2-7-03-frontend-pantalla`). Brecha real
+  contra el mockup: el filtro de Acción y el chip de la tabla mostraban el valor
+  crudo (`invitar`, `cambiar_rol`…) en vez de «Invitación enviada», «Invitación
+  reenviada», «Invitación cancelada», «Rol cambiado», «Rol quitado».
+  - RED primero: `bitacoraAdministracion.test.tsx` 14 rojas / 10 verdes
+    (`Unable to find an accessible element with the role "option" and name
+    "Invitación enviada"`; el chip igual; la lista de opciones traía `invitar`…).
+  - Cambios de producción: `features/bitacora/textoAccion.ts` (nuevo: etiqueta en
+    español solo para las cinco de administración, el resto con el valor de la
+    API), usado por `TablaBitacora.tsx` (chip) y `FiltrosBitacora.tsx` (opciones;
+    el `value` sigue siendo el de la API); `ACCIONES_ADMINISTRACION` en
+    `shared/dominio/acciones.ts` (con `satisfies AccionBitacora`). Tono neutral y
+    entidad `companies` ya estaban bien. Se ajustaron `TablaBitacora.test.tsx` y
+    `FiltrosBitacora.test.tsx` (esperaban el valor crudo) y se agregó
+    `textoAccion.test.ts`.
+  - Pruebas de flujo por rol (admin, contador, revisor, auditor: fila de cada
+    acción de administración con etiqueta/tono/usuario/`companies`+id/detalle,
+    `acceso_denegado` con rol+permiso+cuándo y estilo de peligro, filtro por
+    «Rol cambiado» etc., sin botones/enlaces de editar o borrar y solo GET) y
+    estado vacío / vacío con filtros. Pasaron de inmediato (caracterización) las
+    de `acceso_denegado`, solo lectura y vacío; se comprobó que fallan con
+    mutación temporal (revertida): quitar la clase de fila denegada = 4 rojas;
+    agregar un `<button>Borrar</button>` en el detalle = 4 rojas (solo lectura);
+    cambiar el texto del estado vacío = 1 roja.
+  - Verificación (frontend/): `npx vitest run` 274 archivos / 4412 pruebas
+    verdes; `npm run typecheck`, `npm run lint`, `npm run format:check` limpios.
+- Commit T3: `a9cc766`.
+- Siguiente: T4.
