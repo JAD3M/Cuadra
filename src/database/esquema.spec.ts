@@ -790,6 +790,14 @@ describe('invitaciones y altas por la app (historia 1.5)', () => {
     expect(await columna('user_company_roles', 'id', 'INSERT')).toBe(false);
   });
 
+  it('user_company_roles: DELETE sí (historia 2.6), UPDATE no', async () => {
+    expect(await tabla('user_company_roles', 'DELETE')).toBe(true);
+    expect(await tabla('user_company_roles', 'UPDATE')).toBe(false);
+    for (const c of ['user_id', 'company_id', 'rol']) {
+      expect(await columna('user_company_roles', c, 'UPDATE')).toBe(false);
+    }
+  });
+
   it('solo una invitación viva por (empresa, correo)', async () => {
     await enTransaccion(async (qr) => {
       const emp = await empresaNueva(qr);
@@ -957,6 +965,18 @@ describe('invitaciones y altas por la app (historia 1.5)', () => {
     await enTransaccion(async (qr) => {
       const emp = await empresaNueva(qr);
       for (const accion of ['reenviar_invitacion', 'cancelar_invitacion']) {
+        await qr.query(
+          `INSERT INTO bitacora (company_id, entidad, entidad_id, accion) VALUES ($1, 'companies', $1, $2)`,
+          [emp, accion],
+        );
+      }
+    });
+  });
+
+  it("'cambiar_rol' y 'quitar_rol' caben en el CHECK de bitacora (historia 2.6)", async () => {
+    await enTransaccion(async (qr) => {
+      const emp = await empresaNueva(qr);
+      for (const accion of ['cambiar_rol', 'quitar_rol']) {
         await qr.query(
           `INSERT INTO bitacora (company_id, entidad, entidad_id, accion) VALUES ($1, 'companies', $1, $2)`,
           [emp, accion],

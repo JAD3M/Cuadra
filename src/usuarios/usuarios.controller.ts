@@ -1,10 +1,12 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -25,20 +27,24 @@ import {
 import type { UsuarioAutenticado } from '../auth/tipos';
 import { Permiso, UsuarioActual } from '../common/decorators/decoradores';
 import { Limite } from '../limite/limite.decorator';
+import { CambiarRolesService } from './cambiar-roles.service';
 import {
+  CambiarRolesDto,
   InvitacionCanceladaDto,
   InvitacionPendienteDto,
   InvitacionUsuarioEnviadaDto,
   InvitarUsuarioDto,
   UsuarioListadoDto,
+  UsuarioRolesDto,
 } from './dto/usuarios.dto';
 import { InvitacionesPendientesService } from './invitaciones-pendientes.service';
 import { InvitarUsuariosService } from './invitar-usuarios.service';
 import { ListarUsuariosService } from './listar-usuarios.service';
 
 /**
- * Historias 2.3 a 2.5 (FR-41, FR-42, FR-47, FR-50). Solo `admin`:
- * `usuarios.gestionar` para invitar, reenviar y cancelar; `usuarios.ver` para
+ * Historias 2.3 a 2.6 (FR-41, FR-42, FR-45 a FR-47, FR-50). Solo `admin`:
+ * `usuarios.gestionar` para invitar, reenviar, cancelar y cambiar o quitar
+ * roles; `usuarios.ver` para
  * listar personas y pendientes.
  */
 @ApiTags('usuarios')
@@ -49,6 +55,7 @@ export class UsuariosController {
     private readonly invitaciones: InvitarUsuariosService,
     private readonly pendientes: InvitacionesPendientesService,
     private readonly usuarios: ListarUsuariosService,
+    private readonly roles: CambiarRolesService,
   ) {}
 
   @Get()
@@ -196,5 +203,67 @@ export class UsuariosController {
       throw new UnauthorizedException('No autorizado');
     }
     return this.pendientes.cancelar(actual.companyId, actual.userId, id);
+  }
+
+  @Patch(':id/roles')
+  @Permiso('usuarios.gestionar')
+  @ApiOperation({
+    summary: 'Cambia los roles de una persona en la empresa',
+    description:
+      'Reemplaza el conjunto de roles (1 a 4, sin repetidos) en esta empresa; no toca los de otras. Aplica en la siguiente petición de esa persona y queda en la bitácora como `cambiar_rol` con los roles antes y después. Si el conjunto no cambia, responde 200 sin registrar nada. Para quitar todo el acceso se usa DELETE.',
+  })
+  @ApiOkResponse({ type: UsuarioRolesDto })
+  @ApiBadRequestResponse({
+    description:
+      'El id no es un uuid, o los roles están vacíos, son más de cuatro o no existen.',
+  })
+  @ApiUnauthorizedResponse({ description: 'Sin sesión o venció.' })
+  @ApiForbiddenResponse({
+    description: 'No tiene el rol admin. Queda en la bitácora.',
+  })
+  @ApiNotFoundResponse({
+    description: 'La persona no tiene roles en esta empresa.',
+  })
+  @ApiConflictResponse({
+    description: 'Dejaría a la empresa sin administrador. No cambia nada.',
+  })
+  cambiarRoles(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CambiarRolesDto,
+    @UsuarioActual() actual: UsuarioAutenticado,
+  ): Promise<UsuarioRolesDto> {
+    if (actual.scope !== 'sesion') {
+      throw new UnauthorizedException('No autorizado');
+    }
+    return this.roles.cambiar(actual.companyId, actual.userId, id, dto.roles);
+  }
+
+  @Delete(':id/roles')
+  @Permiso('usuarios.gestionar')
+  @ApiOperation({
+    summary: 'Quita el acceso de una persona a la empresa',
+    description:
+      'Borra todos sus roles en esta empresa y cierra sus sesiones elegidas en ella; conserva sus roles y sesiones en otras empresas. Queda en la bitácora como `quitar_rol` con los roles quitados.',
+  })
+  @ApiOkResponse({ type: UsuarioRolesDto })
+  @ApiBadRequestResponse({ description: 'El id no es un uuid.' })
+  @ApiUnauthorizedResponse({ description: 'Sin sesión o venció.' })
+  @ApiForbiddenResponse({
+    description: 'No tiene el rol admin. Queda en la bitácora.',
+  })
+  @ApiNotFoundResponse({
+    description: 'La persona no tiene roles en esta empresa.',
+  })
+  @ApiConflictResponse({
+    description: 'Es el único administrador de la empresa. No cambia nada.',
+  })
+  quitarAcceso(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UsuarioActual() actual: UsuarioAutenticado,
+  ): Promise<UsuarioRolesDto> {
+    if (actual.scope !== 'sesion') {
+      throw new UnauthorizedException('No autorizado');
+    }
+    return this.roles.quitar(actual.companyId, actual.userId, id);
   }
 }

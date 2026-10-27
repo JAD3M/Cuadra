@@ -43,6 +43,44 @@ export class InvitarUsuarioDto {
   roles!: Rol[];
 }
 
+/** Historia 2.6. El conjunto final de roles de una persona en la empresa. */
+export class CambiarRolesDto {
+  @ApiProperty({
+    enum: ROLES,
+    isArray: true,
+    minItems: 1,
+    maxItems: ROLES.length,
+    example: ['contador', 'revisor'],
+    description:
+      'Los roles que la persona tendrá en esta empresa; reemplazan a los actuales. Los repetidos se descartan. Para dejarla sin roles se usa DELETE.',
+  })
+  // Corre antes de validar: ['a', 'a', 'b'] llega como ['a', 'b'].
+  @Transform(({ value }: { value: unknown }) =>
+    Array.isArray(value) ? [...new Set(value as unknown[])] : value,
+  )
+  @IsArray()
+  @ArrayMinSize(1, { message: 'Elige al menos un rol' })
+  @ArrayMaxSize(ROLES.length)
+  @IsIn(ROLES, { each: true, message: 'Cada rol debe ser uno de ROLES' })
+  roles!: Rol[];
+}
+
+/** Historia 2.6. La persona y sus roles en la empresa tras el cambio. */
+export class UsuarioRolesDto {
+  @ApiProperty({ format: 'uuid' })
+  id!: string;
+
+  @ApiProperty({ example: 'luis.mendoza@fdb.mx' })
+  email!: string;
+
+  @ApiProperty({
+    enum: ROLES,
+    isArray: true,
+    description: 'Vacío si se le quitó el acceso a la empresa.',
+  })
+  roles!: Rol[];
+}
+
 /** Idéntica exista o no la cuenta de ese correo (no revela cuentas). */
 export class InvitacionUsuarioEnviadaDto {
   @ApiProperty({ example: 'luis.mendoza@fdb.mx' })

@@ -94,6 +94,11 @@ export type ResultadoSugerencia = (typeof RESULTADOS_SUGERENCIA)[number];
  * administradora reenvió o canceló una invitación pendiente. Misma forma que
  * 'invitar': `entidad` 'companies', `user_id` quien actuó y `datos` con
  * `invitacionId`, el correo y los roles.
+ * 'cambiar_rol' y 'quitar_rol' (historia 2.6): una persona administradora
+ * reemplazó los roles de alguien de su equipo o le quitó el acceso a la
+ * empresa. `entidad` es 'companies', `user_id` quien actuó y `datos` trae
+ * `usuarioId`, el correo y los roles: `antes` y `despues` en 'cambiar_rol',
+ * `roles` (los quitados) en 'quitar_rol'.
  */
 export const ACCIONES_BITACORA = [
   'crear',
@@ -106,6 +111,8 @@ export const ACCIONES_BITACORA = [
   'invitar',
   'reenviar_invitacion',
   'cancelar_invitacion',
+  'cambiar_rol',
+  'quitar_rol',
 ] as const;
 export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 
