@@ -77,6 +77,7 @@ describe('auditor: solo consulta (FR-54)', () => {
     ['rechazar', 'post', `/conciliaciones/${randomUUID()}/rechazar`],
     ['cargar CFDI', 'post', '/cargas/cfdi'],
     ['cargar estado de cuenta', 'post', '/cargas/estado-cuenta'],
+    ['cargar estado de cuenta PDF', 'post', '/cargas/estado-cuenta/pdf'],
     ['editar la tolerancia', 'put', '/empresa/tolerancia'],
   ];
 

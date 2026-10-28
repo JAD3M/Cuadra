@@ -72,7 +72,7 @@ Cerrar tres pendientes que quedaron anotados al integrar la 3.1:
 - [x] **T2 — Marca de reanudación en la bitácora.** RED primero: carga fallida
   reanudada que termina deja dos entradas `cargar`, la segunda con
   `reanudada: true` y la primera sin ella; aislada por empresa.
-- [ ] **T3 — Prueba del auditor para el PDF.** Fila en `ACCIONES` con la
+- [x] **T3 — Prueba del auditor para el PDF.** Fila en `ACCIONES` con la
   entrada `acceso_denegado` y sin cambios persistidos.
 - [ ] **T4 — Cierre.** Suites completas (backend y frontend), lint y formato,
   entrada en `docs/bitacora.md`, PR.
@@ -109,3 +109,7 @@ Cerrar tres pendientes que quedaron anotados al integrar la 3.1:
   carga y empresa; se conservan las dos entradas, la primera sin la clave. Las
   pruebas de reintento y `yaExistia` siguen con una sola entrada. El frontend
   lee `datos` sin tipar, así que no cambia. Siguiente: T3.
+- 2026-10-27: T3 hecha (escritor delegado). Solo prueba, verde desde el inicio
+  (el 403 del PDF ya estaba implementado; no hay RED). La fila
+  `cargar estado de cuenta PDF` de `ACCIONES` corre y verifica 403, una sola
+  entrada `acceso_denegado` y que nada cambia. Siguiente: T4.
