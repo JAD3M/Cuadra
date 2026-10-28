@@ -2,6 +2,7 @@ import {
   CODIGO_PDF_ILEGIBLE,
   CODIGO_PDF_SIN_TEXTO,
   EstadoDeCuentaRechazado,
+  MENSAJE_PDF_ILEGIBLE,
 } from '../lector-estado-cuenta';
 
 /**
@@ -17,7 +18,7 @@ export async function extraerTextoPdf(buffer: Buffer): Promise<string> {
     ({ text: texto } = await extractText(pdf, { mergePages: true }));
   } catch {
     throw new EstadoDeCuentaRechazado(
-      'No pudimos leer el PDF. Descárgalo de nuevo desde el portal del banco y vuelve a subirlo.',
+      MENSAJE_PDF_ILEGIBLE,
       CODIGO_PDF_ILEGIBLE,
     );
   }

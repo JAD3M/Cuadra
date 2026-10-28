@@ -36,6 +36,9 @@ export const MENSAJE_MONEDA_NO_MXN =
 export const CODIGO_MONEDA_NO_MXN = 'moneda_no_mxn';
 /** PDF sin capa de texto (escaneado o solo imágenes). */
 export const CODIGO_PDF_SIN_TEXTO = 'pdf_sin_texto';
+/** Mensaje compartido por el adaptador y por el guard de la subida. */
+export const MENSAJE_PDF_ILEGIBLE =
+  'No pudimos leer el PDF. Descárgalo de nuevo desde el portal del banco y vuelve a subirlo.';
 /** Bytes que no son un PDF legible (corrupto, truncado, protegido). */
 export const CODIGO_PDF_ILEGIBLE = 'pdf_ilegible';
 

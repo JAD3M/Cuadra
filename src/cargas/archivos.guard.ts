@@ -10,6 +10,10 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import multer, { MulterError } from 'multer';
+import {
+  CODIGO_PDF_ILEGIBLE,
+  MENSAJE_PDF_ILEGIBLE,
+} from '../bancos/lector-estado-cuenta';
 
 const MB = 1024 * 1024;
 const LARGO_NOMBRE = 255;
@@ -22,13 +26,18 @@ const HOLGURA_MULTIPART = 1 * MB;
 
 export interface OpcionesDeArchivos {
   campo: string;
-  extension: '.xml' | '.csv';
+  extension: '.xml' | '.csv' | '.pdf';
   maxArchivos: number;
   maxBytesPorArchivo: number;
   /** Suma de todos los archivos de la petición. */
   maxBytesPorPeticion: number;
   /** Campos de texto que acompañan a los archivos (van a un DTO). */
   maxCamposDeTexto: number;
+  /**
+   * Firma con la que debe empezar cada archivo. La extensión la pone quien
+   * sube; esto confirma que el contenido es del tipo que dice ser.
+   */
+  firma?: string;
 }
 
 /** CU-06: lote de CFDI. */
@@ -185,6 +194,18 @@ export function ArchivosGuard(op: OpcionesDeArchivos): Type<CanActivate> {
             : `Falta al menos un archivo en el campo "${op.campo}"`,
         );
       }
+      if (op.firma !== undefined) {
+        const firma = Buffer.from(op.firma, 'latin1');
+        for (const archivo of solicitud.files as Express.Multer.File[]) {
+          if (!archivo.buffer.subarray(0, firma.length).equals(firma)) {
+            throw new BadRequestException({
+              statusCode: 400,
+              message: MENSAJE_PDF_ILEGIBLE,
+              error: CODIGO_PDF_ILEGIBLE,
+            });
+          }
+        }
+      }
       return true;
     }
   }
@@ -208,4 +229,19 @@ export const EstadoDeCuentaGuard = ArchivosGuard({
   maxBytesPorPeticion: MAX_BYTES_ESTADO_CUENTA,
   // banco, cuenta y perfil.
   maxCamposDeTexto: 3,
+});
+
+/** Historia 3.2: un estado de cuenta en PDF, solo para leerlo (no se importa). */
+export const EstadoDeCuentaPdfGuard = ArchivosGuard({
+  campo: CAMPO_ESTADO_CUENTA,
+  extension: '.pdf',
+  maxArchivos: 1,
+  maxBytesPorArchivo: MAX_BYTES_ESTADO_CUENTA,
+  // 1 MB de holgura sobre el archivo: así el tope del archivo (multer,
+  // LIMIT_FILE_SIZE, 400) salta antes que el de la petición (413), como se
+  // pidió, y la memoria sigue acotada a ~11 MB.
+  maxBytesPorPeticion: MAX_BYTES_ESTADO_CUENTA + MB,
+  // banco.
+  maxCamposDeTexto: 1,
+  firma: '%PDF-',
 });

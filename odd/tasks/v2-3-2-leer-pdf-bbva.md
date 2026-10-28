@@ -83,7 +83,7 @@ motivo.
 - [x] **T2 — Lector BBVA puro.** Pruebas con texto de ejemplo (no el binario):
   saldos, movimientos normalizados, líneas no leídas, rechazo si no es MXN.
   Fixture PDF sintético marcado en el repo.
-- [ ] **T3 — Carga por API.** Guard `.pdf` con magic bytes, ramificar por banco
+- [x] **T3 — Carga por API.** Guard `.pdf` con magic bytes, ramificar por banco
   en `cargarEstadoCuenta`, rechazos (sin texto, >10 MB, no MXN) con código, y
   respuesta con el conteo de movimientos leídos sin importar nada.
 - [ ] **T4 — Frontend y cierre.** Textos, `accept`, variante de error, conteo;
@@ -122,3 +122,17 @@ Los seis criterios de la Story 3.2 en `epics.md`.
   Fixture `src/bancos/fixtures/bbva-sintetico.pdf` (+ LEEME) con banner
   ASCII: el helper pierde la É en Type1. Layout SINTÉTICO, falta PDF real.
   Siguiente: T3.
+- 2026-10-27: T3 hecha. Ruta: escritor delegado (2+ archivos). RED: 17/17
+  specs en 404 (la ruta no existía). GREEN: 17/17; suite backend 66 suites /
+  1394 tests, typecheck, build, lint y prettier OK. **Contrato**:
+  `POST /cargas/estado-cuenta/pdf` (`cargas.cargar`; revisor/auditor 403),
+  multipart `archivo` (.pdf, 1, <=10 MB, firma `%PDF-`) + `banco` (`bbva`;
+  registro en `src/bancos/pdf/lectores-pdf.ts`). 200
+  `{banco, saldoInicial, saldoFinal, movimientosLeidos, lineasNoLeidas}`;
+  no guarda nada. 400 con `error`: `pdf_sin_texto`, `pdf_ilegible`,
+  `moneda_no_mxn`; sin periodo/saldos, 400 solo con mensaje; banco
+  desconocido o ausente, 400. Ruta CSV intacta. Siguiente: T4.
+- 2026-10-27: seguimiento de la revisión de T3, tres hallazgos menores:
+  `banco` vacío o en blanco ahora es 400 "Falta el banco" (DTO con trim +
+  `IsNotEmpty`); pruebas de archivo de 3 bytes y de 0 bytes (400); prueba de
+  error inesperado del lector (500 genérico, sin filtrar mensaje ni guardar).
