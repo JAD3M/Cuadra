@@ -115,4 +115,22 @@ describe('AlertaSubida', () => {
     ref.current?.focus();
     expect(ref.current).toHaveFocus();
   });
+
+  it('pdf_sin_texto: título y detalle fijos del mockup', () => {
+    render(<AlertaSubida fallo={{ clase: 'pdf_sin_texto' }} />);
+    const alerta = screen.getByRole('alert');
+    expect(alerta).toHaveTextContent('No se pudo leer el PDF');
+    expect(alerta).toHaveTextContent(
+      'El PDF no tiene texto seleccionable (parece una imagen escaneada). Descarga el PDF desde el portal del banco.',
+    );
+  });
+
+  it('pdf_ilegible: título y detalle fijos del mockup', () => {
+    render(<AlertaSubida fallo={{ clase: 'pdf_ilegible' }} />);
+    const alerta = screen.getByRole('alert');
+    expect(alerta).toHaveTextContent('No se pudo leer el PDF');
+    expect(alerta).toHaveTextContent(
+      'No reconocimos el formato del estado de cuenta BBVA.',
+    );
+  });
 });

@@ -5,13 +5,16 @@ import {
   TIPOS_CARGA,
   type ResultadoArchivo,
 } from '@/shared/dominio';
+import { montoDecimal } from './montoDecimal';
 
 // Contratos de las cargas (CU-24): `GET /cargas`, `GET /cargas/:id`, la
-// respuesta de `POST /cargas/cfdi|estado-cuenta` y `GET /bancos/perfiles`.
+// respuesta de `POST /cargas/cfdi|estado-cuenta`, la lectura de un PDF
+// (`POST /cargas/estado-cuenta/pdf`) y `GET /bancos/perfiles`.
 // Validan SOLO lo que la pantalla usa e ignoran claves desconocidas, como los
 // de la bandeja y el caso. Tipo y estado salen del espejo del dominio: un
 // literal desconocido es un `ContratoError`. Los contadores son enteros JSON,
-// nunca cadenas. No hay dinero en estas respuestas.
+// nunca cadenas. El único dinero son los dos saldos de la lectura de un PDF:
+// cadenas decimales (`montoDecimal`), nunca números.
 
 const texto = z.string().min(1);
 const contador = z.int().min(0);
@@ -93,6 +96,18 @@ export const detalleCarga = z.object({
 /** El POST responde el detalle y además dice si el lote ya se había cargado. */
 export const respuestaCarga = detalleCarga.extend({ yaExistia: z.boolean() });
 
+/**
+ * `POST /cargas/estado-cuenta/pdf` (historia 3.2): lo que se leyó del PDF. No
+ * se importó nada ni se creó una carga. Los saldos se quedan como cadenas.
+ */
+export const respuestaLecturaPdf = z.object({
+  banco: texto,
+  saldoInicial: montoDecimal,
+  saldoFinal: montoDecimal,
+  movimientosLeidos: contador,
+  lineasNoLeidas: contador,
+});
+
 /** `GET /bancos/perfiles`: un arreglo sin envoltorio. */
 export const perfilesBancarios = z.array(
   z.object({ id: texto, nombre: texto }),
@@ -104,4 +119,5 @@ export type ResultadoDeCarga = z.infer<typeof resultadoDeCarga>;
 export type ResultadoArchivoSinError = z.infer<typeof archivoSinError>;
 export type DetalleCarga = z.infer<typeof detalleCarga>;
 export type RespuestaCarga = z.infer<typeof respuestaCarga>;
+export type RespuestaLecturaPdf = z.infer<typeof respuestaLecturaPdf>;
 export type PerfilBancario = z.infer<typeof perfilesBancarios>[number];

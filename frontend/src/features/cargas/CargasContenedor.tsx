@@ -1,31 +1,40 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import {
+  BANCO_PDF_BBVA,
   TIPO_CFDI,
   TIPO_ESTADO_CUENTA,
   puede,
+  type ModoEstadoCuenta,
   type TipoCarga,
 } from '@/shared/dominio';
-import type { RespuestaCarga } from '@/shared/api/contratos';
+import type {
+  RespuestaCarga,
+  RespuestaLecturaPdf,
+} from '@/shared/api/contratos';
 import { AlertaError } from '@/shared/ui/AlertaError';
 import { useSessionContext } from '@/shared/sesion';
 import { clavesCargas, useEpoca } from './claves';
 import { AlertaSubida, type FalloSubida } from './components/AlertaSubida';
 import { HistorialCargas } from './components/HistorialCargas';
 import { PanelCarga } from './components/PanelCarga';
+import { ResultadoLecturaPdf } from './components/ResultadoLecturaPdf';
+import { ResultadoProcesando } from './components/ResultadoProcesando';
 import { TarjetaCfdi } from './components/TarjetaCfdi';
 import { TarjetaEstadoCuenta } from './components/TarjetaEstadoCuenta';
 import estilos from './CargasContenedor.module.css';
 import { clasificarErrorSubida } from './errores';
 import { perfilVigente } from './perfil';
-import { ERROR_SIN_PERMISO } from './textos';
+import { ERROR_SIN_PERMISO, LEYENDO_ESTADO_CUENTA } from './textos';
 import {
   REGLAS_CFDI,
   REGLAS_ESTADO_CUENTA,
+  REGLAS_ESTADO_CUENTA_PDF,
   evaluarSeleccion,
 } from './seleccion';
 import { usePerfiles } from './usePerfiles';
 import { usePollingCargas, type PanelSubida } from './usePollingCargas';
+import { useLeerEstadoCuentaPdf } from './useLeerEstadoCuentaPdf';
 import { useSubirCarga } from './useSubirCarga';
 import {
   derivarPanel,
@@ -58,6 +67,11 @@ import {
  * un éxito, incluido un lote que ya existía, los limpia. Una subida nueva quita
  * la alerta anterior.
  *
+ * El estado de cuenta también se puede mandar como PDF de BBVA (historia 3.2):
+ * el servidor solo lo lee y devuelve saldos y conteos, sin crear una carga ni
+ * tocar el historial. Cada formato conserva su propio archivo y su resultado;
+ * la alerta de un fallo se muestra en el formato que la produjo.
+ *
  * Al vencer el tope del polling, una carga aún activa cambia su barra de
  * proceso por el aviso con «Actualizar» (K5).
  */
@@ -80,6 +94,7 @@ function CargasConAcceso() {
   const sesion = useSessionContext();
   const perfiles = usePerfiles();
   const { subir, isPending, variables } = useSubirCarga();
+  const { leer, isPending: leyendoPdf } = useLeerEstadoCuentaPdf();
   const epoca = useEpoca();
   const cliente = useQueryClient();
   // La carga recién subida: la reemplaza la siguiente subida con éxito y no
@@ -91,7 +106,16 @@ function CargasConAcceso() {
   // la alerta de otra sesión no se muestra (CRG-9).
   const [fallo, setFallo] = useState<{
     tipo: TipoCarga;
+    /** El fallo fue al leer un PDF (misma tarjeta que el CSV, otro formato). */
+    pdf: boolean;
     clase: FalloSubida;
+    epoca: number;
+  } | null>(null);
+  const [modo, setModo] = useState<ModoEstadoCuenta>('csv');
+  const [archivoPdf, setArchivoPdf] = useState<File | null>(null);
+  // Lo último que se leyó de un PDF; se descarta si es de otra sesión.
+  const [lectura, setLectura] = useState<{
+    datos: RespuestaLecturaPdf;
     epoca: number;
   } | null>(null);
   const alertaRef = useRef<HTMLDivElement>(null);
@@ -114,6 +138,7 @@ function CargasConAcceso() {
   const deshabilitadas = !puedeSubir(sesion.contexto.capacidades);
   const subiendoCfdi = isPending && variables?.tipo === TIPO_CFDI;
   const subiendoCsv = isPending && variables?.tipo === TIPO_ESTADO_CUENTA;
+  const esPdf = modo === 'pdf';
   const perfil = perfilVigente(perfiles.data, perfilElegido);
 
   const vista = vistaHistorial(lista);
@@ -139,6 +164,18 @@ function CargasConAcceso() {
       />
     );
 
+  /** Lo que muestra la tarjeta en modo PDF: «Leyendo…» o lo último que se leyó. */
+  const resultadoPdf = leyendoPdf ? (
+    <ResultadoProcesando texto={LEYENDO_ESTADO_CUENTA} />
+  ) : lectura !== null && lectura.epoca === epoca ? (
+    <ResultadoLecturaPdf
+      movimientosLeidos={lectura.datos.movimientosLeidos}
+      lineasNoLeidas={lectura.datos.lineasNoLeidas}
+      saldoInicial={lectura.datos.saldoInicial}
+      saldoFinal={lectura.datos.saldoFinal}
+    />
+  ) : null;
+
   /** Deja la respuesta del POST como el panel de su tarjeta y abre una ventana de sondeo. */
   function mostrarPanel(respuesta: RespuestaCarga, tipo: TipoCarga) {
     if (epoca === null) return;
@@ -163,10 +200,10 @@ function CargasConAcceso() {
    * cancelación no dicen nada (la capa de sesión atiende el 401); el resto,
    * incluido «otro» (500, fallo inesperado), tiene su alerta en el mockup v25.
    */
-  function registrarFallo(error: unknown, tipo: TipoCarga) {
+  function registrarFallo(error: unknown, tipo: TipoCarga, pdf = false) {
     const clase = clasificarErrorSubida(error);
     if (clase === null || epoca === null) return;
-    setFallo({ tipo, clase, epoca });
+    setFallo({ tipo, pdf, clase, epoca });
   }
 
   function subirCfdi(archivos: File[]) {
@@ -207,6 +244,24 @@ function CargasConAcceso() {
     }
   }
 
+  function leerPdf(archivo: File) {
+    const enviada = leer(
+      { archivo, banco: BANCO_PDF_BBVA },
+      {
+        // El PDF se queda elegido: no se importó nada y se puede volver a leer.
+        onSuccess: (datos) => {
+          if (epoca !== null) setLectura({ datos, epoca });
+        },
+        onError: (error) => registrarFallo(error, TIPO_ESTADO_CUENTA, true),
+      },
+    );
+    if (enviada) {
+      setFallo(null);
+      setLectura(null);
+      regionCsv.current?.focus();
+    }
+  }
+
   // Lo que «Reintentar» volvería a enviar: la selección de ahora, ya filtrada.
   const aceptadosCfdi = evaluarSeleccion(archivosCfdi, REGLAS_CFDI)
     .filter((e) => e.motivo === null)
@@ -217,9 +272,24 @@ function CargasConAcceso() {
       ? archivoCsv
       : null;
 
-  /** La alerta de la tarjeta de `tipo`; solo si es de la época vigente. */
-  function alertaDe(tipo: TipoCarga, reintentar: (() => void) | undefined) {
-    if (fallo === null || fallo.tipo !== tipo || fallo.epoca !== epoca) {
+  const aceptadoPdf =
+    archivoPdf !== null &&
+    evaluarSeleccion([archivoPdf], REGLAS_ESTADO_CUENTA_PDF)[0]?.motivo === null
+      ? archivoPdf
+      : null;
+
+  /** La alerta de la tarjeta de `tipo` (y del formato `pdf`); solo si es de la época vigente. */
+  function alertaDe(
+    tipo: TipoCarga,
+    reintentar: (() => void) | undefined,
+    pdf: boolean,
+  ) {
+    if (
+      fallo === null ||
+      fallo.tipo !== tipo ||
+      fallo.pdf !== pdf ||
+      fallo.epoca !== epoca
+    ) {
       return null;
     }
     return (
@@ -245,12 +315,15 @@ function CargasConAcceso() {
             aceptadosCfdi.length > 0
               ? () => subirCfdi(aceptadosCfdi)
               : undefined,
+            false,
           )}
           onSeleccionar={setArchivosCfdi}
           onSubir={subirCfdi}
         />
         <TarjetaEstadoCuenta
-          archivo={archivoCsv}
+          modo={modo}
+          onModo={setModo}
+          archivo={esPdf ? archivoPdf : archivoCsv}
           banco={banco}
           cuenta={cuenta}
           perfiles={perfiles.data}
@@ -258,20 +331,35 @@ function CargasConAcceso() {
           perfilesFallo={perfiles.isError}
           onReintentarPerfiles={() => void perfiles.refetch()}
           deshabilitada={deshabilitadas}
-          subiendo={subiendoCsv}
+          subiendo={subiendoCsv || leyendoPdf}
           regionRef={regionCsv}
-          resultado={panel?.tipo === TIPO_ESTADO_CUENTA ? resultado : null}
-          alerta={alertaDe(
-            TIPO_ESTADO_CUENTA,
-            aceptadoCsv !== null
-              ? () => subirEstadoCuenta(aceptadoCsv)
-              : undefined,
-          )}
-          onSeleccionar={setArchivoCsv}
+          resultado={
+            esPdf
+              ? resultadoPdf
+              : panel?.tipo === TIPO_ESTADO_CUENTA
+                ? resultado
+                : null
+          }
+          alerta={
+            esPdf
+              ? alertaDe(
+                  TIPO_ESTADO_CUENTA,
+                  aceptadoPdf !== null ? () => leerPdf(aceptadoPdf) : undefined,
+                  true,
+                )
+              : alertaDe(
+                  TIPO_ESTADO_CUENTA,
+                  aceptadoCsv !== null
+                    ? () => subirEstadoCuenta(aceptadoCsv)
+                    : undefined,
+                  false,
+                )
+          }
+          onSeleccionar={esPdf ? setArchivoPdf : setArchivoCsv}
           onBanco={setBanco}
           onCuenta={setCuenta}
           onPerfil={setPerfilElegido}
-          onSubir={subirEstadoCuenta}
+          onSubir={esPdf ? leerPdf : subirEstadoCuenta}
         />
       </div>
       <HistorialCargas

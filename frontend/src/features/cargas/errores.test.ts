@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { ApiError, ContratoError, NetworkError } from '@/shared/api';
 import { mensajeDeError } from '@/shared/api/mensajes';
 import { clasificarErrorLectura, clasificarErrorSubida } from './errores';
-import { TEXTO_MONEDA_NO_MXN } from './textos';
+import {
+  TEXTO_MONEDA_NO_MXN,
+  TEXTO_PDF_ILEGIBLE,
+  TEXTO_PDF_SIN_TEXTO,
+} from './textos';
 
 const api = (status: number, mensajes: string[] = []) =>
   new ApiError(status, 'Error', mensajes);
@@ -135,5 +139,44 @@ describe('clasificarErrorSubida: estado de cuenta que no está en MXN', () => {
     expect(
       clasificarErrorSubida(new ApiError(500, 'moneda_no_mxn', [MENSAJE])),
     ).toEqual({ clase: 'otro' });
+  });
+});
+
+describe('clasificarErrorSubida: lectura de PDF (historia 3.2)', () => {
+  it('un 400 con error pdf_sin_texto es su propia clase', () => {
+    expect(
+      clasificarErrorSubida(
+        new ApiError(400, 'pdf_sin_texto', ['texto del servidor']),
+      ),
+    ).toEqual({ clase: 'pdf_sin_texto' });
+  });
+
+  it('un 400 con error pdf_ilegible es su propia clase', () => {
+    expect(
+      clasificarErrorSubida(
+        new ApiError(400, 'pdf_ilegible', ['texto del servidor']),
+      ),
+    ).toEqual({ clase: 'pdf_ilegible' });
+  });
+
+  it('los textos son del frontend, no del servidor', () => {
+    expect(TEXTO_PDF_SIN_TEXTO).toEqual({
+      titulo: 'No se pudo leer el PDF',
+      detalle:
+        'El PDF no tiene texto seleccionable (parece una imagen escaneada). Descarga el PDF desde el portal del banco.',
+    });
+    expect(TEXTO_PDF_ILEGIBLE).toEqual({
+      titulo: 'No se pudo leer el PDF',
+      detalle: 'No reconocimos el formato del estado de cuenta BBVA.',
+    });
+  });
+
+  it('el mismo código con otro estado no cambia de clase', () => {
+    expect(
+      clasificarErrorSubida(new ApiError(500, 'pdf_sin_texto', ['x'])),
+    ).toEqual({ clase: 'otro' });
+    expect(
+      clasificarErrorSubida(new ApiError(403, 'pdf_ilegible', ['x'])),
+    ).toEqual({ clase: 'sin_permiso' });
   });
 });

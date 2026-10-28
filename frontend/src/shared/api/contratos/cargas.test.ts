@@ -5,6 +5,7 @@ import {
   detalleCarga,
   perfilesBancarios,
   respuestaCarga,
+  respuestaLecturaPdf,
   respuestaListaCargas,
   type ItemCarga,
   type RespuestaCarga,
@@ -323,5 +324,55 @@ describe('resultados de CFDI con moneda no soportada (historia 3.1)', () => {
         ).success,
       ).toBe(false);
     }
+  });
+});
+
+describe('respuestaLecturaPdf (historia 3.2)', () => {
+  const lectura = {
+    banco: 'bbva',
+    saldoInicial: '10000.00',
+    saldoFinal: '11250.50',
+    movimientosLeidos: 14,
+    lineasNoLeidas: 2,
+  };
+
+  it('conserva los saldos como cadenas decimales exactas', () => {
+    const r = respuestaLecturaPdf.parse(lectura);
+    expect(r).toEqual(lectura);
+    expect(typeof r.saldoInicial).toBe('string');
+    const grande = respuestaLecturaPdf.parse({
+      ...lectura,
+      saldoFinal: '12345678901234567.89',
+    });
+    expect(grande.saldoFinal).toBe('12345678901234567.89');
+  });
+
+  it('un saldo numérico, vacío o con separadores falla', () => {
+    for (const saldoInicial of [10000, '', '10,000.00', '1e3']) {
+      expect(() =>
+        respuestaLecturaPdf.parse({ ...lectura, saldoInicial }),
+      ).toThrow();
+    }
+  });
+
+  it('los conteos son enteros no negativos', () => {
+    for (const parche of [
+      { movimientosLeidos: -1 },
+      { lineasNoLeidas: 1.5 },
+      { movimientosLeidos: '14' },
+    ]) {
+      expect(() =>
+        respuestaLecturaPdf.parse({ ...lectura, ...parche }),
+      ).toThrow();
+    }
+  });
+
+  it('ignora claves de más y exige las cinco propias', () => {
+    expect(
+      respuestaLecturaPdf.parse({ ...lectura, extra: 1 }),
+    ).not.toHaveProperty('extra');
+    expect(() =>
+      respuestaLecturaPdf.parse({ ...lectura, banco: undefined }),
+    ).toThrow();
   });
 });
