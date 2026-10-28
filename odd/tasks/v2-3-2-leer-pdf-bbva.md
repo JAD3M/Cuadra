@@ -96,6 +96,9 @@ motivo.
   KAN-131, revisión de la rama completa y PR (en cadena si pasa de 400 líneas).
   Pendiente heredado de T3: `frontend/tests/dominio/cargasEspejo.test.ts`
   espera dos POST con `cargas.cargar` y ahora hay tres.
+  - [x] Bitácora y `CUADRA.md` (sección del PDF)
+  - [x] Suites completas en verde (ver Progreso)
+  - [ ] KAN-131, revisión de la rama completa y PR (los hace el padre)
 
 ## Aceptación
 
@@ -157,3 +160,4 @@ Los seis criterios de la Story 3.2 en `epics.md`.
   (`features/kit/SeccionCargas.tsx`) no muestra aún las vistas PDF (fuera de
   la superficie): `modo` y `onModo` de la tarjeta son opcionales para no
   romperlo.
+- 2026-10-27: T4b parcial (docs + suites). Bitácora y CUADRA.md escritas. Suites: backend 66 suites / 1399 tests, typecheck, build, lint y prettier OK; frontend vitest 4497 tests, typecheck, lint, format:check y build OK (el espejo de permisos ya pasa). Quedan KAN-131, revisión de la rama completa y PR.

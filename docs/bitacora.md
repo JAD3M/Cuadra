@@ -5,6 +5,52 @@
 
 ### 27 oct 2026
 
+- **Historia 3.2 de la v2: leer el PDF de BBVA y rechazar lo que no se puede
+  leer (KAN-131, FR-1 parte, FR-7; AD-8).** Rama `feat/v2-3-2-leer-pdf-bbva`
+  con ODD, desde `master` tras la 3.1. El contador sube el PDF eligiendo el
+  banco y ve cuántos movimientos se leyeron; no se guarda nada (eso es la 3.3).
+  El mockup de la tarjeta (modo PDF, aviso de solo lectura, alertas) se aprobó
+  antes de la interfaz.
+  - **T1:** adaptador de texto `extraerTextoPdf` con `unpdf` 1.9.1
+    (`src/bancos/pdf/`); códigos `pdf_sin_texto` y `pdf_ilegible`.
+  - **T2:** lector BBVA puro (`lector-bbva.ts`): saldo inicial y final,
+    movimientos normalizados al formato canónico, líneas no leídas y rechazo
+    `moneda_no_mxn`. Aritmética con `dinero`, sin flotantes. Fixture PDF
+    sintético marcado como tal.
+  - **T3:** `POST /cargas/estado-cuenta/pdf` (`cargas.cargar`): `.pdf` con firma
+    `%PDF-`, hasta 10 MB, `banco` obligatorio contra un registro de lectores.
+    Responde `{banco, saldoInicial, saldoFinal, movimientosLeidos,
+    lineasNoLeidas}` sin importar nada. La ruta CSV quedó intacta.
+  - **T4a:** selector «CSV | PDF BBVA» en la tarjeta de estado de cuenta, modo
+    PDF con banco fijo, resultado con conteos y saldos como cadenas, y alertas
+    de PDF sin texto, ilegible y moneda no MXN.
+  - **T4b:** esta entrada, `CUADRA.md` y el espejo de permisos del frontend
+    (cuenta ahora los tres POST de `cargas.cargar`).
+  - **Decisiones:** `unpdf` y no `pdfjs-dist`: corre bajo jest (ESM) y en el
+    build CJS con `await import`, así que no hizo falta la alternativa. El
+    fixture y el layout son **SINTÉTICOS**: el formato real de BBVA no se ha
+    validado con un PDF real y debe validarse cuando haya uno. El signo se
+    deduce del saldo corrido porque la extracción de texto pierde la columna
+    cargo/abono; si no cuadra, la línea va a no leídas y nunca se adivina (un
+    falso positivo es peor que no conciliar). Los bancos en PDF son lectores
+    puros en código con un registro, no perfiles JSON.
+  - **Lecciones:** el backend se prueba con `npm test`, no con `jest` a secas,
+    porque `unpdf` es ESM y el script lleva `--experimental-vm-modules`;
+    `unpdf` devuelve texto vacío en PDFs sin capa de texto (escaneados), que
+    por eso se rechazan como `pdf_sin_texto`; el espejo de permisos del
+    frontend cuenta los POST de `cargas.controller` y hubo que actualizarlo al
+    sumar la ruta.
+  - **Pendiente / riesgos:** el parseo del PDF corre en el event loop; antes de
+    abrirlo más allá de uso interno hay que pasarlo a un worker o poner un tope
+    de páginas. La prueba de aislamiento entre empresas de la ruta es débil
+    (la ruta no toca la base). La 3.3 guarda y cuadra los saldos. El mockup
+    dice «1 movimientos leídos» en singular. El kit de componentes no muestra
+    aún las vistas PDF.
+  - **Revisión:** la revisión nativa aprobó T1-T2 y T3 con 0 bloqueantes; la
+    revisión de la rama completa se hace aparte. Suites al cierre: backend 66
+    suites / 1399 tests; frontend 4497 tests; typecheck, lint, formato y build
+    OK en ambos.
+
 - **Historia 3.1 de la v2: cargar CFDI y CSV sin duplicar nada (KAN-130, FR-4,
   FR-5, FR-6, FR-9, FR-52 parte; AD-9, AD-16).** Ramas en cadena
   `feat/v2-3-1-01-api-cargas`, `feat/v2-3-1-02-frontend-contrato-hook`,

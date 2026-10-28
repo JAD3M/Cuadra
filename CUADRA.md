@@ -416,6 +416,20 @@ Con monto con signo, `"columnas"` lleva `"monto"` en lugar de `"cargo"` y
 
 Historias: CU-09, CU-10.
 
+#### Estado de cuenta en PDF (v2, historia 3.2)
+
+Los bancos en PDF no usan perfil JSON: cada uno es un lector puro en código
+(`src/bancos/pdf/`), registrado en `lectores-pdf.ts`; hoy solo `bbva`. El
+texto sale del PDF con `unpdf` (`extraerTextoPdf`) y el lector devuelve saldo
+inicial, saldo final, movimientos en el formato canónico y las líneas que no
+pudo leer. El signo se deduce del saldo corrido, porque la extracción pierde
+la columna cargo/abono; si no cuadra, la línea no se lee.
+`POST /cargas/estado-cuenta/pdf` (permiso `cargas.cargar`; multipart
+`archivo` + `banco`) **solo lee: no guarda nada**; guardar y cuadrar es la
+historia 3.3. Rechazos con código: `pdf_sin_texto`, `pdf_ilegible`,
+`moneda_no_mxn`. El layout de BBVA es sintético: falta validarlo con un PDF
+real.
+
 ### `conciliaciones` — donde vive la regla de oro
 
 | Columna | Tipo | Notas |
