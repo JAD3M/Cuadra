@@ -34,6 +34,10 @@ export const MENSAJE_MONEDA_NO_MXN =
 
 /** Código estable del rechazo anterior, para que el cliente no lea el texto. */
 export const CODIGO_MONEDA_NO_MXN = 'moneda_no_mxn';
+/** PDF sin capa de texto (escaneado o solo imágenes). */
+export const CODIGO_PDF_SIN_TEXTO = 'pdf_sin_texto';
+/** Bytes que no son un PDF legible (corrupto, truncado, protegido). */
+export const CODIGO_PDF_ILEGIBLE = 'pdf_ilegible';
 
 export interface FilaDelArchivo {
   /** Línea física del archivo original donde empieza la fila (preámbulo incluido). */
