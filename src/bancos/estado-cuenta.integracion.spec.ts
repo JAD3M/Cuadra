@@ -304,7 +304,7 @@ describe('POST /cargas/estado-cuenta (CU-09)', () => {
         // Un CSV que nunca se ha subido: con uno repetido, la idempotencia
         // respondería antes de guardar nada y el test no probaría el INSERT.
         Buffer.from(
-          `fecha,descripcion,referencia,monto\n2026-09-01,DEPOSITO,${randomUUID()},1\n`,
+          `fecha,descripcion,referencia,monto,moneda\n2026-09-01,DEPOSITO,${randomUUID()},1,MXN\n`,
         ),
         { [campo]: valor },
       ).expect(400);
@@ -522,8 +522,8 @@ describe('perfiles de banco (CU-10)', () => {
   });
 });
 
-describe('POST /cargas/estado-cuenta, columna opcional moneda (historia 3.1)', () => {
-  it('con la columna y todo en MXN (o vacío): se procesa como siempre', async () => {
+describe('POST /cargas/estado-cuenta, moneda obligatoria (historia 3.1)', () => {
+  it('con la columna y todo en MXN (sin importar mayúsculas ni espacios): se procesa como siempre', async () => {
     const carga = await cargarYEsperar(
       await entorno.token(LUIS, FERRETERIA),
       'con-moneda-mxn.csv',
@@ -560,19 +560,38 @@ describe('POST /cargas/estado-cuenta, columna opcional moneda (historia 3.1)', (
     expect(await conteos()).toEqual(antes);
   });
 
-  it('sin la columna sigue siendo MXN: se procesa completo', async () => {
-    const token = await entorno.token(LUIS, FERRETERIA);
-    const contenido = Buffer.from(
-      `${fixture('valido-5.csv').toString('utf8')}2026-09-06,SIN MONEDA,,1.00\n`,
-    );
-    const res = await subir(token, 'sin-moneda.csv', contenido).expect(202);
+  it('sin la columna en el encabezado: 400 moneda_faltante, sin carga ni movimientos', async () => {
+    const antes = await conteos();
 
-    const carga = await entorno.esperarFin(
-      token,
-      (res.body as RespuestaDeCarga).id,
-    );
+    const res = await subir(
+      await entorno.token(LUIS, FERRETERIA),
+      'sin-moneda.csv',
+      Buffer.from(
+        `fecha,descripcion,referencia,monto\n2026-09-06,SIN MONEDA,${randomUUID()},1.00\n`,
+      ),
+    ).expect(400);
 
-    expect(carga).toMatchObject({ estado: 'procesada', registrosOk: 6 });
+    expect(res.body).toMatchObject({
+      statusCode: 400,
+      error: 'moneda_faltante',
+    });
+    expect(mensaje(res)).toMatch(/moneda/);
+    expect(await conteos()).toEqual(antes);
+  });
+
+  it('una celda de moneda vacía: 400 moneda_faltante, sin carga ni movimientos', async () => {
+    const antes = await conteos();
+
+    const res = await subir(
+      await entorno.token(LUIS, FERRETERIA),
+      'moneda-vacia.csv',
+      Buffer.from(
+        `fecha,descripcion,referencia,monto,moneda\n2026-09-06,A,${randomUUID()},1.00,MXN\n2026-09-07,B,,2.00,\n`,
+      ),
+    ).expect(400);
+
+    expect(res.body).toMatchObject({ error: 'moneda_faltante' });
+    expect(await conteos()).toEqual(antes);
   });
 
   it('un MXN repetido responde yaExistia', async () => {
@@ -592,7 +611,7 @@ describe('bitácora `cargar` del estado de cuenta (FR-52)', () => {
   it('una entrada con la persona, el archivo y los conteos; la repetida no suma otra', async () => {
     const token = await entorno.token(LUIS, FERRETERIA);
     const contenido = Buffer.from(
-      `${fixture('una-malformada.csv').toString('utf8')}2026-09-07,PARA LA BITACORA,,2.00\n`,
+      `${fixture('una-malformada.csv').toString('utf8')}2026-09-07,PARA LA BITACORA,,2.00,MXN\n`,
     );
     const res = await subir(token, 'una-malformada.csv', contenido).expect(202);
     const carga = await entorno.esperarFin(

@@ -155,11 +155,16 @@ function campoCsv(texto: string): string {
   return /[",\r\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
 }
 
-/** Perfil `cuadra`: utf-8 sin BOM, LF, punto decimal, sin separador de miles. */
+/**
+ * Perfil `cuadra`: utf-8 sin BOM, LF, punto decimal, sin separador de miles.
+ * La columna `moneda` es obligatoria (historia 3.1): la demo es toda en MXN.
+ */
 export function escribirCsv(filas: readonly MovimientoDemo[]): string {
-  const lineas = ['fecha,descripcion,referencia,monto'].concat(
+  const lineas = ['fecha,descripcion,referencia,monto,moneda'].concat(
     filas.map((f) =>
-      [f.fecha, f.descripcion, f.referencia, f.monto].map(campoCsv).join(','),
+      [f.fecha, f.descripcion, f.referencia, f.monto, 'MXN']
+        .map(campoCsv)
+        .join(','),
     ),
   );
   return `${lineas.join('\n')}\n`;

@@ -335,24 +335,24 @@ se guarda tal como llega: el cliente solo pide los últimos dígitos y el
 servidor no la enmascara), que se copian a cada movimiento, y `perfil` (CU-10, por
 defecto `cuadra`). Roles admin y contador. El formato canónico es el perfil
 `cuadra` (`src/bancos/perfiles/cuadra.json`); el de cada banco se normaliza
-a estos mismos cuatro datos.
+a estos mismos datos, más la moneda, que el perfil siempre declara.
 
 ```csv
-fecha,descripcion,referencia,monto
-2026-09-01,DEPOSITO SPEI FERRETERIA DEL BAJIO,A1001,4466.58
-2026-09-02,"PAGO FACTURA A-1001, A-1002",,-1500.00
+fecha,descripcion,referencia,monto,moneda
+2026-09-01,DEPOSITO SPEI FERRETERIA DEL BAJIO,A1001,4466.58,MXN
+2026-09-02,"PAGO FACTURA A-1001, A-1002",,-1500.00,MXN
 ```
 
 | Regla | Detalle |
 |---|---|
 | Codificación | UTF-8; el BOM se tolera. Latin-1 u otra → 400. |
 | Separador | Coma, con comillas dobles estándar: `""` dentro de comillas es una comilla, y un campo entre comillas puede traer comas y saltos de línea. Fin de línea LF o CRLF. |
-| Encabezados | Exactamente `fecha,descripcion,referencia,monto`, en ese orden y en minúsculas, más la columna opcional `moneda`. Otro → 400. |
+| Encabezados | Exactamente `fecha,descripcion,referencia,monto`, en ese orden y en minúsculas, más la columna obligatoria `moneda` (en cualquier posición). Otro → 400. |
 | `fecha` | `AAAA-MM-DD`, un día que exista. |
 | `descripcion` | Obligatoria; no puede ser solo espacios. |
 | `referencia` | Opcional (vacía = sin referencia), máximo 128 caracteres. |
 | `monto` | Con signo: positivo = abono, negativo = cargo. Punto decimal, sin separador de miles ni notación científica, máximo 4 decimales y 14 enteros, distinto de 0. |
-| `moneda` | **Opcional**, en cualquier posición del encabezado. Si viene, toda fila debe decir `MXN` (sin importar mayúsculas ni espacios) o ir vacía; con cualquier otra moneda se rechaza el archivo completo (400, `error: "moneda_no_mxn"`: «El estado de cuenta no está en MXN. Cuadra solo procesa estados de cuenta en pesos mexicanos.»), sin carga ni movimientos. Sin la columna se asume MXN. Los perfiles de banco no la declaran. |
+| `moneda` | **Obligatoria**, en cualquier posición del encabezado. Toda fila debe decir `MXN` (sin importar mayúsculas ni espacios). Sin la columna en el encabezado, o con una celda vacía, se rechaza el archivo completo (400, `error: "moneda_faltante"`: «El estado de cuenta no declara su moneda. Agrega la columna "moneda" con MXN en todas las filas.»). Con cualquier otra moneda también se rechaza (400, `error: "moneda_no_mxn"`: «El estado de cuenta no está en MXN. Cuadra solo procesa estados de cuenta en pesos mexicanos.»). En ambos casos sin carga ni movimientos. No se asume MXN por omisión. Los perfiles de banco declaran su moneda con el campo `moneda` del JSON en lugar de la columna. |
 
 - **Archivo completo, en el POST, antes de guardar nada:** extensión,
   UTF-8, sin bytes nulos, CSV bien formado (comillas cerradas), encabezados
@@ -380,6 +380,11 @@ reiniciar la api. El perfil dice cómo leer el CSV del banco:
 - qué encabezado es la fecha, el concepto y la referencia (opcional), y el
   monto: una columna con signo, o `cargo` + `abono` (monto = abono − cargo;
   sin signo, exactamente uno por fila);
+- la moneda, **obligatoria**: o `"moneda": "MXN"` (código fijo del perfil, el
+  caso de los bancos) o `"columnaMoneda"` (el encabezado de una columna del
+  archivo que no va en `encabezados`; la usa el perfil `cuadra`). Exactamente
+  una de las dos. Cuadra solo procesa MXN: un perfil con otra moneda rechaza
+  todo archivo con `moneda_no_mxn`;
 - el formato de fecha y los separadores de miles y decimal.
 
 Solo datos: nada de funciones, regex ni código en el JSON. Se validan con
@@ -403,6 +408,7 @@ reportan son las del archivo original, preámbulo incluido. `GET
     "cargo": "Cargo",
     "abono": "Abono"
   },
+  "moneda": "MXN",
   "formatoFecha": "DD/MM/AAAA",
   "separadorMiles": ",",
   "separadorDecimal": "."

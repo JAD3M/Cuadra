@@ -12,6 +12,7 @@
     "cargo": "Cargo",
     "abono": "Abono"
   },
+  "moneda": "MXN",
   "formatoFecha": "DD/MM/AAAA",
   "separadorMiles": ",",
   "separadorDecimal": "."

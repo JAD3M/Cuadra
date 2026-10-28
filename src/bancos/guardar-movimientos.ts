@@ -44,9 +44,15 @@ export async function procesarEstadoDeCuenta(
 
   // La primera es el encabezado, ya validado en el POST.
   const [encabezado, ...filas] = leerFilas(archivo.contenido, perfil);
-  // Historia 3.1: ya se validó en el POST que toda moneda sea MXN; aquí solo
-  // se salta la columna.
+  // Historia 3.1: el POST ya validó que la moneda esté declarada y sea MXN;
+  // aquí solo se salta la columna. Un perfil con columna que no la encuentra
+  // es un archivo que no pasó por el POST: problema nuestro, no de una fila.
   const iMoneda = posicionMoneda(encabezado.campos, perfil);
+  if (perfil.columnaMoneda !== undefined && iMoneda < 0) {
+    throw new Error(
+      `Carga ${cargaId}: el estado de cuenta no trae la columna "${perfil.columnaMoneda}"`,
+    );
+  }
   const errores: ResultadoDeFila[] = [];
   let nuevos = 0;
   for (const { linea, campos } of filas) {

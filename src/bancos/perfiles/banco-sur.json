@@ -10,6 +10,7 @@
     "concepto": "Descripción",
     "monto": "Importe"
   },
+  "moneda": "MXN",
   "formatoFecha": "DD-MM-AAAA",
   "separadorMiles": ".",
   "separadorDecimal": ","
