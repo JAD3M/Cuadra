@@ -69,7 +69,7 @@ Cerrar tres pendientes que quedaron anotados al integrar la 3.1:
   leen igual; perfil con moneda distinta de MXN rechaza con `moneda_no_mxn`.
   Fixtures, pruebas, CUADRA.md y revisión de textos del frontend que digan «se
   asume MXN».
-- [ ] **T2 — Marca de reanudación en la bitácora.** RED primero: carga fallida
+- [x] **T2 — Marca de reanudación en la bitácora.** RED primero: carga fallida
   reanudada que termina deja dos entradas `cargar`, la segunda con
   `reanudada: true` y la primera sin ella; aislada por empresa.
 - [ ] **T3 — Prueba del auditor para el PDF.** Fila en `ACCIONES` con la
@@ -103,3 +103,9 @@ Cerrar tres pendientes que quedaron anotados al integrar la 3.1:
   `demo/*.csv` (regenerados con `npm run demo:generar`) llevan `moneda`. Sin
   cambios de frontend: el 400 ya se muestra tal cual. Commit de trabajo:
   `feat(bancos): la moneda de cada perfil es obligatoria`. Siguiente: T2.
+- 2026-10-27: T2 hecha (escritor delegado). RED observado: la segunda entrada
+  `cargar` no traía `reanudada` (`Expected - 1: "reanudada": true`). Verde:
+  `registrarCargar` deriva la marca de una entrada `cargar` previa de la misma
+  carga y empresa; se conservan las dos entradas, la primera sin la clave. Las
+  pruebas de reintento y `yaExistia` siguen con una sola entrada. El frontend
+  lee `datos` sin tipar, así que no cambia. Siguiente: T3.
