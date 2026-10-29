@@ -9,6 +9,7 @@ import { CargasService } from './cargas.service';
 import { COLA_CARGAS, ColaCargas } from './cola-cargas';
 import { procesadoresDeColas } from '../colas/procesar-colas';
 import { ProcesadorCargas } from './procesador-cargas';
+import { VistaPreviaService } from './vista-previa.service';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ProcesadorCargas } from './procesador-cargas';
   controllers: [CargasController],
   providers: [
     CargasService,
+    VistaPreviaService,
     ColaCargas,
     // Solo donde se consume la cola (worker; en desarrollo y pruebas, en línea).
     ...procesadoresDeColas(ProcesadorCargas),

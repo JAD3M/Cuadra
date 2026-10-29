@@ -7,6 +7,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Req,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -15,10 +16,13 @@ import {
   ApiCookieAuth,
   ApiBody,
   ApiConsumes,
+  ApiConflictResponse,
   ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { Request } from 'express';
 import type { UsuarioAutenticado } from '../auth/tipos';
 import { Permiso, UsuarioActual } from '../common/decorators/decoradores';
 import {
@@ -37,6 +41,8 @@ import {
   type EstadoDeCarga,
   type RespuestaDeCarga,
 } from './cargas.service';
+import { AceptacionDto, VistaPreviaDto } from './dto/vista-previa.dto';
+import { VistaPreviaService } from './vista-previa.service';
 import { YaExistiaInterceptor } from './ya-existia.interceptor';
 
 /** La sesión (cookie, AD-6) ya la exige SesionCookieGuard; aquí solo se estrecha el tipo. */
@@ -45,7 +51,10 @@ type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 @ApiCookieAuth()
 @Controller('cargas')
 export class CargasController {
-  constructor(private readonly cargas: CargasService) {}
+  constructor(
+    private readonly cargas: CargasService,
+    private readonly vistaPrevia: VistaPreviaService,
+  ) {}
 
   /**
    * CU-06, CU-07 y CU-08. 202 con la carga nueva en 'pendiente': el
@@ -167,6 +176,47 @@ export class CargasController {
     @UsuarioActual() usuario: Sesion,
   ): Promise<RespuestaListaCargasDto> {
     return { datos: await this.cargas.listar(usuario.companyId) };
+  }
+
+  /**
+   * Historia 3.4. Lo que Cuadra leyó de un PDF en espera: movimientos, total
+   * y saldos. 404 si la carga no está en 'pendiente_vista_previa'. No escribe.
+   */
+  @Get(':id/vista-previa')
+  @Permiso('cargas.ver')
+  @ApiOkResponse({ type: VistaPreviaDto })
+  @ApiNotFoundResponse({
+    description: 'La carga no existe o no está en vista previa.',
+  })
+  vistaPreviaDe(
+    @UsuarioActual() usuario: Sesion,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<VistaPreviaDto> {
+    return this.vistaPrevia.consultar(usuario.companyId, id);
+  }
+
+  /**
+   * Historia 3.4. Acepta la vista previa: los movimientos en espera pasan a
+   * `movimientos`, la carga queda 'procesada' y arranca la conciliación.
+   * 409 si ya no está en vista previa (también la segunda aceptación).
+   */
+  @Post(':id/aceptar')
+  @HttpCode(HttpStatus.OK)
+  @Permiso('cargas.cargar')
+  @ApiOkResponse({ type: AceptacionDto })
+  @ApiNotFoundResponse({ description: 'La carga no existe en la empresa.' })
+  @ApiConflictResponse({ description: 'La carga no está en vista previa.' })
+  @ApiForbiddenResponse({ description: 'Sin permiso para cargar.' })
+  aceptar(
+    @UsuarioActual() usuario: Sesion,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() solicitud: Request,
+  ): Promise<AceptacionDto> {
+    return this.vistaPrevia.aceptar(usuario.companyId, id, {
+      userId: usuario.userId,
+      ip: solicitud.ip,
+      userAgent: solicitud.headers['user-agent'],
+    });
   }
 
   /** La empresa sale del token; un `companyId` en la query no se lee. */
