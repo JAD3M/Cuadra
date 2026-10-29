@@ -41,12 +41,18 @@ export const esquemaPerfil = z
       })
       .strict(),
     /**
-     * Historia 3.1: encabezado de una columna `moneda` OPCIONAL. No va en
-     * `encabezados` (que son los obligatorios): si el archivo la trae, en
-     * cualquier posición, toda fila debe decir MXN o ir vacía; si no, se
-     * asume MXN.
+     * Historia 3.1: todo perfil declara su moneda, y solo de una manera.
+     * `columnaMoneda` es el encabezado de una columna `moneda` OBLIGATORIA en
+     * el archivo (en cualquier posición; no va en `encabezados`): toda fila
+     * debe traerla llena. `moneda` es el código fijo del perfil, para los
+     * bancos cuyo archivo no la trae. Cuadra solo procesa MXN: una moneda
+     * distinta rechaza el archivo.
      */
     columnaMoneda: nombreDeColumna.optional(),
+    moneda: z
+      .string()
+      .regex(/^[A-Z]{3}$/, 'código de tres letras mayúsculas, como "MXN"')
+      .optional(),
     formatoFecha: z.enum(['AAAA-MM-DD', 'DD/MM/AAAA', 'DD-MM-AAAA']),
     separadorMiles: z.enum([',', '.']).nullable(),
     separadorDecimal: z.enum(['.', ',']),
@@ -81,13 +87,25 @@ export const esquemaPerfil = z
       });
     }
     if (
+      (perfil.columnaMoneda === undefined) ===
+      (perfil.moneda === undefined)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['moneda'],
+        message:
+          'Declara exactamente una de "columnaMoneda" (columna del archivo) o "moneda" (código fijo del perfil)',
+      });
+    }
+    if (
       perfil.columnaMoneda !== undefined &&
       encabezados.includes(perfil.columnaMoneda)
     ) {
       ctx.addIssue({
         code: 'custom',
         path: ['columnaMoneda'],
-        message: 'Es opcional: no puede estar también en "encabezados"',
+        message:
+          'Va aparte de "encabezados": no puede estar también en "encabezados"',
       });
     }
     for (const [dato, encabezado] of Object.entries(columnas)) {

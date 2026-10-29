@@ -32,8 +32,14 @@ export class EstadoDeCuentaRechazado extends Error {
 export const MENSAJE_MONEDA_NO_MXN =
   'El estado de cuenta no está en MXN. Cuadra solo procesa estados de cuenta en pesos mexicanos.';
 
+/** Historia 3.1. El perfil exige moneda y el archivo no la trae (o la trae vacía). */
+export const MENSAJE_MONEDA_FALTANTE =
+  'El estado de cuenta no declara su moneda. Agrega la columna "moneda" con MXN en todas las filas.';
+
 /** Código estable del rechazo anterior, para que el cliente no lea el texto. */
 export const CODIGO_MONEDA_NO_MXN = 'moneda_no_mxn';
+/** Código estable de `MENSAJE_MONEDA_FALTANTE`. */
+export const CODIGO_MONEDA_FALTANTE = 'moneda_faltante';
 /** PDF sin capa de texto (escaneado o solo imágenes). */
 export const CODIGO_PDF_SIN_TEXTO = 'pdf_sin_texto';
 /** Mensaje compartido por el adaptador y por el guard de la subida. */
@@ -68,6 +74,13 @@ export function validarEstadoDeCuenta(
   buffer: Buffer,
   perfil: PerfilBancario,
 ): { texto: string; filas: number } {
+  // Perfil con moneda fija: si no es MXN, ningún archivo suyo se procesa.
+  if (perfil.moneda !== undefined && perfil.moneda !== 'MXN') {
+    throw new EstadoDeCuentaRechazado(
+      MENSAJE_MONEDA_NO_MXN,
+      CODIGO_MONEDA_NO_MXN,
+    );
+  }
   let texto: string;
   try {
     // UTF-8 con `fatal`: un byte inválido lanza en vez de volverse U+FFFD.
@@ -124,27 +137,29 @@ export function validarEstadoDeCuenta(
   if (datos.length === 0) {
     throw new EstadoDeCuentaRechazado('El archivo no trae movimientos');
   }
-  if (
-    iMoneda >= 0 &&
-    datos.some(({ campos }) => !esMxn(campos[iMoneda] ?? ''))
-  ) {
-    throw new EstadoDeCuentaRechazado(
-      MENSAJE_MONEDA_NO_MXN,
-      CODIGO_MONEDA_NO_MXN,
-    );
+  if (perfil.columnaMoneda !== undefined) {
+    // La columna es obligatoria: sin ella, o con una celda vacía o ausente,
+    // no se asume MXN.
+    const monedas = datos.map(({ campos }) => campos[iMoneda]?.trim() ?? '');
+    if (iMoneda < 0 || monedas.some((moneda) => moneda === '')) {
+      throw new EstadoDeCuentaRechazado(
+        MENSAJE_MONEDA_FALTANTE,
+        CODIGO_MONEDA_FALTANTE,
+      );
+    }
+    if (monedas.some((moneda) => moneda.toUpperCase() !== 'MXN')) {
+      throw new EstadoDeCuentaRechazado(
+        MENSAJE_MONEDA_NO_MXN,
+        CODIGO_MONEDA_NO_MXN,
+      );
+    }
   }
   return { texto, filas: datos.length };
 }
 
-/** Vacío cuenta como MXN: solo una moneda escrita y distinta rechaza. */
-function esMxn(valor: string): boolean {
-  const moneda = valor.trim().toUpperCase();
-  return moneda === '' || moneda === 'MXN';
-}
-
 /**
- * Historia 3.1: dónde está la columna opcional `moneda` en el encabezado del
- * archivo, o -1 si el perfil no la declara o el archivo no la trae.
+ * Historia 3.1: dónde está la columna `moneda` en el encabezado del archivo, o
+ * -1 si el perfil no la declara (moneda fija) o el archivo no la trae.
  */
 export function posicionMoneda(
   encabezado: string[],

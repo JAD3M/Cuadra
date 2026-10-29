@@ -1,8 +1,9 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
-import type { Job } from 'bullmq';
+import { UnrecoverableError, type Job } from 'bullmq';
 import type { EstadoCarga } from '../common/entities/tipos';
 import { TransaccionEmpresa } from '../database/transaccion-empresa';
+import { EstadoDeCuentaRechazado } from '../bancos/lector-estado-cuenta';
 import { procesarEstadoDeCuenta } from '../bancos/guardar-movimientos';
 import type { PerfilBancario } from '../bancos/perfil';
 import {
@@ -73,6 +74,12 @@ export class ProcesadorCargas extends WorkerHost {
         `Carga ${job.data.cargaId}: intento ${job.attemptsMade + 1} de ${job.opts.attempts ?? 1} falló`,
         error instanceof Error ? error.stack : String(error),
       );
+      // Un rechazo del archivo (p. ej. una carga guardada sin moneda) no se
+      // arregla reintentando: falla ya, con su mensaje, y BullMQ no reintenta.
+      if (error instanceof EstadoDeCuentaRechazado) {
+        await this.marcarFallida(job.data, error.message);
+        throw new UnrecoverableError(error.message);
+      }
       if (ultimo) await this.marcarFallida(job.data);
       throw error;
     }
@@ -170,10 +177,10 @@ export class ProcesadorCargas extends WorkerHost {
     });
   }
 
-  private async marcarFallida({
-    cargaId,
-    companyId,
-  }: TrabajoDeCarga): Promise<void> {
+  private async marcarFallida(
+    { cargaId, companyId }: TrabajoDeCarga,
+    mensaje: string = MENSAJE_FALLIDA,
+  ): Promise<void> {
     try {
       await this.transaccion.ejecutar(companyId, async (manager) => {
         const [marcadas] = await manager.query<[{ id: string }[], number]>(
@@ -183,7 +190,7 @@ export class ProcesadorCargas extends WorkerHost {
             WHERE id = $2 AND company_id = $3
               AND estado IN ('pendiente', 'procesando')
             RETURNING id`,
-          [MENSAJE_FALLIDA, cargaId, companyId],
+          [mensaje, cargaId, companyId],
         );
         // FR-52: la falla también es una carga que terminó.
         if (marcadas.length > 0)

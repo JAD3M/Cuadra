@@ -898,7 +898,8 @@ function entradasDeCargar(cargaId: string) {
   return filas<EntradaCargar>(
     ds,
     `SELECT company_id, user_id, entidad, entidad_id, accion, datos
-       FROM bitacora WHERE accion = 'cargar' AND entidad_id = $1`,
+       FROM bitacora WHERE accion = 'cargar' AND entidad_id = $1
+      ORDER BY created_at, id`,
     [cargaId],
   );
 }
@@ -986,6 +987,40 @@ describe('bitácora `cargar` al terminar la carga (FR-52)', () => {
 
     expect(carga.estado).toBe('procesada');
     expect(await entradasDeCargar(carga.id)).toHaveLength(1);
+  });
+
+  it('una reanudación deja dos entradas y la segunda lleva reanudada', async () => {
+    const token = await tokenSesion(ANA, FERRETERIA);
+    const primero = cfdi('pue-valido.xml');
+    const segundo = cfdi('con-descuento.xml');
+    const lote = [
+      { nombre: 'primero.xml', contenido: primero.xml },
+      { nombre: 'segundo.xml', contenido: segundo.xml },
+    ];
+    const fallida = await conFalla(segundo.uuid, 'siempre', () =>
+      cargarYEsperar(token, lote),
+    );
+    expect(fallida.estado).toBe('fallida');
+    const ajena = await cargarYEsperar(await tokenSesion(CARMEN, TRANSPORTES), [
+      { nombre: 't.xml', contenido: cfdi('pue-valido.xml').xml },
+    ]);
+
+    await subir(token, lote).expect(200);
+    const final = await esperarFin(token, fallida.id);
+    expect(final.estado).toBe('procesada');
+
+    const entradas = await entradasDeCargar(fallida.id);
+    expect(entradas).toHaveLength(2);
+    expect(entradas[0].datos).toMatchObject({ estado: 'fallida' });
+    expect(entradas[0].datos).not.toHaveProperty('reanudada');
+    expect(entradas[1].datos).toMatchObject({
+      estado: 'procesada',
+      reanudada: true,
+    });
+    // Otra empresa: una sola entrada, sin la marca.
+    const deOtra = await entradasDeCargar(ajena.id);
+    expect(deOtra).toHaveLength(1);
+    expect(deOtra[0].datos).not.toHaveProperty('reanudada');
   });
 
   it('subir lo mismo otra vez (yaExistia) no escribe otra entrada', async () => {

@@ -3,6 +3,7 @@ import { join } from 'path';
 import {
   leerFilas,
   leerMovimiento,
+  posicionMoneda,
   validarEstadoDeCuenta,
 } from '../bancos/lector-estado-cuenta';
 import { cargarPerfiles } from '../bancos/perfil';
@@ -33,10 +34,11 @@ export function leerCsvDemo(texto: string): FilaDemo[] {
     Buffer.from(texto, 'utf8'),
     PERFIL_CUADRA,
   );
-  const [, ...datos] = leerFilas(texto, PERFIL_CUADRA);
+  const [encabezado, ...datos] = leerFilas(texto, PERFIL_CUADRA);
+  const iMoneda = posicionMoneda(encabezado.campos, PERFIL_CUADRA);
   if (datos.length !== filas) throw new Error('El conteo de filas no cuadra');
   return datos.map((fila) => {
-    const leida = leerMovimiento(fila.campos, PERFIL_CUADRA);
+    const leida = leerMovimiento(fila.campos, PERFIL_CUADRA, iMoneda);
     if ('motivo' in leida) {
       throw new Error(`Línea ${fila.linea}: ${leida.motivo}`);
     }

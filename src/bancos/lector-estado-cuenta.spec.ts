@@ -30,6 +30,7 @@ const NORTE = perfil('banco-norte');
 const SUR = perfil('banco-sur');
 
 const H = 'fecha,descripcion,referencia,monto';
+const HM = `${H},moneda`;
 
 function motivo(campos: string[], p = CUADRA): string {
   const leido = leerMovimiento(campos, p);
@@ -41,6 +42,16 @@ function movimiento(campos: string[], p: PerfilBancario): MovimientoLeido {
   const leido = leerMovimiento(campos, p);
   if ('motivo' in leido) throw new Error(`Motivo inesperado: ${leido.motivo}`);
   return leido;
+}
+
+function codigoDe(accion: () => unknown): string | undefined {
+  try {
+    accion();
+  } catch (error) {
+    if (error instanceof EstadoDeCuentaRechazado) return error.codigo;
+    throw error;
+  }
+  throw new Error('Se esperaba un rechazo');
 }
 
 function rechazo(texto: string | Buffer, p = CUADRA): string {
@@ -61,7 +72,7 @@ describe('perfil cuadra: el formato canónico de CU-09', () => {
     it('cuenta las filas de datos, sin el encabezado ni líneas vacías', () => {
       expect(
         validarEstadoDeCuenta(
-          Buffer.from(`${H}\n2026-09-01,A,,1\n\n2026-09-02,B,,2\n`),
+          Buffer.from(`${HM}\n2026-09-01,A,,1,MXN\n\n2026-09-02,B,,2,MXN\n`),
           CUADRA,
         ).filas,
       ).toBe(2);
@@ -70,7 +81,7 @@ describe('perfil cuadra: el formato canónico de CU-09', () => {
     it('tolera el BOM de UTF-8', () => {
       const conBom = Buffer.concat([
         Buffer.from([0xef, 0xbb, 0xbf]),
-        Buffer.from(`${H}\n2026-09-01,A,,1\n`),
+        Buffer.from(`${HM}\n2026-09-01,A,,1,MXN\n`),
       ]);
       expect(validarEstadoDeCuenta(conBom, CUADRA).filas).toBe(1);
     });
@@ -113,20 +124,14 @@ describe('perfil cuadra: el formato canónico de CU-09', () => {
     });
   });
 
-  describe('columna opcional moneda (historia 3.1)', () => {
-    const HM = `${H},moneda`;
+  describe('moneda obligatoria (historia 3.1)', () => {
+    const codigo = (texto: string) =>
+      codigoDe(() => validarEstadoDeCuenta(Buffer.from(texto), CUADRA));
 
-    it('sin la columna, todo sigue igual: se asume MXN', () => {
-      expect(
-        validarEstadoDeCuenta(Buffer.from(`${H}\n2026-09-01,A,,1\n`), CUADRA)
-          .filas,
-      ).toBe(1);
-    });
+    it('con la columna y todo MXN (sin importar mayúsculas ni espacios): entra', () => {
+      const texto = `${HM}\n2026-09-01,A,,1,MXN\n2026-09-02,B,,2, mxn \n`;
 
-    it('con la columna y todo MXN (sin importar mayúsculas ni espacios, o vacío): entra', () => {
-      const texto = `${HM}\n2026-09-01,A,,1,MXN\n2026-09-02,B,,2, mxn \n2026-09-03,C,,3,\n`;
-
-      expect(validarEstadoDeCuenta(Buffer.from(texto), CUADRA).filas).toBe(3);
+      expect(validarEstadoDeCuenta(Buffer.from(texto), CUADRA).filas).toBe(2);
     });
 
     it('la columna puede ir en cualquier lugar del encabezado', () => {
@@ -136,12 +141,30 @@ describe('perfil cuadra: el formato canónico de CU-09', () => {
       expect(validarEstadoDeCuenta(Buffer.from(texto), CUADRA).filas).toBe(1);
     });
 
+    it('sin la columna en el encabezado: rechaza el archivo con moneda_faltante', () => {
+      const texto = `${H}\n2026-09-01,A,,1\n`;
+
+      expect(codigo(texto)).toBe('moneda_faltante');
+      expect(rechazo(texto)).toMatch(/moneda/);
+    });
+
+    it('una celda vacía ya no cuenta como MXN: rechaza con moneda_faltante', () => {
+      const texto = `${HM}\n2026-09-01,A,,1,MXN\n2026-09-03,C,,3,\n`;
+
+      expect(codigo(texto)).toBe('moneda_faltante');
+    });
+
+    it('una fila con la columna ausente (corta) también se rechaza', () => {
+      expect(codigo(`${HM}\n2026-09-01,A,,1\n`)).toBe('moneda_faltante');
+    });
+
     it.each(['USD', 'usd', 'EUR', 'MXP'])(
-      'una fila en %s rechaza el archivo completo con el motivo',
+      'una fila en %s rechaza el archivo completo con moneda_no_mxn',
       (moneda) => {
         const texto = `${HM}\n2026-09-01,A,,1,MXN\n2026-09-02,B,,2,${moneda}\n`;
 
         expect(rechazo(texto)).toBe(MENSAJE_MONEDA_NO_MXN);
+        expect(codigo(texto)).toBe('moneda_no_mxn');
       },
     );
 
@@ -151,8 +174,33 @@ describe('perfil cuadra: el formato canónico de CU-09', () => {
       );
     });
 
+    it('un archivo de banco con perfil moneda MXN se lee como siempre', () => {
+      expect(NORTE.moneda).toBe('MXN');
+      expect(SUR.moneda).toBe('MXN');
+      const norte = readFileSync(
+        join(__dirname, 'fixtures', 'norte-valido.csv'),
+      );
+
+      expect(validarEstadoDeCuenta(norte, NORTE).filas).toBeGreaterThan(0);
+    });
+
+    it('un perfil con moneda distinta de MXN rechaza todo archivo con moneda_no_mxn', () => {
+      const usd: PerfilBancario = { ...NORTE, moneda: 'USD' };
+      const norte = readFileSync(
+        join(__dirname, 'fixtures', 'norte-valido.csv'),
+      );
+
+      expect(() => validarEstadoDeCuenta(norte, usd)).toThrow(
+        MENSAJE_MONEDA_NO_MXN,
+      );
+      expect(codigoDe(() => validarEstadoDeCuenta(norte, usd))).toBe(
+        'moneda_no_mxn',
+      );
+    });
+
     it('posicionMoneda: el índice de la columna, o -1 si no viene', () => {
       expect(posicionMoneda(HM.split(','), CUADRA)).toBe(4);
+      // Sin la columna en el archivo (ya rechazado en el POST), no hay índice.
       expect(posicionMoneda(H.split(','), CUADRA)).toBe(-1);
       // Un perfil sin la columna declarada no la reconoce.
       expect(posicionMoneda(HM.split(','), NORTE)).toBe(-1);
@@ -386,6 +434,14 @@ describe('perfiles de banco (CU-10)', () => {
         readFileSync(join(DIRECTORIO_PERFILES, 'banco-norte.json'), 'utf8'),
       ) as Record<string, unknown>;
 
+    it('solo columnaMoneda (sin moneda) es válido', () => {
+      const perfilConColumna = base();
+      delete perfilConColumna.moneda;
+      perfilConColumna.columnaMoneda = 'moneda';
+
+      expect(esquemaPerfil.safeParse(perfilConColumna).success).toBe(true);
+    });
+
     it('los perfiles del repo son válidos', () => {
       expect([...PERFILES.keys()]).toEqual([
         'banco-norte',
@@ -395,6 +451,26 @@ describe('perfiles de banco (CU-10)', () => {
     });
 
     it.each<[string, (p: Record<string, unknown>) => void, RegExp]>([
+      [
+        'sin columnaMoneda ni moneda',
+        (p) => delete p.moneda,
+        /exactamente una de "columnaMoneda"/,
+      ],
+      [
+        'columnaMoneda y moneda a la vez',
+        (p) => (p.columnaMoneda = 'moneda'),
+        /exactamente una de "columnaMoneda"/,
+      ],
+      ['moneda en minúsculas', (p) => (p.moneda = 'mxn'), /moneda/],
+      ['moneda de cuatro letras', (p) => (p.moneda = 'MXNN'), /moneda/],
+      [
+        'columnaMoneda también en encabezados',
+        (p) => {
+          delete p.moneda;
+          p.columnaMoneda = 'Saldo';
+        },
+        /no puede estar también en "encabezados"/,
+      ],
       [
         'monto y cargo/abono a la vez',
         (p) => ((p.columnas as Record<string, string>).monto = 'Cargo'),
@@ -504,6 +580,7 @@ describe('perfiles de banco (CU-10)', () => {
           cargo: 'Retiro',
           abono: 'Depósito',
         },
+        moneda: 'MXN',
         formatoFecha: 'DD-MM-AAAA',
         separadorMiles: null,
         separadorDecimal: ',',
