@@ -597,3 +597,138 @@ describe('POST /cargas/:id/rechazar (T4)', () => {
     await llamar('post', `/cargas/${cargaId}/rechazar`, ANA, 200);
   });
 });
+
+describe('volver a subir un PDF rechazado', () => {
+  let conciliar: jest.SpyInstance;
+
+  beforeEach(() => {
+    conciliar = jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  const subirOtraVez = (correo: string) =>
+    request(entorno.app.getHttpServer())
+      .post('/cargas/estado-cuenta/pdf')
+      .set('Cookie', entornoToken.get(correo) as string)
+      .field('banco', 'bbva')
+      .attach('archivo', BBVA, 'vp-bbva.pdf');
+  const entornoToken = new Map<string, string>();
+
+  beforeEach(async () => {
+    entornoToken.set(LUIS, await entorno.token(LUIS, FERRETERIA));
+  });
+
+  it('reabre la misma carga: espera de vuelta, vista previa y aceptar funcionan', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    expect((await pendientesDe(cargaId)).n).toBe(0);
+
+    const res = await subirOtraVez(LUIS).expect(200);
+    expect(res.body).toMatchObject({
+      cargaId,
+      estado: 'pendiente_vista_previa',
+      yaExistia: false,
+    });
+    expect((await pendientesDe(cargaId)).n).toBe(2);
+    expect(
+      await una<Record<string, unknown>>(
+        ds,
+        `SELECT estado, total_registros, registros_ok, registros_existentes,
+                registros_error, saldo_inicial::text AS saldo_inicial
+           FROM cargas WHERE id = $1`,
+        [cargaId],
+      ),
+    ).toMatchObject({
+      estado: 'pendiente_vista_previa',
+      total_registros: 2,
+      registros_ok: 0,
+      registros_existentes: 0,
+      registros_error: 0,
+    });
+
+    const vista = await llamar(
+      'get',
+      `/cargas/${cargaId}/vista-previa`,
+      LUIS,
+      200,
+    );
+    expect((vista.body as { total: number }).total).toBe(2);
+    await llamar('post', `/cargas/${cargaId}/aceptar`, LUIS, 200);
+    expect((await conteoDeMovimientos(cargaId)).n).toBe(2);
+  });
+
+  it('deja una entrada cargar que dice que es una nueva subida', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    await subirOtraVez(LUIS).expect(200);
+    const entradas = await bitacoraDe(cargaId, 'cargar');
+    expect(entradas).toHaveLength(2);
+    expect(entradas.filter((e) => e.datos.resubida === true)).toHaveLength(1);
+  });
+
+  it('rechazar de nuevo y volver a subir otra vez también funciona', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    for (let i = 0; i < 2; i++) {
+      await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+      await subirOtraVez(LUIS).expect(200);
+      expect((await pendientesDe(cargaId)).n).toBe(2);
+    }
+  });
+
+  it('dos subidas simultáneas de un rechazado: una sola espera, sin duplicar', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    const [a, b] = await Promise.all([subirOtraVez(LUIS), subirOtraVez(LUIS)]);
+    expect([a.status, b.status]).toEqual([200, 200]);
+    expect(
+      [a, b].filter((r) => (r.body as { yaExistia: boolean }).yaExistia),
+    ).toHaveLength(1);
+    expect((await pendientesDe(cargaId)).n).toBe(2);
+    expect(
+      (await bitacoraDe(cargaId, 'cargar')).filter(
+        (e) => e.datos.resubida === true,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('una carga procesada no se reabre: sigue siendo yaExistia', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/aceptar`, LUIS, 200);
+    const res = await subirOtraVez(LUIS).expect(200);
+    expect(res.body).toMatchObject({
+      cargaId,
+      estado: 'procesada',
+      yaExistia: true,
+    });
+    expect((await pendientesDe(cargaId)).n).toBe(0);
+    expect((await conteoDeMovimientos(cargaId)).n).toBe(2);
+    expect(conciliar).toHaveBeenCalled();
+  });
+});
+
+describe('vista previa de una carga sin saldos (anterior a la migración)', () => {
+  it('devuelve saldoInicial y saldoFinal en null, sin fallar', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await ds.query(
+      `UPDATE cargas SET saldo_inicial = NULL, saldo_final = NULL WHERE id = $1`,
+      [cargaId],
+    );
+    const res = await llamar(
+      'get',
+      `/cargas/${cargaId}/vista-previa`,
+      LUIS,
+      200,
+    );
+    expect(res.body).toMatchObject({
+      cargaId,
+      total: 2,
+      saldoInicial: null,
+      saldoFinal: null,
+    });
+  });
+});

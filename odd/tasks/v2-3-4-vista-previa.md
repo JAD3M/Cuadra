@@ -64,6 +64,10 @@ reales hasta entonces).
 - [x] **T4 — Rechazar.** Carga `rechazada`, espera vaciada, nada en
   `movimientos`, bitácora. Un 403 para quien no puede cargar, en aceptar y
   rechazar.
+- [x] **T4b — Volver a subir un PDF rechazado y saldos nulos.** Un PDF
+  rechazado en la vista previa se puede subir otra vez: se reabre la misma
+  carga (el índice único se queda). El DTO de la vista previa admite saldos
+  nulos.
 - [ ] **T5 — Mockup.** Crear el mockup de la vista previa en Claude Design y
   acordarlo con el usuario. Bloquea T6.
 - [ ] **T6 — Frontend.** Pantalla de vista previa según el mockup acordado.
@@ -133,3 +137,17 @@ reales hasta entonces).
   `movimientos_pendientes` a propósito. Suite backend completa: 69 suites, 1477
   pruebas en verde; frontend 280 archivos / 4533 pruebas. Siguiente: T5
   (mockup, bloquea T6).
+- 2026-10-29 T4b: decisión A: `guardarEstadoCuentaPdf` reabre una carga
+  `rechazada` con el mismo hash (`reabrirCargaRechazada`: `UPDATE … WHERE estado
+  = 'rechazada' RETURNING`, con total nuevo; los saldos los refresca
+  `guardarSaldosDeCarga`), vuelve a llenar la espera, bitácora `cargar` con
+  `resubida: true` y responde `yaExistia: false`. Con subidas simultáneas la
+  perdedora espera el candado de fila, ya no ve `rechazada` y responde como
+  carga existente. Los demás estados conservan `yaExistia: true`. Sin
+  migración: `cuadra_app` ya tenía `UPDATE` en `cargas` e `INSERT` en
+  `movimientos_pendientes`. Decisión B: `VistaPreviaDto.saldoInicial/saldoFinal`
+  son `string | null` (y nullable en Swagger); no hay tipo espejo en el
+  frontend. RED: 4 de 6 pruebas nuevas fallaban (carga seguía `rechazada` y
+  `yaExistia: true`); la de saldos nulos ya pasaba en ejecución (el cambio es
+  de tipo). Una trampa vista: `manager.query` de un `UPDATE … RETURNING`
+  responde `[filas, n]`.

@@ -122,3 +122,35 @@ export async function guardarSaldosDeCarga(
     [cargaId, companyId, saldoInicial, saldoFinal],
   );
 }
+
+/**
+ * Un PDF que la persona rechazó en la vista previa puede subirse otra vez
+ * (el índice único de `hash_archivo` se queda: es la misma carga). La reabre:
+ * vuelve a 'pendiente_vista_previa' con el total y los saldos de la nueva
+ * lectura. El `UPDATE` lleva el estado en el WHERE: con dos subidas
+ * simultáneas, la segunda espera el candado de la fila, ya no la ve
+ * 'rechazada' y devuelve `false` (le toca responder como carga existente).
+ * Los contadores siguen en cero (la rechazada nunca los movió), así que
+ * `ck_cargas_total_cuadra` se cumple con el total nuevo.
+ *
+ * Devuelve `true` solo para quien la reabrió: esa petición vuelve a llenar
+ * la espera (que el rechazo vació).
+ */
+export async function reabrirCargaRechazada(
+  manager: EntityManager,
+  companyId: string,
+  cargaId: string,
+  userId: string,
+  total: number,
+): Promise<boolean> {
+  // En un UPDATE … RETURNING el driver responde [filas, cuántas].
+  const [reabiertas] = await manager.query<[unknown[], number]>(
+    `UPDATE cargas
+        SET estado = 'pendiente_vista_previa', total_registros = $3,
+            subido_por_id = $4, updated_at = now()
+      WHERE id = $1 AND company_id = $2 AND estado = 'rechazada'
+      RETURNING id`,
+    [cargaId, companyId, total, userId],
+  );
+  return reabiertas.length > 0;
+}

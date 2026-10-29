@@ -27,6 +27,7 @@ import { ColaCargas } from './cola-cargas';
 import {
   guardarMovimientosPendientes,
   guardarSaldosDeCarga,
+  reabrirCargaRechazada,
   registrarRechazoDePdf,
 } from './guardar-estado-cuenta-pdf';
 import { registrarCargar } from './registrar-carga';
@@ -300,7 +301,7 @@ export class CargasService {
 
     const manager = this.contexto.manager();
     const hash = sha256(archivo.buffer);
-    const carga =
+    let carga =
       (await buscarPorHash(manager, companyId, hash)) ??
       (await crearCarga(manager, companyId, userId, {
         tipo: 'estado_cuenta',
@@ -313,9 +314,36 @@ export class CargasService {
         perfil: null,
         estado: 'pendiente_vista_previa',
       }));
+    // Un PDF rechazado en la vista previa se puede subir otra vez: se reabre
+    // la misma carga y se responde como si fuera nueva. Si otra subida la
+    // reabrió primero, esta responde como carga existente.
+    const reabierta =
+      carga.yaExistia &&
+      carga.estado === 'rechazada' &&
+      (await reabrirCargaRechazada(
+        manager,
+        companyId,
+        carga.id,
+        userId,
+        leido.movimientos.length,
+      ));
+    if (reabierta) {
+      carga = { ...carga, estado: 'pendiente_vista_previa', yaExistia: false };
+    } else if (carga.yaExistia && carga.estado === 'rechazada') {
+      carga = (await buscarPorId(manager, companyId, carga.id)) ?? carga;
+    }
     // Si ya existía (también si ganó una subida simultánea), no se duplica
     // nada: ni movimientos, ni bitácora, ni job.
     if (!carga.yaExistia) {
+      // Defensa: el rechazo vació la espera, pero nunca se arriesga el
+      // índice (company_id, carga_id, linea_numero).
+      if (reabierta) {
+        await manager.query(
+          `DELETE FROM movimientos_pendientes
+            WHERE carga_id = $1 AND company_id = $2`,
+          [carga.id, companyId],
+        );
+      }
       await guardarMovimientosPendientes(
         manager,
         companyId,
@@ -330,7 +358,12 @@ export class CargasService {
         leido.saldoInicial,
         leido.saldoFinal,
       );
-      await registrarCargar(manager, companyId, carga.id);
+      await registrarCargar(
+        manager,
+        companyId,
+        carga.id,
+        reabierta ? { resubida: true } : {},
+      );
     }
     return {
       banco: idBanco,
