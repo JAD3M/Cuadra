@@ -159,3 +159,4 @@ reales hasta entonces).
   clasificador ya pasaba `saldoFinal` y la fila ya existía. El 400 lleva
   `saldoFinal` (texto del lector); contrato tolerante (campos inválidos se
   omiten); `key` = índice + línea. Sin commit. Siguiente: T5.
+- 2026-10-29: T5 (parte documental) hecha. Verificación completa sobre `7759bb2` (worker de solo lectura): backend `npm test` 68 suites / 1447 pruebas, typecheck, build, eslint y prettier limpios; frontend vitest 280 archivos / 4528 pruebas, typecheck, lint, format:check y build limpios. Entrada en `docs/bitacora.md` y `CUADRA.md` actualizado (estado, bitácora, sección del PDF). Faltan: KAN-132, push y los PRs apilados (decide el usuario).

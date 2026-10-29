@@ -228,7 +228,7 @@ Historias: CU-03, CU-04.
 | Columna | Tipo | Notas |
 |---|---|---|
 | `tipo` | varchar(32) | `cfdi` · `estado_cuenta` |
-| `estado` | varchar(32) | pendiente → procesando → procesada / con_errores / fallida (CU-08) |
+| `estado` | varchar(32) | pendiente → procesando → procesada / con_errores / fallida (CU-08). `pendiente_vista_previa` (v2, 3.3): un PDF cuyos saldos cuadran, con sus movimientos en espera; no entra a la cola ni a conciliación |
 | `nombre_archivo` | varchar(512) | como lo llamó el usuario |
 | `hash_archivo` | char(64) | SHA-256 en hex: del archivo (estado de cuenta) o de los hashes ordenados del lote (CFDI) |
 | `total_registros`, `registros_ok`, `registros_error`, `registros_existentes` | int | `CHECK >= 0`; suma exacta al terminar (`ck_cargas_total_cuadra`) |
@@ -431,10 +431,34 @@ inicial, saldo final, movimientos en el formato canónico y las líneas que no
 pudo leer. El signo se deduce del saldo corrido, porque la extracción pierde
 la columna cargo/abono; si no cuadra, la línea no se lee.
 `POST /cargas/estado-cuenta/pdf` (permiso `cargas.cargar`; multipart
-`archivo` + `banco`) **solo lee: no guarda nada**; guardar y cuadrar es la
-historia 3.3. Rechazos con código: `pdf_sin_texto`, `pdf_ilegible`,
-`moneda_no_mxn`. El layout de BBVA es sintético: falta validarlo con un PDF
-real.
+`archivo` + `banco`). Desde la historia 3.3 **guarda lo que cuadra y rechaza
+todo lo demás**:
+
+- **Cuadre:** una sola función común, `cuadrarSaldos` (`src/bancos/cuadre-saldos.ts`):
+  saldo inicial + movimientos = saldo final, exacto, tolerancia cero, con
+  `dinero` (nunca flotantes), igual para cualquier banco.
+- **Orden de las comprobaciones:** errores del lector (`pdf_sin_texto`,
+  `pdf_ilegible`, `moneda_no_mxn`) → `saldos_no_cuadran` → `lineas_no_leidas`
+  (cualquier línea sin leer rechaza, aunque los saldos cuadren) →
+  `sin_movimientos`. El 400 trae `error`, `message` y las líneas no leídas
+  (`{linea, texto}`); `saldos_no_cuadran` suma `saldoFinal`, `saldoEsperado` y
+  `diferencia`.
+- **Rechazo:** no crea carga ni movimientos. Deja una entrada de bitácora
+  `rechazar` sobre `cargas`, sin `entidad_id`, con archivo, banco, motivo y
+  conteos (nunca el contenido ni el texto de las líneas); se escribe en su
+  propia transacción para que sobreviva al 400.
+- **Éxito:** una sola transacción crea la carga en `pendiente_vista_previa`
+  (no se encola), guarda los movimientos en `movimientos_pendientes` y deja la
+  bitácora `cargar`. Solo se guardan los movimientos leídos y el hash; **no se
+  guarda el PDF**. La respuesta suma `cargaId`, `estado` y `yaExistia`.
+- **Idempotencia:** el mismo PDF en la empresa devuelve la carga existente con
+  `yaExistia`, sin duplicar nada (índice único por empresa y hash). Un PDF
+  rechazado se puede volver a subir.
+- **`movimientos_pendientes`:** la zona de espera, con las mismas columnas de
+  dato que `movimientos`, `company_id`, RLS con FORCE y política; `cuadra_app`
+  solo tiene `SELECT` e `INSERT`. El paso a `movimientos` es la historia 3.4.
+
+El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**
 Hasta entonces el fixture y el layout son sintéticos y no se sabe si el texto
@@ -493,7 +517,7 @@ Historias: CU-11 a CU-15, CU-17.
 |---|---|---|
 | `user_id` | uuid | FK `SET NULL`, **opcional** |
 | `entidad` | varchar(64) | nombre de la tabla afectada |
-| `entidad_id` | uuid | |
+| `entidad_id` | uuid | **opcional solo en `rechazar`** (v2, 3.3): un PDF rechazado no crea carga, así que no hay entidad a la que apuntar (CHECK `ck_bitacora_entidad_id_solo_rechazo`) |
 | `accion` | varchar(32) | crear · actualizar · eliminar · cargar · confirmar · rechazar |
 | `datos` | jsonb | el antes y el después |
 | `ip` | **inet** | |
