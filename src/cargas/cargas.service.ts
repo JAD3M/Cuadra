@@ -8,9 +8,11 @@ import type { EntityManager } from 'typeorm';
 import { cuadrarSaldos } from '../bancos/cuadre-saldos';
 import {
   CODIGO_LINEAS_NO_LEIDAS,
+  CODIGO_SIN_MOVIMIENTOS,
   CODIGO_SALDOS_NO_CUADRAN,
   EstadoDeCuentaRechazado,
   MENSAJE_LINEAS_NO_LEIDAS,
+  MENSAJE_SIN_MOVIMIENTOS,
   MENSAJE_SALDOS_NO_CUADRAN,
   validarEstadoDeCuenta,
 } from '../bancos/lector-estado-cuenta';
@@ -210,7 +212,8 @@ export class CargasService {
    * saldos cuadran y guarda lo que cuadra. Orden de las comprobaciones: el
    * lector (sin texto, ilegible, moneda), el cuadre de saldos y, solo si
    * cuadra, las líneas no leídas (con una sola, el PDF se rechaza: un falso
-   * positivo es peor que no conciliar). Un rechazo no crea carga ni
+   * positivo es peor que no conciliar) y, al final, que haya al menos un
+   * movimiento (`sin_movimientos`). Un rechazo no crea carga ni
    * movimientos y deja bitácora (`registrarRechazoDePdf`, fuera de la transacción de
    * la petición). Un PDF que pasa queda en 'pendiente_vista_previa' con sus
    * movimientos en espera, sin encolar nada. Nunca se guarda ni se registra el
@@ -280,6 +283,16 @@ export class CargasService {
       });
       throw rechazoDePdf(CODIGO_LINEAS_NO_LEIDAS, MENSAJE_LINEAS_NO_LEIDAS, {
         lineasNoLeidas: noLeidas,
+      });
+    }
+    if (leido.movimientos.length === 0) {
+      await registrarRechazoDePdf(this.transaccion, {
+        ...rechazo,
+        ...conteos,
+        motivo: CODIGO_SIN_MOVIMIENTOS,
+      });
+      throw rechazoDePdf(CODIGO_SIN_MOVIMIENTOS, MENSAJE_SIN_MOVIMIENTOS, {
+        lineasNoLeidas: [],
       });
     }
 

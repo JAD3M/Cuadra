@@ -120,7 +120,7 @@ export class CargasController {
    * no queda ninguna línea sin leer, lo guarda en 'pendiente_vista_previa'
    * con sus movimientos en espera (sin cola). Si no, 400 con `error` estable
    * (pdf_sin_texto, pdf_ilegible, moneda_no_mxn, saldos_no_cuadran,
-   * lineas_no_leidas), sin carga ni movimientos y con bitácora. Mismo PDF en
+   * lineas_no_leidas, sin_movimientos), sin carga ni movimientos y con bitácora. Mismo PDF en
    * la empresa: la carga existente con `yaExistia`. Va antes de `:id`.
    */
   @Post('estado-cuenta/pdf')

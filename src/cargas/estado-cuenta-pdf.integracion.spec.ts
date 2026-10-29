@@ -129,6 +129,16 @@ const CON_LINEA_SUELTA = pdf(
   '15/OCT 15/OCT DEPOSITO CLIENTE 3,250.50 11,250.50',
 );
 
+// Cero movimientos: con los saldos iguales cuadra; con los del encabezado no.
+const ENCABEZADO_SIN_MOVIMIENTOS = [
+  'Periodo DEL 01/10/2026 AL 31/10/2026',
+  'Moneda MXN',
+  'Saldo Anterior 10,000.00',
+  'Saldo Final 10,000.00',
+];
+const SIN_MOVIMIENTOS = construirPdfSintetico(ENCABEZADO_SIN_MOVIMIENTOS);
+const SIN_MOVIMIENTOS_NO_CUADRA = pdf();
+
 const cuerpo = (res: { body: unknown }) =>
   res.body as { message: string; error?: string };
 
@@ -393,6 +403,56 @@ describe('POST /cargas/estado-cuenta/pdf (historia 3.2)', () => {
         });
       },
     );
+
+    it('saldos que cuadran con cero movimientos: 400 sin_movimientos', async () => {
+      const antes = await conteos();
+      const res = await subir(
+        await entorno.token(LUIS, FERRETERIA),
+        'vacio.pdf',
+        SIN_MOVIMIENTOS,
+      ).expect(400);
+
+      expect(res.body).toMatchObject({
+        statusCode: 400,
+        error: 'sin_movimientos',
+        lineasNoLeidas: [],
+      });
+      expect(cuerpo(res).message).toMatch(/movimientos/i);
+      expect(res.body).not.toHaveProperty('diferencia');
+      const despues = await conteos();
+      expect(despues.cargas).toBe(antes.cargas);
+      expect(despues.pendientes).toBe(0);
+      expect(despues.movimientos).toBe(antes.movimientos);
+
+      const rechazos = await bitacoraDeCargas('rechazar');
+      expect(rechazos).toHaveLength(1);
+      expect(rechazos[0]).toEqual({
+        user_id: entorno.persona(LUIS),
+        entidad_id: null,
+        datos: {
+          archivo: 'vacio.pdf',
+          banco: 'bbva',
+          motivo: 'sin_movimientos',
+          movimientosLeidos: 0,
+          lineasNoLeidas: 0,
+        },
+      });
+      expect(JSON.stringify(rechazos[0].datos)).not.toMatch(/Saldo|10,000/);
+    });
+
+    it('cero movimientos con saldos que no cuadran: manda saldos_no_cuadran', async () => {
+      const res = await subir(
+        await entorno.token(LUIS, FERRETERIA),
+        'vacio-no-cuadra.pdf',
+        SIN_MOVIMIENTOS_NO_CUADRA,
+      ).expect(400);
+      expect(res.body).toMatchObject({ error: 'saldos_no_cuadran' });
+      const [rechazo] = await bitacoraDeCargas('rechazar');
+      expect(rechazo.datos).toMatchObject({
+        motivo: 'saldos_no_cuadran',
+        movimientosLeidos: 0,
+      });
+    });
 
     it('un PDF rechazado se puede volver a subir', async () => {
       const token = await entorno.token(LUIS, FERRETERIA);

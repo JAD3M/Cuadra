@@ -30,7 +30,12 @@ y no deja bitácora. No existe función de cuadre ni el estado
    del archivo. No se guarda el PDF original.
 6. **Idempotencia:** resubir un PDF ya cargado devuelve la carga existente
    (`yaExistia`), sin duplicar. Un PDF rechazado se puede volver a subir.
-7. **Sin decisión pendiente** (se siguen de la historia): el 400 lleva el motivo
+7. **PDF sin movimientos** (decidido el 2026-10-29, a raíz de T3): se rechaza
+   con el código `sin_movimientos`, aunque los saldos cuadren (lo más probable
+   es que el lector no leyera nada). Va al final de las comprobaciones: antes
+   mandan `saldos_no_cuadran` y `lineas_no_leidas`. Deja bitácora `rechazar`
+   como los demás. Es la tarea T3b.
+8. **Sin decisión pendiente** (se siguen de la historia): el 400 lleva el motivo
    y las líneas no leídas (UX-DR8); el cuadre es exacto, tolerancia cero, con
    `dinero`; `pendiente_vista_previa` cuenta como estado concluido para el
    polling y el worker no lo toma.
@@ -72,6 +77,10 @@ reales hasta entonces).
   no cuadran y líneas no leídas con 400 que lleva motivo y líneas, reutiliza la
   carga si el hash ya existe, y deja bitácora en los cuatro rechazos y al crear.
   El worker no encola estas cargas. Pruebas de permisos (403 del auditor).
+- [x] **T3b — PDF sin movimientos.** RED primero: un PDF con saldo inicial igual
+  al final y cero movimientos se rechaza con `sin_movimientos` (400, sin carga
+  ni movimientos, bitácora `rechazar`). Con saldos que no cuadran sigue
+  mandando `saldos_no_cuadran`, y con líneas no leídas `lineas_no_leidas`.
 - [ ] **T4 — Frontend.** Resultado de la carga guardada y rechazo con motivo y
   líneas no leídas. Se lee el mockup primero; si falta algo, se actualiza el
   mockup y se acuerda antes de escribir código.
@@ -116,3 +125,8 @@ reales hasta entonces).
   por hash: `crearCarga` con savepoint y el índice único. GREEN: backend 1445
   pruebas, frontend 4500; typecheck, build, eslint y prettier limpios. Sin
   commit. Siguiente: T4.
+- 2026-10-29: T3b hecha. RED: `estado-cuenta-pdf.integracion.spec.ts`, 1 de 33
+  fallaba (`sin_movimientos`: `expected 400 "Bad Request", got 200 "OK"`; antes
+  se guardaba una carga vacía). El orden (saldos que no cuadran con cero
+  movimientos) ya pasaba. GREEN: backend 1447 pruebas; typecheck, build, eslint
+  y prettier limpios. Sin commit. Siguiente: T4.
