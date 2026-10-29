@@ -71,7 +71,7 @@ reales hasta entonces).
 - [x] **T5 — Mockup.** Artboard «18 · Vista previa del PDF» en Claude Design
   (`VistaPrevia.dc.html`) y cambios en Cargas (enlace «Revisar vista previa»,
   estado `rechazada` ámbar). Acordado con el usuario el 2026-10-29.
-- [ ] **T6 — Frontend.** Pantalla de vista previa según el mockup acordado.
+- [x] **T6 — Frontend.** Pantalla de vista previa según el mockup acordado.
 - [ ] **T7 — Cierre.** Suites completas, lint y formato, `docs/bitacora.md`,
   `CUADRA.md`, KAN-133, PRs en cadena.
 
@@ -153,3 +153,24 @@ reales hasta entonces).
   de tipo). Una trampa vista: `manager.query` de un `UPDATE … RETURNING`
   responde `[filas, n]`.
 - 2026-10-29 T5: mockup creado en el canvas, con la propiedad `vista` para sus estados y `rol` (revisor = solo consulta); sin tema claro (Cargas tampoco lo tiene); aceptar sin diálogo, rechazar con confirmación. Acordado. Siguiente: T6.
+- 2026-10-29 T6: frontend en tres commits (`9c882af`, `4551779`, `23b3d24`).
+  (1) `rechazada` pasa a tono `sin_match` y avance `naranja` (ámbar del
+  mockup); contratos `vistaPreviaCarga` y `respuestaDecisionVistaPrevia` (montos
+  como cadenas), clave `clavesCargas.vistaPrevia`, `useVistaPrevia`,
+  `useDecidirVistaPrevia` (guarda de doble disparo y de época; invalida
+  historial y detalle, y la bandeja solo al aceptar; no la vista previa misma)
+  y `montoConSigno`/`saldoVista` sobre `formatearMonto`. (2) Pantalla
+  `features/vista-previa` (contenedor + componentes presentacionales) con los
+  estados del mockup 18: cargando, 404, 409 (de la lectura o de la acción), 403,
+  fallo de conexión con «Reintentar», error del servidor, solo consulta,
+  aceptando/rechazando, alertdialog de rechazo, banners verde y ámbar, sin
+  saldos; el foco va al banner, a la alerta y de vuelta a «Rechazar» al
+  cancelar. (3) «Revisar vista previa» en la tarjeta del PDF (solo si el estado
+  es `pendiente_vista_previa`) y en la fila de la tabla; ruta
+  `/cargas/:cargaId/vista-previa` dentro del shell (Cargas queda activa). RED
+  observado en cada unidad (imports sin resolver, contratos indefinidos, tono
+  `neutral` vs `sin_match`, enlaces ausentes). GREEN: frontend 287 archivos /
+  4627 pruebas, typecheck, lint, `format:check` y build. Pendiente fuera de la
+  superficie de T6: `frontend/tests/dominio/cargasEspejo.test.ts` espera 3
+  `@Permiso('cargas.cargar')` y el controlador ya tiene 5 (aceptar y rechazar,
+  T3-T4): falla desde antes de T6, queda para T7. Siguiente: T7.
