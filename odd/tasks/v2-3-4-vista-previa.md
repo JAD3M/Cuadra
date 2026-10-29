@@ -68,8 +68,9 @@ reales hasta entonces).
   rechazado en la vista previa se puede subir otra vez: se reabre la misma
   carga (el índice único se queda). El DTO de la vista previa admite saldos
   nulos.
-- [ ] **T5 — Mockup.** Crear el mockup de la vista previa en Claude Design y
-  acordarlo con el usuario. Bloquea T6.
+- [x] **T5 — Mockup.** Artboard «18 · Vista previa del PDF» en Claude Design
+  (`VistaPrevia.dc.html`) y cambios en Cargas (enlace «Revisar vista previa»,
+  estado `rechazada` ámbar). Acordado con el usuario el 2026-10-29.
 - [ ] **T6 — Frontend.** Pantalla de vista previa según el mockup acordado.
 - [ ] **T7 — Cierre.** Suites completas, lint y formato, `docs/bitacora.md`,
   `CUADRA.md`, KAN-133, PRs en cadena.
