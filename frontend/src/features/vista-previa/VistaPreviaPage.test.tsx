@@ -488,10 +488,12 @@ describe('VistaPreviaPage: rechazar', () => {
     await esperarContenido();
     const u = usuario();
     await u.click(aceptar());
-    await screen.findByRole('alert');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No se pudo completar la solicitud.',
+    );
     await u.click(rechazar());
     await screen.findByRole('alertdialog');
-    expect(screen.queryByText('No se pudo completar la solicitud.')).toBeNull();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('409 al rechazar: ya no está en espera', async () => {
