@@ -58,10 +58,10 @@ reales hasta entonces).
 - [x] **T2 — Vista previa (GET).** Movimientos leídos (fecha, monto,
   referencia), total y saldos; solo de la empresa; 404 si la carga no está en
   `pendiente_vista_previa`.
-- [x] **T3 — Aceptar.** Candado de empresa, `INSERT … SELECT` a `movimientos`,
+- [ ] **T3 — Aceptar.** Candado de empresa, `INSERT … SELECT` a `movimientos`,
   vaciar la espera, carga `procesada` con contadores que cuadran, conciliar y
   encolar sugerencias, bitácora. Sin movimientos a medias si algo falla.
-- [x] **T4 — Rechazar.** Carga `rechazada`, espera vaciada, nada en
+- [ ] **T4 — Rechazar.** Carga `rechazada`, espera vaciada, nada en
   `movimientos`, bitácora. Un 403 para quien no puede cargar, en aceptar y
   rechazar.
 - [ ] **T5 — Mockup.** Crear el mockup de la vista previa en Claude Design y
@@ -109,27 +109,3 @@ reales hasta entonces).
   referencia, montos como texto NUMERIC). 404 si no existe, es ajena o no está
   en `pendiente_vista_previa`. RED: 5 de 8 pruebas fallan con 404 de ruta
   inexistente (las 3 de 404 pasaban por la misma razón equivocada); GREEN 8/8.
-- 2026-10-29 T3: `POST /cargas/:id/aceptar` (`cargas.cargar`, 200) en
-  `VistaPreviaService.aceptar`, en la transacción de la petición: candado AD-19,
-  carga `FOR UPDATE`, `INSERT … SELECT` (cuenta lo movido y exige que cuadre con
-  `total_registros`, si no revierte), espera vaciada, carga `procesada` con
-  `registros_ok = n`, bitácora `confirmar` sobre `cargas` (acción propia: no
-  reutiliza `cargar`, que marcaría `reanudada`). `conciliar` y
-  `sugerencias.encolar` van en `alConfirmar`, sin fallar la respuesta. 404 si no
-  existe/ajena, 409 si no está en espera (segunda aceptación incluida). RED: 10
-  de 18 fallaban con 404 de ruta inexistente; GREEN 18/18, incluidas dos
-  aceptaciones simultáneas (200+409) y un fallo a mitad del INSERT (500, nada
-  movido).
-- 2026-10-29 T4: `POST /cargas/:id/rechazar` (`cargas.cargar`, 200) en
-  `VistaPreviaService.rechazar`: carga `FOR UPDATE` (serializa con aceptar sin
-  tomar el candado de empresa, porque no toca conciliación), espera borrada,
-  carga `rechazada`, bitácora `rechazar` sobre la carga con
-  `movimientosDescartados`. 404/409/400 como aceptar; 403 con `acceso_denegado`
-  para quien no tiene `cargas.cargar` en ambos. Pruebas: mientras espera, la
-  bandeja y `conciliar` no ven nada (T3). RED: 8 de 26 con 404 de ruta
-  inexistente; GREEN 26/26 (aceptar y rechazar simultáneos: 200+409).
-- 2026-10-29 Cierre de T1-T4: la suite completa detectó una lista cerrada de
-  tablas con `DELETE` para `cuadra_app` (`sesiones-privilegios`); se agregó
-  `movimientos_pendientes` a propósito. Suite backend completa: 69 suites, 1477
-  pruebas en verde; frontend 280 archivos / 4533 pruebas. Siguiente: T5
-  (mockup, bloquea T6).
