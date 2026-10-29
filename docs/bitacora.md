@@ -16,8 +16,16 @@
   - **T3:** la ruta del PDF entra en la tabla de 403 del auditor
     (`permisos.integracion.spec.ts`): una sola entrada `acceso_denegado` y
     nada cambia.
+  - **T5 (hallazgos de la revisión del PR #58):** reanudar una carga guardada
+    sin columna `moneda` ya no es un `Error` genérico: queda `fallida` de
+    inmediato con `moneda_faltante` y el mensaje «resube el archivo con la
+    columna moneda», sin reintentos (`UnrecoverableError` en el worker). Los
+    demás errores se reintentan igual que antes. Además, la consulta de
+    `reanudada` quedó con nombre. Queda una sola comprobación duplicada de la
+    moneda en `guardar-movimientos.ts`; quitarla pide un helper compartido en
+    el lector.
   - **Efecto a tener presente:** las cargas pendientes o fallidas ya guardadas
-    sin columna `moneda` fallarán al reanudarse tras este cambio; hay que
+    sin columna `moneda` no se pueden reanudar tras este cambio; hay que
     resubir el archivo.
   - **Pendiente:** el filtro «Entidad» de la bitácora frente al mockup lo
     decide el usuario aparte, y falta validar el lector del PDF con un estado
