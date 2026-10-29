@@ -173,6 +173,7 @@ function CargasConAcceso() {
       estado={lectura.datos.estado}
       saldoInicial={lectura.datos.saldoInicial}
       saldoFinal={lectura.datos.saldoFinal}
+      cargaId={lectura.datos.cargaId}
     />
   ) : null;
 

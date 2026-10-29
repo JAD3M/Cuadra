@@ -47,7 +47,9 @@ export const leerVistaPrevia = (cuerpo: VistaPreviaCarga = vistaPrevia()) =>
   http.get(RUTA_VISTA_PREVIA, () => HttpResponse.json(cuerpo));
 
 export const leerVistaPreviaFalla = (status: number) =>
-  http.get(RUTA_VISTA_PREVIA, () => ERROR_NEST(status, 'error'));
+  http.get(RUTA_VISTA_PREVIA, () =>
+    ERROR_NEST(status, 'texto-interno-del-servidor'),
+  );
 
 export const aceptarResponde = (movimientos = 3) =>
   http.post(RUTA_ACEPTAR, ({ params }) =>

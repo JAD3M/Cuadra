@@ -1,0 +1,31 @@
+.pista {
+  flex-grow: 1;
+  min-inline-size: 80px;
+  block-size: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--color-hover-2);
+}
+
+.indicador {
+  inline-size: 35%;
+  block-size: 100%;
+  background: var(--color-accent);
+  animation: indeterminada 1.4s ease-in-out infinite;
+}
+
+@keyframes indeterminada {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(290%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indicador {
+    animation: none;
+    transform: translateX(60%);
+  }
+}

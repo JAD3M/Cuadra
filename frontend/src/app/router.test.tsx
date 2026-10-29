@@ -248,6 +248,7 @@ describe('guardas en el árbol de rutas', () => {
       '/bandeja',
       '/casos/:movimientoId',
       '/cargas',
+      '/cargas/:cargaId/vista-previa',
       '/tolerancia',
       '/bitacora',
       '/usuarios',
@@ -438,5 +439,31 @@ describe('galería /__kit', () => {
       vi.unstubAllEnvs();
       vi.resetModules();
     }
+  });
+});
+
+describe('vista previa de una carga (historia 3.4)', () => {
+  it('/cargas/:cargaId/vista-previa va dentro del shell con su título y subtítulo', () => {
+    renderizar('/cargas/0192a3f4-0000-7000-8000-0000000000c1/vista-previa');
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Vista previa' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Revisa lo que Cuadra leyó del PDF. Nada entra a conciliación hasta que lo aceptes.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('main')).toContainElement(
+      screen.getByRole('link', { name: /Volver a Cargas/ }),
+    );
+    expect(document.title).toBe('Vista previa · Cuadra');
+  });
+
+  it('la entrada «Cargas» del menú sigue activa en esa ruta', () => {
+    renderizar('/cargas/0192a3f4-0000-7000-8000-0000000000c1/vista-previa');
+    expect(
+      screen.getByRole('link', { name: 'Cargas', current: 'page' }),
+    ).toBeInTheDocument();
   });
 });

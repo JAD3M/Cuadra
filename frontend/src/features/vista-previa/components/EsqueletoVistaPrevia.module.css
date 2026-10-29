@@ -1,0 +1,19 @@
+.esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+}
+
+.resumen,
+.tabla {
+  border-radius: var(--radius-2xl);
+  background: var(--color-hover-2);
+}
+
+.resumen {
+  block-size: 200px;
+}
+
+.tabla {
+  block-size: 360px;
+}

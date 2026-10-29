@@ -50,3 +50,21 @@
   font-size: var(--text-sm);
   white-space: nowrap;
 }
+
+/* «Revisar vista previa» bajo el chip (historia 3.4). */
+.revisar {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--touch-min);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+/* Chip y enlace en columna: el enlace no se pega al chip. */
+.estado {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
