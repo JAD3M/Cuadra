@@ -67,7 +67,7 @@ reales hasta entonces).
   `ck_cargas_total_cuadra` revisados; tabla de zona de espera con RLS FORCE y
   GRANTs; `entidad_id` nullable con CHECK solo para `rechazar`. Prueba de que
   otra empresa no ve nada.
-- [ ] **T3 — Endpoint del PDF.** Guarda lo que cuadra (carga en
+- [x] **T3 — Endpoint del PDF.** Guarda lo que cuadra (carga en
   `pendiente_vista_previa` + movimientos en espera + hash), rechaza saldos que
   no cuadran y líneas no leídas con 400 que lleva motivo y líneas, reutiliza la
   carga si el hash ya existe, y deja bitácora en los cuatro rechazos y al crear.
@@ -108,3 +108,11 @@ reales hasta entonces).
   `1790710200000-PendienteVistaPrevia`, entidad, estado, espejo, bitácora
   nullable solo en rechazos. GREEN: backend 1436 pruebas, frontend 4500;
   typecheck, build, eslint y prettier limpios en ambos. Sin commit. Siguiente: T3.
+- 2026-10-29: T3 hecha. RED: `estado-cuenta-pdf.integracion.spec.ts`, 11 de 31
+  fallaban (guardar, `yaExistia`, carrera, otra empresa, `saldos_no_cuadran`,
+  `lineas_no_leidas`, 3 rechazos de lectura en bitácora, reintento, bitácora por
+  empresa). Rechazo: `registrarRechazoDePdf` abre su propia transacción de
+  empresa (como `AccesosDenegados`), así la entrada sobrevive al 400. Carrera
+  por hash: `crearCarga` con savepoint y el índice único. GREEN: backend 1445
+  pruebas, frontend 4500; typecheck, build, eslint y prettier limpios. Sin
+  commit. Siguiente: T4.

@@ -5,8 +5,13 @@ import {
 } from '@nestjs/common';
 import { createHash } from 'crypto';
 import type { EntityManager } from 'typeorm';
+import { cuadrarSaldos } from '../bancos/cuadre-saldos';
 import {
+  CODIGO_LINEAS_NO_LEIDAS,
+  CODIGO_SALDOS_NO_CUADRAN,
   EstadoDeCuentaRechazado,
+  MENSAJE_LINEAS_NO_LEIDAS,
+  MENSAJE_SALDOS_NO_CUADRAN,
   validarEstadoDeCuenta,
 } from '../bancos/lector-estado-cuenta';
 import {
@@ -15,7 +20,14 @@ import {
 } from '../bancos/perfiles-bancarios';
 import type { EstadoCarga, TipoCarga } from '../common/entities/tipos';
 import { ContextoEmpresa } from '../database/contexto-empresa';
+import { TransaccionEmpresa } from '../database/transaccion-empresa';
 import { ColaCargas } from './cola-cargas';
+import {
+  guardarMovimientosPendientes,
+  registrarRechazoDePdf,
+} from './guardar-estado-cuenta-pdf';
+import { registrarCargar } from './registrar-carga';
+import type { LineaNoLeida } from '../bancos/pdf/lector-bbva';
 import {
   aEstado,
   type EstadoDeCarga,
@@ -54,6 +66,8 @@ interface NuevaCarga {
   cuenta: string | null;
   /** Estado de cuenta: el perfil de banco con el que se validó (CU-10). */
   perfil: string | null;
+  /** 'pendiente' si no se dice: el worker toma la carga. */
+  estado?: EstadoCarga;
 }
 
 /** El rechazo del archivo, a 400; con código estable si lo trae. */
@@ -64,6 +78,23 @@ function comoBadRequest(error: unknown): unknown {
       ? error.message
       : { statusCode: 400, message: error.message, error: error.codigo },
   );
+}
+
+/**
+ * Historia 3.3: el rechazo de un PDF que se leyó, a 400 con el código estable
+ * y lo que el cliente necesita (líneas no leídas, diferencia de saldos).
+ */
+function rechazoDePdf(
+  codigo: string,
+  mensaje: string,
+  detalle: Record<string, unknown>,
+): BadRequestException {
+  return new BadRequestException({
+    statusCode: 400,
+    message: mensaje,
+    error: codigo,
+    ...detalle,
+  });
 }
 
 /** Tope de la columna `cargas.nombre_archivo`. */
@@ -98,6 +129,7 @@ export class CargasService {
     private readonly contexto: ContextoEmpresa,
     private readonly cola: ColaCargas,
     private readonly perfiles: PerfilesBancarios,
+    private readonly transaccion: TransaccionEmpresa,
   ) {}
 
   /**
@@ -174,12 +206,19 @@ export class CargasService {
   }
 
   /**
-   * Historia 3.2: lee un estado de cuenta en PDF y cuenta lo leído. No
-   * importa nada: sin carga, sin movimientos, sin bitácora, sin cola (guardar
-   * y cuadrar es la 3.3). No toca la base, así que no recibe la empresa.
-   * Nunca se registra el contenido del archivo.
+   * Historias 3.2 y 3.3: lee un estado de cuenta en PDF, comprueba que sus
+   * saldos cuadran y guarda lo que cuadra. Orden de las comprobaciones: el
+   * lector (sin texto, ilegible, moneda), el cuadre de saldos y, solo si
+   * cuadra, las líneas no leídas (con una sola, el PDF se rechaza: un falso
+   * positivo es peor que no conciliar). Un rechazo no crea carga ni
+   * movimientos y deja bitácora (`registrarRechazoDePdf`, fuera de la transacción de
+   * la petición). Un PDF que pasa queda en 'pendiente_vista_previa' con sus
+   * movimientos en espera, sin encolar nada. Nunca se guarda ni se registra el
+   * contenido del archivo.
    */
-  async leerEstadoCuentaPdf(
+  async guardarEstadoCuentaPdf(
+    companyId: string,
+    userId: string,
     archivo: ArchivoSubido,
     banco: string,
   ): Promise<RespuestaLecturaPdfDto> {
@@ -189,18 +228,98 @@ export class CargasService {
         `Banco no soportado para PDF: "${banco.slice(0, 32)}". Disponibles: ${BANCOS_PDF.join(', ')}`,
       );
     }
+    const idBanco = banco.trim().toLowerCase();
+    const rechazo = {
+      companyId,
+      userId,
+      archivo: archivo.originalname,
+      banco: idBanco,
+    };
+    let leido: ReturnType<typeof lector>;
     try {
-      const leido = lector(await extraerTextoPdf(archivo.buffer));
-      return {
-        banco: banco.trim().toLowerCase(),
-        saldoInicial: leido.saldoInicial,
-        saldoFinal: leido.saldoFinal,
-        movimientosLeidos: leido.movimientos.length,
-        lineasNoLeidas: leido.lineasNoLeidas.length,
-      };
+      leido = lector(await extraerTextoPdf(archivo.buffer));
     } catch (error) {
+      if (error instanceof EstadoDeCuentaRechazado) {
+        // Los rechazos sin código (periodo o saldos no encontrados) también
+        // se registran, con un motivo genérico.
+        await registrarRechazoDePdf(this.transaccion, {
+          ...rechazo,
+          motivo: error.codigo ?? 'pdf_no_reconocido',
+        });
+      }
       throw comoBadRequest(error);
     }
+
+    const noLeidas: LineaNoLeida[] = leido.lineasNoLeidas;
+    const conteos = {
+      movimientosLeidos: leido.movimientos.length,
+      lineasNoLeidas: noLeidas.length,
+    };
+    const cuadre = cuadrarSaldos({
+      saldoInicial: leido.saldoInicial,
+      saldoFinal: leido.saldoFinal,
+      montos: leido.movimientos.map((m) => m.monto),
+    });
+    if (!cuadre.cuadra) {
+      await registrarRechazoDePdf(this.transaccion, {
+        ...rechazo,
+        ...conteos,
+        motivo: CODIGO_SALDOS_NO_CUADRAN,
+      });
+      throw rechazoDePdf(CODIGO_SALDOS_NO_CUADRAN, MENSAJE_SALDOS_NO_CUADRAN, {
+        saldoEsperado: cuadre.saldoEsperado,
+        diferencia: cuadre.diferencia,
+        lineasNoLeidas: noLeidas,
+      });
+    }
+    if (noLeidas.length > 0) {
+      await registrarRechazoDePdf(this.transaccion, {
+        ...rechazo,
+        ...conteos,
+        motivo: CODIGO_LINEAS_NO_LEIDAS,
+      });
+      throw rechazoDePdf(CODIGO_LINEAS_NO_LEIDAS, MENSAJE_LINEAS_NO_LEIDAS, {
+        lineasNoLeidas: noLeidas,
+      });
+    }
+
+    const manager = this.contexto.manager();
+    const hash = sha256(archivo.buffer);
+    const carga =
+      (await buscarPorHash(manager, companyId, hash)) ??
+      (await crearCarga(manager, companyId, userId, {
+        tipo: 'estado_cuenta',
+        hash,
+        nombre: nombreDelLote([archivo]),
+        total: leido.movimientos.length,
+        archivos: [],
+        banco: idBanco,
+        cuenta: null,
+        perfil: null,
+        estado: 'pendiente_vista_previa',
+      }));
+    // Si ya existía (también si ganó una subida simultánea), no se duplica
+    // nada: ni movimientos, ni bitácora, ni job.
+    if (!carga.yaExistia) {
+      await guardarMovimientosPendientes(
+        manager,
+        companyId,
+        carga.id,
+        idBanco,
+        leido.movimientos,
+      );
+      await registrarCargar(manager, companyId, carga.id);
+    }
+    return {
+      banco: idBanco,
+      saldoInicial: leido.saldoInicial,
+      saldoFinal: leido.saldoFinal,
+      movimientosLeidos: leido.movimientos.length,
+      lineasNoLeidas: 0,
+      cargaId: carga.id,
+      estado: carga.estado,
+      yaExistia: carga.yaExistia,
+    };
   }
 
   /**
@@ -373,7 +492,7 @@ async function buscarPorHash(
 }
 
 /**
- * Crea la carga en 'pendiente' con el total ya fijado. Si otra petición con
+ * Crea la carga (en 'pendiente' salvo que se diga otro estado) con el total ya fijado. Si otra petición con
  * el mismo lote ganó la carrera entre el SELECT previo y este INSERT, salta
  * el índice único: se devuelve la ganadora, igual que si el SELECT la hubiera
  * visto.
@@ -392,7 +511,7 @@ async function crearCarga(
       `INSERT INTO cargas
          (company_id, tipo, estado, nombre_archivo, hash_archivo,
           total_registros, subido_por_id, banco, cuenta, perfil)
-       VALUES ($1, $2, 'pendiente', $3, $4, $5, $6, $7, $8, $9)
+       VALUES ($1, $2, $10, $3, $4, $5, $6, $7, $8, $9)
        RETURNING ${SQL_ESTADO}`,
       [
         companyId,
@@ -404,6 +523,7 @@ async function crearCarga(
         nueva.banco,
         nueva.cuenta,
         nueva.perfil,
+        nueva.estado ?? 'pendiente',
       ],
     );
     await manager.query('RELEASE SAVEPOINT carga');

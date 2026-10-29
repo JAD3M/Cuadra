@@ -116,10 +116,12 @@ export class CargasController {
   }
 
   /**
-   * Historia 3.2. Lee el PDF de un banco y responde cuántos movimientos
-   * leyó. No importa nada: ni carga, ni movimientos, ni bitácora, ni cola.
-   * Rechazos 400 con `error` estable: pdf_sin_texto, pdf_ilegible,
-   * moneda_no_mxn. Va antes de `:id`.
+   * Historias 3.2 y 3.3. Lee el PDF de un banco y, si sus saldos cuadran y
+   * no queda ninguna línea sin leer, lo guarda en 'pendiente_vista_previa'
+   * con sus movimientos en espera (sin cola). Si no, 400 con `error` estable
+   * (pdf_sin_texto, pdf_ilegible, moneda_no_mxn, saldos_no_cuadran,
+   * lineas_no_leidas), sin carga ni movimientos y con bitácora. Mismo PDF en
+   * la empresa: la carga existente con `yaExistia`. Va antes de `:id`.
    */
   @Post('estado-cuenta/pdf')
   @HttpCode(HttpStatus.OK)
@@ -137,11 +139,17 @@ export class CargasController {
     },
   })
   @ApiOkResponse({ type: RespuestaLecturaPdfDto })
-  leerEstadoCuentaPdf(
+  cargarEstadoCuentaPdf(
+    @UsuarioActual() usuario: Sesion,
     @UploadedFiles() [archivo]: ArchivoSubido[],
     @Body() { banco }: LecturaPdfDto,
   ): Promise<RespuestaLecturaPdfDto> {
-    return this.cargas.leerEstadoCuentaPdf(archivo, banco);
+    return this.cargas.guardarEstadoCuentaPdf(
+      usuario.companyId,
+      usuario.userId,
+      archivo,
+      banco,
+    );
   }
 
   /**
