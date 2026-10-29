@@ -1,0 +1,13 @@
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+  min-inline-size: 0;
+}
+
+.estado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-14);
+}
