@@ -48,6 +48,20 @@ export const MENSAJE_PDF_ILEGIBLE =
 /** Bytes que no son un PDF legible (corrupto, truncado, protegido). */
 export const CODIGO_PDF_ILEGIBLE = 'pdf_ilegible';
 
+/** Historia 3.3. Los saldos del PDF no cuadran con la suma de sus movimientos. */
+export const CODIGO_SALDOS_NO_CUADRAN = 'saldos_no_cuadran';
+export const MENSAJE_SALDOS_NO_CUADRAN =
+  'Los saldos del estado de cuenta no cuadran con sus movimientos, así que no se guardó nada. Revisa que el PDF esté completo, descárgalo de nuevo desde el portal del banco y vuelve a subirlo.';
+/** Historia 3.3. Cuadra, pero el lector no pudo leer alguna línea. */
+export const CODIGO_LINEAS_NO_LEIDAS = 'lineas_no_leidas';
+export const MENSAJE_LINEAS_NO_LEIDAS =
+  'No pudimos leer algunas líneas del estado de cuenta, así que no se guardó nada. Revisa las líneas indicadas y, si el PDF es el original del banco, avísanos para ajustar la lectura.';
+
+/** Historia 3.3. Cuadra y no hay líneas sin leer, pero no se leyó ningún movimiento. */
+export const CODIGO_SIN_MOVIMIENTOS = 'sin_movimientos';
+export const MENSAJE_SIN_MOVIMIENTOS =
+  'No pudimos leer ningún movimiento del estado de cuenta, así que no se guardó el archivo. Revisa que el PDF sea el original del banco y que incluya el detalle de movimientos.';
+
 export interface FilaDelArchivo {
   /** Línea física del archivo original donde empieza la fila (preámbulo incluido). */
   linea: number;
