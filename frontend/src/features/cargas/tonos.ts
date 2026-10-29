@@ -13,6 +13,7 @@ export const TONO_ESTADO_CARGA: Readonly<Record<EstadoCarga, TonoEstadoChip>> =
     con_errores: 'sin_match',
     fallida: 'peligro',
     pendiente_vista_previa: 'neutral',
+    rechazada: 'neutral',
   };
 
 /**
@@ -29,4 +30,5 @@ export const AVANCE_ESTADO_CARGA: Readonly<Record<EstadoCarga, Avance>> = {
   con_errores: 'naranja',
   fallida: 'roja',
   pendiente_vista_previa: 'vacia',
+  rechazada: 'vacia',
 };

@@ -14,7 +14,7 @@ import {
 } from '@/shared/dominio';
 
 describe('FASE_CARGA, esActiva y esConcluida', () => {
-  it('cubre exactamente los seis estados del backend', () => {
+  it('cubre exactamente los siete estados del backend', () => {
     expect(Object.keys(FASE_CARGA)).toEqual([...ESTADOS_CARGA]);
   });
 
@@ -25,6 +25,7 @@ describe('FASE_CARGA, esActiva y esConcluida', () => {
       'con_errores',
       'fallida',
       'pendiente_vista_previa',
+      'rechazada',
     ]);
   });
 
@@ -50,6 +51,7 @@ describe('etiquetas de carga', () => {
       'Con filas rechazadas',
       'Fallida',
       'Pendiente de vista previa',
+      'Rechazada',
     ]);
   });
 

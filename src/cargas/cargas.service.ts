@@ -26,6 +26,7 @@ import { TransaccionEmpresa } from '../database/transaccion-empresa';
 import { ColaCargas } from './cola-cargas';
 import {
   guardarMovimientosPendientes,
+  guardarSaldosDeCarga,
   registrarRechazoDePdf,
 } from './guardar-estado-cuenta-pdf';
 import { registrarCargar } from './registrar-carga';
@@ -321,6 +322,13 @@ export class CargasService {
         carga.id,
         idBanco,
         leido.movimientos,
+      );
+      await guardarSaldosDeCarga(
+        manager,
+        companyId,
+        carga.id,
+        leido.saldoInicial,
+        leido.saldoFinal,
       );
       await registrarCargar(manager, companyId, carga.id);
     }
