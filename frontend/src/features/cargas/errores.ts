@@ -37,8 +37,8 @@ export type ClaseErrorSubida =
       mensaje: string | null;
       /** Decimales en cadena, nunca `number`. */
       saldoFinal?: string;
-      saldoEsperado: string;
-      diferencia: string;
+      saldoEsperado?: string;
+      diferencia?: string;
       lineas: LineaNoLeida[];
     }
   /** 400 `lineas_no_leidas` (historia 3.3). */
@@ -57,9 +57,10 @@ export type ClaseErrorSubida =
 export type ErrorLecturaCargas = 'sin_permiso' | 'conexion';
 
 /**
- * Los rechazos de la historia 3.3 que traen datos en el cuerpo. Si el cuerpo
- * no cumple lo esperado devuelve `null` y el 400 se trata como un rechazo
- * genérico con el motivo del servidor.
+ * Los rechazos de la historia 3.3. Un código conocido siempre se clasifica con
+ * su rechazo (título fijo y mensaje del servidor); los detalles del cuerpo que
+ * falten o no sean válidos se omiten. Un código desconocido devuelve `null` y
+ * el 400 se trata como un rechazo genérico con el motivo del servidor.
  */
 function clasificarRechazoPdf(
   error: ApiError,
@@ -67,28 +68,23 @@ function clasificarRechazoPdf(
 ): ClaseErrorSubida | null {
   switch (error.error) {
     case CODIGO_SALDOS_NO_CUADRAN: {
-      const cuerpo = cuerpoSaldosNoCuadran.safeParse(error.cuerpo);
-      if (!cuerpo.success) return null;
       const { saldoFinal, saldoEsperado, diferencia, lineasNoLeidas } =
-        cuerpo.data;
+        cuerpoSaldosNoCuadran.parse(error.cuerpo);
       return {
         clase: 'pdf_saldos_no_cuadran',
         mensaje,
         ...(saldoFinal === undefined ? {} : { saldoFinal }),
-        saldoEsperado,
-        diferencia,
+        ...(saldoEsperado === undefined ? {} : { saldoEsperado }),
+        ...(diferencia === undefined ? {} : { diferencia }),
         lineas: lineasNoLeidas,
       };
     }
-    case CODIGO_LINEAS_NO_LEIDAS: {
-      const cuerpo = cuerpoLineasNoLeidas.safeParse(error.cuerpo);
-      if (!cuerpo.success) return null;
+    case CODIGO_LINEAS_NO_LEIDAS:
       return {
         clase: 'pdf_lineas_no_leidas',
         mensaje,
-        lineas: cuerpo.data.lineasNoLeidas,
+        lineas: cuerpoLineasNoLeidas.parse(error.cuerpo).lineasNoLeidas,
       };
-    }
     case CODIGO_SIN_MOVIMIENTOS:
       return { clase: 'pdf_sin_movimientos', mensaje };
     default:

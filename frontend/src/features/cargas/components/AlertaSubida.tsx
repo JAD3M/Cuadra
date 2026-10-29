@@ -35,8 +35,8 @@ export type FalloSubida =
       clase: 'pdf_saldos_no_cuadran';
       mensaje: string | null;
       saldoFinal?: string;
-      saldoEsperado: string;
-      diferencia: string;
+      saldoEsperado?: string;
+      diferencia?: string;
       lineas: LineaNoLeida[];
     }
   /** 400 `lineas_no_leidas`. */
@@ -94,8 +94,12 @@ export function AlertaSubida({ fallo, onReintentar, ref }: AlertaSubidaProps) {
                 ...(fallo.saldoFinal === undefined
                   ? {}
                   : { saldoFinal: fallo.saldoFinal }),
-                saldoEsperado: fallo.saldoEsperado,
-                diferencia: fallo.diferencia,
+                ...(fallo.saldoEsperado === undefined
+                  ? {}
+                  : { saldoEsperado: fallo.saldoEsperado }),
+                ...(fallo.diferencia === undefined
+                  ? {}
+                  : { diferencia: fallo.diferencia }),
               }}
               lineas={fallo.lineas}
             />

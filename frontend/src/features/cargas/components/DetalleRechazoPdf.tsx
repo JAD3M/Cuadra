@@ -17,8 +17,8 @@ export interface LineaNoLeida {
 export interface SaldosRechazo {
   /** Decimales en cadena, tal como llegan; nunca `number`. */
   saldoFinal?: string;
-  saldoEsperado: string;
-  diferencia: string;
+  saldoEsperado?: string;
+  diferencia?: string;
 }
 
 export interface DetalleRechazoPdfProps {
@@ -57,24 +57,33 @@ function Fila({
  * PDF se pinta como texto plano de React.
  */
 export function DetalleRechazoPdf({ saldos, lineas }: DetalleRechazoPdfProps) {
-  if (saldos === undefined && lineas.length === 0) return null;
+  const hayMontos =
+    saldos !== undefined &&
+    (saldos.saldoFinal !== undefined ||
+      saldos.saldoEsperado !== undefined ||
+      saldos.diferencia !== undefined);
+  if (!hayMontos && lineas.length === 0) return null;
   return (
     <div className={estilos.detalle}>
-      {saldos !== undefined ? (
+      {hayMontos ? (
         <dl className={estilos.saldos}>
           {saldos.saldoFinal !== undefined ? (
             <Fila rotulo={SALDO_FINAL_PDF} valor={saldos.saldoFinal} />
           ) : null}
-          <Fila rotulo={SALDO_ESPERADO} valor={saldos.saldoEsperado} />
-          <Fila rotulo={DIFERENCIA} valor={saldos.diferencia} peligro />
+          {saldos.saldoEsperado !== undefined ? (
+            <Fila rotulo={SALDO_ESPERADO} valor={saldos.saldoEsperado} />
+          ) : null}
+          {saldos.diferencia !== undefined ? (
+            <Fila rotulo={DIFERENCIA} valor={saldos.diferencia} peligro />
+          ) : null}
         </dl>
       ) : null}
       {lineas.length > 0 ? (
         <>
           <span className={estilos.rotulo}>{LINEAS_NO_LEIDAS_TITULO}</span>
           <ul className={estilos.lineas}>
-            {lineas.map(({ linea, texto }) => (
-              <li key={linea}>
+            {lineas.map(({ linea, texto }, indice) => (
+              <li key={`${indice}-${linea}`}>
                 Línea {linea} · {texto}
               </li>
             ))}

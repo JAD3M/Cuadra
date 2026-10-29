@@ -118,19 +118,25 @@ export const lineaNoLeida = z.object({
   texto: z.string(),
 });
 
-/** Campos extra del 400 `saldos_no_cuadran`: los montos son cadenas decimales. */
-export const cuerpoSaldosNoCuadran = z.object({
-  /** El saldo final que traía el PDF; el servidor aún no lo manda (opcional). */
-  saldoFinal: montoDecimal.optional(),
-  saldoEsperado: montoDecimal,
-  diferencia: montoDecimal,
-  lineasNoLeidas: z.array(lineaNoLeida),
-});
+/**
+ * Campos extra del 400 `saldos_no_cuadran`: los montos son cadenas decimales.
+ * Es tolerante: un campo ausente o inválido queda fuera (y las líneas, vacías)
+ * para que el rechazo se pinte sin los detalles que falten.
+ */
+export const cuerpoSaldosNoCuadran = z
+  .object({
+    /** El saldo final que traía el PDF. */
+    saldoFinal: montoDecimal.optional().catch(undefined),
+    saldoEsperado: montoDecimal.optional().catch(undefined),
+    diferencia: montoDecimal.optional().catch(undefined),
+    lineasNoLeidas: z.array(lineaNoLeida).catch([]),
+  })
+  .catch({ lineasNoLeidas: [] });
 
-/** Campos extra del 400 `lineas_no_leidas`. */
-export const cuerpoLineasNoLeidas = z.object({
-  lineasNoLeidas: z.array(lineaNoLeida),
-});
+/** Campos extra del 400 `lineas_no_leidas` (tolerante, como el anterior). */
+export const cuerpoLineasNoLeidas = z
+  .object({ lineasNoLeidas: z.array(lineaNoLeida).catch([]) })
+  .catch({ lineasNoLeidas: [] });
 
 /** `GET /bancos/perfiles`: un arreglo sin envoltorio. */
 export const perfilesBancarios = z.array(

@@ -315,6 +315,8 @@ describe('POST /cargas/estado-cuenta/pdf (historia 3.2)', () => {
         statusCode: 400,
         error: 'saldos_no_cuadran',
         // Como en `cuadrarSaldos`: texto decimal sin ceros finales.
+        // El saldo final del PDF, como el texto que leyó el lector (no número).
+        saldoFinal: '11250.50',
         saldoEsperado: '11000',
         diferencia: '250.5',
         lineasNoLeidas: [],
