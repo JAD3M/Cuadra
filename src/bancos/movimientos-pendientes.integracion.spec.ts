@@ -31,7 +31,7 @@ async function limpiar(): Promise<void> {
   await duenio.query(`DELETE FROM movimientos_pendientes`);
   await duenio.query(`DELETE FROM bitacora WHERE entidad_id IS NULL`);
   await duenio.query(
-    `DELETE FROM cargas WHERE estado = 'pendiente_vista_previa'
+    `DELETE FROM cargas WHERE estado IN ('pendiente_vista_previa', 'rechazada')
         OR nombre_archivo LIKE 'pend-%' OR nombre_archivo = 'x.pdf'`,
   );
 }
@@ -131,6 +131,59 @@ describe('estado pendiente_vista_previa', () => {
   });
 });
 
+describe('estado rechazada y saldos (historia 3.4)', () => {
+  it('una carga rechazada cumple los CHECK', async () => {
+    await duenio.query(
+      `INSERT INTO cargas (company_id, tipo, nombre_archivo, hash_archivo,
+                           estado, total_registros)
+       VALUES ($1, 'estado_cuenta', 'pend-rechazada.pdf', $2, 'rechazada', 3)`,
+      [de(FERRETERIA), 'c'.repeat(64)],
+    );
+    const { estado } = await una<{ estado: string }>(
+      duenio,
+      `SELECT estado FROM cargas WHERE hash_archivo = $1`,
+      ['c'.repeat(64)],
+    );
+    expect(estado).toBe('rechazada');
+  });
+
+  it('los saldos son NUMERIC nulos y guardan el valor exacto', async () => {
+    const columnas = await filas<{
+      column_name: string;
+      data_type: string;
+      is_nullable: string;
+    }>(
+      duenio,
+      `SELECT column_name, data_type, is_nullable FROM information_schema.columns
+        WHERE table_name = 'cargas'
+          AND column_name IN ('saldo_inicial', 'saldo_final')
+        ORDER BY column_name`,
+    );
+    expect(columnas).toEqual([
+      { column_name: 'saldo_final', data_type: 'numeric', is_nullable: 'YES' },
+      {
+        column_name: 'saldo_inicial',
+        data_type: 'numeric',
+        is_nullable: 'YES',
+      },
+    ]);
+    await duenio.query(
+      `INSERT INTO cargas (company_id, tipo, nombre_archivo, hash_archivo,
+                           saldo_inicial, saldo_final)
+       VALUES ($1, 'estado_cuenta', 'pend-saldos.pdf', $2,
+               1234567890123.4567, -0.0001)`,
+      [de(FERRETERIA), 'd'.repeat(64)],
+    );
+    const fila = await una<{ i: string; f: string }>(
+      duenio,
+      `SELECT saldo_inicial::text AS i, saldo_final::text AS f FROM cargas
+        WHERE hash_archivo = $1`,
+      ['d'.repeat(64)],
+    );
+    expect(fila).toEqual({ i: '1234567890123.4567', f: '-0.0001' });
+  });
+});
+
 describe('movimientos_pendientes', () => {
   it('tiene RLS activa y forzada', async () => {
     const t = await una<{ rls: boolean; forzada: boolean }>(
@@ -191,6 +244,33 @@ describe('movimientos_pendientes', () => {
         ]),
       ),
     ).rejects.toThrow(/row-level security/);
+  });
+
+  it('cuadra_app borra de la espera solo lo de su empresa', async () => {
+    await duenio.query(INSERTAR_PENDIENTE, [
+      de(FERRETERIA),
+      cargaDe(FERRETERIA),
+      11,
+    ]);
+    await duenio.query(INSERTAR_PENDIENTE, [
+      de(TRANSPORTES),
+      cargaDe(TRANSPORTES),
+      11,
+    ]);
+    const borradas = await comoEmpresa(de(FERRETERIA), async (qr) => {
+      const resultado = (await qr.query(
+        `DELETE FROM movimientos_pendientes WHERE linea_numero = 11`,
+      )) as [unknown[], number];
+      return resultado[1];
+    });
+    expect(borradas).toBe(1);
+    const { n } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM movimientos_pendientes
+        WHERE company_id = $1 AND linea_numero = 11`,
+      [de(TRANSPORTES)],
+    );
+    expect(n).toBe(1);
   });
 
   it('la línea no se repite dentro de una carga', async () => {

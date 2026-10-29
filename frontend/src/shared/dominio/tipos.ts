@@ -16,6 +16,7 @@ export const ESTADOS_CARGA = [
   'con_errores',
   'fallida',
   'pendiente_vista_previa',
+  'rechazada',
 ] as const;
 export type EstadoCarga = (typeof ESTADOS_CARGA)[number];
 
