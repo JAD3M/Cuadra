@@ -58,8 +58,8 @@ reales hasta entonces).
 
 ## Tareas
 
-- [ ] **T1 — Cuadre común.** RED primero: función pura
-  `cuadrarSaldos({saldoInicial, saldoFinal, movimientos})` con casos que cuadran,
+- [x] **T1 — Cuadre común.** RED primero: función pura
+  `cuadrarSaldos({saldoInicial, saldoFinal, montos})` con casos que cuadran,
   que no cuadran por un centavo, abonos y cargos mezclados, y montos grandes
   sin flotantes.
 - [ ] **T2 — Migración y estado.** `pendiente_vista_previa` (backend, espejo,
@@ -98,3 +98,6 @@ reales hasta entonces).
 ## Progreso
 
 - 2026-10-29: documento creado, rama abierta, KAN-132 en curso. Siguiente: T1.
+- 2026-10-29: T1 hecha (`src/bancos/cuadre-saldos.ts`). RED: `Cannot find module
+  ./cuadre-saldos` (suite falló, 0 pruebas); GREEN: 9/9, suite completa 1423
+  pruebas, typecheck, build, eslint y prettier limpios. Sin commit. Siguiente: T2.
