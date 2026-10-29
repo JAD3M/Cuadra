@@ -32,6 +32,20 @@ const listado = (o: Record<string, unknown> = {}) => ({
 });
 
 describe('eventoBitacora', () => {
+  it('un rechazo sin entidad (entidadId null) es válido', () => {
+    const r = eventoBitacora.safeParse(
+      evento(1, { entidad: 'cargas', entidadId: null, accion: 'rechazar' }),
+    );
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.entidadId).toBeNull();
+  });
+
+  it('entidadId ausente sigue siendo inválido', () => {
+    const sin: Record<string, unknown> = evento(1);
+    delete sin.entidadId;
+    expect(eventoBitacora.safeParse(sin).success).toBe(false);
+  });
+
   it('acepta un evento válido y conserva lo que la pantalla pinta', () => {
     const r = eventoBitacora.safeParse(evento(1));
     expect(r.success).toBe(true);

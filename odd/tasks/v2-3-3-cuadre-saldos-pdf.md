@@ -62,7 +62,7 @@ reales hasta entonces).
   `cuadrarSaldos({saldoInicial, saldoFinal, montos})` con casos que cuadran,
   que no cuadran por un centavo, abonos y cargos mezclados, y montos grandes
   sin flotantes.
-- [ ] **T2 — Migración y estado.** `pendiente_vista_previa` (backend, espejo,
+- [x] **T2 — Migración y estado.** `pendiente_vista_previa` (backend, espejo,
   deriva, `FASE_CARGA`, etiquetas, tonos); `ck_cargas_estado` y
   `ck_cargas_total_cuadra` revisados; tabla de zona de espera con RLS FORCE y
   GRANTs; `entidad_id` nullable con CHECK solo para `rechazar`. Prueba de que
@@ -101,3 +101,10 @@ reales hasta entonces).
 - 2026-10-29: T1 hecha (`src/bancos/cuadre-saldos.ts`). RED: `Cannot find module
   ./cuadre-saldos` (suite falló, 0 pruebas); GREEN: 9/9, suite completa 1423
   pruebas, typecheck, build, eslint y prettier limpios. Sin commit. Siguiente: T2.
+- 2026-10-29: T2 hecha. RED: 12 fallos en
+  `movimientos-pendientes.integracion.spec.ts` (`ck_cargas_estado`, tabla
+  inexistente, `entidad_id` NOT NULL), 4 en esquema/rls y 2 en `cargas.test.ts`
+  del frontend, 1 en el contrato de bitácora (`entidadId` null). Migración
+  `1790710200000-PendienteVistaPrevia`, entidad, estado, espejo, bitácora
+  nullable solo en rechazos. GREEN: backend 1436 pruebas, frontend 4500;
+  typecheck, build, eslint y prettier limpios en ambos. Sin commit. Siguiente: T3.

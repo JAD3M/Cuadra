@@ -21,6 +21,7 @@ export const FASE_CARGA: Readonly<Record<EstadoCarga, 'activa' | 'concluida'>> =
     procesada: 'concluida',
     con_errores: 'concluida',
     fallida: 'concluida',
+    pendiente_vista_previa: 'concluida',
   };
 
 export const esActiva = (estado: EstadoCarga): boolean =>
