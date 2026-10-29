@@ -151,3 +151,4 @@ reales hasta entonces).
   `yaExistia: true`); la de saldos nulos ya pasaba en ejecución (el cambio es
   de tipo). Una trampa vista: `manager.query` de un `UPDATE … RETURNING`
   responde `[filas, n]`.
+- 2026-10-29 T5: mockup creado en el canvas, con la propiedad `vista` para sus estados y `rol` (revisor = solo consulta); sin tema claro (Cargas tampoco lo tiene); aceptar sin diálogo, rechazar con confirmación. Acordado. Siguiente: T6.
