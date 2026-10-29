@@ -97,8 +97,9 @@ export const detalleCarga = z.object({
 export const respuestaCarga = detalleCarga.extend({ yaExistia: z.boolean() });
 
 /**
- * `POST /cargas/estado-cuenta/pdf` (historia 3.2): lo que se leyó del PDF. No
- * se importó nada ni se creó una carga. Los saldos se quedan como cadenas.
+ * `POST /cargas/estado-cuenta/pdf` (historias 3.2 y 3.3): lo que se leyó del
+ * PDF y la carga que quedó guardada en `pendiente_vista_previa` (o la que ya
+ * existía). Los saldos se quedan como cadenas.
  */
 export const respuestaLecturaPdf = z.object({
   banco: texto,
@@ -106,6 +107,29 @@ export const respuestaLecturaPdf = z.object({
   saldoFinal: montoDecimal,
   movimientosLeidos: contador,
   lineasNoLeidas: contador,
+  cargaId: z.guid(),
+  estado: z.enum(ESTADOS_CARGA),
+  yaExistia: z.boolean(),
+});
+
+/** Una línea del PDF que el lector no pudo leer (cuerpo del 400, historia 3.3). */
+export const lineaNoLeida = z.object({
+  linea: z.int().min(1),
+  texto: z.string(),
+});
+
+/** Campos extra del 400 `saldos_no_cuadran`: los montos son cadenas decimales. */
+export const cuerpoSaldosNoCuadran = z.object({
+  /** El saldo final que traía el PDF; el servidor aún no lo manda (opcional). */
+  saldoFinal: montoDecimal.optional(),
+  saldoEsperado: montoDecimal,
+  diferencia: montoDecimal,
+  lineasNoLeidas: z.array(lineaNoLeida),
+});
+
+/** Campos extra del 400 `lineas_no_leidas`. */
+export const cuerpoLineasNoLeidas = z.object({
+  lineasNoLeidas: z.array(lineaNoLeida),
 });
 
 /** `GET /bancos/perfiles`: un arreglo sin envoltorio. */
@@ -120,4 +144,5 @@ export type ResultadoArchivoSinError = z.infer<typeof archivoSinError>;
 export type DetalleCarga = z.infer<typeof detalleCarga>;
 export type RespuestaCarga = z.infer<typeof respuestaCarga>;
 export type RespuestaLecturaPdf = z.infer<typeof respuestaLecturaPdf>;
+export type LineaNoLeida = z.infer<typeof lineaNoLeida>;
 export type PerfilBancario = z.infer<typeof perfilesBancarios>[number];

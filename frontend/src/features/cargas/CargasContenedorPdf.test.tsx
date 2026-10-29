@@ -55,7 +55,7 @@ async function entrarAPdf(u = usuario()) {
 }
 
 describe('CargasContenedor: lectura de PDF', () => {
-  it('lee el PDF, muestra conteos y saldos y no toca el historial', async () => {
+  it('lee el PDF, muestra conteos, saldos y estado, y no toca el historial', async () => {
     montar();
     const filasAntes = almacenes.cargas.filas().length;
     const u = await entrarAPdf();
@@ -63,11 +63,14 @@ describe('CargasContenedor: lectura de PDF', () => {
     await u.click(botonLeer());
     const resultado = await within(tarjeta()).findByText(/movimientos leídos/);
     expect(resultado).toHaveTextContent(
-      '14 movimientos leídos, 2 líneas no leídas.',
+      '14 movimientos leídos. Los saldos cuadran.',
     );
     expect(within(tarjeta()).getByText('10,000.00')).toBeInTheDocument();
     expect(within(tarjeta()).getByText('11,250.50')).toBeInTheDocument();
-    expect(within(tarjeta()).getByText('⚠')).toBeInTheDocument();
+    expect(
+      within(tarjeta()).getByText('Pendiente de vista previa'),
+    ).toBeInTheDocument();
+    expect(within(tarjeta()).queryByText('⚠')).not.toBeInTheDocument();
 
     const [subida] = almacenes.cargas.subidas();
     expect(almacenes.cargas.subidas()).toHaveLength(1);
@@ -131,6 +134,53 @@ describe('CargasContenedor: lectura de PDF', () => {
     await waitFor(() => expect(alerta).toHaveFocus());
     expect(botonLeer()).toBeEnabled();
   });
+
+  it.each([
+    [
+      'saldos_no_cuadran',
+      'Archivo rechazado: los saldos no cuadran',
+      'Los saldos del estado de cuenta no cuadran (servidor).',
+      {
+        saldoEsperado: '11500.50',
+        diferencia: '-250.00',
+        lineasNoLeidas: [{ linea: 18, texto: '07/SEP PAGO 1,25' }],
+      },
+      ['11,500.50', '−250.00', 'Línea 18 · 07/SEP PAGO 1,25'],
+    ],
+    [
+      'lineas_no_leidas',
+      'Archivo rechazado: hay líneas sin leer',
+      'No pudimos leer algunas líneas (servidor).',
+      { lineasNoLeidas: [{ linea: 31, texto: '12/SEP CARGO ILEGIBLE' }] },
+      ['Línea 31 · 12/SEP CARGO ILEGIBLE'],
+    ],
+    [
+      'sin_movimientos',
+      'Archivo rechazado: sin movimientos',
+      'No pudimos leer ningún movimiento (servidor).',
+      { lineasNoLeidas: [] },
+      [],
+    ],
+  ])(
+    'el rechazo %s muestra título, mensaje del servidor y sus datos',
+    async (codigo, titulo, mensaje, extra, textos) => {
+      servidor.use(lecturaPdfRechazada(codigo, mensaje, extra));
+      montar();
+      const u = await entrarAPdf();
+      await u.upload(screen.getByLabelText('Elegir archivo'), pdf());
+      await u.click(botonLeer());
+      const alerta = await within(tarjeta()).findByRole('alert');
+      expect(alerta).toHaveTextContent(titulo);
+      expect(alerta).toHaveTextContent(mensaje);
+      for (const texto of textos) {
+        expect(within(alerta).getByText(texto)).toBeInTheDocument();
+      }
+      expect(
+        within(tarjeta()).queryByText(/movimientos leídos/),
+      ).not.toBeInTheDocument();
+      await waitFor(() => expect(alerta).toHaveFocus());
+    },
+  );
 
   it('un 400 con motivo en texto muestra el motivo del servidor', async () => {
     servidor.use(...subidaFalla(400, 'El archivo pasa de 10 MB'));

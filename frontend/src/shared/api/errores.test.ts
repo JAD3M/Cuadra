@@ -10,6 +10,28 @@ function json(cuerpo: unknown, status: number): Response {
 }
 
 describe('aApiError', () => {
+  it('conserva el cuerpo JSON del 400 tal como llegó (campos extra incluidos)', async () => {
+    const cuerpo = {
+      statusCode: 400,
+      error: 'saldos_no_cuadran',
+      message: 'No cuadran',
+      saldoEsperado: '11500.50',
+      lineasNoLeidas: [{ linea: 18, texto: '07/SEP X' }],
+    };
+    const error = await aApiError(json(cuerpo, 400));
+    expect(error.cuerpo).toEqual(cuerpo);
+    expect(error.mensajes).toEqual(['No cuadran']);
+  });
+
+  it('sin cuerpo con forma de Nest no hay cuerpo que conservar', async () => {
+    const html = await aApiError(
+      new Response('<html></html>', { status: 502 }),
+    );
+    expect(html.cuerpo).toBeUndefined();
+    const raro = await aApiError(json({ otra: 'cosa' }, 400));
+    expect(raro.cuerpo).toBeUndefined();
+  });
+
   it('normaliza un message de texto a un arreglo de un elemento', async () => {
     const error = await aApiError(
       json(

@@ -333,8 +333,22 @@ describe('respuestaLecturaPdf (historia 3.2)', () => {
     saldoInicial: '10000.00',
     saldoFinal: '11250.50',
     movimientosLeidos: 14,
-    lineasNoLeidas: 2,
+    lineasNoLeidas: 0,
+    cargaId: G(7),
+    estado: 'pendiente_vista_previa',
+    yaExistia: false,
   };
+
+  it('exige la carga guardada, su estado y si ya existía (historia 3.3)', () => {
+    for (const faltante of ['cargaId', 'estado', 'yaExistia']) {
+      expect(() =>
+        respuestaLecturaPdf.parse({ ...lectura, [faltante]: undefined }),
+      ).toThrow();
+    }
+    expect(() =>
+      respuestaLecturaPdf.parse({ ...lectura, estado: 'otro' }),
+    ).toThrow();
+  });
 
   it('conserva los saldos como cadenas decimales exactas', () => {
     const r = respuestaLecturaPdf.parse(lectura);
@@ -367,7 +381,7 @@ describe('respuestaLecturaPdf (historia 3.2)', () => {
     }
   });
 
-  it('ignora claves de más y exige las cinco propias', () => {
+  it('ignora claves de más y exige las propias', () => {
     expect(
       respuestaLecturaPdf.parse({ ...lectura, extra: 1 }),
     ).not.toHaveProperty('extra');

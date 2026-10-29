@@ -4,16 +4,16 @@ import { ResultadoLecturaPdf } from './ResultadoLecturaPdf';
 
 const LECTURA = {
   movimientosLeidos: 14,
-  lineasNoLeidas: 2,
   saldoInicial: '10000.00',
   saldoFinal: '11250.50',
-};
+  estado: 'pendiente_vista_previa',
+} as const;
 
-describe('ResultadoLecturaPdf', () => {
-  it('resume los conteos con el texto del mockup', () => {
+describe('ResultadoLecturaPdf (PDF guardado, historia 3.3)', () => {
+  it('dice cuántos movimientos se leyeron y que los saldos cuadran', () => {
     const { container } = render(<ResultadoLecturaPdf {...LECTURA} />);
-    expect(container.querySelector('p')).toHaveTextContent(
-      '14 movimientos leídos, 2 líneas no leídas.',
+    expect(container).toHaveTextContent(
+      '14 movimientos leídos. Los saldos cuadran.',
     );
   });
 
@@ -37,20 +37,19 @@ describe('ResultadoLecturaPdf', () => {
     expect(screen.getByText('−0.10')).toBeInTheDocument();
   });
 
-  it('con líneas no leídas aparece la marca de advertencia', () => {
+  it('lleva el chip con el estado del servidor y la pista de que están en espera', () => {
     render(<ResultadoLecturaPdf {...LECTURA} />);
-    expect(screen.getByText('⚠')).toBeInTheDocument();
-    expect(screen.getAllByText(/líneas no leídas/)).toHaveLength(2);
+    expect(screen.getByText('Pendiente de vista previa')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Los movimientos quedan en espera: todavía no entran a conciliación.',
+      ),
+    ).toBeInTheDocument();
   });
 
-  it('sin líneas no leídas no hay marca de advertencia', () => {
-    const { container } = render(
-      <ResultadoLecturaPdf {...LECTURA} lineasNoLeidas={0} />,
-    );
+  it('no hay advertencia de líneas no leídas: un PDF guardado no las tiene', () => {
+    render(<ResultadoLecturaPdf {...LECTURA} />);
     expect(screen.queryByText('⚠')).not.toBeInTheDocument();
-    expect(container.querySelector('p')).toHaveTextContent(
-      '14 movimientos leídos, 0 líneas no leídas.',
-    );
-    expect(screen.getAllByText(/líneas no leídas/)).toHaveLength(1);
+    expect(screen.queryByText(/líneas no leídas/)).not.toBeInTheDocument();
   });
 });

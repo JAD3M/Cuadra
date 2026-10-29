@@ -23,9 +23,9 @@ import { LISTA_DE_VEINTE, PERFILES, hace } from '@/test/fixturesCargas';
 //    validan como el servidor (400), responden 202 con una carga `pendiente` o
 //    200 con `yaExistia` si el mismo lote ya se subió, y la carga nueva
 //    aparece en la lista.
-//  - `POST /cargas/estado-cuenta/pdf` (historia 3.2): lee el PDF y responde 200
-//    con los saldos como cadenas y los conteos; no importa nada, no crea carga
-//    y no toca la lista.
+//  - `POST /cargas/estado-cuenta/pdf` (historias 3.2 y 3.3): lee el PDF y
+//    responde 200 con los saldos como cadenas, los conteos y la carga guardada
+//    (`cargaId`, `estado`, `yaExistia`). No toca la lista de este manejador.
 // El estado vive en memoria: `reiniciar()` lo devuelve al de arranque y la
 // preparación global de pruebas lo llama tras cada prueba. Una prueba mueve
 // una carga de estado con `avanzar` y retiene respuestas con `compuertas`.
@@ -36,7 +36,10 @@ export const LECTURA_PDF = {
   saldoInicial: '10000.00',
   saldoFinal: '11250.50',
   movimientosLeidos: 14,
-  lineasNoLeidas: 2,
+  lineasNoLeidas: 0,
+  cargaId: '0192a3f4-0000-7000-8000-0000000000c1',
+  estado: 'pendiente_vista_previa',
+  yaExistia: false,
 } as const;
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -529,12 +532,18 @@ export function subidaEstadoCuentaMonedaNoMxn() {
 
 /**
  * `POST /cargas/estado-cuenta/pdf` rechaza el PDF con un 400 de código estable
- * (`pdf_sin_texto`, `pdf_ilegible`, `moneda_no_mxn`; historia 3.2).
+ * (`pdf_sin_texto`, `pdf_ilegible`, `moneda_no_mxn`, y de la historia 3.3
+ * `saldos_no_cuadran`, `lineas_no_leidas`, `sin_movimientos`). `extra` son los
+ * campos que el servidor añade al cuerpo (líneas no leídas, saldos).
  */
-export function lecturaPdfRechazada(codigo: string, mensaje = 'detalle') {
+export function lecturaPdfRechazada(
+  codigo: string,
+  mensaje = 'detalle',
+  extra: Record<string, unknown> = {},
+) {
   return http.post('/api/cargas/estado-cuenta/pdf', () =>
     HttpResponse.json(
-      { statusCode: 400, message: mensaje, error: codigo },
+      { statusCode: 400, message: mensaje, error: codigo, ...extra },
       { status: 400 },
     ),
   );

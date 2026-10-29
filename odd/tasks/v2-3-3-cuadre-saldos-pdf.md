@@ -81,7 +81,7 @@ reales hasta entonces).
   al final y cero movimientos se rechaza con `sin_movimientos` (400, sin carga
   ni movimientos, bitácora `rechazar`). Con saldos que no cuadran sigue
   mandando `saldos_no_cuadran`, y con líneas no leídas `lineas_no_leidas`.
-- [ ] **T4 — Frontend.** Resultado de la carga guardada y rechazo con motivo y
+- [x] **T4 — Frontend.** Resultado de la carga guardada y rechazo con motivo y
   líneas no leídas. Se lee el mockup primero; si falta algo, se actualiza el
   mockup y se acuerda antes de escribir código.
 - [ ] **T5 — Cierre.** Suites completas (backend y frontend), lint y formato,
@@ -130,3 +130,13 @@ reales hasta entonces).
   se guardaba una carga vacía). El orden (saldos que no cuadran con cero
   movimientos) ya pasaba. GREEN: backend 1447 pruebas; typecheck, build, eslint
   y prettier limpios. Sin commit. Siguiente: T4.
+- 2026-10-29: T4 hecha (frontend). RED: 20 pruebas fallaban (`ApiError.cuerpo`
+  indefinido; `clasificarErrorSubida` devolvía `rechazo` para los tres códigos
+  nuevos; contrato sin `cargaId/estado/yaExistia`; `ResultadoLecturaPdf`,
+  `AlertaSubida`, `CargasContenedorPdf` y `detalleEvento` sin las vistas nuevas;
+  el hook no invalidaba el historial). `ApiError.cuerpo` (aditivo) lleva el 400
+  completo; vistas del mockup v88 para guardado y los tres rechazos; detalle de
+  bitácora del rechazo de PDF. Hueco de backend: el 400 `saldos_no_cuadran` no
+  trae `saldoFinal`, así que la fila «Saldo final del PDF» del mockup no se pinta
+  (el contrato la acepta opcional). GREEN: frontend 4521 pruebas; typecheck,
+  lint, format:check y build limpios. Sin commit. Siguiente: T5.

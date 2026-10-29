@@ -8,10 +8,14 @@ import {
   ERROR_RECHAZO_CARGA,
   ERROR_SIN_PERMISO,
   REINTENTAR,
+  TITULO_PDF_LINEAS_NO_LEIDAS,
+  TITULO_PDF_SALDOS_NO_CUADRAN,
+  TITULO_PDF_SIN_MOVIMIENTOS,
   TEXTO_MONEDA_NO_MXN,
   TEXTO_PDF_ILEGIBLE,
   TEXTO_PDF_SIN_TEXTO,
 } from '@/features/cargas/textos';
+import { DetalleRechazoPdf, type LineaNoLeida } from './DetalleRechazoPdf';
 
 /**
  * Por qué falló la subida. Las clases que el mockup v25 dibuja: el texto
@@ -26,6 +30,23 @@ export type FalloSubida =
   | { clase: 'pdf_sin_texto' }
   /** 400 `pdf_ilegible`: el PDF no tiene el formato del banco. */
   | { clase: 'pdf_ilegible' }
+  /** 400 `saldos_no_cuadran`: `mensaje` es el del servidor; los montos, cadenas. */
+  | {
+      clase: 'pdf_saldos_no_cuadran';
+      mensaje: string | null;
+      saldoFinal?: string;
+      saldoEsperado: string;
+      diferencia: string;
+      lineas: LineaNoLeida[];
+    }
+  /** 400 `lineas_no_leidas`. */
+  | {
+      clase: 'pdf_lineas_no_leidas';
+      mensaje: string | null;
+      lineas: LineaNoLeida[];
+    }
+  /** 400 `sin_movimientos`. */
+  | { clase: 'pdf_sin_movimientos'; mensaje: string | null }
   | { clase: 'demasiado_grande' }
   | { clase: 'sin_permiso' }
   | { clase: 'conexion' }
@@ -61,6 +82,43 @@ export function AlertaSubida({ fallo, onReintentar, ref }: AlertaSubidaProps) {
       return <AlertaError ref={ref} {...TEXTO_PDF_SIN_TEXTO} />;
     case 'pdf_ilegible':
       return <AlertaError ref={ref} {...TEXTO_PDF_ILEGIBLE} />;
+    case 'pdf_saldos_no_cuadran':
+      return (
+        <AlertaError
+          ref={ref}
+          titulo={TITULO_PDF_SALDOS_NO_CUADRAN}
+          detalle={fallo.mensaje ?? undefined}
+          accion={
+            <DetalleRechazoPdf
+              saldos={{
+                ...(fallo.saldoFinal === undefined
+                  ? {}
+                  : { saldoFinal: fallo.saldoFinal }),
+                saldoEsperado: fallo.saldoEsperado,
+                diferencia: fallo.diferencia,
+              }}
+              lineas={fallo.lineas}
+            />
+          }
+        />
+      );
+    case 'pdf_lineas_no_leidas':
+      return (
+        <AlertaError
+          ref={ref}
+          titulo={TITULO_PDF_LINEAS_NO_LEIDAS}
+          detalle={fallo.mensaje ?? undefined}
+          accion={<DetalleRechazoPdf lineas={fallo.lineas} />}
+        />
+      );
+    case 'pdf_sin_movimientos':
+      return (
+        <AlertaError
+          ref={ref}
+          titulo={TITULO_PDF_SIN_MOVIMIENTOS}
+          detalle={fallo.mensaje ?? undefined}
+        />
+      );
     case 'demasiado_grande':
       return <AlertaError ref={ref} {...ERROR_DEMASIADO_GRANDE} />;
     case 'sin_permiso':

@@ -1,4 +1,9 @@
 import { ApiError, NetworkError } from '@/shared/api';
+import {
+  cuerpoLineasNoLeidas,
+  cuerpoSaldosNoCuadran,
+  type LineaNoLeida,
+} from '@/shared/api/contratos';
 
 // Clasificadores propios de Cargas: `mensajeDeError` no distingue un rechazo
 // (400) de un 413 y sirve a otras pantallas, así que no se toca. Devuelven solo
@@ -12,6 +17,10 @@ export const CODIGO_MONEDA_NO_MXN = 'moneda_no_mxn';
 /** Códigos `error` del 400 de la lectura de un PDF (historia 3.2). */
 export const CODIGO_PDF_SIN_TEXTO = 'pdf_sin_texto';
 export const CODIGO_PDF_ILEGIBLE = 'pdf_ilegible';
+/** Códigos `error` de los rechazos de la historia 3.3. */
+export const CODIGO_SALDOS_NO_CUADRAN = 'saldos_no_cuadran';
+export const CODIGO_LINEAS_NO_LEIDAS = 'lineas_no_leidas';
+export const CODIGO_SIN_MOVIMIENTOS = 'sin_movimientos';
 
 export type ClaseErrorSubida =
   /** `detalle`: motivo del servidor; `null` si no mandó ninguno. */
@@ -22,12 +31,70 @@ export type ClaseErrorSubida =
   | { clase: 'pdf_sin_texto' }
   /** 400 `pdf_ilegible`: el PDF no tiene el formato del banco (historia 3.2). */
   | { clase: 'pdf_ilegible' }
+  /** 400 `saldos_no_cuadran` (historia 3.3): `mensaje` es el del servidor. */
+  | {
+      clase: 'pdf_saldos_no_cuadran';
+      mensaje: string | null;
+      /** Decimales en cadena, nunca `number`. */
+      saldoFinal?: string;
+      saldoEsperado: string;
+      diferencia: string;
+      lineas: LineaNoLeida[];
+    }
+  /** 400 `lineas_no_leidas` (historia 3.3). */
+  | {
+      clase: 'pdf_lineas_no_leidas';
+      mensaje: string | null;
+      lineas: LineaNoLeida[];
+    }
+  /** 400 `sin_movimientos` (historia 3.3). */
+  | { clase: 'pdf_sin_movimientos'; mensaje: string | null }
   | { clase: 'demasiado_grande' }
   | { clase: 'sin_permiso' }
   | { clase: 'conexion' }
   | { clase: 'otro' };
 
 export type ErrorLecturaCargas = 'sin_permiso' | 'conexion';
+
+/**
+ * Los rechazos de la historia 3.3 que traen datos en el cuerpo. Si el cuerpo
+ * no cumple lo esperado devuelve `null` y el 400 se trata como un rechazo
+ * genérico con el motivo del servidor.
+ */
+function clasificarRechazoPdf(
+  error: ApiError,
+  mensaje: string | null,
+): ClaseErrorSubida | null {
+  switch (error.error) {
+    case CODIGO_SALDOS_NO_CUADRAN: {
+      const cuerpo = cuerpoSaldosNoCuadran.safeParse(error.cuerpo);
+      if (!cuerpo.success) return null;
+      const { saldoFinal, saldoEsperado, diferencia, lineasNoLeidas } =
+        cuerpo.data;
+      return {
+        clase: 'pdf_saldos_no_cuadran',
+        mensaje,
+        ...(saldoFinal === undefined ? {} : { saldoFinal }),
+        saldoEsperado,
+        diferencia,
+        lineas: lineasNoLeidas,
+      };
+    }
+    case CODIGO_LINEAS_NO_LEIDAS: {
+      const cuerpo = cuerpoLineasNoLeidas.safeParse(error.cuerpo);
+      if (!cuerpo.success) return null;
+      return {
+        clase: 'pdf_lineas_no_leidas',
+        mensaje,
+        lineas: cuerpo.data.lineasNoLeidas,
+      };
+    }
+    case CODIGO_SIN_MOVIMIENTOS:
+      return { clase: 'pdf_sin_movimientos', mensaje };
+    default:
+      return null;
+  }
+}
 
 function esCancelacion(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
@@ -56,6 +123,11 @@ export function clasificarErrorSubida(error: unknown): ClaseErrorSubida | null {
         }
         // class-validator puede devolver varios mensajes (M8).
         const detalle = error.mensajes.join(' ').trim();
+        const rechazoPdf = clasificarRechazoPdf(
+          error,
+          detalle === '' ? null : detalle,
+        );
+        if (rechazoPdf !== null) return rechazoPdf;
         return { clase: 'rechazo', detalle: detalle === '' ? null : detalle };
       }
       case 413:

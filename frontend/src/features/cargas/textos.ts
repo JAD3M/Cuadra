@@ -217,15 +217,24 @@ export const RECHAZO_ESTADO_CUENTA_PDF = {
   total: 'El archivo pasa de 10 MB',
 } as const satisfies Record<MotivoRechazo, string>;
 
-/** Resultado de leer un PDF: «{n} movimientos leídos, {m} líneas no leídas.» (cifras aparte). */
+/** Resultado de un PDF guardado (historia 3.3): «{n} movimientos leídos. Los saldos cuadran.» */
 export const RESUMEN_LECTURA_PDF = {
-  movimientos: 'movimientos leídos,',
-  lineas: 'líneas no leídas.',
+  movimientos: 'movimientos leídos.',
+  cuadran: 'Los saldos cuadran.',
+  espera: 'Los movimientos quedan en espera: todavía no entran a conciliación.',
 } as const;
 export const SALDO_INICIAL = 'Saldo inicial';
 export const SALDO_FINAL = 'Saldo final';
-/** Marca de advertencia cuando hubo líneas que no se pudieron leer. */
-export const MARCA_LINEAS_NO_LEIDAS = 'líneas no leídas';
+/** Rechazos de un PDF que se leyó (historia 3.3): el título es del frontend; el detalle, del servidor. */
+export const TITULO_PDF_SALDOS_NO_CUADRAN =
+  'Archivo rechazado: los saldos no cuadran';
+export const TITULO_PDF_LINEAS_NO_LEIDAS =
+  'Archivo rechazado: hay líneas sin leer';
+export const TITULO_PDF_SIN_MOVIMIENTOS = 'Archivo rechazado: sin movimientos';
+export const SALDO_FINAL_PDF = 'Saldo final del PDF';
+export const SALDO_ESPERADO = 'Saldo esperado con los movimientos';
+export const DIFERENCIA = 'Diferencia';
+export const LINEAS_NO_LEIDAS_TITULO = 'Líneas que no se pudieron leer';
 
 /** PDF sin texto seleccionable: el texto es del frontend, por código de error. */
 export const TEXTO_PDF_SIN_TEXTO = {
