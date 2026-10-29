@@ -228,7 +228,8 @@ Historias: CU-03, CU-04.
 | Columna | Tipo | Notas |
 |---|---|---|
 | `tipo` | varchar(32) | `cfdi` · `estado_cuenta` |
-| `estado` | varchar(32) | pendiente → procesando → procesada / con_errores / fallida (CU-08). `pendiente_vista_previa` (v2, 3.3): un PDF cuyos saldos cuadran, con sus movimientos en espera; no entra a la cola ni a conciliación |
+| `estado` | varchar(32) | pendiente → procesando → procesada / con_errores / fallida (CU-08). `pendiente_vista_previa` (v2, 3.3): un PDF cuyos saldos cuadran, con sus movimientos en espera; no entra a la cola ni a conciliación. `rechazada` (v2, 3.4): el contador descartó la vista previa; no entra nada a `movimientos`. Se distingue de `fallida` (falló la lectura) |
+| `saldo_inicial`, `saldo_final` | NUMERIC(18,4) | v2, 3.4: los saldos del PDF, escritos al guardarlo; nulos en cargas que no vienen de PDF (y en las de la 3.3 anteriores a la migración) |
 | `nombre_archivo` | varchar(512) | como lo llamó el usuario |
 | `hash_archivo` | char(64) | SHA-256 en hex: del archivo (estado de cuenta) o de los hashes ordenados del lote (CFDI) |
 | `total_registros`, `registros_ok`, `registros_error`, `registros_existentes` | int | `CHECK >= 0`; suma exacta al terminar (`ck_cargas_total_cuadra`) |
@@ -453,10 +454,40 @@ todo lo demás**:
   guarda el PDF**. La respuesta suma `cargaId`, `estado` y `yaExistia`.
 - **Idempotencia:** el mismo PDF en la empresa devuelve la carga existente con
   `yaExistia`, sin duplicar nada (índice único por empresa y hash). Un PDF
-  rechazado se puede volver a subir.
+  rechazado se puede volver a subir: reabre la misma carga (mismo hash) con la
+  espera rellenada y responde `yaExistia: false`.
 - **`movimientos_pendientes`:** la zona de espera, con las mismas columnas de
   dato que `movimientos`, `company_id`, RLS con FORCE y política; `cuadra_app`
-  solo tiene `SELECT` e `INSERT`. El paso a `movimientos` es la historia 3.4.
+  tiene `SELECT`, `INSERT` y, desde la 3.4, `DELETE` (solo de su empresa, por
+  RLS), para vaciarla al aceptar o rechazar.
+
+**Vista previa (v2, historia 3.4).** El contador revisa lo que se leyó antes de
+que entre a conciliación:
+
+- `GET /cargas/:id/vista-previa` (`cargas.ver`): movimientos (fecha, monto,
+  referencia), total y saldos, con montos como texto NUMERIC. 404 si la carga no
+  existe, es ajena o no está en `pendiente_vista_previa`.
+- `POST /cargas/:id/aceptar` (`cargas.cargar`): toma el candado de empresa
+  (AD-19), pasa las filas a `movimientos` con un `INSERT … SELECT` en una sola
+  transacción (exige que lo movido cuadre con `total_registros`, si no
+  revierte), vacía la espera y deja la carga `procesada`. La conciliación y las
+  sugerencias se arrancan después del commit y no hacen fallar la respuesta.
+  Bitácora `confirmar` sobre `cargas`. 409 si ya no está en espera.
+- `POST /cargas/:id/rechazar` (`cargas.cargar`): vacía la espera y deja la carga
+  `rechazada`; nada entra a `movimientos`. Bitácora `rechazar` sobre `cargas`.
+- Sin `cargas.cargar`: 403 y `acceso_denegado` en bitácora. Mientras la carga
+  espera, bandeja y conciliación no ven sus movimientos.
+- Frontend: pantalla `/cargas/:cargaId/vista-previa` (mockup 18 «Vista previa
+  del PDF»), con el enlace «Revisar vista previa» en Cargas. Un corte de red al
+  decidir muestra «No pudimos confirmar el resultado», sin afirmar que no se
+  aplicó nada.
+
+**Pendientes (3.4):** el lector de BBVA sigue sin validarse con un PDF real y
+aceptar manda datos de ese lector a conciliación; el revisor no tiene
+`cargas.ver` en la matriz aunque el mockup de Cargas lo dibuja en solo consulta
+(decisión pendiente); `ContratoError` se clasifica como `servidor` aunque la
+escritura probablemente se aplicó; el resumen «N nuevos, M ya existentes» es la
+historia 3.5.
 
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
@@ -465,7 +496,8 @@ Hasta entonces el fixture y el layout son sintéticos y no se sabe si el texto
 que extrae `unpdf` de un PDF real coincide con lo que el lector espera. Al
 tenerlo: usarlo en una prueba local (sin versionar datos reales de clientes,
 ver la tabla de riesgos), ajustar el lector si el layout difiere y confirmar
-que el saldo corrido cuadra. Mientras no se valide, la 3.3 no debe confiar en
+que el saldo corrido cuadra. Mientras no se valide, ni la 3.3 ni la 3.4
+(aceptar una vista previa manda esos datos a conciliación) deben confiar en
 este lector con datos reales.
 
 ### `conciliaciones` — donde vive la regla de oro

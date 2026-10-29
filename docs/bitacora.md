@@ -5,6 +5,60 @@
 
 ### 29 oct 2026
 
+- **Historia 3.4 de la v2: revisar la vista previa del PDF antes de importar
+  (KAN-133, FR-3 en parte; AD-8, AD-4, AD-19).** Rama
+  `feat/v2-3-4-vista-previa` con ODD, desde `master` tras mergear la 3.3.
+  Entrega en PRs apilados contra `master` (`stacked-to-main`), porque pasa de
+  400 líneas.
+  - **T1:** migración `VistaPreviaDecidida1790710300000`: estado `rechazada`,
+    columnas `saldo_inicial` y `saldo_final` (`NUMERIC(18,4)`, nulas) en
+    `cargas` y `DELETE` para `cuadra_app` en `movimientos_pendientes`. Espejo
+    del estado en `tipos.ts` y el frontend.
+  - **T2 a T4:** `GET /cargas/:id/vista-previa` (`cargas.ver`), `POST
+    /cargas/:id/aceptar` y `POST /cargas/:id/rechazar` (`cargas.cargar`). Aceptar
+    toma el candado de empresa (AD-19), mueve las filas a `movimientos` con un
+    `INSERT … SELECT` en una sola transacción, exige que lo movido cuadre con
+    `total_registros`, deja la carga `procesada` y concilia después del commit
+    (sin fallar la respuesta si eso falla). Rechazar borra la espera y deja la
+    carga `rechazada`. Quien no puede cargar recibe 403 y un `acceso_denegado`
+    en la bitácora. Ambas escriben en la bitácora sobre la entidad `cargas`
+    (`confirmar` y `rechazar`).
+  - **T4b:** volver a subir un PDF rechazado reabre la misma carga con el mismo
+    hash (el índice único se queda) y rellena la espera; el DTO de la vista
+    previa admite saldos nulos.
+  - **T5:** mockup 18 «Vista previa del PDF» y cambios en el de Cargas (enlace
+    «Revisar vista previa», estado `rechazada` en ámbar), acordados con el
+    usuario antes de escribir la interfaz.
+  - **T6:** pantalla `features/vista-previa` y ruta `/cargas/:cargaId/vista-previa`.
+    Un corte de red al decidir muestra «No pudimos confirmar el resultado» y no
+    afirma que no se aplicó nada; `ContratoError` sigue clasificado como
+    `servidor`.
+  - **Decisiones con el usuario:** estado nuevo `rechazada` (no se reutiliza
+    `fallida`); saldos persistidos en `cargas`; aceptar y rechazar exigen
+    `cargas.cargar`; mientras la carga espera, bandeja y conciliación no ven
+    sus movimientos.
+  - **Revisión nativa:** cuatro revisiones aprobadas, solo con hallazgos
+    informativos: saldos nulos heredados de cargas de la 3.3, el aviso tras un
+    corte de red, el error previo junto al diálogo de rechazo (se limpia al
+    abrirlo) y una prueba débil de ese reinicio, ya reforzada.
+  - **Pendiente:** el lector de BBVA sigue sin validarse con un PDF real, y
+    aceptar manda datos de ese lector a conciliación. El revisor no tiene
+    `cargas.ver` en la matriz aunque el mockup de Cargas lo dibuja en solo
+    consulta: es una inconsistencia previa de los mockups y la decisión sigue
+    pendiente. `ContratoError` se clasifica como `servidor` aunque la escritura
+    probablemente se aplicó. Las entradas nuevas de aceptar y rechazar usan la
+    entidad `cargas`, que ya está en `ENTIDADES_BITACORA` y en el filtro
+    «Entidad»; falta confirmar que el detalle de bitácora las muestre bien. El
+    resumen «N nuevos, M ya existentes» queda para la 3.5.
+  - **Verificación del cierre:** backend 69 suites / 1483 pruebas, typecheck,
+    build, eslint y prettier limpios; frontend 287 archivos / 4633 pruebas,
+    typecheck, lint, `format:check` y build limpios.
+  - **Lecciones:** `manager.query` de un `UPDATE … RETURNING` responde
+    `[filas, n]`; una lista cerrada de tablas con `DELETE` para `cuadra_app`
+    (`sesiones-privilegios`) hay que actualizarla a propósito; un test que solo
+    afirma la ausencia de un texto puede pasar sin probar nada, así que primero
+    se afirma que el error estaba.
+
 - **Historia 3.3 de la v2: rechazar el PDF cuyos saldos no cuadran, y guardar el
   que sí (KAN-132, FR-1, FR-2, FR-52; AD-8, AD-12, AD-16).** Rama
   `feat/v2-3-3-cuadre-saldos-pdf` con ODD, desde `master` tras los pendientes
