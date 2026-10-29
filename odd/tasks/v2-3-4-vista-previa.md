@@ -55,7 +55,7 @@ reales hasta entonces).
   `rechazada` es válido en `ck_cargas_estado`, de que el PDF guardado persiste
   `saldo_inicial`/`saldo_final`, y de que `cuadra_app` puede borrar de la zona
   de espera solo de su empresa. Espejo del estado y prueba de deriva.
-- [ ] **T2 — Vista previa (GET).** Movimientos leídos (fecha, monto,
+- [x] **T2 — Vista previa (GET).** Movimientos leídos (fecha, monto,
   referencia), total y saldos; solo de la empresa; 404 si la carga no está en
   `pendiente_vista_previa`.
 - [ ] **T3 — Aceptar.** Candado de empresa, `INSERT … SELECT` a `movimientos`,
@@ -103,3 +103,9 @@ reales hasta entonces).
   backend (72 pruebas), frontend 280 archivos / 4533 pruebas, typecheck, lint
   y formato. Tono/avance de `rechazada`: neutral/vacia, provisional hasta el
   mockup (T5).
+- 2026-10-29 T2: `GET /cargas/:id/vista-previa` (`cargas.ver`) en
+  `VistaPreviaService.consultar`; respuesta `VistaPreviaDto` (cargaId, archivo,
+  banco, `total` = número de movimientos, saldos y movimientos fecha/monto/
+  referencia, montos como texto NUMERIC). 404 si no existe, es ajena o no está
+  en `pendiente_vista_previa`. RED: 5 de 8 pruebas fallan con 404 de ruta
+  inexistente (las 3 de 404 pasaban por la misma razón equivocada); GREEN 8/8.
