@@ -70,7 +70,7 @@ describe('permisos de cuadra_app sobre sesiones (historia 1.1)', () => {
     expect(rls).toBe(false);
   });
 
-  it('solo sesiones y user_company_roles dan DELETE a cuadra_app', async () => {
+  it('solo la lista conocida da DELETE a cuadra_app (sesiones, user_company_roles y la espera de vista previa, 3.4)', async () => {
     const tablas = await filas<{ tabla: string }>(
       app,
       `SELECT c.relname AS tabla
@@ -81,6 +81,7 @@ describe('permisos de cuadra_app sobre sesiones (historia 1.1)', () => {
         ORDER BY c.relname`,
     );
     expect(tablas.map((t) => t.tabla)).toEqual([
+      'movimientos_pendientes',
       'sesiones',
       'user_company_roles',
     ]);

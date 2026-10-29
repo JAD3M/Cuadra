@@ -124,6 +124,16 @@ export class Carga extends EntidadBase {
   @Column({ type: 'varchar', length: 64, nullable: true })
   perfil: string | null;
 
+  /**
+   * Estado de cuenta en PDF (historia 3.4): los saldos del encabezado, para
+   * la vista previa. NUMERIC, nunca flotante; NULL fuera de los PDF.
+   */
+  @Column({ type: 'numeric', precision: 18, scale: 4, nullable: true })
+  saldoInicial: string | null;
+
+  @Column({ type: 'numeric', precision: 18, scale: 4, nullable: true })
+  saldoFinal: string | null;
+
   @Column({ type: 'timestamptz', nullable: true })
   procesadaAt: Date | null;
 

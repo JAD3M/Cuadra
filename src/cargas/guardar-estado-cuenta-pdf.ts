@@ -102,3 +102,23 @@ export async function guardarMovimientosPendientes(
     ],
   );
 }
+
+/**
+ * Historia 3.4: los saldos del PDF se guardan en la carga para la vista
+ * previa (el PDF no se guarda). Van como texto y Postgres los convierte a
+ * NUMERIC: nunca pasan por flotante.
+ */
+export async function guardarSaldosDeCarga(
+  manager: EntityManager,
+  companyId: string,
+  cargaId: string,
+  saldoInicial: string,
+  saldoFinal: string,
+): Promise<void> {
+  await manager.query(
+    `UPDATE cargas
+        SET saldo_inicial = $3::numeric, saldo_final = $4::numeric
+      WHERE id = $1 AND company_id = $2`,
+    [cargaId, companyId, saldoInicial, saldoFinal],
+  );
+}

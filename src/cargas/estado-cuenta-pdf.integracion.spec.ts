@@ -46,7 +46,9 @@ async function limpiar(): Promise<void> {
     `DELETE FROM bitacora WHERE entidad = 'cargas'
         AND accion IN ('cargar', 'rechazar')`,
   );
-  await ds.query(`DELETE FROM cargas WHERE estado = 'pendiente_vista_previa'`);
+  await ds.query(
+    `DELETE FROM cargas WHERE estado IN ('pendiente_vista_previa', 'rechazada')`,
+  );
 }
 
 beforeEach(async () => {
@@ -240,6 +242,23 @@ describe('POST /cargas/estado-cuenta/pdf (historia 3.2)', () => {
     } finally {
       encolar.mockRestore();
     }
+  });
+
+  it('persiste los saldos del PDF en la carga, exactos (historia 3.4)', async () => {
+    const res = await subir(
+      await entorno.token(LUIS, FERRETERIA),
+      'bbva.pdf',
+      BBVA,
+    ).expect(200);
+    const { cargaId } = res.body as { cargaId: string };
+    expect(
+      await una<{ i: string; f: string }>(
+        ds,
+        `SELECT saldo_inicial::text AS i, saldo_final::text AS f
+           FROM cargas WHERE id = $1`,
+        [cargaId],
+      ),
+    ).toEqual({ i: '10000.0000', f: '11250.5000' });
   });
 
   it('resubir el mismo PDF devuelve la carga existente, sin duplicar', async () => {

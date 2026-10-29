@@ -21,6 +21,8 @@ describe('tonos de las cargas', () => {
     ['procesada', 'conciliado'],
     ['con_errores', 'sin_match'],
     ['fallida', 'peligro'],
+    ['pendiente_vista_previa', 'neutral'],
+    ['rechazada', 'neutral'],
   ])('el chip de %s usa el tono %s', (estado, tono) => {
     expect(TONO_ESTADO_CARGA[estado]).toBe(tono);
   });
@@ -31,6 +33,8 @@ describe('tonos de las cargas', () => {
     ['procesada', 'verde'],
     ['con_errores', 'naranja'],
     ['fallida', 'roja'],
+    ['pendiente_vista_previa', 'vacia'],
+    ['rechazada', 'vacia'],
   ])('el avance de %s es %s', (estado, avance) => {
     expect(AVANCE_ESTADO_CARGA[estado]).toBe(avance);
   });
