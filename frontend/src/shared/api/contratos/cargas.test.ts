@@ -5,8 +5,10 @@ import {
   detalleCarga,
   perfilesBancarios,
   respuestaCarga,
+  respuestaDecisionVistaPrevia,
   respuestaLecturaPdf,
   respuestaListaCargas,
+  vistaPreviaCarga,
   type ItemCarga,
   type RespuestaCarga,
 } from './cargas';
@@ -387,6 +389,75 @@ describe('respuestaLecturaPdf (historia 3.2)', () => {
     ).not.toHaveProperty('extra');
     expect(() =>
       respuestaLecturaPdf.parse({ ...lectura, banco: undefined }),
+    ).toThrow();
+  });
+});
+
+describe('vistaPreviaCarga (historia 3.4)', () => {
+  const cuerpo = (o: Record<string, unknown> = {}) => ({
+    cargaId: G(1),
+    archivo: 'estado-sep-2026.pdf',
+    banco: 'bbva',
+    total: 2,
+    saldoInicial: '10000.0000',
+    saldoFinal: '11250.5000',
+    movimientos: [
+      { fecha: '2026-09-01', monto: '1500.0000', referencia: 'SPEI 4471' },
+      { fecha: '2026-09-02', monto: '-250.0000', referencia: null },
+    ],
+    ...o,
+  });
+
+  it('conserva los montos como cadenas decimales exactas', () => {
+    const r = vistaPreviaCarga.parse(cuerpo());
+    expect(r.saldoInicial).toBe('10000.0000');
+    expect(r.movimientos[1]?.monto).toBe('-250.0000');
+    expect(r.movimientos[1]?.referencia).toBeNull();
+  });
+
+  it('admite saldos y banco nulos', () => {
+    const r = vistaPreviaCarga.parse(
+      cuerpo({ saldoInicial: null, saldoFinal: null, banco: null }),
+    );
+    expect(r.saldoInicial).toBeNull();
+    expect(r.saldoFinal).toBeNull();
+    expect(r.banco).toBeNull();
+  });
+
+  it('rechaza un monto que llega como número', () => {
+    expect(() =>
+      vistaPreviaCarga.parse(
+        cuerpo({
+          movimientos: [{ fecha: '2026-09-01', monto: 1500, referencia: null }],
+        }),
+      ),
+    ).toThrow();
+  });
+});
+
+describe('respuestaDecisionVistaPrevia (historia 3.4)', () => {
+  it('lee la aceptación: estado y movimientos que entraron', () => {
+    const r = respuestaDecisionVistaPrevia.parse({
+      cargaId: G(1),
+      estado: 'procesada',
+      movimientos: 14,
+    });
+    expect(r.estado).toBe('procesada');
+    expect(r.movimientos).toBe(14);
+  });
+
+  it('lee el rechazo, que no trae movimientos', () => {
+    const r = respuestaDecisionVistaPrevia.parse({
+      cargaId: G(1),
+      estado: 'rechazada',
+    });
+    expect(r.estado).toBe('rechazada');
+    expect(r.movimientos).toBeUndefined();
+  });
+
+  it('rechaza un estado que no es del dominio', () => {
+    expect(() =>
+      respuestaDecisionVistaPrevia.parse({ cargaId: G(1), estado: 'otra' }),
     ).toThrow();
   });
 });

@@ -1,6 +1,7 @@
 import type { EstadoCarga } from '@/shared/dominio';
 import type { TonoEstadoChip } from '@/shared/ui/EstadoChip';
 
+// Rechazada es ámbar como «Con errores»: la descartó la persona (mockup 18).
 // Cómo se pinta cada estado de una carga. Son `Record` sobre el espejo del
 // dominio: un estado nuevo deja de compilar hasta que se le da tono y avance.
 
@@ -13,7 +14,7 @@ export const TONO_ESTADO_CARGA: Readonly<Record<EstadoCarga, TonoEstadoChip>> =
     con_errores: 'sin_match',
     fallida: 'peligro',
     pendiente_vista_previa: 'neutral',
-    rechazada: 'neutral',
+    rechazada: 'sin_match',
   };
 
 /**
@@ -30,5 +31,5 @@ export const AVANCE_ESTADO_CARGA: Readonly<Record<EstadoCarga, Avance>> = {
   con_errores: 'naranja',
   fallida: 'roja',
   pendiente_vista_previa: 'vacia',
-  rechazada: 'vacia',
+  rechazada: 'naranja',
 };
