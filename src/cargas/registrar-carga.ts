@@ -26,11 +26,15 @@ const AGREGA_REANUDADA = `CASE WHEN EXISTS (
  *
  * `user_id` es quien subió el archivo; `datos` lleva nombres y conteos,
  * nunca el contenido. Lee la carga ya actualizada, con el filtro de empresa.
+ *
+ * `extra` se suma a `datos` (3.4: `{ resubida: true }` cuando se vuelve a
+ * subir un PDF rechazado).
  */
 export async function registrarCargar(
   manager: EntityManager,
   companyId: string,
   cargaId: string,
+  extra: Record<string, boolean> = {},
 ): Promise<void> {
   await manager.query(
     `INSERT INTO bitacora (company_id, user_id, entidad, entidad_id, accion, datos)
@@ -44,9 +48,9 @@ export async function registrarCargar(
               'registrosExistentes', c.registros_existentes,
               'registrosError', c.registros_error,
               'totalRegistros', c.total_registros
-            ) || ${AGREGA_REANUDADA}
+            ) || ${AGREGA_REANUDADA} || $3::jsonb
        FROM cargas c
       WHERE c.id = $1 AND c.company_id = $2`,
-    [cargaId, companyId],
+    [cargaId, companyId, JSON.stringify(extra)],
   );
 }

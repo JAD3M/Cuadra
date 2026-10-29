@@ -27,8 +27,8 @@ interface FilaCargaEnEspera {
   nombre_archivo: string;
   banco: string | null;
   total_registros: number;
-  saldo_inicial: string;
-  saldo_final: string;
+  saldo_inicial: string | null;
+  saldo_final: string | null;
 }
 
 interface FilaMovimiento {
