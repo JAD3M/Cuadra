@@ -9,7 +9,7 @@ import { NoEncontrada, SinPermiso, YaResuelta } from './components/AvisoEstado';
 import { AvisoInformativo } from './components/AvisoInformativo';
 import { BannerDecision } from './components/BannerDecision';
 import { ConfirmarRechazo } from './components/ConfirmarRechazo';
-import { EnlaceCargas } from './components/EnlaceCargas';
+import { EnlaceCargas, IrACargas } from './components/EnlaceCargas';
 import { EsqueletoVistaPrevia } from './components/EsqueletoVistaPrevia';
 import {
   EstadoVistaPrevia,
@@ -21,6 +21,7 @@ import { clasificarErrorDecision, clasificarErrorLectura } from './errores';
 import {
   ERROR_CONEXION,
   ERROR_DECISION,
+  ERROR_RED_DECISION,
   REINTENTAR,
   SOLO_CONSULTA,
 } from './textos';
@@ -99,6 +100,7 @@ function VistaPreviaConAcceso({
   const sinPermiso =
     errorLectura === 'sin_permiso' || errorDecision === 'sin_permiso';
   const errorServidor = errorDecision === 'servidor';
+  const errorRed = errorDecision === 'red';
   const cargando = datos === undefined && consulta.isPending;
 
   const conContenido =
@@ -118,7 +120,7 @@ function VistaPreviaConAcceso({
             : 'rechazada'
           : 'espera';
 
-  const hayAlerta = yaResuelta || sinPermiso || errorServidor;
+  const hayAlerta = yaResuelta || sinPermiso || errorServidor || errorRed;
   const hayDecidida = decidida !== null;
 
   // Tras decidir, los controles ya no están: el foco va una sola vez al banner.
@@ -147,6 +149,12 @@ function VistaPreviaConAcceso({
     volverAlBoton.current = false;
     setConfirmando(false);
     decision.decidir({ accion: 'rechazar', cargaId });
+  }
+
+  function abrirConfirmacion() {
+    // Un error de un intento anterior no debe quedar junto al diálogo.
+    decision.reset();
+    setConfirmando(true);
   }
 
   function cancelarRechazo() {
@@ -190,6 +198,14 @@ function VistaPreviaConAcceso({
           }
         />
       ) : null}
+      {errorRed ? (
+        <AlertaError
+          ref={alertaRef}
+          titulo={ERROR_RED_DECISION.titulo}
+          detalle={ERROR_RED_DECISION.detalle}
+          accion={<IrACargas />}
+        />
+      ) : null}
       {conContenido && !puedeDecidir ? (
         <AvisoInformativo>
           <strong>{SOLO_CONSULTA.titulo}</strong>
@@ -227,7 +243,7 @@ function VistaPreviaConAcceso({
         <AccionesVistaPrevia
           ocupado={enviando}
           onAceptar={aceptar}
-          onRechazar={() => setConfirmando(true)}
+          onRechazar={abrirConfirmacion}
           rechazarRef={rechazarRef}
         />
       ) : null}
