@@ -170,7 +170,7 @@ function CargasConAcceso() {
   ) : lectura !== null && lectura.epoca === epoca ? (
     <ResultadoLecturaPdf
       movimientosLeidos={lectura.datos.movimientosLeidos}
-      lineasNoLeidas={lectura.datos.lineasNoLeidas}
+      estado={lectura.datos.estado}
       saldoInicial={lectura.datos.saldoInicial}
       saldoFinal={lectura.datos.saldoFinal}
     />

@@ -83,9 +83,35 @@ function detalleConfirmar(datos: Objeto): string {
  * y la tabla lo pinta como texto. Un rechazo causado por otra propuesta
  * confirmada (`datos.causa`) no lleva motivo (D20).
  */
+/** Entero no negativo, o `undefined`. */
+const contador = (valor: unknown): number | undefined =>
+  typeof valor === 'number' && Number.isInteger(valor) && valor >= 0
+    ? valor
+    : undefined;
+
+/**
+ * Rechazo de un PDF de estado de cuenta (historia 3.3): no es un cambio de
+ * estado, así que no hay flecha; lo que hay es archivo, banco, motivo y los
+ * conteos de lo leído. Solo habla con un `motivo` de texto.
+ */
+function detalleRechazoPdf(datos: Objeto): string {
+  const motivo = texto(datos.motivo);
+  if (motivo === undefined) return SIN_DETALLE;
+  const banco = texto(datos.banco);
+  const movimientos = contador(datos.movimientosLeidos);
+  const lineas = contador(datos.lineasNoLeidas);
+  return unir([
+    texto(datos.archivo),
+    banco === undefined ? undefined : `banco: ${banco}`,
+    `motivo: ${motivo}`,
+    movimientos === undefined ? undefined : `${movimientos} movimientos leídos`,
+    lineas === undefined ? undefined : `${lineas} líneas no leídas`,
+  ]);
+}
+
 function detalleRechazar(datos: Objeto): string {
   const cambio = flecha(datos);
-  if (cambio === undefined) return SIN_DETALLE;
+  if (cambio === undefined) return detalleRechazoPdf(datos);
   if (esObjeto(datos.causa)) return cambio;
   const despues = datos.despues;
   const motivo = esObjeto(despues) ? texto(despues.motivo) : undefined;

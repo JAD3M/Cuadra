@@ -270,6 +270,7 @@ export class CargasService {
         motivo: CODIGO_SALDOS_NO_CUADRAN,
       });
       throw rechazoDePdf(CODIGO_SALDOS_NO_CUADRAN, MENSAJE_SALDOS_NO_CUADRAN, {
+        saldoFinal: leido.saldoFinal,
         saldoEsperado: cuadre.saldoEsperado,
         diferencia: cuadre.diferencia,
         lineasNoLeidas: noLeidas,

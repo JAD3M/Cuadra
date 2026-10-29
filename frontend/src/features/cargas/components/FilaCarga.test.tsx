@@ -167,3 +167,14 @@ describe('FilaCarga', () => {
     });
   });
 });
+
+describe('FilaCarga: pendiente_vista_previa (historia 3.3)', () => {
+  it('muestra la etiqueta del mockup y «—» en los contadores', () => {
+    const { celdas } = montar(
+      itemCarga(2, { estado: 'pendiente_vista_previa', tipo: 'estado_cuenta' }),
+    );
+    expect(celdas[2]).toHaveTextContent('Pendiente de vista previa');
+    expect(celdas[4]).toHaveTextContent('—');
+    expect(celdas[5]).toHaveTextContent('—');
+  });
+});

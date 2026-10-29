@@ -13,13 +13,25 @@ export class ApiError extends Error {
   readonly error: string;
   /** Siempre un arreglo: vacío cuando el servidor no envió mensajes. */
   readonly mensajes: string[];
+  /**
+   * El cuerpo JSON tal como llegó, con sus campos extra (por ejemplo las
+   * líneas no leídas de un PDF rechazado). `undefined` si no tenía la forma
+   * de Nest. Es dato sin validar: quien lo lea debe validarlo.
+   */
+  readonly cuerpo: unknown;
 
-  constructor(statusCode: number, error: string, mensajes: string[]) {
+  constructor(
+    statusCode: number,
+    error: string,
+    mensajes: string[],
+    cuerpo?: unknown,
+  ) {
     super(mensajes.length > 0 ? mensajes.join(' ') : MENSAJE_GENERICO);
     this.name = 'ApiError';
     this.statusCode = statusCode;
     this.error = error;
     this.mensajes = mensajes;
+    this.cuerpo = cuerpo;
   }
 }
 
@@ -69,5 +81,6 @@ export async function aApiError(respuesta: Response): Promise<ApiError> {
     respuesta.status,
     error,
     Array.isArray(message) ? message : [message],
+    cuerpo,
   );
 }

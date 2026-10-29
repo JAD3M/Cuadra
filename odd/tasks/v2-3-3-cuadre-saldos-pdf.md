@@ -35,7 +35,11 @@ y no deja bitácora. No existe función de cuadre ni el estado
    es que el lector no leyera nada). Va al final de las comprobaciones: antes
    mandan `saldos_no_cuadran` y `lineas_no_leidas`. Deja bitácora `rechazar`
    como los demás. Es la tarea T3b.
-8. **Sin decisión pendiente** (se siguen de la historia): el 400 lleva el motivo
+8. **Reenvío de un PDF ya cargado** (decidido el 2026-10-29): se muestra igual
+   que un PDF recién guardado (`yaExistia: true` no se distingue en la
+   interfaz). No hay estado nuevo en el mockup; el aviso «en cola» del CSV/CFDI
+   sería falso para `pendiente_vista_previa`.
+9. **Sin decisión pendiente** (se siguen de la historia): el 400 lleva el motivo
    y las líneas no leídas (UX-DR8); el cuadre es exacto, tolerancia cero, con
    `dinero`; `pendiente_vista_previa` cuenta como estado concluido para el
    polling y el worker no lo toma.
@@ -81,9 +85,16 @@ reales hasta entonces).
   al final y cero movimientos se rechaza con `sin_movimientos` (400, sin carga
   ni movimientos, bitácora `rechazar`). Con saldos que no cuadran sigue
   mandando `saldos_no_cuadran`, y con líneas no leídas `lineas_no_leidas`.
-- [ ] **T4 — Frontend.** Resultado de la carga guardada y rechazo con motivo y
+- [x] **T4 — Frontend.** Resultado de la carga guardada y rechazo con motivo y
   líneas no leídas. Se lee el mockup primero; si falta algo, se actualiza el
   mockup y se acuerda antes de escribir código.
+- [x] **T4b — Saldo final en el rechazo y hallazgos de la revisión.** Backend:
+  el 400 `saldos_no_cuadran` incluye `saldoFinal` (texto decimal; el mockup
+  pide «Saldo final del PDF»), con prueba. Frontend: la fila «Saldo final del
+  PDF» se pinta; la lista de líneas no leídas deja de usar `linea` como `key`
+  (puede repetirse); un 400 de PDF con código conocido pero cuerpo incompleto
+  muestra su rechazo con título y mensaje, sin los detalles que falten, y no el
+  rechazo genérico.
 - [ ] **T5 — Cierre.** Suites completas (backend y frontend), lint y formato,
   entrada en `docs/bitacora.md`, `CUADRA.md` y KAN-132, PR (en cadena si pasa de
   400 líneas).
@@ -130,3 +141,22 @@ reales hasta entonces).
   se guardaba una carga vacía). El orden (saldos que no cuadran con cero
   movimientos) ya pasaba. GREEN: backend 1447 pruebas; typecheck, build, eslint
   y prettier limpios. Sin commit. Siguiente: T4.
+- 2026-10-29: T4 hecha (frontend). RED: 20 pruebas fallaban (`ApiError.cuerpo`
+  indefinido; `clasificarErrorSubida` devolvía `rechazo` para los tres códigos
+  nuevos; contrato sin `cargaId/estado/yaExistia`; `ResultadoLecturaPdf`,
+  `AlertaSubida`, `CargasContenedorPdf` y `detalleEvento` sin las vistas nuevas;
+  el hook no invalidaba el historial). `ApiError.cuerpo` (aditivo) lleva el 400
+  completo; vistas del mockup v88 para guardado y los tres rechazos; detalle de
+  bitácora del rechazo de PDF. Hueco de backend: el 400 `saldos_no_cuadran` no
+  trae `saldoFinal`, así que la fila «Saldo final del PDF» del mockup no se pinta
+  (el contrato la acepta opcional). GREEN: frontend 4521 pruebas; typecheck,
+  lint, format:check y build limpios. Sin commit. Siguiente: T5.
+- 2026-10-29: T4b hecha. RED: backend `estado-cuenta-pdf.integracion.spec.ts`, 1
+  de 33 (`saldoFinal` esperado "11250.50", recibido undefined); frontend 4
+  pruebas (`errores.test.ts`: saldos_no_cuadran y lineas_no_leidas con cuerpo
+  incompleto caían a `rechazo`; `DetalleRechazoPdf.test.tsx`: monto suelto
+  exigía todos los campos y la `key` repetida dio aviso de React). El
+  clasificador ya pasaba `saldoFinal` y la fila ya existía. El 400 lleva
+  `saldoFinal` (texto del lector); contrato tolerante (campos inválidos se
+  omiten); `key` = índice + línea. Sin commit. Siguiente: T5.
+- 2026-10-29: T5 (parte documental) hecha. Verificación completa sobre `7759bb2` (worker de solo lectura): backend `npm test` 68 suites / 1447 pruebas, typecheck, build, eslint y prettier limpios; frontend vitest 280 archivos / 4528 pruebas, typecheck, lint, format:check y build limpios. Entrada en `docs/bitacora.md` y `CUADRA.md` actualizado (estado, bitácora, sección del PDF). Faltan: KAN-132, push y los PRs apilados (decide el usuario).

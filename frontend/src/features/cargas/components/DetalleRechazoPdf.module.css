@@ -1,0 +1,59 @@
+/* Montos y líneas de un PDF rechazado (Cargas.dc.html: pdf_saldos_no_cuadran). Solo tokens. */
+.detalle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-inline-size: 0;
+  margin-block-start: var(--space-4);
+}
+
+.saldos {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-12);
+}
+
+.rotulo {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+/* El monto no se parte en dos líneas y la caja crece con el número. */
+.valor,
+.valorPeligro {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.valor {
+  color: var(--color-text);
+}
+
+.valorPeligro {
+  color: var(--color-danger-title);
+}
+
+.lineas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text-soft);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}

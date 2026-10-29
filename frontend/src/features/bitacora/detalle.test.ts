@@ -690,3 +690,48 @@ describe('detalleEvento: cargar con los datos de la historia 3.1', () => {
     ).toBe('—');
   });
 });
+
+describe('detalleEvento: rechazo de un PDF de estado de cuenta (historia 3.3)', () => {
+  const pdf = (extra: Record<string, unknown> = {}) => ({
+    archivo: 'estado-sep-2026.pdf',
+    banco: 'bbva',
+    motivo: 'saldos_no_cuadran',
+    movimientosLeidos: 14,
+    lineasNoLeidas: 2,
+    ...extra,
+  });
+
+  it('archivo, banco, motivo y conteos, como el mockup', () => {
+    expect(detalleEvento({ accion: 'rechazar', datos: pdf() })).toBe(
+      'estado-sep-2026.pdf · banco: bbva · motivo: saldos_no_cuadran · 14 movimientos leídos · 2 líneas no leídas',
+    );
+  });
+
+  it('un rechazo de lectura (sin conteos) omite lo que no vino', () => {
+    expect(
+      detalleEvento({
+        accion: 'rechazar',
+        datos: {
+          archivo: 'x.pdf',
+          banco: 'bbva',
+          motivo: 'pdf_ilegible',
+        },
+      }),
+    ).toBe('x.pdf · banco: bbva · motivo: pdf_ilegible');
+  });
+
+  it('sin motivo de texto no inventa nada: da —', () => {
+    expect(
+      detalleEvento({ accion: 'rechazar', datos: { banco: 'bbva' } }),
+    ).toBe('—');
+  });
+
+  it('conteos que no son enteros se omiten', () => {
+    expect(
+      detalleEvento({
+        accion: 'rechazar',
+        datos: pdf({ movimientosLeidos: '14', lineasNoLeidas: -1 }),
+      }),
+    ).toBe('estado-sep-2026.pdf · banco: bbva · motivo: saldos_no_cuadran');
+  });
+});

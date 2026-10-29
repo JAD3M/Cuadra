@@ -1,11 +1,11 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef } from 'react';
 import { api } from '@/shared/api';
 import {
   respuestaLecturaPdf,
   type RespuestaLecturaPdf,
 } from '@/shared/api/contratos';
-import { useEpoca } from './claves';
+import { clavesCargas, useEpoca } from './claves';
 import { construirFormLecturaPdf } from './formularios';
 import { useEpocaVigente } from './useEpocaVigente';
 
@@ -27,13 +27,14 @@ export interface RespuestasLecturaPdf {
 }
 
 /**
- * Leer un PDF de estado de cuenta (historia 3.2). El servidor solo lee: no
- * importa nada ni crea una carga, así que, a diferencia de `useSubirCarga`,
- * no invalida el historial. Mismas guardas: un solo envío en vuelo y una
- * respuesta de otra época se descarta. Los saldos llegan como cadenas y así
- * se quedan.
+ * Leer un PDF de estado de cuenta (historias 3.2 y 3.3). Si cuadra, el
+ * servidor lo guarda como una carga `pendiente_vista_previa`: la lista del
+ * historial se invalida sin esperarla. Un rechazo no guarda nada y no la toca.
+ * Mismas guardas que `useSubirCarga`: un solo envío en vuelo y una respuesta
+ * de otra época se descarta. Los saldos llegan como cadenas y así se quedan.
  */
 export function useLeerEstadoCuentaPdf() {
+  const cliente = useQueryClient();
   const epoca = useEpoca();
   // Guarda síncrona contra el doble disparo (un clic y un Enter pueden caer
   // antes de que `disabled` se pinte).
@@ -47,6 +48,12 @@ export function useLeerEstadoCuentaPdf() {
         body: construirFormLecturaPdf(variables),
         schema: respuestaLecturaPdf,
       }),
+    onSuccess: (_datos, variables) => {
+      if (variables.epoca !== epocaActual.current) return;
+      void cliente.invalidateQueries({
+        queryKey: clavesCargas.lista(variables.epoca),
+      });
+    },
     onSettled: () => {
       enVuelo.current = false;
     },

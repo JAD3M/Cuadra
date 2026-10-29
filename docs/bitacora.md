@@ -3,6 +3,42 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 29 oct 2026
+
+- **Historia 3.3 de la v2: rechazar el PDF cuyos saldos no cuadran, y guardar el
+  que sí (KAN-132, FR-1, FR-2, FR-52; AD-8, AD-12, AD-16).** Rama
+  `feat/v2-3-3-cuadre-saldos-pdf` con ODD, desde `master` tras los pendientes
+  de la 3.1. Entrega en PRs apilados contra `master` (`stacked-to-main`).
+  - **T1:** `cuadrarSaldos`, la función común de cuadre (`src/bancos/`), exacta
+    y con `dinero`.
+  - **T2:** estado `pendiente_vista_previa`, tabla `movimientos_pendientes`
+    (zona de espera, RLS con FORCE; `cuadra_app` solo `SELECT` e `INSERT`) y
+    `bitacora.entidad_id` opcional solo para `rechazar`. Espejo del frontend.
+  - **T3 y T3b:** `POST /cargas/estado-cuenta/pdf` guarda lo que cuadra y
+    rechaza lo demás (`saldos_no_cuadran`, `lineas_no_leidas`,
+    `sin_movimientos`, además de los códigos de lectura), siempre con bitácora.
+  - **T4 y T4b:** el frontend sigue el mockup actualizado y aprobado: PDF
+    guardado con «Pendiente de vista previa», los tres rechazos con sus líneas
+    y montos, y el detalle de bitácora del rechazo. El 400 de saldos lleva
+    también el saldo final del PDF.
+  - **Decisiones con el usuario:** un rechazo no crea carga; la bitácora admite
+    `entidad_id` nulo solo en `rechazar`; también se registran los rechazos de
+    lectura; una línea no leída rechaza aunque los saldos cuadren; un PDF sin
+    movimientos se rechaza; solo se guardan los movimientos leídos y el hash,
+    no el PDF; resubir el mismo PDF devuelve la carga existente y la interfaz
+    no lo distingue de uno recién guardado.
+  - **Revisión nativa:** T1+T2, T3 y T3b+T4 pasaron la revisión de una lente,
+    aprobadas y acusadas; los dos hallazgos de T4 se atendieron en T4b, que por
+    su tamaño (riesgo medio, bajo presupuesto) no tuvo revisión nativa propia.
+  - **Pendiente:** validar el lector de BBVA con un estado de cuenta real
+    (la 3.3 no debe confiar en él con datos reales hasta entonces). El filtro
+    «Entidad» de la bitácora sigue sin `cargas`; lo decide el usuario aparte.
+    La vista previa y el paso a `movimientos` son la 3.4.
+  - **Lecciones:** las pruebas de integración comparten una base `_test`
+    persistente y deben borrar lo que insertan; cada migración nueva exige un
+    `undoLastMigration` más en `plataforma.esquema.spec.ts`; el rechazo de un
+    400 debe escribirse en su propia transacción o se pierde con el rollback.
+
 ### 27 oct 2026
 
 - **Pendientes de la 3.1 (cargas) cerrados.** Rama

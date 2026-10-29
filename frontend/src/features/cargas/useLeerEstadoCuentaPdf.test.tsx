@@ -13,6 +13,7 @@ import {
 import { clienteDePruebas, sesionConEpoca } from '@/test/montarBandeja';
 import { envolturaCargas } from '@/test/montarCargas';
 import { servidor } from '@/test/servidor';
+import { clavesCargas } from './claves';
 import { useLeerEstadoCuentaPdf } from './useLeerEstadoCuentaPdf';
 
 afterEach(() => {
@@ -57,14 +58,24 @@ describe('useLeerEstadoCuentaPdf', () => {
     expect(subida?.campos).toEqual([['banco', 'bbva']]);
   });
 
-  it('no importa nada: ni crea carga ni invalida el historial', async () => {
-    const antes = almacenes.cargas.filas().length;
+  it('el PDF que cuadra queda guardado: invalida el historial de su época (historia 3.3)', async () => {
     const { leer, alExito, invalidar } = montar();
     act(() => {
       leer();
     });
     await waitFor(() => expect(alExito).toHaveBeenCalledTimes(1));
-    expect(almacenes.cargas.filas()).toHaveLength(antes);
+    expect(invalidar).toHaveBeenCalledWith({
+      queryKey: clavesCargas.lista(1),
+    });
+  });
+
+  it('un rechazo no guardó nada: no invalida el historial', async () => {
+    servidor.use(lecturaPdfRechazada('sin_movimientos', 'x'));
+    const { leer, alFallar, invalidar } = montar();
+    act(() => {
+      leer();
+    });
+    await waitFor(() => expect(alFallar).toHaveBeenCalledTimes(1));
     expect(invalidar).not.toHaveBeenCalled();
   });
 

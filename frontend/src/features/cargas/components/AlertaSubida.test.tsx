@@ -134,3 +134,111 @@ describe('AlertaSubida', () => {
     );
   });
 });
+
+describe('AlertaSubida: rechazos del PDF (historia 3.3)', () => {
+  const LINEAS = [
+    { linea: 18, texto: '07/SEP PAGO SERVICIO NO RECONOCIDO 1,25' },
+    { linea: 31, texto: '12/SEP CARGO ILEGIBLE' },
+  ];
+
+  it('saldos que no cuadran: título, mensaje, montos tal como llegaron y líneas', () => {
+    render(
+      <AlertaSubida
+        fallo={{
+          clase: 'pdf_saldos_no_cuadran',
+          mensaje: 'Los saldos no cuadran (texto del servidor).',
+          saldoFinal: '11250.50',
+          saldoEsperado: '11500.50',
+          diferencia: '-250.00',
+          lineas: LINEAS,
+        }}
+      />,
+    );
+    const alerta = screen.getByRole('alert');
+    expect(alerta).toHaveTextContent(
+      'Archivo rechazado: los saldos no cuadran',
+    );
+    expect(alerta).toHaveTextContent(
+      'Los saldos no cuadran (texto del servidor).',
+    );
+    expect(screen.getByText('Saldo final del PDF')).toBeInTheDocument();
+    expect(screen.getByText('11,250.50')).toBeInTheDocument();
+    expect(
+      screen.getByText('Saldo esperado con los movimientos'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('11,500.50')).toBeInTheDocument();
+    expect(screen.getByText('Diferencia')).toBeInTheDocument();
+    expect(screen.getByText('−250.00')).toBeInTheDocument();
+    expect(screen.getByText('Líneas que no se pudieron leer')).toBeVisible();
+    expect(
+      screen.getByText('Línea 18 · 07/SEP PAGO SERVICIO NO RECONOCIDO 1,25'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Línea 31 · 12/SEP CARGO ILEGIBLE'),
+    ).toBeInTheDocument();
+  });
+
+  it('saldos que no cuadran sin saldo final del servidor: no se inventa esa fila', () => {
+    render(
+      <AlertaSubida
+        fallo={{
+          clase: 'pdf_saldos_no_cuadran',
+          mensaje: null,
+          saldoEsperado: '11500.50',
+          diferencia: '-250.00',
+          lineas: [],
+        }}
+      />,
+    );
+    expect(screen.queryByText('Saldo final del PDF')).toBeNull();
+    expect(screen.getByText('11,500.50')).toBeInTheDocument();
+    expect(screen.queryByText('Líneas que no se pudieron leer')).toBeNull();
+  });
+
+  it('hay líneas sin leer: título, mensaje y líneas', () => {
+    render(
+      <AlertaSubida
+        fallo={{
+          clase: 'pdf_lineas_no_leidas',
+          mensaje: 'No pudimos leer algunas líneas.',
+          lineas: [LINEAS[0]!],
+        }}
+      />,
+    );
+    const alerta = screen.getByRole('alert');
+    expect(alerta).toHaveTextContent('Archivo rechazado: hay líneas sin leer');
+    expect(alerta).toHaveTextContent('No pudimos leer algunas líneas.');
+    expect(
+      screen.getByText('Línea 18 · 07/SEP PAGO SERVICIO NO RECONOCIDO 1,25'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Saldo esperado con los movimientos')).toBeNull();
+  });
+
+  it('sin movimientos: título y mensaje, sin lista de líneas', () => {
+    render(
+      <AlertaSubida
+        fallo={{
+          clase: 'pdf_sin_movimientos',
+          mensaje: 'No pudimos leer ningún movimiento.',
+        }}
+      />,
+    );
+    const alerta = screen.getByRole('alert');
+    expect(alerta).toHaveTextContent('Archivo rechazado: sin movimientos');
+    expect(alerta).toHaveTextContent('No pudimos leer ningún movimiento.');
+    expect(screen.queryByText('Líneas que no se pudieron leer')).toBeNull();
+  });
+
+  it('el texto de una línea queda como texto plano', () => {
+    const { container } = render(
+      <AlertaSubida
+        fallo={{
+          clase: 'pdf_lineas_no_leidas',
+          mensaje: null,
+          lineas: [{ linea: 1, texto: '<b>x</b>' }],
+        }}
+      />,
+    );
+    expect(container.querySelector('b')).toBeNull();
+  });
+});

@@ -12,6 +12,127 @@ const api = (status: number, mensajes: string[] = []) =>
   new ApiError(status, 'Error', mensajes);
 const cancelacion = () => new DOMException('cancelado', 'AbortError');
 
+const conCuerpo = (codigo: string, mensaje: string, extra: object = {}) =>
+  new ApiError(400, codigo, [mensaje], {
+    statusCode: 400,
+    error: codigo,
+    message: mensaje,
+    ...extra,
+  });
+const NO_LEIDAS = [
+  { linea: 18, texto: '07/SEP PAGO SERVICIO NO RECONOCIDO 1,25' },
+  { linea: 31, texto: '12/SEP CARGO ILEGIBLE' },
+];
+
+describe('clasificarErrorSubida: rechazos del PDF (historia 3.3)', () => {
+  it('saldos_no_cuadran: mensaje, saldos como cadenas y líneas', () => {
+    expect(
+      clasificarErrorSubida(
+        conCuerpo('saldos_no_cuadran', 'No cuadran', {
+          saldoEsperado: '11500.50',
+          diferencia: '-250.00',
+          lineasNoLeidas: NO_LEIDAS,
+        }),
+      ),
+    ).toEqual({
+      clase: 'pdf_saldos_no_cuadran',
+      mensaje: 'No cuadran',
+      saldoEsperado: '11500.50',
+      diferencia: '-250.00',
+      lineas: NO_LEIDAS,
+    });
+  });
+
+  it('lineas_no_leidas: mensaje y líneas', () => {
+    expect(
+      clasificarErrorSubida(
+        conCuerpo('lineas_no_leidas', 'Hay líneas', {
+          lineasNoLeidas: [NO_LEIDAS[0]],
+        }),
+      ),
+    ).toEqual({
+      clase: 'pdf_lineas_no_leidas',
+      mensaje: 'Hay líneas',
+      lineas: [NO_LEIDAS[0]],
+    });
+  });
+
+  it('sin_movimientos: solo el mensaje', () => {
+    expect(
+      clasificarErrorSubida(conCuerpo('sin_movimientos', 'Sin movimientos')),
+    ).toEqual({ clase: 'pdf_sin_movimientos', mensaje: 'Sin movimientos' });
+  });
+
+  it('saldos_no_cuadran: el saldo final del PDF llega como cadena', () => {
+    expect(
+      clasificarErrorSubida(
+        conCuerpo('saldos_no_cuadran', 'No cuadran', {
+          saldoFinal: '11250.50',
+          saldoEsperado: '11000',
+          diferencia: '250.5',
+          lineasNoLeidas: [],
+        }),
+      ),
+    ).toEqual({
+      clase: 'pdf_saldos_no_cuadran',
+      mensaje: 'No cuadran',
+      saldoFinal: '11250.50',
+      saldoEsperado: '11000',
+      diferencia: '250.5',
+      lineas: [],
+    });
+  });
+
+  it('saldos_no_cuadran con cuerpo vacío o incompleto: su rechazo, sin los detalles que faltan', () => {
+    expect(
+      clasificarErrorSubida(new ApiError(400, 'saldos_no_cuadran', ['x'])),
+    ).toEqual({ clase: 'pdf_saldos_no_cuadran', mensaje: 'x', lineas: [] });
+    expect(
+      clasificarErrorSubida(
+        conCuerpo('saldos_no_cuadran', 'x', { saldoEsperado: 11500.5 }),
+      ),
+    ).toEqual({ clase: 'pdf_saldos_no_cuadran', mensaje: 'x', lineas: [] });
+    expect(
+      clasificarErrorSubida(
+        conCuerpo('saldos_no_cuadran', 'x', { diferencia: '-1.00' }),
+      ),
+    ).toEqual({
+      clase: 'pdf_saldos_no_cuadran',
+      mensaje: 'x',
+      diferencia: '-1.00',
+      lineas: [],
+    });
+  });
+
+  it('lineas_no_leidas con cuerpo vacío o incompleto: su rechazo, sin líneas', () => {
+    const esperado = {
+      clase: 'pdf_lineas_no_leidas',
+      mensaje: 'x',
+      lineas: [],
+    };
+    expect(
+      clasificarErrorSubida(new ApiError(400, 'lineas_no_leidas', ['x'])),
+    ).toEqual(esperado);
+    expect(
+      clasificarErrorSubida(
+        conCuerpo('lineas_no_leidas', 'x', { lineasNoLeidas: 'no' }),
+      ),
+    ).toEqual(esperado);
+  });
+
+  it('sin_movimientos con cuerpo vacío: su rechazo', () => {
+    expect(
+      clasificarErrorSubida(new ApiError(400, 'sin_movimientos', ['x'])),
+    ).toEqual({ clase: 'pdf_sin_movimientos', mensaje: 'x' });
+  });
+
+  it('un código desconocido sigue siendo un rechazo genérico', () => {
+    expect(
+      clasificarErrorSubida(new ApiError(400, 'otro_codigo', ['x'])),
+    ).toEqual({ clase: 'rechazo', detalle: 'x' });
+  });
+});
+
 describe('clasificarErrorSubida', () => {
   it('400 con motivo en texto: rechazo con el motivo exacto', () => {
     expect(
