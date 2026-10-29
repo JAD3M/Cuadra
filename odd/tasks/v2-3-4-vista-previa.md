@@ -61,9 +61,13 @@ reales hasta entonces).
 - [x] **T3 — Aceptar.** Candado de empresa, `INSERT … SELECT` a `movimientos`,
   vaciar la espera, carga `procesada` con contadores que cuadran, conciliar y
   encolar sugerencias, bitácora. Sin movimientos a medias si algo falla.
-- [ ] **T4 — Rechazar.** Carga `rechazada`, espera vaciada, nada en
+- [x] **T4 — Rechazar.** Carga `rechazada`, espera vaciada, nada en
   `movimientos`, bitácora. Un 403 para quien no puede cargar, en aceptar y
   rechazar.
+- [x] **T4b — Volver a subir un PDF rechazado y saldos nulos.** Un PDF
+  rechazado en la vista previa se puede subir otra vez: se reabre la misma
+  carga (el índice único se queda). El DTO de la vista previa admite saldos
+  nulos.
 - [ ] **T5 — Mockup.** Crear el mockup de la vista previa en Claude Design y
   acordarlo con el usuario. Bloquea T6.
 - [ ] **T6 — Frontend.** Pantalla de vista previa según el mockup acordado.
@@ -120,3 +124,30 @@ reales hasta entonces).
   de 18 fallaban con 404 de ruta inexistente; GREEN 18/18, incluidas dos
   aceptaciones simultáneas (200+409) y un fallo a mitad del INSERT (500, nada
   movido).
+- 2026-10-29 T4: `POST /cargas/:id/rechazar` (`cargas.cargar`, 200) en
+  `VistaPreviaService.rechazar`: carga `FOR UPDATE` (serializa con aceptar sin
+  tomar el candado de empresa, porque no toca conciliación), espera borrada,
+  carga `rechazada`, bitácora `rechazar` sobre la carga con
+  `movimientosDescartados`. 404/409/400 como aceptar; 403 con `acceso_denegado`
+  para quien no tiene `cargas.cargar` en ambos. Pruebas: mientras espera, la
+  bandeja y `conciliar` no ven nada (T3). RED: 8 de 26 con 404 de ruta
+  inexistente; GREEN 26/26 (aceptar y rechazar simultáneos: 200+409).
+- 2026-10-29 Cierre de T1-T4: la suite completa detectó una lista cerrada de
+  tablas con `DELETE` para `cuadra_app` (`sesiones-privilegios`); se agregó
+  `movimientos_pendientes` a propósito. Suite backend completa: 69 suites, 1477
+  pruebas en verde; frontend 280 archivos / 4533 pruebas. Siguiente: T5
+  (mockup, bloquea T6).
+- 2026-10-29 T4b: decisión A: `guardarEstadoCuentaPdf` reabre una carga
+  `rechazada` con el mismo hash (`reabrirCargaRechazada`: `UPDATE … WHERE estado
+  = 'rechazada' RETURNING`, con total nuevo; los saldos los refresca
+  `guardarSaldosDeCarga`), vuelve a llenar la espera, bitácora `cargar` con
+  `resubida: true` y responde `yaExistia: false`. Con subidas simultáneas la
+  perdedora espera el candado de fila, ya no ve `rechazada` y responde como
+  carga existente. Los demás estados conservan `yaExistia: true`. Sin
+  migración: `cuadra_app` ya tenía `UPDATE` en `cargas` e `INSERT` en
+  `movimientos_pendientes`. Decisión B: `VistaPreviaDto.saldoInicial/saldoFinal`
+  son `string | null` (y nullable en Swagger); no hay tipo espejo en el
+  frontend. RED: 4 de 6 pruebas nuevas fallaban (carga seguía `rechazada` y
+  `yaExistia: true`); la de saldos nulos ya pasaba en ejecución (el cambio es
+  de tipo). Una trampa vista: `manager.query` de un `UPDATE … RETURNING`
+  responde `[filas, n]`.

@@ -41,7 +41,11 @@ import {
   type EstadoDeCarga,
   type RespuestaDeCarga,
 } from './cargas.service';
-import { AceptacionDto, VistaPreviaDto } from './dto/vista-previa.dto';
+import {
+  AceptacionDto,
+  RechazoDto,
+  VistaPreviaDto,
+} from './dto/vista-previa.dto';
 import { VistaPreviaService } from './vista-previa.service';
 import { YaExistiaInterceptor } from './ya-existia.interceptor';
 
@@ -213,6 +217,30 @@ export class CargasController {
     @Req() solicitud: Request,
   ): Promise<AceptacionDto> {
     return this.vistaPrevia.aceptar(usuario.companyId, id, {
+      userId: usuario.userId,
+      ip: solicitud.ip,
+      userAgent: solicitud.headers['user-agent'],
+    });
+  }
+
+  /**
+   * Historia 3.4. Rechaza la vista previa: la espera se borra y la carga
+   * queda 'rechazada'; nada entra a `movimientos`. 409 si ya no está en vista
+   * previa.
+   */
+  @Post(':id/rechazar')
+  @HttpCode(HttpStatus.OK)
+  @Permiso('cargas.cargar')
+  @ApiOkResponse({ type: RechazoDto })
+  @ApiNotFoundResponse({ description: 'La carga no existe en la empresa.' })
+  @ApiConflictResponse({ description: 'La carga no está en vista previa.' })
+  @ApiForbiddenResponse({ description: 'Sin permiso para cargar.' })
+  rechazar(
+    @UsuarioActual() usuario: Sesion,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() solicitud: Request,
+  ): Promise<RechazoDto> {
+    return this.vistaPrevia.rechazar(usuario.companyId, id, {
       userId: usuario.userId,
       ip: solicitud.ip,
       userAgent: solicitud.headers['user-agent'],

@@ -60,10 +60,11 @@ describe('roles que cargan (@Permiso de src/cargas/cargas.controller.ts)', () =>
   const controlador = leer('cargas/cargas.controller.ts');
   const matriz = leer('auth/permisos/matriz.ts');
 
-  it('los cuatro POST declaran cargas.cargar y la matriz del backend coincide con el espejo', () => {
+  it('los cinco POST declaran cargas.cargar y la matriz del backend coincide con el espejo', () => {
+    // CFDI, estado de cuenta, PDF, aceptar y rechazar la vista previa.
     expect(
       permisosDelControlador(controlador).filter((p) => p !== 'cargas.ver'),
-    ).toEqual(Array(4).fill('cargas.cargar'));
+    ).toEqual(Array(5).fill('cargas.cargar'));
     expect(rolesDeMatriz(matriz, 'cargas.cargar')).toEqual([
       ...rolesConPermiso('cargas.cargar'),
     ]);

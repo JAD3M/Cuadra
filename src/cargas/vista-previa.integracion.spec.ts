@@ -441,3 +441,294 @@ describe('POST /cargas/:id/aceptar (T3)', () => {
     await llamar('post', `/cargas/${cargaId}/aceptar`, ANA, 200);
   });
 });
+
+describe('POST /cargas/:id/rechazar (T4)', () => {
+  let conciliar: jest.SpyInstance;
+
+  beforeEach(() => {
+    conciliar = jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('descarta la espera, deja la carga rechazada y no entra nada a movimientos', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    const res = await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    expect(res.body).toEqual({ cargaId, estado: 'rechazada' });
+
+    expect((await pendientesDe(cargaId)).n).toBe(0);
+    expect((await conteoDeMovimientos(cargaId)).n).toBe(0);
+    expect(
+      await una<Record<string, unknown>>(
+        ds,
+        `SELECT estado, total_registros, registros_ok, registros_existentes,
+                registros_error
+           FROM cargas WHERE id = $1`,
+        [cargaId],
+      ),
+    ).toEqual({
+      estado: 'rechazada',
+      total_registros: 2,
+      registros_ok: 0,
+      registros_existentes: 0,
+      registros_error: 0,
+    });
+
+    const [entrada, ...resto] = await bitacoraDe(cargaId, 'rechazar');
+    expect(resto).toHaveLength(0);
+    expect(entrada.user_id).toBe(entorno.persona(LUIS));
+    expect(entrada.datos).toMatchObject({
+      cargaId,
+      archivo: 'vp-bbva.pdf',
+      estado: 'rechazada',
+      movimientosDescartados: 2,
+    });
+    expect(conciliar).not.toHaveBeenCalled();
+  });
+
+  it('el historial muestra la carga como rechazada y la vista previa ya no existe', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    const lista = await llamar('get', '/cargas', LUIS, 200);
+    const cuerpo = lista.body as {
+      datos: Array<{ id: string; estado: string }>;
+    };
+    expect(cuerpo.datos.find((c) => c.id === cargaId)?.estado).toBe(
+      'rechazada',
+    );
+    await llamar('get', `/cargas/${cargaId}/vista-previa`, LUIS, 404);
+  });
+
+  it('rechazar dos veces: la segunda es 409 y no duplica la bitácora', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 409);
+    expect(await bitacoraDe(cargaId, 'rechazar')).toHaveLength(1);
+  });
+
+  it('una carga ya aceptada no se puede rechazar, ni una rechazada aceptar', async () => {
+    const aceptada = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${aceptada}/aceptar`, LUIS, 200);
+    await llamar('post', `/cargas/${aceptada}/rechazar`, LUIS, 409);
+    expect((await conteoDeMovimientos(aceptada)).n).toBe(2);
+    expect(
+      await una<{ estado: string }>(
+        ds,
+        `SELECT estado FROM cargas WHERE id = $1`,
+        [aceptada],
+      ),
+    ).toEqual({ estado: 'procesada' });
+
+    await limpiar();
+    const rechazada = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${rechazada}/rechazar`, LUIS, 200);
+    await llamar('post', `/cargas/${rechazada}/aceptar`, LUIS, 409);
+    expect((await conteoDeMovimientos(rechazada)).n).toBe(0);
+  });
+
+  it('aceptar y rechazar a la vez: una gana y la otra 409, sin mezclar', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    const token = await entorno.token(LUIS, FERRETERIA);
+    const [a, r] = await Promise.all(
+      ['aceptar', 'rechazar'].map((accion) =>
+        request(entorno.app.getHttpServer())
+          .post(`/cargas/${cargaId}/${accion}`)
+          .set('Cookie', token),
+      ),
+    );
+    expect([a.status, r.status].sort()).toEqual([200, 409]);
+    const { estado } = await una<{ estado: string }>(
+      ds,
+      `SELECT estado FROM cargas WHERE id = $1`,
+      [cargaId],
+    );
+    expect((await pendientesDe(cargaId)).n).toBe(0);
+    expect((await conteoDeMovimientos(cargaId)).n).toBe(
+      estado === 'procesada' ? 2 : 0,
+    );
+  });
+
+  it('inexistente, ajena o con id inválido: 404 / 404 / 400', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar(
+      'post',
+      '/cargas/0198f3a0-0000-7000-8000-000000000000/rechazar',
+      LUIS,
+      404,
+    );
+    await llamar(
+      'post',
+      `/cargas/${cargaId}/rechazar`,
+      CARMEN,
+      404,
+      TRANSPORTES,
+    );
+    await llamar('post', '/cargas/xyz/rechazar', LUIS, 400);
+    expect((await pendientesDe(cargaId)).n).toBe(2);
+  });
+
+  it('sin sesión: 401; revisor: 403 con acceso denegado, sin tocar nada', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, null, 401);
+    const antes = (await denegados()).length;
+    await llamar(
+      'post',
+      `/cargas/${cargaId}/rechazar`,
+      JORGE,
+      403,
+      TRANSPORTES,
+    );
+    const despues = await denegados();
+    expect(despues).toHaveLength(antes + 1);
+    expect(despues.at(-1)?.datos).toMatchObject({
+      metodo: 'POST',
+      ruta: `/cargas/${cargaId}/rechazar`,
+    });
+    expect((await pendientesDe(cargaId)).n).toBe(2);
+    expect(await bitacoraDe(cargaId, 'rechazar')).toHaveLength(0);
+  });
+
+  it('un admin también rechaza', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, ANA, 200);
+  });
+});
+
+describe('volver a subir un PDF rechazado', () => {
+  let conciliar: jest.SpyInstance;
+
+  beforeEach(() => {
+    conciliar = jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  const subirOtraVez = (correo: string) =>
+    request(entorno.app.getHttpServer())
+      .post('/cargas/estado-cuenta/pdf')
+      .set('Cookie', entornoToken.get(correo) as string)
+      .field('banco', 'bbva')
+      .attach('archivo', BBVA, 'vp-bbva.pdf');
+  const entornoToken = new Map<string, string>();
+
+  beforeEach(async () => {
+    entornoToken.set(LUIS, await entorno.token(LUIS, FERRETERIA));
+  });
+
+  it('reabre la misma carga: espera de vuelta, vista previa y aceptar funcionan', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    expect((await pendientesDe(cargaId)).n).toBe(0);
+
+    const res = await subirOtraVez(LUIS).expect(200);
+    expect(res.body).toMatchObject({
+      cargaId,
+      estado: 'pendiente_vista_previa',
+      yaExistia: false,
+    });
+    expect((await pendientesDe(cargaId)).n).toBe(2);
+    expect(
+      await una<Record<string, unknown>>(
+        ds,
+        `SELECT estado, total_registros, registros_ok, registros_existentes,
+                registros_error, saldo_inicial::text AS saldo_inicial
+           FROM cargas WHERE id = $1`,
+        [cargaId],
+      ),
+    ).toMatchObject({
+      estado: 'pendiente_vista_previa',
+      total_registros: 2,
+      registros_ok: 0,
+      registros_existentes: 0,
+      registros_error: 0,
+    });
+
+    const vista = await llamar(
+      'get',
+      `/cargas/${cargaId}/vista-previa`,
+      LUIS,
+      200,
+    );
+    expect((vista.body as { total: number }).total).toBe(2);
+    await llamar('post', `/cargas/${cargaId}/aceptar`, LUIS, 200);
+    expect((await conteoDeMovimientos(cargaId)).n).toBe(2);
+  });
+
+  it('deja una entrada cargar que dice que es una nueva subida', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    await subirOtraVez(LUIS).expect(200);
+    const entradas = await bitacoraDe(cargaId, 'cargar');
+    expect(entradas).toHaveLength(2);
+    expect(entradas.filter((e) => e.datos.resubida === true)).toHaveLength(1);
+  });
+
+  it('rechazar de nuevo y volver a subir otra vez también funciona', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    for (let i = 0; i < 2; i++) {
+      await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+      await subirOtraVez(LUIS).expect(200);
+      expect((await pendientesDe(cargaId)).n).toBe(2);
+    }
+  });
+
+  it('dos subidas simultáneas de un rechazado: una sola espera, sin duplicar', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    const [a, b] = await Promise.all([subirOtraVez(LUIS), subirOtraVez(LUIS)]);
+    expect([a.status, b.status]).toEqual([200, 200]);
+    expect(
+      [a, b].filter((r) => (r.body as { yaExistia: boolean }).yaExistia),
+    ).toHaveLength(1);
+    expect((await pendientesDe(cargaId)).n).toBe(2);
+    expect(
+      (await bitacoraDe(cargaId, 'cargar')).filter(
+        (e) => e.datos.resubida === true,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('una carga procesada no se reabre: sigue siendo yaExistia', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/aceptar`, LUIS, 200);
+    const res = await subirOtraVez(LUIS).expect(200);
+    expect(res.body).toMatchObject({
+      cargaId,
+      estado: 'procesada',
+      yaExistia: true,
+    });
+    expect((await pendientesDe(cargaId)).n).toBe(0);
+    expect((await conteoDeMovimientos(cargaId)).n).toBe(2);
+    expect(conciliar).toHaveBeenCalled();
+  });
+});
+
+describe('vista previa de una carga sin saldos (anterior a la migración)', () => {
+  it('devuelve saldoInicial y saldoFinal en null, sin fallar', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await ds.query(
+      `UPDATE cargas SET saldo_inicial = NULL, saldo_final = NULL WHERE id = $1`,
+      [cargaId],
+    );
+    const res = await llamar(
+      'get',
+      `/cargas/${cargaId}/vista-previa`,
+      LUIS,
+      200,
+    );
+    expect(res.body).toMatchObject({
+      cargaId,
+      total: 2,
+      saldoInicial: null,
+      saldoFinal: null,
+    });
+  });
+});

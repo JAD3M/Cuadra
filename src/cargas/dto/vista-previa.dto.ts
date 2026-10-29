@@ -20,8 +20,20 @@ export class VistaPreviaDto {
   banco!: string | null;
   @ApiProperty({ description: 'Cuántos movimientos se leyeron.' })
   total!: number;
-  @ApiProperty({ example: '10000.0000' }) saldoInicial!: string;
-  @ApiProperty({ example: '11250.5000' }) saldoFinal!: string;
+  @ApiProperty({
+    example: '10000.0000',
+    nullable: true,
+    type: String,
+    description: 'NULL en cargas guardadas antes de la historia 3.4.',
+  })
+  saldoInicial!: string | null;
+  @ApiProperty({
+    example: '11250.5000',
+    nullable: true,
+    type: String,
+    description: 'NULL en cargas guardadas antes de la historia 3.4.',
+  })
+  saldoFinal!: string | null;
   @ApiProperty({ type: [MovimientoVistaPreviaDto] })
   movimientos!: MovimientoVistaPreviaDto[];
 }
@@ -32,4 +44,10 @@ export class AceptacionDto {
   @ApiProperty({ example: 'procesada' }) estado!: 'procesada';
   @ApiProperty({ description: 'Cuántos movimientos entraron a conciliación.' })
   movimientos!: number;
+}
+
+/** Lo que responde rechazar la vista previa: la carga quedó descartada. */
+export class RechazoDto {
+  @ApiProperty() cargaId!: string;
+  @ApiProperty({ example: 'rechazada' }) estado!: 'rechazada';
 }
