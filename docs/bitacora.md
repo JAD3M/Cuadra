@@ -5,6 +5,24 @@
 
 ### 27 oct 2026
 
+- **Pendientes de la 3.1 (cargas) cerrados.** Rama
+  `feat/v2-3-1-05-pendientes-cargas` con ODD, desde `master` tras la 3.2.
+  - **T1:** la moneda es obligatoria en cada perfil: o la columna `moneda` o
+    el campo `moneda` del JSON del perfil. Sin ella se rechaza el archivo
+    (`moneda_faltante`); ya no se asume MXN por omisión. `banco-norte` y
+    `banco-sur` declaran `MXN`; fixtures y `demo/*.csv` regenerados.
+  - **T2:** la entrada `cargar` de una carga reanudada lleva `reanudada: true`
+    en `datos`. Se conservan las dos entradas; nada se sobrescribe.
+  - **T3:** la ruta del PDF entra en la tabla de 403 del auditor
+    (`permisos.integracion.spec.ts`): una sola entrada `acceso_denegado` y
+    nada cambia.
+  - **Efecto a tener presente:** las cargas pendientes o fallidas ya guardadas
+    sin columna `moneda` fallarán al reanudarse tras este cambio; hay que
+    resubir el archivo.
+  - **Pendiente:** el filtro «Entidad» de la bitácora frente al mockup lo
+    decide el usuario aparte, y falta validar el lector del PDF con un estado
+    de cuenta real de BBVA (3.2).
+
 - **Historia 3.2 de la v2: leer el PDF de BBVA y rechazar lo que no se puede
   leer (KAN-131, FR-1 parte, FR-7; AD-8).** Rama `feat/v2-3-2-leer-pdf-bbva`
   con ODD, desde `master` tras la 3.1. El contador sube el PDF eligiendo el

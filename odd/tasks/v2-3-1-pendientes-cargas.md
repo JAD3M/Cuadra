@@ -73,8 +73,7 @@ Cerrar tres pendientes que quedaron anotados al integrar la 3.1:
   reanudada que termina deja dos entradas `cargar`, la segunda con
   `reanudada: true` y la primera sin ella; aislada por empresa.
 - [x] **T3 — Prueba del auditor para el PDF.** Fila en `ACCIONES` con la
-  entrada `acceso_denegado` y sin cambios persistidos.
-- [ ] **T4 — Cierre.** Suites completas (backend y frontend), lint y formato,
+  entrada `acceso_denegado` y sin cambios persistidos.- [x] **T4 — Cierre.** Suites completas (backend y frontend), lint y formato,
   entrada en `docs/bitacora.md`, PR.
 
 ## Aceptación
@@ -113,3 +112,4 @@ Cerrar tres pendientes que quedaron anotados al integrar la 3.1:
   (el 403 del PDF ya estaba implementado; no hay RED). La fila
   `cargar estado de cuenta PDF` de `ACCIONES` corre y verifica 403, una sola
   entrada `acceso_denegado` y que nada cambia. Siguiente: T4.
+- 2026-10-29: T4 hecha. Backend `npm test` 66 suites / 1412 pruebas en verde, typecheck, build, prettier y eslint limpios. Frontend vitest 4497/4497, typecheck, lint, format:check y build limpios. Una primera corrida del backend falló (35 suites) por Redis/Postgres no listos; al repetir con los servicios sanos pasó completa. Entrada en `docs/bitacora.md`. Falta: push y PR (decide el usuario).
