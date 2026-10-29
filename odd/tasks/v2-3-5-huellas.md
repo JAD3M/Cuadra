@@ -73,7 +73,7 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   `(company_id, huella)`, backfill SQL con paridad contra la función TS, estado
   `pendiente_revision` (backend, espejo, `CHECK`, deriva, etiquetas) y revisar
   los consumidores (conciliación, bandeja, resolución).
-- [ ] **T3 — Clasificador dentro del candado.** Dado un lote, devuelve nuevos,
+- [x] **T3 — Clasificador dentro del candado.** Dado un lote, devuelve nuevos,
   exactos y dudosos contra `movimientos` con multiplicidad, tomando el candado de
   empresa. Pruebas de concurrencia (dos cargas simultáneas no duplican).
 - [ ] **T4 — Aceptar la vista previa.** `GET` suma el resumen; aceptar importa
@@ -130,3 +130,12 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   RED: `Tests: 3 failed` (violación de `ck_movimientos_estado` en bandeja,
   conciliación y casos) y paridad sin migración. GREEN: backend 71 suites /
   1523 tests, frontend 4634 tests; eslint, prettier, typecheck y build limpios.
+- 2026-10-30 T3 hecha (ruta: escritor delegado). `src/bancos/clasificar-huellas.ts`:
+  `emparejar(entrantes, existentes)` (núcleo puro: por grupo de huella, 1 a 1;
+  primero exactos por referencia cruda, luego el sobrante como dudoso, el resto
+  nuevo; el lote no se empareja consigo mismo) y `clasificarPorHuella(manager,
+  companyId, filas)` (una consulta `huella = ANY`, cualquier estado). El candado
+  lo toma quien llama (T4/T5); las pruebas de concurrencia viven ahí. RED: las
+  dos suites no corrían (módulo inexistente). GREEN: 18/18 (13 puras + 5 con
+  Postgres: todos los estados, mezcla exacto/dudoso/nuevo, multiplicidad, otra
+  empresa, lote vacío).
