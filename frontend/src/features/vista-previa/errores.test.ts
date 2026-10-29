@@ -39,8 +39,15 @@ describe('clasificarErrorDecision', () => {
     expect(clasificarErrorDecision(api(status))).toBe(clase);
   });
 
-  it('red y contrato son «servidor»: no se sabe si se escribió algo', () => {
-    expect(clasificarErrorDecision(new NetworkError())).toBe('servidor');
+  it('un corte de red es «red»: puede que la acción sí se haya aplicado', () => {
+    expect(clasificarErrorDecision(new NetworkError())).toBe('red');
+  });
+
+  it('un 500 sigue siendo «servidor», no «red»', () => {
+    expect(clasificarErrorDecision(api(500))).toBe('servidor');
+  });
+
+  it('un contrato roto es «servidor»', () => {
     expect(clasificarErrorDecision(new ContratoError())).toBe('servidor');
   });
 

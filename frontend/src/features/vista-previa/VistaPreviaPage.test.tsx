@@ -295,6 +295,25 @@ describe('VistaPreviaPage: aceptar', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('un corte de red al aceptar no afirma que no se aceptó nada y ofrece ir a Cargas', async () => {
+    servidor.use(
+      leerVistaPrevia(),
+      http.post(RUTA_ACEPTAR, () => HttpResponse.error()),
+    );
+    montar();
+    await esperarContenido();
+    await usuario().click(aceptar());
+    const alerta = await screen.findByRole('alert');
+    expect(alerta).toHaveTextContent('No pudimos confirmar el resultado.');
+    expect(alerta).toHaveTextContent(
+      'Se perdió la conexión y puede que la acción sí se haya aplicado. Revisa el estado de la carga en Cargas antes de reintentar.',
+    );
+    expect(alerta).not.toHaveTextContent('No se aceptó nada');
+    expect(
+      within(alerta).getByRole('link', { name: 'Ir a Cargas' }),
+    ).toHaveAttribute('href', '/cargas');
+  });
+
   it('409 al aceptar: ya no está en espera y se quitan las acciones', async () => {
     servidor.use(leerVistaPrevia(), aceptarFalla(409));
     montar();
@@ -443,6 +462,36 @@ describe('VistaPreviaPage: rechazar', () => {
     expect(
       screen.getByRole('region', { name: 'Resumen de la lectura' }),
     ).toBeVisible();
+  });
+
+  it('un corte de red al rechazar dice lo mismo que al aceptar, sin «No se rechazó nada»', async () => {
+    servidor.use(
+      leerVistaPrevia(),
+      http.post(RUTA_RECHAZAR, () => HttpResponse.error()),
+    );
+    montar();
+    await esperarContenido();
+    const u = usuario();
+    await u.click(rechazar());
+    await u.click(screen.getByRole('button', { name: 'Sí, rechazar' }));
+    const alerta = await screen.findByRole('alert');
+    expect(alerta).toHaveTextContent('No pudimos confirmar el resultado.');
+    expect(alerta).not.toHaveTextContent('No se rechazó nada');
+    expect(
+      within(alerta).getByRole('link', { name: 'Ir a Cargas' }),
+    ).toHaveAttribute('href', '/cargas');
+  });
+
+  it('al abrir la confirmación de rechazo se limpia el error anterior', async () => {
+    servidor.use(leerVistaPrevia(), aceptarFalla(500));
+    montar();
+    await esperarContenido();
+    const u = usuario();
+    await u.click(aceptar());
+    await screen.findByRole('alert');
+    await u.click(rechazar());
+    await screen.findByRole('alertdialog');
+    expect(screen.queryByText('No se pudo completar la solicitud.')).toBeNull();
   });
 
   it('409 al rechazar: ya no está en espera', async () => {

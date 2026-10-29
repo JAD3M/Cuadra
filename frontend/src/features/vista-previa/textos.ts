@@ -46,6 +46,14 @@ export const ERROR_DECISION = {
     'No se rechazó nada: la vista previa sigue en espera. Inténtalo de nuevo en unos minutos.',
 } as const;
 
+/** Sin respuesta: la acción pudo haberse aplicado, no se afirma que no. */
+export const ERROR_RED_DECISION = {
+  titulo: 'No pudimos confirmar el resultado.',
+  detalle:
+    'Se perdió la conexión y puede que la acción sí se haya aplicado. Revisa el estado de la carga en Cargas antes de reintentar.',
+  ir: 'Ir a Cargas',
+} as const;
+
 export const SOLO_CONSULTA = {
   titulo: 'Tu rol solo permite consultar las cargas.',
   detalle:

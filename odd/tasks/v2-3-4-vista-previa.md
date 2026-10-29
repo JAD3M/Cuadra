@@ -174,3 +174,7 @@ reales hasta entonces).
   superficie de T6: `frontend/tests/dominio/cargasEspejo.test.ts` espera 3
   `@Permiso('cargas.cargar')` y el controlador ya tiene 5 (aceptar y rechazar,
   T3-T4): falla desde antes de T6, queda para T7. Siguiente: T7.
+- 2026-10-29: R3-001/R3-002 (revisión): un corte de red al aceptar o rechazar
+  ya no dice «No se aceptó/rechazó nada»; clase `red` con «No pudimos
+  confirmar el resultado.» y enlace «Ir a Cargas». Abrir la confirmación de
+  rechazo limpia el error anterior.
