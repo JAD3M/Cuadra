@@ -16,7 +16,7 @@ import estilos from './TablaBitacora.module.css';
 export interface EventoTabla {
   id: string;
   entidad: string;
-  entidadId: string;
+  entidadId: string | null;
   accion: AccionBitacora;
   /** JSON libre del servidor: solo lo interpreta `detalleEvento`. */
   datos: unknown;
@@ -78,7 +78,7 @@ function FilaEvento({ evento, zona }: { evento: EventoTabla; zona?: string }) {
       </Td>
       <Td>
         <span className={estilos.entidad}>{evento.entidad}</span>
-        <div className={estilos.entidadId}>{evento.entidadId}</div>
+        <div className={estilos.entidadId}>{evento.entidadId ?? '—'}</div>
       </Td>
       <Td className={estilos.detalle}>
         <Detalle texto={detalleEvento(evento)} />

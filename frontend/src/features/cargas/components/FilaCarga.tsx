@@ -45,6 +45,7 @@ const MUESTRA_CONTADORES: Readonly<Record<EstadoCarga, boolean>> = {
   procesada: true,
   con_errores: true,
   fallida: false,
+  pendiente_vista_previa: false,
 };
 
 /**

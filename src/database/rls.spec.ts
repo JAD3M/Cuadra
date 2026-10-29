@@ -27,6 +27,7 @@ const TABLAS_CON_RLS = [
   'bitacora',
   'carga_archivos',
   'sugerencias_ia',
+  'movimientos_pendientes',
 ] as const;
 
 /** Dueño del esquema: migra, siembra y cuenta sin RLS. */

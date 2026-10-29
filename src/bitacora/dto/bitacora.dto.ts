@@ -94,7 +94,7 @@ export class UsuarioBitacoraDto {
 export class EventoHistorialDto {
   @ApiProperty() id: string;
   @ApiProperty() entidad: string;
-  @ApiProperty() entidadId: string;
+  @ApiProperty({ type: String, nullable: true }) entidadId: string | null;
   @ApiProperty({ enum: ACCIONES_BITACORA }) accion: string;
   @ApiProperty({ nullable: true, type: 'object', additionalProperties: true })
   datos: Record<string, unknown> | null;

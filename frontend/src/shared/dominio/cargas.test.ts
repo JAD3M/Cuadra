@@ -14,16 +14,17 @@ import {
 } from '@/shared/dominio';
 
 describe('FASE_CARGA, esActiva y esConcluida', () => {
-  it('cubre exactamente los cinco estados del backend', () => {
+  it('cubre exactamente los seis estados del backend', () => {
     expect(Object.keys(FASE_CARGA)).toEqual([...ESTADOS_CARGA]);
   });
 
-  it('pendiente y procesando son activas; el resto, concluidas', () => {
+  it('pendiente y procesando son activas; el resto, concluidas (incluida la espera de vista previa)', () => {
     expect(ESTADOS_CARGA.filter(esActiva)).toEqual(['pendiente', 'procesando']);
     expect(ESTADOS_CARGA.filter(esConcluida)).toEqual([
       'procesada',
       'con_errores',
       'fallida',
+      'pendiente_vista_previa',
     ]);
   });
 
@@ -41,13 +42,14 @@ describe('FASE_CARGA, esActiva y esConcluida', () => {
 });
 
 describe('etiquetas de carga', () => {
-  it('estado: Pendiente, Procesando, Procesada, Con filas rechazadas, Fallida', () => {
+  it('estado: una etiqueta por estado, en el orden del backend', () => {
     expect(ESTADOS_CARGA.map((e) => ETIQUETAS_ESTADO_CARGA[e])).toEqual([
       'Pendiente',
       'Procesando',
       'Procesada',
       'Con filas rechazadas',
       'Fallida',
+      'Pendiente de vista previa',
     ]);
   });
 

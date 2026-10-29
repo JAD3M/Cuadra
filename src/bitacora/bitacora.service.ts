@@ -17,7 +17,7 @@ import type {
 interface FilaSql {
   id: string;
   entidad: string;
-  entidad_id: string;
+  entidad_id: string | null;
   accion: string;
   datos: Record<string, unknown> | null;
   created_at: Date;

@@ -19,7 +19,8 @@ import { ACCIONES_BITACORA, LIMITE_MAXIMO } from '@/shared/dominio';
 export const eventoBitacora = z.object({
   id: z.guid(),
   entidad: z.string().min(1),
-  entidadId: z.guid(),
+  /** `null` solo en un rechazo, que no crea entidad. */
+  entidadId: z.guid().nullable(),
   accion: z.enum(ACCIONES_BITACORA),
   datos: z.record(z.string(), z.unknown()).nullable(),
   createdAt: z.iso.datetime(),

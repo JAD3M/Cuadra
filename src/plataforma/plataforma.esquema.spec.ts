@@ -241,8 +241,11 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 });
 
 describe('migración reversible', () => {
-  it('down y up de CambiarQuitarRoles, InvitacionesCancelables, InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
-    // La última es CambiarQuitarRoles: quita el DELETE de `user_company_roles`
+  it('down y up de PendienteVistaPrevia, CambiarQuitarRoles, InvitacionesCancelables, InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
+    // La última es PendienteVistaPrevia (historia 3.3): ajena a la plataforma,
+    // solo se deshace para llegar a las que sí lo son.
+    await duenio.undoLastMigration();
+    // Luego CambiarQuitarRoles: quita el DELETE de `user_company_roles`
     // y las acciones `cambiar_rol` y `quitar_rol` del CHECK de la bitácora.
     await duenio.undoLastMigration();
     const { borra } = await una<{ borra: boolean }>(

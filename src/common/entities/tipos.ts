@@ -13,6 +13,9 @@ export type TipoCarga = (typeof TIPOS_CARGA)[number];
 /**
  * CU-08. 'con_errores': terminó con al menos un XML inválido. 'fallida': el
  * sistema agotó los reintentos (infraestructura), nunca por los XML.
+ * Historia 3.3. 'pendiente_vista_previa': el PDF cuadró y sus movimientos
+ * esperan la vista previa. Es un estado concluido para el polling y el worker
+ * no lo toma.
  */
 export const ESTADOS_CARGA = [
   'pendiente',
@@ -20,6 +23,7 @@ export const ESTADOS_CARGA = [
   'procesada',
   'con_errores',
   'fallida',
+  'pendiente_vista_previa',
 ] as const;
 export type EstadoCarga = (typeof ESTADOS_CARGA)[number];
 

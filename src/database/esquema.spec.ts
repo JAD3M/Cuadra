@@ -24,6 +24,7 @@ const TABLAS_DOMINIO = [
   'user_company_roles',
   'carga_archivos',
   'sugerencias_ia',
+  'movimientos_pendientes',
 ] as const;
 
 const TODAS_LAS_TABLAS = [

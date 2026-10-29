@@ -79,7 +79,7 @@ export const ETIQUETAS_ORIGEN_CONCILIACION: Record<OrigenConciliacion, string> =
   };
 
 /**
- * Texto visible de cada estado de una carga (K1: cinco estados, los del
+ * Texto visible de cada estado de una carga (K1: los estados del
  * backend). Compila de forma exhaustiva sobre el espejo.
  */
 export const ETIQUETAS_ESTADO_CARGA: Record<EstadoCarga, string> = {
@@ -88,6 +88,7 @@ export const ETIQUETAS_ESTADO_CARGA: Record<EstadoCarga, string> = {
   procesada: 'Procesada',
   con_errores: 'Con filas rechazadas',
   fallida: 'Fallida',
+  pendiente_vista_previa: 'Pendiente de vista previa',
 };
 
 /** Texto visible de cada tipo de carga (maqueta Cargas.dc.html). */

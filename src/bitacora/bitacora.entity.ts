@@ -25,6 +25,10 @@ import {
 @Index('ix_bitacora_company_id_created_at', ['companyId', 'createdAt'])
 @Index('ix_bitacora_company_id_entidad', ['companyId', 'entidad', 'entidadId'])
 @Check('ck_bitacora_accion', `accion IN (${listaSql(ACCIONES_BITACORA)})`)
+@Check(
+  'ck_bitacora_entidad_id_solo_rechazo',
+  `entidad_id IS NOT NULL OR accion = 'rechazar'`,
+)
 export class Bitacora {
   @PrimaryColumn({ type: 'uuid', default: () => 'uuidv7()' })
   id: string;
@@ -40,8 +44,9 @@ export class Bitacora {
   @Column({ type: 'varchar', length: 64 })
   entidad: string;
 
-  @Column({ type: 'uuid' })
-  entidadId: string;
+  /** NULL solo en un rechazo: no crea entidad (ck_bitacora_entidad_id_solo_rechazo). */
+  @Column({ type: 'uuid', nullable: true })
+  entidadId: string | null;
 
   @Column({ type: 'varchar', length: 32 })
   accion: AccionBitacora;
