@@ -65,7 +65,7 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
 
 ## Tareas
 
-- [ ] **T1 — Huella.** RED primero: función pura `huella({cuenta, fecha, monto,
+- [x] **T1 — Huella.** RED primero: función pura `huella({cuenta, fecha, monto,
   referencia})` con casos de normalización (monto `250` y `250.0000`, referencia
   con ceros y símbolos, cuenta nula, fecha), estabilidad y sensibilidad. Sin
   flotantes.
@@ -107,3 +107,9 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
 
 - 2026-10-30: documento creado, rama abierta, KAN-134 en curso. Paquete de
   decisiones 1-6 acordado. Siguiente: T1.
+- 2026-10-30 T1 hecha (ruta: escritor delegado). `src/bancos/huella-movimiento.ts`:
+  `huellaMovimiento` = `v1:` + sha256 de `v1|cuenta|fecha|monto|referencia`
+  (cuenta: solo alfanuméricos en mayúsculas; monto: `dinero().toFixed(4)`,
+  cero negativo -> `0.0000`; referencia: `normalizarReferencia`, nula -> '').
+  `mismaReferenciaCruda` compara tras `trim` (nulo = ''). RED: suite no corría
+  (módulo inexistente); GREEN: 18/18 en `huella-movimiento.spec.ts`.
