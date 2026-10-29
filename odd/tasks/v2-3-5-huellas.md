@@ -69,7 +69,7 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   referencia})` con casos de normalización (monto `250` y `250.0000`, referencia
   con ceros y símbolos, cuenta nula, fecha), estabilidad y sensibilidad. Sin
   flotantes.
-- [ ] **T2 — Migración y estado.** `movimientos.huella` + índice no único
+- [x] **T2 — Migración y estado.** `movimientos.huella` + índice no único
   `(company_id, huella)`, backfill SQL con paridad contra la función TS, estado
   `pendiente_revision` (backend, espejo, `CHECK`, deriva, etiquetas) y revisar
   los consumidores (conciliación, bandeja, resolución).
@@ -113,3 +113,20 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   cero negativo -> `0.0000`; referencia: `normalizarReferencia`, nula -> '').
   `mismaReferenciaCruda` compara tras `trim` (nulo = ''). RED: suite no corría
   (módulo inexistente); GREEN: 18/18 en `huella-movimiento.spec.ts`.
+- 2026-10-30 T2 hecha (ruta: escritor delegado). Migración
+  `1790710400000-HuellaMovimientos`: función SQL `huella_movimiento` (mismo
+  esquema `v1|cuenta|fecha|monto|ref`, GRANT EXECUTE a `cuadra_app`),
+  `movimientos.huella` varchar(70) NULL, índice no único
+  `ix_movimientos_company_id_huella`, backfill empresa por empresa (RLS FORCE
+  alcanza al dueño; se fija `app.company_id` dentro de la transacción) y
+  `ck_movimientos_estado` con `pendiente_revision` (down simétrico).
+  Decisión: `movimientos_pendientes` NO lleva huella; el clasificador (T3) la
+  calcula con `huellaMovimiento` desde sus filas. Consumidores: conciliación,
+  bandeja, sugerencias y resolución ya filtran `estado = 'abierto'` (sin
+  cambio); `casos.service` ahora da 404 a un `pendiente_revision` (no es un
+  caso). El índice parcial `..._fecha_abierto` no cambia. No hay mapas de
+  etiquetas de estado de movimiento en el frontend; el espejo y la prueba de
+  deriva quedan en verde. Privilegios sin cambio (sin tabla nueva).
+  RED: `Tests: 3 failed` (violación de `ck_movimientos_estado` en bandeja,
+  conciliación y casos) y paridad sin migración. GREEN: backend 71 suites /
+  1523 tests, frontend 4634 tests; eslint, prettier, typecheck y build limpios.

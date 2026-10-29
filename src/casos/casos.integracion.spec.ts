@@ -367,6 +367,11 @@ describe('CAS-3 forma de la respuesta', () => {
     expect(rDescartado.sinMatch).toEqual({ regla: null, motivo: null });
   });
 
+  it('un pendiente_revision no es un caso: 404', async () => {
+    const m = await movimiento(A, { estado: 'pendiente_revision' });
+    await caso(tokenA, m).expect(404);
+  });
+
   it('un CFDI sin serie, folio, emisor, receptor ni método de pago trae esas llaves en null', async () => {
     const m = await movimiento(A, { referencia: 'REF-9' });
     await conciliacion(

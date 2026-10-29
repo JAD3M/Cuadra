@@ -415,6 +415,25 @@ const fijarMotivo = (id: string, regla = 'sin_candidato_monto') =>
     [id, regla],
   );
 
+describe('conciliar (3.5): pendiente_revision', () => {
+  it('un movimiento pendiente_revision no recibe propuesta ni motivo, aunque calce con un CFDI', async () => {
+    const parado = await movimiento(A, { referencia: 'FAC-1001' });
+    await ds.query(
+      `UPDATE movimientos SET estado = 'pendiente_revision' WHERE id = $1`,
+      [parado],
+    );
+    await factura(A, { serie: 'A', folio: '1001' });
+    await servicio.conciliar(A);
+    expect(await conciliaciones(A)).toEqual([]);
+    expect(de(await estadoDe(A), parado)).toMatchObject({
+      estado: 'pendiente_revision',
+      regla_sin_match: null,
+      motivo_sin_match: null,
+      evaluado_at: null,
+    });
+  });
+});
+
 describe('conciliar (CU-13): resultado explicado', () => {
   it('guarda el código y un motivo legible por cada rama sin propuesta', async () => {
     const casos: [string, () => Promise<string>, string[]][] = [

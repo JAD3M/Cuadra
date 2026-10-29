@@ -205,6 +205,20 @@ describe('BJ-1 derivación del estado', () => {
     expect(r.datos).toEqual([]);
   });
 
+  it('S5b: un pendiente_revision no se lista, ni con propuesta ni con motivo', async () => {
+    const conPropuesta = await movimiento(A, { estado: 'pendiente_revision' });
+    await conciliacion(A, await factura(A), conPropuesta, 'propuesta');
+    await movimiento(A, {
+      estado: 'pendiente_revision',
+      regla: 'sin_candidato_monto',
+    });
+    const r = await listar(
+      '?estado=sugerencia&estado=sin_match&estado=conciliado',
+    );
+    expect(r.datos).toEqual([]);
+    expect(r.total).toBe(0);
+  });
+
   it('S6: un conciliado a mano se lista solo cuando se pide', async () => {
     const m = await cerrado(A);
     expect(ids(await listar())).toEqual([]);

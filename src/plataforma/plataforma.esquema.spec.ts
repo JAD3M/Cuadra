@@ -241,9 +241,19 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 });
 
 describe('migración reversible', () => {
-  it('down y up de VistaPreviaDecidida, PendienteVistaPrevia, CambiarQuitarRoles, InvitacionesCancelables, InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
-    // Las dos últimas son de cargas (historias 3.4 y 3.3), ajenas a la
+  it('down y up de HuellaMovimientos, VistaPreviaDecidida, PendienteVistaPrevia, CambiarQuitarRoles, InvitacionesCancelables, InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
+    // Las tres últimas son de cargas (historias 3.5, 3.4 y 3.3), ajenas a la
     // plataforma: solo se deshacen para llegar a las que sí lo son.
+    // HuellaMovimientos: quita `huella` y la función, y el estado del CHECK.
+    await duenio.undoLastMigration();
+    const { n: huellas } = await una<{ n: number }>(
+      duenio,
+      `SELECT (SELECT count(*) FROM information_schema.columns
+                WHERE table_name = 'movimientos' AND column_name = 'huella')
+            + (SELECT count(*) FROM pg_proc WHERE proname = 'huella_movimiento')
+              AS n`,
+    );
+    expect(Number(huellas)).toBe(0);
     await duenio.undoLastMigration();
     await duenio.undoLastMigration();
     // Luego CambiarQuitarRoles: quita el DELETE de `user_company_roles`
