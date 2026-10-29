@@ -1,0 +1,103 @@
+# Historia 3.3 (KAN-132): rechazar el PDF cuyos saldos no cuadran, y guardar el que sí
+
+Rama `feat/v2-3-3-cuadre-saldos-pdf`, desde `master` tras la 3.1 y sus pendientes.
+Cubre FR-1, FR-2, FR-52. Arquitectura: AD-8, AD-12, AD-16. Historia en
+`_bmad-output/planning-artifacts/epics.md` (Story 3.3).
+
+## Objetivo
+
+Que Cuadra compruebe que saldo inicial + abonos − cargos = saldo final antes de
+guardar nada de un PDF, y que lo que cuadra se guarde en una zona de espera
+hasta la vista previa (3.4).
+
+## Problema
+
+Hoy `POST /cargas/estado-cuenta/pdf` solo lee: no guarda, no lleva `companyId`
+y no deja bitácora. No existe función de cuadre ni el estado
+`pendiente_vista_previa`, ni zona de espera de movimientos.
+
+## Decisiones (acordadas con el usuario, 2026-10-29)
+
+1. **Rechazo sin carga.** Un PDF rechazado no crea carga ni movimientos.
+2. **Bitácora del rechazo:** `bitacora.entidad_id` pasa a ser nullable **solo**
+   para la acción `rechazar` (CHECK en la misma migración). Se registra persona,
+   fecha, nombre del archivo y motivo; nunca el contenido.
+3. **También se registran** los rechazos de lectura (`pdf_sin_texto`,
+   `pdf_ilegible`, `moneda_no_mxn`), no solo el de saldos.
+4. **Líneas no leídas rechazan:** aunque los saldos cuadren, un PDF con alguna
+   línea no leída se rechaza (un falso positivo es peor que no conciliar).
+5. **Qué se guarda:** solo los movimientos ya leídos (zona de espera) y el hash
+   del archivo. No se guarda el PDF original.
+6. **Idempotencia:** resubir un PDF ya cargado devuelve la carga existente
+   (`yaExistia`), sin duplicar. Un PDF rechazado se puede volver a subir.
+7. **Sin decisión pendiente** (se siguen de la historia): el 400 lleva el motivo
+   y las líneas no leídas (UX-DR8); el cuadre es exacto, tolerancia cero, con
+   `dinero`; `pendiente_vista_previa` cuenta como estado concluido para el
+   polling y el worker no lo toma.
+
+## Entrega
+
+Estrategia de cadena: **stacked-to-main** (acordada el 2026-10-29). Pronóstico
+sobre 400 líneas de cambio, así que va en PRs en cadena, cada uno contra
+`master` en orden. Los límites de cada PR se anotan aquí al abrirlos.
+
+## Alcance
+
+- Una sola función común de cuadre (cualquier banco), aritmética con `dinero`.
+- Estado `pendiente_vista_previa` en `tipos.ts`, su espejo del frontend, el
+  `CHECK` de la migración y la prueba de deriva.
+- Zona de espera de movimientos: tabla nueva con `company_id`, RLS con FORCE,
+  política y GRANTs a `cuadra_app` en la misma migración; `NUMERIC` para montos.
+- Endpoint del PDF: guarda lo que cuadra, rechaza lo demás, deja bitácora.
+- Frontend: resultado de la carga y rechazo con las líneas no leídas.
+
+Fuera de alcance: vista previa y paso a `movimientos` (3.4), movimientos
+repetidos entre archivos (3.5), validar el lector con un PDF real de BBVA
+(pendiente anotado en `CUADRA.md`; la 3.3 no confía en el lector con datos
+reales hasta entonces).
+
+## Tareas
+
+- [x] **T1 — Cuadre común.** RED primero: función pura
+  `cuadrarSaldos({saldoInicial, saldoFinal, montos})` con casos que cuadran,
+  que no cuadran por un centavo, abonos y cargos mezclados, y montos grandes
+  sin flotantes.
+- [ ] **T2 — Migración y estado.** `pendiente_vista_previa` (backend, espejo,
+  deriva, `FASE_CARGA`, etiquetas, tonos); `ck_cargas_estado` y
+  `ck_cargas_total_cuadra` revisados; tabla de zona de espera con RLS FORCE y
+  GRANTs; `entidad_id` nullable con CHECK solo para `rechazar`. Prueba de que
+  otra empresa no ve nada.
+- [ ] **T3 — Endpoint del PDF.** Guarda lo que cuadra (carga en
+  `pendiente_vista_previa` + movimientos en espera + hash), rechaza saldos que
+  no cuadran y líneas no leídas con 400 que lleva motivo y líneas, reutiliza la
+  carga si el hash ya existe, y deja bitácora en los cuatro rechazos y al crear.
+  El worker no encola estas cargas. Pruebas de permisos (403 del auditor).
+- [ ] **T4 — Frontend.** Resultado de la carga guardada y rechazo con motivo y
+  líneas no leídas. Se lee el mockup primero; si falta algo, se actualiza el
+  mockup y se acuerda antes de escribir código.
+- [ ] **T5 — Cierre.** Suites completas (backend y frontend), lint y formato,
+  entrada en `docs/bitacora.md`, `CUADRA.md` y KAN-132, PR (en cadena si pasa de
+  400 líneas).
+
+## Aceptación
+
+- Un PDF que no cuadra, o con líneas no leídas, se rechaza completo, sin carga
+  ni movimientos, con motivo y líneas; queda en la bitácora.
+- Un PDF que cuadra crea una carga `pendiente_vista_previa` con sus movimientos
+  en espera, sin entrar a conciliación.
+- El cuadre vive en una sola función común y no usa flotantes.
+- Cada tabla nueva lleva `company_id`, RLS con FORCE, política y GRANTs.
+- Resubir el mismo PDF no duplica nada.
+
+## Rutas y evidencia
+
+| Tarea | Ruta | Evidencia del disparador |
+|---|---|---|
+| Exploración | delegada (explorador) | >5 búsquedas en cargas, bancos, migraciones y frontend |
+
+## Progreso
+
+- 2026-10-29: documento creado, rama abierta, KAN-132 en curso. Siguiente: T1.
+- 2026-10-29: T1 hecha (`src/bancos/cuadre-saldos.ts`). RED: `Cannot find module
+  ./cuadre-saldos` (suite falló, 0 pruebas); GREEN: 9/9, suite completa 1423
+  pruebas, typecheck, build, eslint y prettier limpios. Sin commit. Siguiente: T2.

@@ -436,6 +436,14 @@ historia 3.3. Rechazos con código: `pdf_sin_texto`, `pdf_ilegible`,
 `moneda_no_mxn`. El layout de BBVA es sintético: falta validarlo con un PDF
 real.
 
+**Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**
+Hasta entonces el fixture y el layout son sintéticos y no se sabe si el texto
+que extrae `unpdf` de un PDF real coincide con lo que el lector espera. Al
+tenerlo: usarlo en una prueba local (sin versionar datos reales de clientes,
+ver la tabla de riesgos), ajustar el lector si el layout difiere y confirmar
+que el saldo corrido cuadra. Mientras no se valide, la 3.3 no debe confiar en
+este lector con datos reales.
+
 ### `conciliaciones` — donde vive la regla de oro
 
 | Columna | Tipo | Notas |
