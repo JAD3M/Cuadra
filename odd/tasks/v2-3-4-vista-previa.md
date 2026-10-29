@@ -72,8 +72,8 @@ reales hasta entonces).
   (`VistaPrevia.dc.html`) y cambios en Cargas (enlace «Revisar vista previa»,
   estado `rechazada` ámbar). Acordado con el usuario el 2026-10-29.
 - [x] **T6 — Frontend.** Pantalla de vista previa según el mockup acordado.
-- [ ] **T7 — Cierre.** Suites completas, lint y formato, `docs/bitacora.md`,
-  `CUADRA.md`, KAN-133, PRs en cadena.
+- [ ] **T7 — Cierre.** [x] Suites completas, lint y formato; [x]
+  `docs/bitacora.md`; [x] `CUADRA.md`; [ ] KAN-133 y PRs en cadena.
 
 ## Aceptación
 
@@ -178,3 +178,4 @@ reales hasta entonces).
   ya no dice «No se aceptó/rechazó nada»; clase `red` con «No pudimos
   confirmar el resultado.» y enlace «Ir a Cargas». Abrir la confirmación de
   rechazo limpia el error anterior.
+- 2026-10-29 T7: verificación completa: backend `npm test` 69 suites / 1483 pruebas, typecheck, build, eslint y prettier limpios; frontend vitest 287 archivos / 4633 pruebas, typecheck, lint, `format:check` y build limpios. Prueba del reset del error previo reforzada (`d3f9ab8`): asevera la alerta de aceptar antes y su ausencia después; RED observado quitando `decision.reset()` (falla «expected document not to contain element, found <div…»), código restaurado. Bitácora y `CUADRA.md` al día. Faltan KAN-133 y los PRs (decide el padre).
