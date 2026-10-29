@@ -1,0 +1,17 @@
+.acciones {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.botones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.pista {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}

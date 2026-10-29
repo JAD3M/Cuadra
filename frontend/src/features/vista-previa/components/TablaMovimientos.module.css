@@ -1,0 +1,70 @@
+/* Movimientos leídos (VistaPrevia.dc.html). Solo tokens de rol. */
+.tarjeta {
+  min-inline-size: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  background: var(--color-surface);
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: var(--space-16);
+}
+
+.rotulo {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.moneda {
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+}
+
+/* Muchas filas: el cuerpo se desplaza, nunca recorta. */
+.cuerpo {
+  max-block-size: 440px;
+  overflow-y: auto;
+}
+
+.fecha {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.referencia {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  overflow-wrap: anywhere;
+}
+
+.sinReferencia {
+  color: var(--color-muted);
+}
+
+/* El monto no se parte y la columna crece con el número. */
+.monto {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.monto[data-tipo='abono'] {
+  color: var(--estado-conciliado-accent);
+}
+
+.monto[data-tipo='cargo'] {
+  color: var(--color-danger-text);
+}
