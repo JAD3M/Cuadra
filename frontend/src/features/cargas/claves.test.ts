@@ -36,3 +36,13 @@ describe('claves de las cargas', () => {
     expect(clavesCargas.lista(null)).toEqual(['cargas', null, 'lista']);
   });
 });
+
+describe('clave de la vista previa (historia 3.4)', () => {
+  it('lleva la época en la posición 1, la carga al final y cuelga de todas(e)', () => {
+    const clave = clavesCargas.vistaPrevia(5, 'abc');
+    expect(clave).toEqual(['cargas', 5, 'vista-previa', 'abc']);
+    expect(clave.slice(0, 2)).toEqual(clavesCargas.todas(5));
+    expect(clavesCargas.vistaPrevia(6, 'abc')).not.toEqual(clave);
+    expect(clavesCargas.vistaPrevia(5, 'def')).not.toEqual(clave);
+  });
+});
