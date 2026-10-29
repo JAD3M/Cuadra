@@ -25,3 +25,11 @@ export class VistaPreviaDto {
   @ApiProperty({ type: [MovimientoVistaPreviaDto] })
   movimientos!: MovimientoVistaPreviaDto[];
 }
+
+/** Lo que responde aceptar la vista previa: la carga ya procesó. */
+export class AceptacionDto {
+  @ApiProperty() cargaId!: string;
+  @ApiProperty({ example: 'procesada' }) estado!: 'procesada';
+  @ApiProperty({ description: 'Cuántos movimientos entraron a conciliación.' })
+  movimientos!: number;
+}

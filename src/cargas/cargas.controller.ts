@@ -7,6 +7,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Req,
   UploadedFiles,
   UseGuards,
   UseInterceptors,
@@ -15,11 +16,13 @@ import {
   ApiCookieAuth,
   ApiBody,
   ApiConsumes,
+  ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import type { Request } from 'express';
 import type { UsuarioAutenticado } from '../auth/tipos';
 import { Permiso, UsuarioActual } from '../common/decorators/decoradores';
 import {
@@ -38,7 +41,7 @@ import {
   type EstadoDeCarga,
   type RespuestaDeCarga,
 } from './cargas.service';
-import { VistaPreviaDto } from './dto/vista-previa.dto';
+import { AceptacionDto, VistaPreviaDto } from './dto/vista-previa.dto';
 import { VistaPreviaService } from './vista-previa.service';
 import { YaExistiaInterceptor } from './ya-existia.interceptor';
 
@@ -190,6 +193,30 @@ export class CargasController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<VistaPreviaDto> {
     return this.vistaPrevia.consultar(usuario.companyId, id);
+  }
+
+  /**
+   * Historia 3.4. Acepta la vista previa: los movimientos en espera pasan a
+   * `movimientos`, la carga queda 'procesada' y arranca la conciliación.
+   * 409 si ya no está en vista previa (también la segunda aceptación).
+   */
+  @Post(':id/aceptar')
+  @HttpCode(HttpStatus.OK)
+  @Permiso('cargas.cargar')
+  @ApiOkResponse({ type: AceptacionDto })
+  @ApiNotFoundResponse({ description: 'La carga no existe en la empresa.' })
+  @ApiConflictResponse({ description: 'La carga no está en vista previa.' })
+  @ApiForbiddenResponse({ description: 'Sin permiso para cargar.' })
+  aceptar(
+    @UsuarioActual() usuario: Sesion,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() solicitud: Request,
+  ): Promise<AceptacionDto> {
+    return this.vistaPrevia.aceptar(usuario.companyId, id, {
+      userId: usuario.userId,
+      ip: solicitud.ip,
+      userAgent: solicitud.headers['user-agent'],
+    });
   }
 
   /** La empresa sale del token; un `companyId` en la query no se lee. */
