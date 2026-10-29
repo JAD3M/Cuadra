@@ -10,7 +10,11 @@ import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import { tomarCandadoDeConciliacion } from '../conciliacion/candado';
 import { ContextoEmpresa } from '../database/contexto-empresa';
 import { ColaSugerencias } from '../sugerencias/cola-sugerencias';
-import type { AceptacionDto, VistaPreviaDto } from './dto/vista-previa.dto';
+import type {
+  AceptacionDto,
+  RechazoDto,
+  VistaPreviaDto,
+} from './dto/vista-previa.dto';
 
 /** Quién y desde dónde, para la bitácora. */
 export interface Actor {
@@ -164,6 +168,51 @@ export class VistaPreviaService {
 
     this.contexto.alConfirmar(() => this.arrancarConciliacion(companyId));
     return { cargaId, estado: 'procesada', movimientos: n };
+  }
+
+  /**
+   * T4. Descarta la vista previa: la espera se borra y la carga queda
+   * 'rechazada'. Nada entra a `movimientos` ni a conciliación, así que no
+   * toma el candado de empresa; el `FOR UPDATE` de la carga la serializa con
+   * una aceptación simultánea (la perdedora ve otro estado y recibe 409).
+   * 404 si no existe o es ajena; 409 si no está en espera.
+   */
+  async rechazar(
+    companyId: string,
+    cargaId: string,
+    actor: Actor,
+  ): Promise<RechazoDto> {
+    const manager = this.contexto.manager();
+    const carga = await this.bloquearEnEspera(manager, companyId, cargaId);
+    const [{ n }] = await manager.query<[{ n: number }]>(
+      `WITH borradas AS (
+         DELETE FROM movimientos_pendientes
+          WHERE carga_id = $1 AND company_id = $2
+          RETURNING 1)
+       SELECT count(*)::int AS n FROM borradas`,
+      [cargaId, companyId],
+    );
+    await manager.query(
+      `UPDATE cargas SET estado = 'rechazada', updated_at = now()
+        WHERE id = $1 AND company_id = $2`,
+      [cargaId, companyId],
+    );
+    await manager.insert(Bitacora, {
+      companyId,
+      userId: actor.userId,
+      entidad: 'cargas',
+      entidadId: cargaId,
+      accion: 'rechazar',
+      datos: {
+        cargaId,
+        archivo: carga.nombre_archivo,
+        estado: 'rechazada',
+        movimientosDescartados: n,
+      },
+      ip: actor.ip ?? null,
+      userAgent: actor.userAgent ?? null,
+    });
+    return { cargaId, estado: 'rechazada' };
   }
 
   /**

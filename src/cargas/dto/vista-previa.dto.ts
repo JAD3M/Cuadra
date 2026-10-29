@@ -33,3 +33,9 @@ export class AceptacionDto {
   @ApiProperty({ description: 'Cuántos movimientos entraron a conciliación.' })
   movimientos!: number;
 }
+
+/** Lo que responde rechazar la vista previa: la carga quedó descartada. */
+export class RechazoDto {
+  @ApiProperty() cargaId!: string;
+  @ApiProperty({ example: 'rechazada' }) estado!: 'rechazada';
+}
