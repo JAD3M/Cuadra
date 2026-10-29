@@ -112,6 +112,39 @@ export const respuestaLecturaPdf = z.object({
   yaExistia: z.boolean(),
 });
 
+/** Un movimiento leído del PDF y en espera (historia 3.4); el monto lleva signo. */
+const movimientoVistaPrevia = z.object({
+  /** `YYYY-MM-DD`, tal como llega. */
+  fecha: texto,
+  monto: montoDecimal,
+  referencia: z.string().nullable(),
+});
+
+/**
+ * `GET /cargas/:id/vista-previa` (historia 3.4): lo que Cuadra leyó del PDF y
+ * espera la decisión. `total` cuenta movimientos; los saldos son cadenas
+ * decimales y pueden ser `null` en cargas guardadas antes de la 3.4.
+ */
+export const vistaPreviaCarga = z.object({
+  cargaId: z.guid(),
+  archivo: texto,
+  banco: z.string().nullable(),
+  total: contador,
+  saldoInicial: montoDecimal.nullable(),
+  saldoFinal: montoDecimal.nullable(),
+  movimientos: z.array(movimientoVistaPrevia),
+});
+
+/**
+ * `POST /cargas/:id/aceptar` (`procesada`, con los movimientos que entraron)
+ * y `POST /cargas/:id/rechazar` (`rechazada`, sin conteo).
+ */
+export const respuestaDecisionVistaPrevia = z.object({
+  cargaId: z.guid(),
+  estado: z.enum(ESTADOS_CARGA),
+  movimientos: contador.optional(),
+});
+
 /** Una línea del PDF que el lector no pudo leer (cuerpo del 400, historia 3.3). */
 export const lineaNoLeida = z.object({
   linea: z.int().min(1),
@@ -151,4 +184,9 @@ export type DetalleCarga = z.infer<typeof detalleCarga>;
 export type RespuestaCarga = z.infer<typeof respuestaCarga>;
 export type RespuestaLecturaPdf = z.infer<typeof respuestaLecturaPdf>;
 export type LineaNoLeida = z.infer<typeof lineaNoLeida>;
+export type VistaPreviaCarga = z.infer<typeof vistaPreviaCarga>;
+export type MovimientoVistaPrevia = VistaPreviaCarga['movimientos'][number];
+export type RespuestaDecisionVistaPrevia = z.infer<
+  typeof respuestaDecisionVistaPrevia
+>;
 export type PerfilBancario = z.infer<typeof perfilesBancarios>[number];
