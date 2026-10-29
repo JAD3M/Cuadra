@@ -25,6 +25,11 @@ import { SUBTITULO_CARGAS } from '@/features/cargas/textos';
 import { CasoPage } from '@/features/caso/CasoPage';
 import { NoEncontradaPage } from '@/features/NoEncontradaPage';
 import {
+  SUBTITULO_VISTA_PREVIA,
+  TITULO_VISTA_PREVIA,
+} from '@/features/vista-previa/textos';
+import { VistaPreviaPage } from '@/features/vista-previa/VistaPreviaPage';
+import {
   subtituloPagina,
   TITULO_DOCUMENTO as TITULO_DOCUMENTO_TOLERANCIA,
   TITULO_PAGINA as TITULO_TOLERANCIA,
@@ -139,6 +144,14 @@ export const rutas: RouteObject[] = [
                 handle: {
                   titulo: 'Cargas',
                   subtitulo: SUBTITULO_CARGAS,
+                } satisfies ManejadorRuta,
+              },
+              {
+                path: '/cargas/:cargaId/vista-previa',
+                element: <VistaPreviaPage />,
+                handle: {
+                  titulo: TITULO_VISTA_PREVIA,
+                  subtitulo: SUBTITULO_VISTA_PREVIA,
                 } satisfies ManejadorRuta,
               },
               {

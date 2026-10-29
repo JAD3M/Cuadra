@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import { formatearInstante } from '@/features/caso/fecha';
 import {
   ETIQUETAS_ESTADO_CARGA,
@@ -8,7 +9,8 @@ import {
 import { EstadoChip } from '@/shared/ui/EstadoChip';
 import { Td } from '@/shared/ui/Tabla';
 import { notaMonedaHistorial } from '@/features/cargas/moneda';
-import { SIN_DATO } from '@/features/cargas/textos';
+import { rutaVistaPrevia } from '@/features/cargas/rutas';
+import { REVISAR_VISTA_PREVIA, SIN_DATO } from '@/features/cargas/textos';
 import { TONO_ESTADO_CARGA } from '@/features/cargas/tonos';
 import { BarraAvance } from './BarraAvance';
 import estilos from './FilaCarga.module.css';
@@ -70,9 +72,16 @@ export function FilaCarga({ carga }: FilaCargaProps) {
         </span>
       </Td>
       <Td>
-        <EstadoChip tono={TONO_ESTADO_CARGA[carga.estado]}>
-          {ETIQUETAS_ESTADO_CARGA[carga.estado]}
-        </EstadoChip>
+        <div className={estilos.estado}>
+          <EstadoChip tono={TONO_ESTADO_CARGA[carga.estado]}>
+            {ETIQUETAS_ESTADO_CARGA[carga.estado]}
+          </EstadoChip>
+          {carga.estado === 'pendiente_vista_previa' ? (
+            <Link className={estilos.revisar} to={rutaVistaPrevia(carga.id)}>
+              {REVISAR_VISTA_PREVIA}
+            </Link>
+          ) : null}
+        </div>
       </Td>
       <Td>
         <BarraAvance estado={carga.estado} />

@@ -252,3 +252,6 @@ export const TEXTO_PDF_ILEGIBLE = {
 /** CFDI en una moneda que Cuadra no concilia (mockup 2026-10-27). */
 export const LEYENDA_MONEDA_NO_SOPORTADA =
   '⚠ Se guardó, pero Cuadra no concilia monedas distintas de MXN.';
+
+/** Enlace a la vista previa de una carga en espera (historia 3.4). */
+export const REVISAR_VISTA_PREVIA = 'Revisar vista previa';

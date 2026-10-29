@@ -1,12 +1,15 @@
+import { Link } from 'react-router';
 import { formatearMonto } from '@/shared/dinero';
 import { ETIQUETAS_ESTADO_CARGA, type EstadoCarga } from '@/shared/dominio';
 import { EstadoChip } from '@/shared/ui/EstadoChip';
 import {
   RESUMEN_LECTURA_PDF,
+  REVISAR_VISTA_PREVIA,
   SALDO_FINAL,
   SALDO_INICIAL,
   SIN_DATO,
 } from '@/features/cargas/textos';
+import { rutaVistaPrevia } from '@/features/cargas/rutas';
 import { TONO_ESTADO_CARGA } from '@/features/cargas/tonos';
 import estilos from './resultado.module.css';
 
@@ -17,6 +20,8 @@ export interface ResultadoLecturaPdfProps {
   saldoFinal: string;
   /** Estado de la carga guardada, tal como lo manda el servidor. */
   estado: EstadoCarga;
+  /** Id de la carga guardada: a dónde lleva «Revisar vista previa». */
+  cargaId: string;
 }
 
 /** Un saldo con miles y dos decimales, sin `$` (como el mockup); sin pasar por flotante. */
@@ -34,6 +39,7 @@ export function ResultadoLecturaPdf({
   saldoInicial,
   saldoFinal,
   estado,
+  cargaId,
 }: ResultadoLecturaPdfProps) {
   return (
     <div className={estilos.caja}>
@@ -57,6 +63,11 @@ export function ResultadoLecturaPdf({
         </EstadoChip>
       </span>
       <span className={estilos.pista}>{RESUMEN_LECTURA_PDF.espera}</span>
+      {estado === 'pendiente_vista_previa' ? (
+        <Link className={estilos.revisar} to={rutaVistaPrevia(cargaId)}>
+          {REVISAR_VISTA_PREVIA}
+        </Link>
+      ) : null}
     </div>
   );
 }
