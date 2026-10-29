@@ -1,5 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { contextoSesion } from '@/shared/api/contratos';
 import type { SessionState } from '@/shared/sesion';
@@ -11,6 +12,7 @@ import {
 } from '@/test/fixtures';
 import { almacenes } from '@/test/handlers';
 import {
+  LECTURA_PDF,
   lecturaPdfRechazada,
   subidaFalla,
   subidaRedDeFallo,
@@ -36,9 +38,14 @@ function sesionConRoles(roles: string[]): SessionState {
 }
 
 function montar(roles: string[] = ['contador']) {
-  return render(<CargasContenedor />, {
-    wrapper: envolturaCargas(clienteDePruebas(), () => sesionConRoles(roles)),
-  });
+  return render(
+    <MemoryRouter>
+      <CargasContenedor />
+    </MemoryRouter>,
+    {
+      wrapper: envolturaCargas(clienteDePruebas(), () => sesionConRoles(roles)),
+    },
+  );
 }
 
 const usuario = () => userEvent.setup({ applyAccept: false });
@@ -71,6 +78,9 @@ describe('CargasContenedor: lectura de PDF', () => {
       within(tarjeta()).getByText('Pendiente de vista previa'),
     ).toBeInTheDocument();
     expect(within(tarjeta()).queryByText('⚠')).not.toBeInTheDocument();
+    expect(
+      within(tarjeta()).getByRole('link', { name: 'Revisar vista previa' }),
+    ).toHaveAttribute('href', `/cargas/${LECTURA_PDF.cargaId}/vista-previa`);
 
     const [subida] = almacenes.cargas.subidas();
     expect(almacenes.cargas.subidas()).toHaveLength(1);

@@ -1,4 +1,5 @@
 import { render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
 import { formatearInstante } from '@/features/caso/fecha';
 import type { EstadoCarga } from '@/shared/dominio';
@@ -7,11 +8,13 @@ import { FilaCarga, type FilaHistorial } from './FilaCarga';
 
 function montar(carga: FilaHistorial) {
   render(
-    <table>
-      <tbody>
-        <FilaCarga carga={carga} />
-      </tbody>
-    </table>,
+    <MemoryRouter>
+      <table>
+        <tbody>
+          <FilaCarga carga={carga} />
+        </tbody>
+      </table>
+    </MemoryRouter>,
   );
   const fila = screen.getByRole('row');
   return { fila, celdas: within(fila).getAllByRole('cell') };
@@ -176,5 +179,43 @@ describe('FilaCarga: pendiente_vista_previa (historia 3.3)', () => {
     expect(celdas[2]).toHaveTextContent('Pendiente de vista previa');
     expect(celdas[4]).toHaveTextContent('—');
     expect(celdas[5]).toHaveTextContent('—');
+  });
+});
+
+describe('FilaCarga: vista previa (historia 3.4)', () => {
+  it('una carga pendiente de vista previa trae el enlace «Revisar vista previa»', () => {
+    const carga = itemCarga(1, {
+      tipo: 'estado_cuenta',
+      estado: 'pendiente_vista_previa',
+    });
+    const { celdas } = montar(carga);
+    const enlace = within(celdas[2]!).getByRole('link', {
+      name: 'Revisar vista previa',
+    });
+    expect(enlace).toHaveAttribute('href', `/cargas/${carga.id}/vista-previa`);
+    expect(celdas[2]).toHaveTextContent('Pendiente de vista previa');
+  });
+
+  it.each([
+    'pendiente',
+    'procesando',
+    'procesada',
+    'con_errores',
+    'fallida',
+    'rechazada',
+  ] as const)('una carga %s no trae el enlace', (estado) => {
+    montar(itemCarga(1, { estado }));
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('una carga rechazada se pinta «Rechazada» con el tono ámbar', () => {
+    const { celdas } = montar(itemCarga(1, { estado: 'rechazada' }));
+    expect(within(celdas[2]!).getByText('Rechazada')).toHaveAttribute(
+      'data-tono',
+      'sin_match',
+    );
+    expect(
+      screen.getByRole('img', { name: 'Avance: Rechazada' }),
+    ).toHaveAttribute('data-avance', 'naranja');
   });
 });
