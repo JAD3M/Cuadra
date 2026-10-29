@@ -2,11 +2,20 @@ import type { EntityManager } from 'typeorm';
 import type { ResultadoDeFila } from '../cargas/carga.entity';
 import type { ResultadoDeProceso } from '../cargas/resultado-de-proceso';
 import {
+  CODIGO_MONEDA_FALTANTE,
+  EstadoDeCuentaRechazado,
   leerFilas,
   leerMovimiento,
   posicionMoneda,
 } from './lector-estado-cuenta';
 import type { PerfilBancario } from './perfil';
+
+/**
+ * Historia 3.1. Una carga guardada sin la columna `moneda` (el POST ya la
+ * exige) no se procesa ni se asume MXN: se rechaza con este texto.
+ */
+export const MENSAJE_MONEDA_FALTANTE_AL_REANUDAR =
+  'El estado de cuenta guardado no trae la columna "moneda". Vuelve a subir el archivo con la columna "moneda" con MXN en todas las filas.';
 
 /**
  * CU-09 y CU-10, dentro de la transacción (b) del worker, con el perfil de
@@ -44,13 +53,15 @@ export async function procesarEstadoDeCuenta(
 
   // La primera es el encabezado, ya validado en el POST.
   const [encabezado, ...filas] = leerFilas(archivo.contenido, perfil);
-  // Historia 3.1: el POST ya validó que la moneda esté declarada y sea MXN;
-  // aquí solo se salta la columna. Un perfil con columna que no la encuentra
-  // es un archivo que no pasó por el POST: problema nuestro, no de una fila.
+  // Historia 3.1: el POST ya validó la moneda; aquí solo se salta la columna.
+  // Un perfil que la exige y un archivo que no la trae (-1 también es "el
+  // perfil no la declara") es una carga guardada antes de la regla: se
+  // rechaza con código, nunca se asume MXN.
   const iMoneda = posicionMoneda(encabezado.campos, perfil);
-  if (perfil.columnaMoneda !== undefined && iMoneda < 0) {
-    throw new Error(
-      `Carga ${cargaId}: el estado de cuenta no trae la columna "${perfil.columnaMoneda}"`,
+  if (iMoneda < 0 && perfil.columnaMoneda !== undefined) {
+    throw new EstadoDeCuentaRechazado(
+      MENSAJE_MONEDA_FALTANTE_AL_REANUDAR,
+      CODIGO_MONEDA_FALTANTE,
     );
   }
   const errores: ResultadoDeFila[] = [];

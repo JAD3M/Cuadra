@@ -73,8 +73,17 @@ Cerrar tres pendientes que quedaron anotados al integrar la 3.1:
   reanudada que termina deja dos entradas `cargar`, la segunda con
   `reanudada: true` y la primera sin ella; aislada por empresa.
 - [x] **T3 — Prueba del auditor para el PDF.** Fila en `ACCIONES` con la
-  entrada `acceso_denegado` y sin cambios persistidos.- [x] **T4 — Cierre.** Suites completas (backend y frontend), lint y formato,
+  entrada `acceso_denegado` y sin cambios persistidos.
+- [x] **T4 — Cierre.** Suites completas (backend y frontend), lint y formato,
   entrada en `docs/bitacora.md`, PR.
+
+- [x] **T5 — Hallazgos de la revisión del PR #58** (decidido con el usuario el
+  2026-10-29). (a) Resiliencia: reanudar una carga guardada sin columna `moneda`
+  falla con un rechazo claro (`moneda_faltante`, «resube el archivo con la
+  columna moneda») y no con un `Error` genérico; RED primero. (b) Legibilidad:
+  quitar la duplicación de la lógica de moneda en `guardar-movimientos.ts`, y
+  aclarar la consulta de `reanudada` en `registrar-carga.ts`, sin cambiar su
+  comportamiento. (c) El salto de línea del documento ODD ya se corrigió.
 
 ## Aceptación
 
@@ -113,3 +122,4 @@ Cerrar tres pendientes que quedaron anotados al integrar la 3.1:
   `cargar estado de cuenta PDF` de `ACCIONES` corre y verifica 403, una sola
   entrada `acceso_denegado` y que nada cambia. Siguiente: T4.
 - 2026-10-29: T4 hecha. Backend `npm test` 66 suites / 1412 pruebas en verde, typecheck, build, prettier y eslint limpios. Frontend vitest 4497/4497, typecheck, lint, format:check y build limpios. Una primera corrida del backend falló (35 suites) por Redis/Postgres no listos; al repetir con los servicios sanos pasó completa. Entrada en `docs/bitacora.md`. Falta: push y PR (decide el usuario).
+- 2026-10-29: T5 hecha (escritor delegado). RED observado: la carga sin `moneda` lanzaba `Error` genérico (esperaba `UnrecoverableError`). Verde: `procesarEstadoDeCuenta` lanza `EstadoDeCuentaRechazado(moneda_faltante)` con mensaje de resubir; `process()` marca `fallida` de inmediato con ese mensaje y no reintenta; el error genérico sigue reintentando y termina con `MENSAJE_FALLIDA`. Legibilidad: sin la comprobación duplicada de moneda y `reanudada` extraída a `AGREGA_REANUDADA`. `npm test` 66 suites / 1414 pruebas, typecheck, build, eslint y prettier limpios. Falta: commit, push y PR (decide el usuario).

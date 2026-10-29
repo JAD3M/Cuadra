@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import request from '../testing/supertest-con-origen';
+import { UnrecoverableError, type Job } from 'bullmq';
 import type { DataSource } from 'typeorm';
 import type { ResultadoDeFila } from '../cargas/carga.entity';
 import type { RespuestaDeCarga } from '../cargas/cargas.service';
@@ -15,7 +16,10 @@ import {
   LUIS,
   TRANSPORTES,
 } from '../cargas/testing/app-de-cargas';
+import { MENSAJE_FALLIDA, ProcesadorCargas } from '../cargas/procesador-cargas';
+import type { TrabajoDeCarga } from '../cargas/cola-cargas';
 import { filas, una } from '../database/testing/base-de-pruebas';
+import { MENSAJE_MONEDA_FALTANTE_AL_REANUDAR } from './guardar-movimientos';
 
 /**
  * CU-09 de punta a punta: POST /cargas/estado-cuenta, la cola y el worker
@@ -648,5 +652,91 @@ describe('bitácora `cargar` del estado de cuenta (FR-52)', () => {
         },
       },
     ]);
+  });
+});
+
+describe('reanudar una carga guardada sin la columna moneda (historia 3.1)', () => {
+  /** Carga de estado de cuenta en espera, creada por fuera de la cola. */
+  async function cargaSinMoneda(): Promise<string> {
+    const [{ id }] = await filas<{ id: string }>(
+      ds,
+      `INSERT INTO cargas (company_id, tipo, estado, nombre_archivo,
+         hash_archivo, total_registros, perfil)
+       VALUES ($1, 'estado_cuenta', 'pendiente', 'sin-moneda.csv', $2, 1, 'cuadra')
+       RETURNING id`,
+      [entorno.empresa(FERRETERIA), randomUUID().replace(/-/g, '').repeat(2)],
+    );
+    await ds.query(
+      `INSERT INTO carga_archivos (company_id, carga_id, orden, nombre, hash, contenido)
+       VALUES ($1, $2, 0, 'sin-moneda.csv', $3, $4)`,
+      [
+        entorno.empresa(FERRETERIA),
+        id,
+        'b'.repeat(64),
+        `fecha,descripcion,referencia,monto\n2026-09-01,DEPOSITO,${randomUUID()},1.00\n`,
+      ],
+    );
+    return id;
+  }
+
+  function trabajo(cargaId: string, attemptsMade: number) {
+    return {
+      data: { cargaId, companyId: entorno.empresa(FERRETERIA) },
+      attemptsMade,
+      opts: { attempts: 3 },
+    } as unknown as Job<TrabajoDeCarga>;
+  }
+
+  async function carga(id: string) {
+    const [fila] = await filas<{
+      estado: string;
+      error_mensaje: string | null;
+    }>(ds, 'SELECT estado, error_mensaje FROM cargas WHERE id = $1', [id]);
+    return fila;
+  }
+
+  it('queda fallida de inmediato con el mensaje de moneda y sin reintentar', async () => {
+    const id = await cargaSinMoneda();
+
+    // Primer intento de tres: un error genérico no la marcaría fallida aún.
+    await expect(
+      entorno.app.get(ProcesadorCargas).process(trabajo(id, 0)),
+    ).rejects.toBeInstanceOf(UnrecoverableError);
+
+    expect(await carga(id)).toEqual({
+      estado: 'fallida',
+      error_mensaje: MENSAJE_MONEDA_FALTANTE_AL_REANUDAR,
+    });
+    expect(MENSAJE_MONEDA_FALTANTE_AL_REANUDAR).toMatch(/moneda/);
+    const [{ n }] = await filas<{ n: number }>(
+      ds,
+      'SELECT count(*)::int AS n FROM movimientos WHERE carga_id = $1',
+      [id],
+    );
+    expect(n).toBe(0);
+  });
+
+  it('un error genérico sigue reintentando y termina con el mensaje genérico', async () => {
+    const id = await cargaSinMoneda();
+    const procesador = entorno.app.get(ProcesadorCargas);
+    const espia = jest
+      .spyOn(procesador, 'procesar')
+      .mockRejectedValue(new Error('la base se cayó'));
+    try {
+      await expect(procesador.process(trabajo(id, 0))).rejects.toThrow(
+        'la base se cayó',
+      );
+      expect((await carga(id)).estado).toBe('pendiente');
+
+      await expect(procesador.process(trabajo(id, 2))).rejects.toThrow(
+        'la base se cayó',
+      );
+      expect(await carga(id)).toEqual({
+        estado: 'fallida',
+        error_mensaje: MENSAJE_FALLIDA,
+      });
+    } finally {
+      espia.mockRestore();
+    }
   });
 });
