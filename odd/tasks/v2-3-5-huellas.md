@@ -73,10 +73,10 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   `(company_id, huella)`, backfill SQL con paridad contra la función TS, estado
   `pendiente_revision` (backend, espejo, `CHECK`, deriva, etiquetas) y revisar
   los consumidores (conciliación, bandeja, resolución).
-- [ ] **T3 — Clasificador dentro del candado.** Dado un lote, devuelve nuevos,
+- [x] **T3 — Clasificador dentro del candado.** Dado un lote, devuelve nuevos,
   exactos y dudosos contra `movimientos` con multiplicidad, tomando el candado de
   empresa. Pruebas de concurrencia (dos cargas simultáneas no duplican).
-- [ ] **T4 — Aceptar la vista previa.** `GET` suma el resumen; aceptar importa
+- [x] **T4 — Aceptar la vista previa.** `GET` suma el resumen; aceptar importa
   nuevos y dudosos, guarda la huella, cuadra los contadores y `ck_cargas_total_cuadra`.
 - [ ] **T5 — CSV.** El worker toma el candado, omite exactos (`existentes`),
   guarda dudosos como `pendiente_revision`, y el resultado de la carga lo muestra.
@@ -130,3 +130,27 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   RED: `Tests: 3 failed` (violación de `ck_movimientos_estado` en bandeja,
   conciliación y casos) y paridad sin migración. GREEN: backend 71 suites /
   1523 tests, frontend 4634 tests; eslint, prettier, typecheck y build limpios.
+- 2026-10-30 T3 hecha (ruta: escritor delegado). `src/bancos/clasificar-huellas.ts`:
+  `emparejar(entrantes, existentes)` (núcleo puro: por grupo de huella, 1 a 1;
+  primero exactos por referencia cruda, luego el sobrante como dudoso, el resto
+  nuevo; el lote no se empareja consigo mismo) y `clasificarPorHuella(manager,
+  companyId, filas)` (una consulta `huella = ANY`, cualquier estado). El candado
+  lo toma quien llama (T4/T5); las pruebas de concurrencia viven ahí. RED: las
+  dos suites no corrían (módulo inexistente). GREEN: 18/18 (13 puras + 5 con
+  Postgres: todos los estados, mezcla exacto/dudoso/nuevo, multiplicidad, otra
+  empresa, lote vacío).
+- 2026-10-30 T4 hecha (ruta: escritor delegado). `clasificarConHuella` (devuelve
+  clase + huella) y `contarClases` en `clasificar-huellas.ts`. `consultar` suma
+  `resumen {nuevos, existentes, dudosos}` (informativo, sin candado).
+  `aceptar`, ya dentro del candado, reclasifica, inserta nuevos (`abierto`) y
+  dudosos (`pendiente_revision`) con su huella en un solo INSERT … JOIN
+  unnest, omite los exactos, deja `registros_ok = nuevos + dudosos` y
+  `registros_existentes = exactos` (cuadra `ck_cargas_total_cuadra`), la
+  bitácora `confirmar` suma solo los tres conteos y conciliar/sugerencias
+  arrancan únicamente si hay al menos un nuevo. La respuesta conserva
+  `movimientos` (= nuevos + dudosos) y agrega `nuevos`, `existentes`, `dudosos`.
+  RED: `Tests: 9 failed, 30 passed` en `vista-previa.integracion.spec.ts`
+  (resumen ausente, exactos duplicados, etc.). GREEN: 39/39, incluida la
+  concurrencia (dos cargas iguales con Promise.all -> una importa 2 y la otra
+  los reporta existentes; 2 movimientos en total), multiplicidad 1 vs 2, todo
+  existente (ok = 0, sin conciliar), solo dudosos, otra empresa.

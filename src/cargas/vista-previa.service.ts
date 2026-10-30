@@ -5,6 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
+import {
+  clasificarConHuella,
+  contarClases,
+} from '../bancos/clasificar-huellas';
 import { Bitacora } from '../bitacora/bitacora.entity';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import { tomarCandadoDeConciliacion } from '../conciliacion/candado';
@@ -35,6 +39,11 @@ interface FilaMovimiento {
   fecha: string;
   monto: string;
   referencia: string | null;
+}
+
+interface FilaEnEspera extends FilaMovimiento {
+  linea_numero: number;
+  cuenta: string | null;
 }
 
 interface FilaCargaBloqueada {
@@ -76,13 +85,15 @@ export class VistaPreviaService {
       [cargaId, companyId],
     );
     if (!carga) throw new NotFoundException();
-    const movimientos = await manager.query<FilaMovimiento[]>(
-      `SELECT to_char(fecha, 'YYYY-MM-DD') AS fecha, monto::text AS monto,
-              referencia
-         FROM movimientos_pendientes
-        WHERE carga_id = $1 AND company_id = $2
-        ORDER BY linea_numero`,
-      [cargaId, companyId],
+    const enEspera = await this.leerEnEspera(manager, companyId, cargaId);
+    // Informativo y sin candado: aceptar vuelve a clasificar dentro de él.
+    const resumen = contarClases(
+      (await clasificarConHuella(manager, companyId, enEspera)).map(
+        (f) => f.clase,
+      ),
+    );
+    const movimientos: FilaMovimiento[] = enEspera.map(
+      ({ fecha, monto, referencia }) => ({ fecha, monto, referencia }),
     );
     return {
       cargaId,
@@ -91,6 +102,7 @@ export class VistaPreviaService {
       total: movimientos.length,
       saldoInicial: carga.saldo_inicial,
       saldoFinal: carga.saldo_final,
+      resumen,
       movimientos,
     };
   }
@@ -118,26 +130,53 @@ export class VistaPreviaService {
     await tomarCandadoDeConciliacion(manager, companyId);
     const carga = await this.bloquearEnEspera(manager, companyId, cargaId);
 
-    const [{ n }] = await manager.query<[{ n: number }]>(
-      `WITH movidos AS (
-         INSERT INTO movimientos
-           (company_id, carga_id, linea_numero, fecha, descripcion,
-            referencia, monto, moneda, banco, cuenta)
-         SELECT company_id, carga_id, linea_numero, fecha, descripcion,
-                referencia, monto, moneda, banco, cuenta
-           FROM movimientos_pendientes
-          WHERE carga_id = $1 AND company_id = $2
-          RETURNING 1)
-       SELECT count(*)::int AS n FROM movidos`,
-      [cargaId, companyId],
-    );
+    // Historia 3.5: dentro del candado se clasifica contra `movimientos` (en
+    // cualquier estado). Exactos se omiten; nuevos entran abiertos y dudosos
+    // como `pendiente_revision`, todos con su huella.
+    const enEspera = await this.leerEnEspera(manager, companyId, cargaId);
     // La espera se fijó con el total al guardar el PDF: si no coincide,
     // algo está mal y es mejor revertir que importar a medias.
-    if (n !== carga.total_registros) {
+    if (enEspera.length !== carga.total_registros) {
       throw new Error(
-        `Carga ${cargaId}: en espera ${n} movimientos y el total es ${carga.total_registros}`,
+        `Carga ${cargaId}: en espera ${enEspera.length} movimientos y el total es ${carga.total_registros}`,
       );
     }
+    const clasificadas = await clasificarConHuella(
+      manager,
+      companyId,
+      enEspera,
+    );
+    const { nuevos, existentes, dudosos } = contarClases(
+      clasificadas.map((f) => f.clase),
+    );
+    const aImportar = enEspera
+      .map((fila, i) => ({ fila, ...clasificadas[i] }))
+      .filter((f) => f.clase !== 'exacto');
+    if (aImportar.length > 0) {
+      await manager.query(
+        `INSERT INTO movimientos
+           (company_id, carga_id, linea_numero, fecha, descripcion,
+            referencia, monto, moneda, banco, cuenta, estado, huella)
+         SELECT p.company_id, p.carga_id, p.linea_numero, p.fecha,
+                p.descripcion, p.referencia, p.monto, p.moneda, p.banco,
+                p.cuenta, v.estado, v.huella
+           FROM movimientos_pendientes p
+           JOIN unnest($3::int[], $4::text[], $5::text[])
+                AS v(linea_numero, estado, huella)
+             ON v.linea_numero = p.linea_numero
+          WHERE p.carga_id = $1 AND p.company_id = $2`,
+        [
+          cargaId,
+          companyId,
+          aImportar.map((f) => f.fila.linea_numero),
+          aImportar.map((f) =>
+            f.clase === 'dudoso' ? 'pendiente_revision' : 'abierto',
+          ),
+          aImportar.map((f) => f.huella),
+        ],
+      );
+    }
+    const n = nuevos + dudosos;
     await manager.query(
       `DELETE FROM movimientos_pendientes
         WHERE carga_id = $1 AND company_id = $2`,
@@ -146,9 +185,10 @@ export class VistaPreviaService {
     await manager.query(
       `UPDATE cargas
           SET estado = 'procesada', registros_ok = $3,
+              registros_existentes = $4,
               procesada_at = now(), updated_at = now()
         WHERE id = $1 AND company_id = $2`,
-      [cargaId, companyId, n],
+      [cargaId, companyId, n, existentes],
     );
     await manager.insert(Bitacora, {
       companyId,
@@ -161,13 +201,26 @@ export class VistaPreviaService {
         archivo: carga.nombre_archivo,
         estado: 'procesada',
         movimientos: n,
+        nuevos,
+        existentes,
+        dudosos,
       },
       ip: actor.ip ?? null,
       userAgent: actor.userAgent ?? null,
     });
 
-    this.contexto.alConfirmar(() => this.arrancarConciliacion(companyId));
-    return { cargaId, estado: 'procesada', movimientos: n };
+    // Sin nuevos no hay nada que conciliar (los dudosos quedan fuera).
+    if (nuevos > 0) {
+      this.contexto.alConfirmar(() => this.arrancarConciliacion(companyId));
+    }
+    return {
+      cargaId,
+      estado: 'procesada',
+      movimientos: n,
+      nuevos,
+      existentes,
+      dudosos,
+    };
   }
 
   /**
@@ -213,6 +266,22 @@ export class VistaPreviaService {
       userAgent: actor.userAgent ?? null,
     });
     return { cargaId, estado: 'rechazada' };
+  }
+
+  /** Las filas en espera de la carga, en orden de línea; monto como texto. */
+  private leerEnEspera(
+    manager: EntityManager,
+    companyId: string,
+    cargaId: string,
+  ): Promise<FilaEnEspera[]> {
+    return manager.query<FilaEnEspera[]>(
+      `SELECT linea_numero, to_char(fecha, 'YYYY-MM-DD') AS fecha,
+              monto::text AS monto, referencia, cuenta
+         FROM movimientos_pendientes
+        WHERE carga_id = $1 AND company_id = $2
+        ORDER BY linea_numero`,
+      [cargaId, companyId],
+    );
   }
 
   /**

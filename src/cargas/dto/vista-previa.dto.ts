@@ -12,6 +12,22 @@ export class MovimientoVistaPreviaDto {
   referencia!: string | null;
 }
 
+/** Historia 3.5: cuántos de los movimientos leídos ya están en Cuadra. */
+export class ResumenVistaPreviaDto {
+  @ApiProperty({ description: 'No están en Cuadra: entrarán abiertos.' })
+  nuevos!: number;
+  @ApiProperty({
+    description:
+      'Ya están (misma huella y misma referencia) en cualquier estado: se omiten.',
+  })
+  existentes!: number;
+  @ApiProperty({
+    description:
+      'Misma huella pero referencia distinta: entrarán en revisión, fuera de la conciliación.',
+  })
+  dudosos!: number;
+}
+
 /** Historia 3.4: lo que Cuadra leyó del PDF, antes de importarlo. */
 export class VistaPreviaDto {
   @ApiProperty() cargaId!: string;
@@ -34,6 +50,12 @@ export class VistaPreviaDto {
     description: 'NULL en cargas guardadas antes de la historia 3.4.',
   })
   saldoFinal!: string | null;
+  @ApiProperty({
+    type: ResumenVistaPreviaDto,
+    description:
+      'Informativo, calculado al leer; al aceptar se vuelve a calcular dentro del candado.',
+  })
+  resumen!: ResumenVistaPreviaDto;
   @ApiProperty({ type: [MovimientoVistaPreviaDto] })
   movimientos!: MovimientoVistaPreviaDto[];
 }
@@ -42,8 +64,16 @@ export class VistaPreviaDto {
 export class AceptacionDto {
   @ApiProperty() cargaId!: string;
   @ApiProperty({ example: 'procesada' }) estado!: 'procesada';
-  @ApiProperty({ description: 'Cuántos movimientos entraron a conciliación.' })
+  @ApiProperty({
+    description:
+      'Cuántos movimientos entraron a Cuadra (nuevos + dudosos); los existentes se omiten.',
+  })
   movimientos!: number;
+  @ApiProperty({ description: 'Entraron abiertos.' }) nuevos!: number;
+  @ApiProperty({ description: 'Ya estaban: no se importaron.' })
+  existentes!: number;
+  @ApiProperty({ description: 'Entraron como pendiente_revision.' })
+  dudosos!: number;
 }
 
 /** Lo que responde rechazar la vista previa: la carga quedó descartada. */
