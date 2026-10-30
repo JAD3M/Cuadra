@@ -264,7 +264,7 @@ describe('flujos de cargas: subir', () => {
     );
     expect(
       await within(region).findByText(
-        resumen('98 registros cargados, 2 con error.'),
+        resumen('98 nuevos, 0 ya existían, 0 dudosos, 2 con error.'),
       ),
     ).toBeInTheDocument();
     expect(within(region).getAllByRole('listitem')).toHaveLength(2);
@@ -460,7 +460,7 @@ describe('flujos de cargas: la cuenta escrita no sale de la pantalla (6.4)', () 
         'con_errores',
         parcheDe(detalleCsvConErrores()),
       );
-      await within(region).findByText(/registros cargados/);
+      await within(region).findByText(/con error\./);
       expect(salida.join('\n')).not.toContain(CUENTA);
       expect(document.body).not.toHaveTextContent(CUENTA);
       expect(

@@ -247,6 +247,25 @@ describe('detalleCarga y respuestaCarga (API-18b)', () => {
   });
 });
 
+describe('detalleCarga: dudosos (historia 3.5)', () => {
+  it('lee los dudosos que calcula el servidor', () => {
+    expect(detalleCarga.parse(detalle({ dudosos: 3 })).dudosos).toBe(3);
+  });
+
+  it('una respuesta sin dudosos sigue siendo válida', () => {
+    expect(detalleCarga.parse(detalle()).dudosos).toBeUndefined();
+  });
+
+  it('un dudoso negativo o no entero es un error de contrato', () => {
+    expect(detalleCarga.safeParse(detalle({ dudosos: -1 })).success).toBe(
+      false,
+    );
+    expect(detalleCarga.safeParse(detalle({ dudosos: '1' })).success).toBe(
+      false,
+    );
+  });
+});
+
 describe('perfilesBancarios (API-18c)', () => {
   it('acepta cuadra, banco-norte y banco-sur', () => {
     const perfiles = perfilesBancarios.parse([

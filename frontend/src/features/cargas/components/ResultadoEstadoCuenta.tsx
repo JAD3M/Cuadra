@@ -1,4 +1,5 @@
 import {
+  LEYENDA_ESTADO_CUENTA,
   LISTA_FILAS_CON_ERROR,
   RESUMEN_ESTADO_CUENTA,
   textoDeFila,
@@ -12,30 +13,54 @@ export interface FilaConError {
 }
 
 export interface ResultadoEstadoCuentaProps {
-  /** Registros cargados (`registrosOk`). */
+  /** Registros que entraron (`registrosOk`), dudosos incluidos. */
   registros: number;
+  /** Movimientos que ya estaban y se omitieron (`registrosExistentes`). */
+  existentes: number;
+  /** Entraron como pendiente_revision: ya cuentan dentro de `registros`. */
+  dudosos: number;
   conError: number;
   filas: readonly FilaConError[];
 }
 
 /**
- * Resultado de un estado de cuenta ya terminado: el resumen y una línea por
- * cada fila que no entró. Las filas buenas no se listan y la cuenta nunca se
+ * Resultado de un estado de cuenta ya terminado: el resumen (nuevos, ya
+ * existían, dudosos y con error), la leyenda ámbar si hubo dudosos o repetidos
+ * y una línea por cada fila que no entró. Las filas buenas no se listan y la cuenta nunca se
  * muestra. El motivo es texto del servidor: va como nodo de texto.
  */
 export function ResultadoEstadoCuenta({
   registros,
+  existentes,
+  dudosos,
   conError,
   filas,
 }: ResultadoEstadoCuentaProps) {
+  // Los dudosos ya están dentro de los registros que entraron.
+  const nuevos = Math.max(registros - dudosos, 0);
   return (
     <div className={estilos.caja}>
       <p className={estilos.resumen}>
-        <span className={estilos.cifra}>{registros}</span>{' '}
-        {RESUMEN_ESTADO_CUENTA.registros}{' '}
+        <span className={estilos.cifra}>{nuevos}</span>{' '}
+        {RESUMEN_ESTADO_CUENTA.nuevos(nuevos)}{' '}
+        <span className={estilos.cifra}>{existentes}</span>{' '}
+        {RESUMEN_ESTADO_CUENTA.existentes(existentes)}{' '}
+        <span className={estilos.cifra}>{dudosos}</span>{' '}
+        {RESUMEN_ESTADO_CUENTA.dudosos(dudosos)}{' '}
         <span className={estilos.cifra}>{conError}</span>{' '}
         {RESUMEN_ESTADO_CUENTA.conError}
       </p>
+      {dudosos > 0 || existentes > 0 ? (
+        <p className={estilos.leyendaRepetidos}>
+          {dudosos > 0 ? (
+            <span>{LEYENDA_ESTADO_CUENTA.dudosos(dudosos)}</span>
+          ) : null}
+          {dudosos > 0 && existentes > 0 ? ' ' : null}
+          {existentes > 0 ? (
+            <span>{LEYENDA_ESTADO_CUENTA.existentes(existentes)}</span>
+          ) : null}
+        </p>
+      ) : null}
       {filas.length === 0 ? null : (
         <div
           role="region"

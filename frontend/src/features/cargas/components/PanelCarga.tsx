@@ -21,7 +21,13 @@ export interface PanelCargaProps {
   vista: Exclude<VistaPanel, 'ninguno'>;
   /** Frases de K7 si la carga ya existía; `null` si es nueva. */
   frasesYaExistia: readonly string[] | null;
-  conteo: { ok: number; existentes: number; error: number };
+  conteo: {
+    ok: number;
+    existentes: number;
+    /** Solo en un estado de cuenta; ausente = 0. */
+    dudosos?: number;
+    error: number;
+  };
   resultados: readonly EntradaResultado[];
   /**
    * Presente solo cuando venció el tope del polling: una carga aún activa ya
@@ -71,6 +77,8 @@ export function PanelCarga({
       {vista === 'por_fila' ? (
         <ResultadoEstadoCuenta
           registros={conteo.ok}
+          existentes={conteo.existentes}
+          dudosos={conteo.dudosos ?? 0}
           conError={conteo.error}
           filas={resultados.filter((r): r is FilaResultado => 'fila' in r)}
         />

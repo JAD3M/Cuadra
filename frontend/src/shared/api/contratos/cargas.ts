@@ -89,6 +89,12 @@ export const detalleCarga = z.object({
   registrosOk: contador,
   registrosExistentes: contador,
   registrosError: contador,
+  /**
+   * Historia 3.5: movimientos de un estado de cuenta que entraron como
+   * pendiente_revision; el servidor los calcula y ya cuentan en `registrosOk`.
+   * Una respuesta que no lo trae se lee como «sin dudosos».
+   */
+  dudosos: contador.optional(),
   resultados: z.array(resultadoDeCarga),
   /** Solo en `fallida`: un mensaje genérico del servidor. */
   errorMensaje: z.string().nullable(),

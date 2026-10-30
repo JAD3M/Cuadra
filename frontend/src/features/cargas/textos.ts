@@ -138,10 +138,28 @@ export const RESUMEN_CFDI = {
   conError: 'con error.',
 } as const;
 
-/** Resumen de un estado de cuenta: «{ok} registros cargados, {error} con error.» */
+/**
+ * Resumen de un estado de cuenta (historia 3.5): «{nuevos} nuevos, {existentes}
+ * ya existían, {dudosos} dudosos, {error} con error.» Cada cifra va aparte para
+ * que no se parta; la palabra que la sigue concuerda en singular o plural.
+ */
 export const RESUMEN_ESTADO_CUENTA = {
-  registros: 'registros cargados,',
+  nuevos: (n: number): string => (n === 1 ? 'nuevo,' : 'nuevos,'),
+  existentes: (n: number): string => (n === 1 ? 'ya existía,' : 'ya existían,'),
+  dudosos: (n: number): string => (n === 1 ? 'dudoso,' : 'dudosos,'),
   conError: 'con error.',
+} as const;
+
+/** La leyenda ámbar bajo el resumen: qué quedó pendiente y qué se omitió. */
+export const LEYENDA_ESTADO_CUENTA = {
+  dudosos: (n: number): string =>
+    n === 1
+      ? '⚠ 1 dudoso quedó pendiente de revisión: misma cuenta, fecha y monto que uno ya cargado, con otra referencia. No se concilia hasta que se revise.'
+      : `⚠ ${n} dudosos quedaron pendientes de revisión: misma cuenta, fecha y monto que otros ya cargados, con otra referencia. No se concilian hasta que se revisen.`,
+  existentes: (n: number): string =>
+    n === 1
+      ? 'El que ya existía se omitió.'
+      : `Los ${n} que ya existían se omitieron.`,
 } as const;
 
 /** Nombres accesibles de las listas del resultado. */

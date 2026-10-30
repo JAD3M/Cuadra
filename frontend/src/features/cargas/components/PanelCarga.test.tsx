@@ -6,7 +6,7 @@ import { PanelCarga, type PanelCargaProps } from './PanelCarga';
 const BASE: PanelCargaProps = {
   vista: 'por_archivo',
   frasesYaExistia: null,
-  conteo: { ok: 1, existentes: 1, error: 1 },
+  conteo: { ok: 1, existentes: 1, dudosos: 0, error: 1 },
   resultados: [
     { archivo: 'a.xml', resultado: 'nuevo' },
     { archivo: 'b.xml', resultado: 'ya_existia' },
@@ -27,7 +27,7 @@ describe('PanelCarga', () => {
       <PanelCarga
         {...BASE}
         vista="por_fila"
-        conteo={{ ok: 98, existentes: 0, error: 2 }}
+        conteo={{ ok: 98, existentes: 0, dudosos: 0, error: 2 }}
         resultados={[
           { fila: 4, resultado: 'error', motivo: 'Monto inválido' },
           { fila: 17, resultado: 'error', motivo: 'Fecha vacía' },
@@ -38,7 +38,8 @@ describe('PanelCarga', () => {
       screen.getByText(
         (_, el) =>
           el?.tagName === 'P' &&
-          el.textContent === '98 registros cargados, 2 con error.',
+          el.textContent ===
+            '98 nuevos, 0 ya existían, 0 dudosos, 2 con error.',
       ),
     ).toBeInTheDocument();
     expect(screen.getAllByRole('listitem')).toHaveLength(2);
