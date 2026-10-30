@@ -30,6 +30,8 @@ import {
 })
 @Index('ix_movimientos_company_id_monto', ['companyId', 'monto'])
 @Index('ix_movimientos_company_id_referencia', ['companyId', 'referencia'])
+// Huella de contenido (FR-65): NO única, dos cargos idénticos son legítimos.
+@Index('ix_movimientos_company_id_huella', ['companyId', 'huella'])
 @Index('ix_movimientos_company_id_referencia_norm', [
   'companyId',
   'referenciaNorm',
@@ -106,6 +108,18 @@ export class Movimiento extends EntidadBase {
   @Column({ type: 'varchar', length: 32, nullable: true })
   cuenta: string | null;
 
+  /**
+   * Huella versionada (`huellaMovimiento`, src/bancos/huella-movimiento.ts)
+   * para detectar el mismo movimiento en dos archivos. NULL solo en filas que
+   * aún no la tienen; la migración HuellaMovimientos rellenó las existentes.
+   */
+  @Column({ type: 'varchar', length: 70, nullable: true })
+  huella: string | null;
+
+  /**
+   * 'pendiente_revision': dudoso por huella repetida con otra referencia
+   * cruda; fuera de la conciliación y de la bandeja hasta que se resuelva.
+   */
   @Column({ type: 'varchar', length: 32, default: 'abierto' })
   estado: EstadoMovimiento;
 

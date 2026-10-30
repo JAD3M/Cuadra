@@ -38,6 +38,7 @@ const CONSULTA = `
     LEFT JOIN cfdi f ON f.company_id = $2 AND f.id = c.cfdi_id
     LEFT JOIN users u ON u.id = c.confirmada_por_id
    WHERE m.id = $1 AND m.company_id = $2
+     AND m.estado <> 'pendiente_revision' -- estacionado (3.5): no es un caso
    ORDER BY c.score DESC NULLS LAST, c.id`;
 
 interface FilaSql {

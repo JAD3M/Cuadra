@@ -36,6 +36,7 @@ export const ESTADOS_MOVIMIENTO = [
   'abierto',
   'conciliado',
   'descartado',
+  'pendiente_revision',
 ] as const;
 export type EstadoMovimiento = (typeof ESTADOS_MOVIMIENTO)[number];
 
