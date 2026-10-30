@@ -35,6 +35,21 @@ export const esConcluida = (estado: EstadoCarga): boolean =>
 export const RESULTADOS_ARCHIVO = ['nuevo', 'ya_existia', 'error'] as const;
 export type ResultadoArchivo = (typeof RESULTADOS_ARCHIVO)[number];
 
+/**
+ * src/cargas/dto/vista-previa.dto.ts: `CLASES_MOVIMIENTO_VISTA_PREVIA`. Qué
+ * pasará con cada movimiento leído al aceptar (historia 3.5): `nuevo` entra,
+ * `existente` se omite y `dudoso` entra en revisión, fuera de la conciliación.
+ */
+export const CLASES_VISTA_PREVIA = ['nuevo', 'existente', 'dudoso'] as const;
+export type ClaseVistaPrevia = (typeof CLASES_VISTA_PREVIA)[number];
+
+/** Cuántos movimientos caen en cada clase (historia 3.5). */
+export interface ConteoClases {
+  nuevos: number;
+  existentes: number;
+  dudosos: number;
+}
+
 /** El resultado de un archivo o una fila que no entró (lleva `motivo`). */
 export const RESULTADO_ERROR = 'error' as const satisfies ResultadoArchivo;
 

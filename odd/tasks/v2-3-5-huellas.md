@@ -82,10 +82,10 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   guarda dudosos como `pendiente_revision`, y el resultado de la carga lo muestra.
 - [x] **T6 — Mockup.** Resumen en la vista previa (artboard 18) y resultado del CSV
   en Cargas; acordado con el usuario el 2026-10-30.
-- [ ] **T7 — Frontend.** Resumen en la vista previa, estado `pendiente_revision` y
+- [x] **T7 — Frontend.** Resumen en la vista previa, estado `pendiente_revision` y
   resultado del CSV según el mockup acordado.
-- [ ] **T8 — Cierre.** Suites completas, `docs/bitacora.md`, `CUADRA.md` (incluida
-  la nota de la línea 308), KAN-134, PRs en cadena.
+- [ ] **T8 — Cierre.** [x] Suites completas, [x] `docs/bitacora.md`, [x] `CUADRA.md`
+  (incluida la nota de la línea 308), [ ] KAN-134 y PRs en cadena (los hace el padre).
 
 ## Aceptación
 
@@ -172,3 +172,17 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   que un CSV con los mismos movimientos: 2 filas en total, 2 existentes).
 - 2026-10-30 T6: mockup propuesto, pendiente de acuerdo con el usuario. Artboard 18 suma «Qué pasará al aceptar» (nuevos / ya existentes / dudosos), columna Estado por movimiento, aviso de dudosos (ámbar), aviso de «todo ya existía», texto del banner de aceptada y hint del botón; estados nuevos `sin_repetidos` y `todo_existente`. Cargas: el resultado del CSV pasa a «N nuevos, M ya existían, K dudosos, E con error» con aviso de dudosos. Decisión mía (el usuario la valida en el mockup): K de la carga se calcula al consultar (count de movimientos `pendiente_revision` de esa carga), sin migración ni contador nuevo. No se verificó visualmente.
 - 2026-10-30 T6: mockup acordado por el usuario («están bien los mockups»), incluida la decisión de calcular los dudosos de una carga al consultarla. Siguiente: T7 (backend: `dudosos` en la consulta de la carga; frontend: resumen en la vista previa y resultado del CSV).
+- 2026-10-30 T7 hecha (ruta: escritor delegado). Tres commits: `549d8eb`
+  (backend: `clase` por movimiento en el GET de la vista previa, con la unión
+  `CLASES_MOVIMIENTO_VISTA_PREVIA` en el DTO, y `dudosos` calculado en
+  `SQL_ESTADO`: count de `movimientos` `pendiente_revision` de la carga, con
+  `company_id`, solo en estados de cuenta `procesada`/`con_errores`, sin N+1 ni
+  migración; el listado no lo trae), `e2bbb37` (vista previa: bloque «Qué pasará
+  al aceptar», columna Estado con chips y fila atenuada, banner y pista del
+  botón con plurales; espejo `CLASES_VISTA_PREVIA` con prueba de deriva) y
+  `5f1a8fb` (Cargas: «N nuevos, M ya existían, K dudosos, E con error.» y
+  leyenda ámbar). La lista de Cargas ya se invalida al aceptar. RED: backend
+  `Tests: 6 failed, 75 passed`; vista previa `13 failed | 73 passed`; Cargas
+  `16 failed`. GREEN: backend 73 suites / 1556 tests; frontend 288 archivos /
+  4663 tests; eslint, prettier, typecheck y build limpios.
+- 2026-10-30 T8 (docs): verificación del cierre. Backend 73 suites / 1556 pruebas, typecheck, build, eslint (src/apps/libs/scripts) y prettier limpios; frontend 288 archivos / 4663 pruebas, typecheck, lint, format:check y build limpios. Bitácora y CUADRA.md actualizados (nota de deduplicación reescrita, huella y pendiente_revision documentados). Falta: KAN-134 y PRs.

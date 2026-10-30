@@ -157,6 +157,7 @@ function CargasConAcceso() {
         conteo={{
           ok: panelDatos.registrosOk,
           existentes: panelDatos.registrosExistentes,
+          dudosos: panelDatos.dudosos ?? 0,
           error: panelDatos.registrosError,
         }}
         resultados={panelDatos.resultados}

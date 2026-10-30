@@ -1,4 +1,5 @@
 import type { Ref } from 'react';
+import type { ConteoClases } from '@/shared/dominio';
 import { Button } from '@/shared/ui/Button';
 import { ACCIONES } from '@/features/vista-previa/textos';
 import { BarraProgreso } from './BarraProgreso';
@@ -7,6 +8,8 @@ import estilos from './AccionesVistaPrevia.module.css';
 export interface AccionesVistaPreviaProps {
   /** Qué se está enviando; `null` si nada. Apaga ambos botones. */
   ocupado: 'aceptar' | 'rechazar' | null;
+  /** Lo que la lectura clasificó: de aquí sale la pista bajo el botón. */
+  conteo: ConteoClases;
   onAceptar: () => void;
   /** Pide la confirmación; el rechazo real lo envía `ConfirmarRechazo`. */
   onRechazar: () => void;
@@ -20,6 +23,7 @@ export interface AccionesVistaPreviaProps {
  */
 export function AccionesVistaPrevia({
   ocupado,
+  conteo,
   onAceptar,
   onRechazar,
   rechazarRef,
@@ -49,7 +53,7 @@ export function AccionesVistaPrevia({
           }
         />
       )}
-      <span className={estilos.pista}>{ACCIONES.pista}</span>
+      <span className={estilos.pista}>{ACCIONES.pista(conteo)}</span>
     </div>
   );
 }

@@ -247,6 +247,25 @@ describe('detalleCarga y respuestaCarga (API-18b)', () => {
   });
 });
 
+describe('detalleCarga: dudosos (historia 3.5)', () => {
+  it('lee los dudosos que calcula el servidor', () => {
+    expect(detalleCarga.parse(detalle({ dudosos: 3 })).dudosos).toBe(3);
+  });
+
+  it('una respuesta sin dudosos sigue siendo válida', () => {
+    expect(detalleCarga.parse(detalle()).dudosos).toBeUndefined();
+  });
+
+  it('un dudoso negativo o no entero es un error de contrato', () => {
+    expect(detalleCarga.safeParse(detalle({ dudosos: -1 })).success).toBe(
+      false,
+    );
+    expect(detalleCarga.safeParse(detalle({ dudosos: '1' })).success).toBe(
+      false,
+    );
+  });
+});
+
 describe('perfilesBancarios (API-18c)', () => {
   it('acepta cuadra, banco-norte y banco-sur', () => {
     const perfiles = perfilesBancarios.parse([
@@ -401,9 +420,20 @@ describe('vistaPreviaCarga (historia 3.4)', () => {
     total: 2,
     saldoInicial: '10000.0000',
     saldoFinal: '11250.5000',
+    resumen: { nuevos: 1, existentes: 1, dudosos: 0 },
     movimientos: [
-      { fecha: '2026-09-01', monto: '1500.0000', referencia: 'SPEI 4471' },
-      { fecha: '2026-09-02', monto: '-250.0000', referencia: null },
+      {
+        fecha: '2026-09-01',
+        monto: '1500.0000',
+        referencia: 'SPEI 4471',
+        clase: 'nuevo',
+      },
+      {
+        fecha: '2026-09-02',
+        monto: '-250.0000',
+        referencia: null,
+        clase: 'existente',
+      },
     ],
     ...o,
   });
@@ -428,7 +458,37 @@ describe('vistaPreviaCarga (historia 3.4)', () => {
     expect(() =>
       vistaPreviaCarga.parse(
         cuerpo({
-          movimientos: [{ fecha: '2026-09-01', monto: 1500, referencia: null }],
+          movimientos: [
+            {
+              fecha: '2026-09-01',
+              monto: 1500,
+              referencia: null,
+              clase: 'nuevo',
+            },
+          ],
+        }),
+      ),
+    ).toThrow();
+  });
+
+  it('trae el resumen y la clase de cada movimiento (historia 3.5)', () => {
+    const r = vistaPreviaCarga.parse(cuerpo());
+    expect(r.resumen).toEqual({ nuevos: 1, existentes: 1, dudosos: 0 });
+    expect(r.movimientos.map((m) => m.clase)).toEqual(['nuevo', 'existente']);
+  });
+
+  it('una clase que el servidor no conoce es un error de contrato', () => {
+    expect(() =>
+      vistaPreviaCarga.parse(
+        cuerpo({
+          movimientos: [
+            {
+              fecha: '2026-09-01',
+              monto: '1.0000',
+              referencia: null,
+              clase: 'repetido',
+            },
+          ],
         }),
       ),
     ).toThrow();
@@ -444,6 +504,18 @@ describe('respuestaDecisionVistaPrevia (historia 3.4)', () => {
     });
     expect(r.estado).toBe('procesada');
     expect(r.movimientos).toBe(14);
+  });
+
+  it('lee los conteos de la aceptación (historia 3.5)', () => {
+    const r = respuestaDecisionVistaPrevia.parse({
+      cargaId: G(1),
+      estado: 'procesada',
+      movimientos: 12,
+      nuevos: 11,
+      existentes: 2,
+      dudosos: 1,
+    });
+    expect([r.nuevos, r.existentes, r.dudosos]).toEqual([11, 2, 1]);
   });
 
   it('lee el rechazo, que no trae movimientos', () => {

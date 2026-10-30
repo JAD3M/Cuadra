@@ -812,6 +812,7 @@ describe('movimientos repetidos entre archivos (historia 3.5, T5)', () => {
       registrosOk: 1,
       registrosExistentes: 2,
       registrosError: 0,
+      dudosos: 0,
     });
     expect((await estados(dos.id)).map((m) => m.referencia)).toEqual([r4]);
     const { n } = await una<{ n: number }>(
@@ -831,7 +832,11 @@ describe('movimientos repetidos entre archivos (historia 3.5, T5)', () => {
       `t5b-2-${s}.csv`,
       csv('SEGUNDO', [[d, `ab ${s.toLowerCase()}`, '55.00']]),
     );
-    expect(dos).toMatchObject({ registrosOk: 1, registrosExistentes: 0 });
+    expect(dos).toMatchObject({
+      registrosOk: 1,
+      registrosExistentes: 0,
+      dudosos: 1,
+    });
     const [m] = await estados(dos.id);
     expect(m.estado).toBe('pendiente_revision');
     expect(m.huella).toBe(

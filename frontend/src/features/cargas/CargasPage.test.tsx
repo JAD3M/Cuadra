@@ -424,7 +424,7 @@ describe('CargasPage: las 13 vistas de la pantalla completa', () => {
     );
     expect(
       await within(region).findByText(
-        resumen('98 registros cargados, 2 con error.'),
+        resumen('98 nuevos, 0 ya existían, 0 dudosos, 2 con error.'),
       ),
     ).toBeInTheDocument();
     expect(within(region).getAllByRole('listitem')).toHaveLength(2);

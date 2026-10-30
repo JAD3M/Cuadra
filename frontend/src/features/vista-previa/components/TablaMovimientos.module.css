@@ -68,3 +68,8 @@
 .monto[data-tipo='cargo'] {
   color: var(--color-danger-text);
 }
+
+/* Lo que ya existe se omite al aceptar: la fila se atenúa (el chip lo dice). */
+.fila[data-clase='existente'] {
+  opacity: 0.6;
+}

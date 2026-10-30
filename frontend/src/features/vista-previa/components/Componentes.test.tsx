@@ -22,6 +22,7 @@ describe('ResumenLectura', () => {
         total={14}
         saldoInicial="10000.0000"
         saldoFinal="11250.5000"
+        conteo={{ nuevos: 10, existentes: 4, dudosos: 0 }}
       />,
     );
     const resumen = screen.getByRole('region', {
@@ -46,6 +47,7 @@ describe('ResumenLectura', () => {
         total={3}
         saldoInicial={null}
         saldoFinal={null}
+        conteo={{ nuevos: 3, existentes: 0, dudosos: 0 }}
       />,
     );
     const resumen = screen.getByRole('region', {
@@ -59,7 +61,7 @@ describe('ResumenLectura', () => {
       within(resumen).queryByText('Los saldos cuadran con los movimientos.'),
     ).not.toBeInTheDocument();
     expect(resumen).toHaveTextContent('a.pdf');
-    expect(resumen).not.toHaveTextContent('·');
+    expect(resumen).not.toHaveTextContent('a.pdf ·');
   });
 });
 
@@ -69,17 +71,20 @@ describe('TablaMovimientos', () => {
     expect(screen.getByText('Montos en pesos mexicanos (MXN)')).toBeVisible();
     const filas = screen.getAllByRole('row');
     expect(filas).toHaveLength(4);
-    const [fecha, referencia, monto] = within(filas[1]!).getAllByRole('cell');
+    const [fecha, referencia, estado, monto] = within(filas[1]!).getAllByRole(
+      'cell',
+    );
+    expect(estado).toHaveTextContent('Nuevo');
     expect(fecha).toHaveTextContent('2026-09-01');
     expect(referencia).toHaveTextContent(
       'SPEI RECIBIDO 4471 ABARROTES DEL NORTE',
     );
     expect(monto).toHaveTextContent('+1,500.00');
-    expect(within(filas[2]!).getAllByRole('cell')[2]).toHaveTextContent(
+    expect(within(filas[2]!).getAllByRole('cell')[3]).toHaveTextContent(
       '-250.00',
     );
     expect(within(filas[3]!).getAllByRole('cell')[1]).toHaveTextContent('—');
-    expect(within(filas[3]!).getAllByRole('cell')[2]).toHaveTextContent(
+    expect(within(filas[3]!).getAllByRole('cell')[3]).toHaveTextContent(
       '-3,820.40',
     );
   });
@@ -105,6 +110,7 @@ describe('AccionesVistaPrevia', () => {
         ocupado={null}
         onAceptar={alAceptar}
         onRechazar={alRechazar}
+        conteo={{ nuevos: 3, existentes: 0, dudosos: 0 }}
       />,
     );
     const u = userEvent.setup();
@@ -114,7 +120,7 @@ describe('AccionesVistaPrevia', () => {
     expect(alRechazar).toHaveBeenCalledTimes(1);
     expect(
       screen.getByText(
-        'Al aceptar, los movimientos pasan a conciliación y el motor corre al terminar.',
+        'Se importarán 3 movimientos. Al aceptar, los nuevos pasan a conciliación y el motor corre al terminar.',
       ),
     ).toBeVisible();
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
@@ -129,6 +135,7 @@ describe('AccionesVistaPrevia', () => {
         ocupado={ocupado}
         onAceptar={() => undefined}
         onRechazar={() => undefined}
+        conteo={{ nuevos: 3, existentes: 0, dudosos: 0 }}
       />,
     );
     expect(screen.getByRole('button', { name: a })).toBeDisabled();
@@ -178,14 +185,17 @@ describe('ConfirmarRechazo', () => {
 });
 
 describe('BannerDecision', () => {
-  it('aceptada: título con la cuenta que dijo el servidor y dos enlaces', () => {
-    enRuta(<BannerDecision accion="aceptar" movimientos={14} />);
-    const banner = screen.getByRole('status');
-    expect(banner).toHaveTextContent(
-      'Importación aceptada. Los 14 movimientos entraron a conciliación.',
+  it('aceptada: el detalle sale de los conteos del servidor y hay dos enlaces', () => {
+    enRuta(
+      <BannerDecision
+        accion="aceptar"
+        conteo={{ nuevos: 11, existentes: 2, dudosos: 1 }}
+      />,
     );
+    const banner = screen.getByRole('status');
+    expect(banner).toHaveTextContent('Importación aceptada.');
     expect(banner).toHaveTextContent(
-      'El motor corre al terminar. Los casos aparecerán en la bandeja.',
+      '11 movimientos nuevos entraron a conciliación, 2 ya existían y se omitieron y 1 dudoso quedó pendiente de revisión: no se concilia hasta que se revise. El motor corre al terminar.',
     );
     expect(
       within(banner).getByRole('link', { name: 'Ir a la bandeja' }),
@@ -195,17 +205,30 @@ describe('BannerDecision', () => {
     ).toHaveAttribute('href', '/cargas');
   });
 
-  it('aceptada con un movimiento, o sin conteo, no inventa cifras', () => {
-    const { unmount } = enRuta(
-      <BannerDecision accion="aceptar" movimientos={1} />,
-    );
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Importación aceptada. El movimiento entró a conciliación.',
-    );
-    unmount();
+  it.each([
+    [
+      { nuevos: 1, existentes: 0, dudosos: 0 },
+      '1 movimiento nuevo entró a conciliación. El motor corre al terminar.',
+    ],
+    [
+      { nuevos: 5, existentes: 1, dudosos: 0 },
+      '5 movimientos nuevos entraron a conciliación, 1 ya existía y se omitió. El motor corre al terminar.',
+    ],
+    [
+      { nuevos: 0, existentes: 3, dudosos: 2 },
+      '0 movimientos nuevos entraron a conciliación, 3 ya existían y se omitieron y 2 dudosos quedaron pendientes de revisión: no se concilian hasta que se revisen. El motor corre al terminar.',
+    ],
+  ])('aceptada con %j: singular y plural correctos', (conteo, esperado) => {
+    enRuta(<BannerDecision accion="aceptar" conteo={conteo} />);
+    expect(screen.getByRole('status')).toHaveTextContent(esperado);
+  });
+
+  it('aceptada sin conteo no inventa cifras', () => {
     enRuta(<BannerDecision accion="aceptar" />);
-    expect(screen.getByRole('status')).toHaveTextContent(
-      'Importación aceptada. Los movimientos entraron a conciliación.',
+    const banner = screen.getByRole('status');
+    expect(banner).toHaveTextContent('Importación aceptada.');
+    expect(banner).toHaveTextContent(
+      'Los movimientos entraron a conciliación. El motor corre al terminar.',
     );
   });
 

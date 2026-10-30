@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { puede } from '@/shared/dominio';
+import type { RespuestaDecisionVistaPrevia } from '@/shared/api/contratos';
+import { puede, type ConteoClases } from '@/shared/dominio';
 import { useSessionContext } from '@/shared/sesion';
 import { AlertaError } from '@/shared/ui/AlertaError';
 import { Button } from '@/shared/ui/Button';
@@ -28,6 +29,18 @@ import {
 import { useDecidirVistaPrevia } from './useDecidirVistaPrevia';
 import { useVistaPrevia } from './useVistaPrevia';
 import estilos from './VistaPreviaContenedor.module.css';
+
+/** El conteo de lo aceptado; si el servidor no lo trae completo, sin cifras. */
+function conteoDeRespuesta(
+  r: RespuestaDecisionVistaPrevia,
+): ConteoClases | undefined {
+  const { nuevos, existentes, dudosos } = r;
+  return nuevos === undefined ||
+    existentes === undefined ||
+    dudosos === undefined
+    ? undefined
+    : { nuevos, existentes, dudosos };
+}
 
 export interface VistaPreviaContenedorProps {
   cargaId: string;
@@ -216,7 +229,7 @@ function VistaPreviaConAcceso({
         <BannerDecision
           ref={bannerRef}
           accion={decidida.accion}
-          movimientos={decidida.respuesta.movimientos}
+          conteo={conteoDeRespuesta(decidida.respuesta)}
         />
       ) : null}
 
@@ -228,6 +241,7 @@ function VistaPreviaConAcceso({
             total={datos.total}
             saldoInicial={datos.saldoInicial}
             saldoFinal={datos.saldoFinal}
+            conteo={datos.resumen}
           />
           <TablaMovimientos movimientos={datos.movimientos} />
         </>
@@ -242,6 +256,7 @@ function VistaPreviaConAcceso({
       {conAcciones ? (
         <AccionesVistaPrevia
           ocupado={enviando}
+          conteo={datos.resumen}
           onAceptar={aceptar}
           onRechazar={abrirConfirmacion}
           rechazarRef={rechazarRef}

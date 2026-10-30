@@ -4,12 +4,14 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { permisosDelControlador, rolesDeMatriz } from './extraerPermisos';
 import {
+  CLASES_VISTA_PREVIA,
   LIMITES_CARGA,
   PERFIL_POR_DEFECTO,
   RESULTADOS_ARCHIVO,
   RESULTADO_ERROR,
   rolesConPermiso,
 } from '@/shared/dominio';
+import { extraerExportsBackend } from './derivaTipos';
 import {
   constantesNumericas,
   extensionDelGuard,
@@ -53,6 +55,27 @@ describe('resultados de la carga (src/cargas/carga.entity.ts)', () => {
   it('si el backend deja de declarar los tipos, la extracción no encuentra nada', () => {
     expect(resultadosDeArchivo('// vacío')).toBeUndefined();
     expect(resultadosDeFila('// vacío')).toBeUndefined();
+  });
+});
+
+describe('clases de la vista previa (src/cargas/dto/vista-previa.dto.ts)', () => {
+  const dto = leer('cargas/dto/vista-previa.dto.ts');
+
+  it('CLASES_VISTA_PREVIA coincide con CLASES_MOVIMIENTO_VISTA_PREVIA', () => {
+    const { arreglos } = extraerExportsBackend(dto, 'vista-previa.dto.ts');
+    expect(arreglos['CLASES_MOVIMIENTO_VISTA_PREVIA']).toEqual([
+      ...CLASES_VISTA_PREVIA,
+    ]);
+  });
+
+  it('un literal renombrado en el backend deja de coincidir', () => {
+    const fuente = dto.replace("'existente'", "'repetido'");
+    expect(fuente).not.toBe(dto);
+    expect(
+      extraerExportsBackend(fuente, 'vista-previa.dto.ts').arreglos[
+        'CLASES_MOVIMIENTO_VISTA_PREVIA'
+      ],
+    ).not.toEqual([...CLASES_VISTA_PREVIA]);
   });
 });
 

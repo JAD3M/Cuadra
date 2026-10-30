@@ -571,7 +571,7 @@ describe('CargasContenedor: resultados de la carga', () => {
     almacenes.cargas.avanzar(idDeLaUltima(), 'con_errores', parche);
     expect(
       await within(region).findByText(
-        resumen('98 registros cargados, 2 con error.'),
+        resumen('98 nuevos, 0 ya existían, 0 dudosos, 2 con error.'),
       ),
     ).toBeInTheDocument();
     const filas = within(region).getAllByRole('listitem');
@@ -582,6 +582,42 @@ describe('CargasContenedor: resultados de la carga', () => {
     expect(regionDe(CFDI)).toBeEmptyDOMElement();
     // La cuenta nunca se muestra, ni escrita ni en el resultado.
     expect(region).not.toHaveTextContent('1234');
+  });
+
+  it('un estado de cuenta con dudosos: los nuevos son los que entraron menos los dudosos y el aviso lo dice (3.5)', async () => {
+    montar(['admin'], POLLING_HOLGADO);
+    await esperarPerfiles();
+    const u = usuario();
+    await u.upload(screen.getByLabelText('Elegir archivo'), csv('estado.csv'));
+    await u.click(botonCsv());
+    const region = regionDe(CSV);
+    await within(region).findByText(PROCESANDO);
+    const id = idDeLaUltima();
+    servidor.use(
+      http.get('/api/cargas/:id', () =>
+        HttpResponse.json({
+          ...detalleCsvConErrores(),
+          id,
+          estado: 'con_errores',
+          totalRegistros: 213,
+          registrosOk: 207,
+          registrosExistentes: 4,
+          registrosError: 2,
+          dudosos: 1,
+        }),
+      ),
+    );
+    expect(
+      await within(region).findByText(
+        resumen('206 nuevos, 4 ya existían, 1 dudoso, 2 con error.'),
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(region).getByText(/^⚠ 1 dudoso quedó pendiente de revisión/),
+    ).toBeInTheDocument();
+    expect(
+      within(region).getByText('Los 4 que ya existían se omitieron.'),
+    ).toBeInTheDocument();
   });
 
   it.each([

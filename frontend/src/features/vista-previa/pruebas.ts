@@ -12,15 +12,40 @@ const MOVIMIENTOS: VistaPreviaCarga['movimientos'] = [
     fecha: '2026-09-01',
     monto: '1500.0000',
     referencia: 'SPEI RECIBIDO 4471 ABARROTES DEL NORTE',
+    clase: 'nuevo',
   },
-  { fecha: '2026-09-02', monto: '-250.0000', referencia: 'COMPRA OXXO 0231' },
-  { fecha: '2026-09-03', monto: '-3820.4000', referencia: null },
+  {
+    fecha: '2026-09-02',
+    monto: '-250.0000',
+    referencia: 'COMPRA OXXO 0231',
+    clase: 'nuevo',
+  },
+  {
+    fecha: '2026-09-03',
+    monto: '-3820.4000',
+    referencia: null,
+    clase: 'nuevo',
+  },
 ];
+
+/** El resumen que cuadra con las clases de los movimientos. */
+export function resumenDe(
+  movimientos: VistaPreviaCarga['movimientos'],
+): VistaPreviaCarga['resumen'] {
+  const cuenta = (c: VistaPreviaCarga['movimientos'][number]['clase']) =>
+    movimientos.filter((m) => m.clase === c).length;
+  return {
+    nuevos: cuenta('nuevo'),
+    existentes: cuenta('existente'),
+    dudosos: cuenta('dudoso'),
+  };
+}
 
 /** Una vista previa con saldos, como la responde `GET /cargas/:id/vista-previa`. */
 export function vistaPrevia(
   o: Partial<VistaPreviaCarga> = {},
 ): VistaPreviaCarga {
+  const movimientos = o.movimientos ?? MOVIMIENTOS.map((m) => ({ ...m }));
   return {
     cargaId: ID_CARGA,
     archivo: 'estado-sep-2026.pdf',
@@ -28,7 +53,8 @@ export function vistaPrevia(
     total: 3,
     saldoInicial: '10000.0000',
     saldoFinal: '11250.5000',
-    movimientos: MOVIMIENTOS.map((m) => ({ ...m })),
+    movimientos,
+    resumen: resumenDe(movimientos),
     ...o,
   };
 }
@@ -51,12 +77,20 @@ export const leerVistaPreviaFalla = (status: number) =>
     ERROR_NEST(status, 'texto-interno-del-servidor'),
   );
 
-export const aceptarResponde = (movimientos = 3) =>
+export const aceptarResponde = (
+  movimientos = 3,
+  conteo: VistaPreviaCarga['resumen'] = {
+    nuevos: movimientos,
+    existentes: 0,
+    dudosos: 0,
+  },
+) =>
   http.post(RUTA_ACEPTAR, ({ params }) =>
     HttpResponse.json({
       cargaId: String(params.id),
       estado: 'procesada',
       movimientos,
+      ...conteo,
     }),
   );
 
