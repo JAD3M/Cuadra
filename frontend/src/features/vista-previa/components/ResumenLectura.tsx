@@ -1,7 +1,9 @@
+import type { ConteoClases } from '@/shared/dominio';
 import { BANCOS_PDF } from '@/shared/dominio';
 import { RESUMEN } from '@/features/vista-previa/textos';
 import { saldoVista } from '@/features/vista-previa/dinero';
 import { AvisoInformativo } from './AvisoInformativo';
+import { QuePasaraAlAceptar } from './QuePasaraAlAceptar';
 import estilos from './ResumenLectura.module.css';
 
 export interface ResumenLecturaProps {
@@ -12,6 +14,8 @@ export interface ResumenLecturaProps {
   /** Decimal en cadena tal como lo envía la API; `null` en cargas anteriores a la 3.4. */
   saldoInicial: string | null;
   saldoFinal: string | null;
+  /** Cuántos movimientos son nuevos, ya existen o son dudosos (historia 3.5). */
+  conteo: ConteoClases;
 }
 
 const nombreDeBanco = (id: string): string =>
@@ -28,6 +32,7 @@ export function ResumenLectura({
   total,
   saldoInicial,
   saldoFinal,
+  conteo,
 }: ResumenLecturaProps) {
   const sinSaldos = saldoInicial === null || saldoFinal === null;
   return (
@@ -74,6 +79,7 @@ export function ResumenLectura({
           {RESUMEN.cuadran}
         </span>
       )}
+      <QuePasaraAlAceptar conteo={conteo} />
     </section>
   );
 }

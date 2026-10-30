@@ -98,6 +98,7 @@ describe('VistaPreviaPage: lectura', () => {
               fecha: '2026-09-01',
               monto: '9007199254740993.12',
               referencia: null,
+              clase: 'nuevo',
             },
           ],
           total: 1,
@@ -216,6 +217,123 @@ describe('VistaPreviaPage: lectura', () => {
   });
 });
 
+const SIETE_MOVIMIENTOS = (
+  clases: readonly ('nuevo' | 'existente' | 'dudoso')[],
+) =>
+  clases.map((clase, i) => ({
+    fecha: `2026-09-0${i + 1}`,
+    monto: '-250.0000',
+    referencia: `REF-${i + 1}`,
+    clase,
+  }));
+
+describe('VistaPreviaPage: huellas (historia 3.5)', () => {
+  it('normal: el bloque «Qué pasará al aceptar» cuenta nuevos, existentes y dudosos', async () => {
+    const movimientos = SIETE_MOVIMIENTOS([
+      'nuevo',
+      'nuevo',
+      'existente',
+      'dudoso',
+    ]);
+    servidor.use(
+      leerVistaPrevia(vistaPrevia({ movimientos, total: movimientos.length })),
+    );
+    montar();
+    const resumen = await esperarContenido();
+    expect(within(resumen).getByText('Qué pasará al aceptar')).toBeVisible();
+    expect(
+      within(resumen).getByText('2 nuevos, 1 ya existente, 1 dudoso.'),
+    ).toBeVisible();
+    expect(within(resumen).getByText('Nuevos · se importan')).toBeVisible();
+    expect(
+      within(resumen).getByText('Ya existentes · se omiten'),
+    ).toBeVisible();
+    expect(
+      within(resumen).getByText('Dudosos · entran a revisión'),
+    ).toBeVisible();
+    const aviso = within(resumen).getByText('1 movimiento dudoso');
+    expect(aviso.closest('[role="status"]')).toHaveTextContent(
+      'no se concilian ni se descartan hasta que alguien los revise',
+    );
+  });
+
+  it('la columna Estado pone un chip por movimiento y atenúa los que ya existen', async () => {
+    const movimientos = SIETE_MOVIMIENTOS(['nuevo', 'existente', 'dudoso']);
+    servidor.use(
+      leerVistaPrevia(vistaPrevia({ movimientos, total: movimientos.length })),
+    );
+    montar();
+    await esperarContenido();
+    expect(screen.getByRole('columnheader', { name: 'Estado' })).toBeVisible();
+    const filas = screen.getAllByRole('row');
+    expect(within(filas[1]!).getByText('Nuevo')).toBeVisible();
+    const existente = within(filas[2]!).getByText('Ya existe · se omite');
+    expect(existente).toBeVisible();
+    expect(filas[2]).toHaveAttribute('data-clase', 'existente');
+    expect(filas[1]).toHaveAttribute('data-clase', 'nuevo');
+    expect(within(filas[3]!).getByText('Dudoso · a revisión')).toBeVisible();
+  });
+
+  it('el botón explica cuántos se importarán y cuántos se omiten', async () => {
+    const movimientos = SIETE_MOVIMIENTOS([
+      'nuevo',
+      'nuevo',
+      'existente',
+      'dudoso',
+    ]);
+    servidor.use(
+      leerVistaPrevia(vistaPrevia({ movimientos, total: movimientos.length })),
+    );
+    montar();
+    await esperarContenido();
+    expect(
+      screen.getByText(
+        'Se importarán 3 movimientos (2 nuevos y 1 dudoso); 1 ya existente se omite. Al aceptar, los nuevos pasan a conciliación y el motor corre al terminar.',
+      ),
+    ).toBeVisible();
+  });
+
+  it('sin repetidos: sin aviso de dudosos ni de «todo existía»', async () => {
+    servidor.use(leerVistaPrevia());
+    montar();
+    const resumen = await esperarContenido();
+    expect(
+      within(resumen).getByText('3 nuevos, 0 ya existentes, 0 dudosos.'),
+    ).toBeVisible();
+    expect(
+      within(resumen).queryByText(/movimientos? dudosos?$/),
+    ).not.toBeInTheDocument();
+    expect(
+      within(resumen).queryByText(/Todos los movimientos de este PDF/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Se importarán 3 movimientos. Al aceptar, los nuevos pasan a conciliación y el motor corre al terminar.',
+      ),
+    ).toBeVisible();
+  });
+
+  it('todo existente: caja informativa y el botón dice que solo se cierra la carga', async () => {
+    const movimientos = SIETE_MOVIMIENTOS(['existente', 'existente']);
+    servidor.use(
+      leerVistaPrevia(vistaPrevia({ movimientos, total: movimientos.length })),
+    );
+    montar();
+    const resumen = await esperarContenido();
+    expect(
+      within(resumen).getByText(
+        'Todos los movimientos de este PDF ya estaban cargados. Al aceptar no se importa nada nuevo y la carga se cierra.',
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        'No hay movimientos nuevos: al aceptar solo se cierra esta carga.',
+      ),
+    ).toBeVisible();
+    expect(aceptar()).toBeEnabled();
+  });
+});
+
 describe('VistaPreviaPage: aceptar', () => {
   it('mientras importa: botones apagados, barra y chip «Importando»; luego el banner', async () => {
     const compuerta = crearCompuerta();
@@ -226,7 +344,10 @@ describe('VistaPreviaPage: aceptar', () => {
         return HttpResponse.json({
           cargaId: String(params.id),
           estado: 'procesada',
-          movimientos: 14,
+          movimientos: 12,
+          nuevos: 11,
+          existentes: 2,
+          dudosos: 1,
         });
       }),
     );
@@ -241,8 +362,9 @@ describe('VistaPreviaPage: aceptar', () => {
     expect(screen.getByText('Importando')).toBeVisible();
     compuerta.abrir();
     const banner = await screen.findByText(
-      'Importación aceptada. Los 14 movimientos entraron a conciliación.',
+      '11 movimientos nuevos entraron a conciliación, 2 ya existían y se omitieron y 1 dudoso quedó pendiente de revisión: no se concilia hasta que se revise. El motor corre al terminar.',
     );
+    expect(screen.getByText('Importación aceptada.')).toBeVisible();
     expect(banner).toBeVisible();
     expect(screen.getByText('Procesada')).toBeVisible();
     expect(

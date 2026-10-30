@@ -1,5 +1,6 @@
 import type { Ref } from 'react';
 import { Link } from 'react-router';
+import type { ConteoClases } from '@/shared/dominio';
 import {
   BANNER_ACEPTADA,
   BANNER_RECHAZADA,
@@ -12,8 +13,8 @@ import enlaces from './enlaces.module.css';
 export interface BannerDecisionProps {
   /** La decisión que el servidor aceptó. */
   accion: 'aceptar' | 'rechazar';
-  /** Cuántos movimientos entraron, según el servidor; ausente = sin cifra. */
-  movimientos?: number;
+  /** Qué pasó con cada clase, según el servidor; ausente = sin cifras. */
+  conteo?: ConteoClases;
   /** Para mover el foco al banner cuando la decisión termina. */
   ref?: Ref<HTMLDivElement>;
 }
@@ -23,11 +24,7 @@ export interface BannerDecisionProps {
  * `tabIndex={-1}` para enfocarla desde código. Verde al aceptar, ámbar al
  * rechazar; los enlaces son `<a>` reales.
  */
-export function BannerDecision({
-  accion,
-  movimientos,
-  ref,
-}: BannerDecisionProps) {
+export function BannerDecision({ accion, conteo, ref }: BannerDecisionProps) {
   const aceptada = accion === 'aceptar';
   return (
     <div
@@ -37,12 +34,10 @@ export function BannerDecision({
       className={`${estilos.banner} ${aceptada ? estilos.aceptada : estilos.rechazada}`}
     >
       <strong className={estilos.titulo}>
-        {aceptada
-          ? BANNER_ACEPTADA.titulo(movimientos)
-          : BANNER_RECHAZADA.titulo}
+        {aceptada ? BANNER_ACEPTADA.titulo : BANNER_RECHAZADA.titulo}
       </strong>
       <span className={estilos.detalle}>
-        {aceptada ? BANNER_ACEPTADA.detalle : BANNER_RECHAZADA.detalle}
+        {aceptada ? BANNER_ACEPTADA.detalle(conteo) : BANNER_RECHAZADA.detalle}
       </span>
       <div className={estilos.enlaces}>
         {aceptada ? (

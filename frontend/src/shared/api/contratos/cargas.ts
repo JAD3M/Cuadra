@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  CLASES_VISTA_PREVIA,
   ESTADOS_CARGA,
   RESULTADO_ERROR,
   TIPOS_CARGA,
@@ -118,6 +119,15 @@ const movimientoVistaPrevia = z.object({
   fecha: texto,
   monto: montoDecimal,
   referencia: z.string().nullable(),
+  /** Qué pasará con él al aceptar (historia 3.5); la clase sale del servidor. */
+  clase: z.enum(CLASES_VISTA_PREVIA),
+});
+
+/** Cuántos movimientos caen en cada clase (historia 3.5). */
+const conteoClases = z.object({
+  nuevos: contador,
+  existentes: contador,
+  dudosos: contador,
 });
 
 /**
@@ -132,6 +142,8 @@ export const vistaPreviaCarga = z.object({
   total: contador,
   saldoInicial: montoDecimal.nullable(),
   saldoFinal: montoDecimal.nullable(),
+  /** Informativo: al aceptar el servidor vuelve a clasificar dentro del candado. */
+  resumen: conteoClases,
   movimientos: z.array(movimientoVistaPrevia),
 });
 
@@ -143,6 +155,10 @@ export const respuestaDecisionVistaPrevia = z.object({
   cargaId: z.guid(),
   estado: z.enum(ESTADOS_CARGA),
   movimientos: contador.optional(),
+  /** Solo al aceptar (historia 3.5): lo que de verdad pasó con cada clase. */
+  nuevos: contador.optional(),
+  existentes: contador.optional(),
+  dudosos: contador.optional(),
 });
 
 /** Una línea del PDF que el lector no pudo leer (cuerpo del 400, historia 3.3). */

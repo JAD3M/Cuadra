@@ -4,6 +4,9 @@
  * propio. Los textos de conectividad y de permiso son los de la bandeja.
  */
 
+import type { ClaseVistaPrevia, ConteoClases } from '@/shared/dominio';
+import { plural } from '@/shared/texto/plural';
+
 export {
   ERROR_CONEXION,
   ERROR_SIN_PERMISO,
@@ -71,21 +74,59 @@ export const RESUMEN = {
     'Esta carga se leyó antes de que Cuadra guardara los saldos del PDF, así que no se pueden mostrar.',
 } as const;
 
+/** El bloque «Qué pasará al aceptar» (historia 3.5, VistaPrevia.dc.html). */
+export const QUE_PASARA = {
+  rotulo: 'Qué pasará al aceptar',
+  nuevos: 'Nuevos · se importan',
+  existentes: 'Ya existentes · se omiten',
+  dudosos: 'Dudosos · entran a revisión',
+  /** «11 nuevos, 2 ya existentes, 1 dudoso.» */
+  resumen: ({ nuevos, existentes, dudosos }: ConteoClases): string =>
+    `${plural(nuevos, 'nuevo', 'nuevos')}, ${plural(existentes, 'ya existente', 'ya existentes')}, ${plural(dudosos, 'dudoso', 'dudosos')}.`,
+  tituloDudosos: (dudosos: number): string =>
+    dudosos === 1 ? '1 movimiento dudoso' : `${dudosos} movimientos dudosos`,
+  detalleDudosos:
+    'Coinciden en cuenta, fecha y monto con uno que ya está cargado, pero la referencia es distinta. Entran como «pendiente de revisión»: no se concilian ni se descartan hasta que alguien los revise.',
+  todoExistente:
+    'Todos los movimientos de este PDF ya estaban cargados. Al aceptar no se importa nada nuevo y la carga se cierra.',
+} as const;
+
 export const MOVIMIENTOS = {
   titulo: 'Movimientos leídos',
   moneda: 'Montos en pesos mexicanos (MXN)',
   fecha: 'Fecha',
   referencia: 'Referencia',
+  estado: 'Estado',
   monto: 'Monto',
 } as const;
+
+/** El chip «Estado» de cada movimiento, por la clase que dice el servidor. */
+export const ESTADO_MOVIMIENTO: Readonly<Record<ClaseVistaPrevia, string>> = {
+  nuevo: 'Nuevo',
+  existente: 'Ya existe · se omite',
+  dudoso: 'Dudoso · a revisión',
+};
 
 export const ACCIONES = {
   aceptar: 'Aceptar e importar',
   aceptando: 'Importando…',
   rechazar: 'Rechazar',
   rechazando: 'Rechazando…',
-  pista:
-    'Al aceptar, los movimientos pasan a conciliación y el motor corre al terminar.',
+  /** Bajo el botón: qué se importará y qué se omite (historia 3.5). */
+  pista: ({ nuevos, existentes, dudosos }: ConteoClases): string => {
+    if (nuevos === 0 && dudosos === 0) {
+      return 'No hay movimientos nuevos: al aceptar solo se cierra esta carga.';
+    }
+    const desglose =
+      dudosos > 0
+        ? ` (${plural(nuevos, 'nuevo', 'nuevos')} y ${plural(dudosos, 'dudoso', 'dudosos')})`
+        : '';
+    const omitidos =
+      existentes > 0
+        ? `; ${plural(existentes, 'ya existente se omite', 'ya existentes se omiten')}`
+        : '';
+    return `Se importarán ${plural(nuevos + dudosos, 'movimiento', 'movimientos')}${desglose}${omitidos}. Al aceptar, los nuevos pasan a conciliación y el motor corre al terminar.`;
+  },
   progresoAceptar: 'Importando los movimientos',
   progresoRechazar: 'Rechazando la vista previa',
 } as const;
@@ -104,16 +145,38 @@ export const CONFIRMAR_RECHAZO = {
 } as const;
 
 export const BANNER_ACEPTADA = {
-  /** Con la cuenta que dijo el servidor; sin ella, sin inventar cifras. */
-  titulo: (movimientos: number | undefined): string => {
-    if (movimientos === undefined) {
-      return 'Importación aceptada. Los movimientos entraron a conciliación.';
+  titulo: 'Importación aceptada.',
+  /**
+   * Con lo que dijo el servidor; sin conteo, sin inventar cifras. «11
+   * movimientos nuevos entraron a conciliación, 2 ya existían y se omitieron y
+   * 1 dudoso quedó pendiente de revisión: no se concilia hasta que se revise.
+   * El motor corre al terminar.»
+   */
+  detalle: (conteo: ConteoClases | undefined): string => {
+    if (conteo === undefined) {
+      return 'Los movimientos entraron a conciliación. El motor corre al terminar.';
     }
-    return movimientos === 1
-      ? 'Importación aceptada. El movimiento entró a conciliación.'
-      : `Importación aceptada. Los ${movimientos} movimientos entraron a conciliación.`;
+    const { nuevos, existentes, dudosos } = conteo;
+    const entraron = `${nuevos} ${
+      nuevos === 1 ? 'movimiento nuevo entró' : 'movimientos nuevos entraron'
+    } a conciliación`;
+    const omitidos =
+      existentes > 0
+        ? `, ${plural(existentes, 'ya existía', 'ya existían')} y se omiti${
+            existentes === 1 ? 'ó' : 'eron'
+          }`
+        : '';
+    const sing = dudosos === 1;
+    const revision =
+      dudosos > 0
+        ? ` y ${plural(dudosos, 'dudoso quedó', 'dudosos quedaron')} pendiente${
+            sing ? '' : 's'
+          } de revisión: no se concilia${sing ? '' : 'n'} hasta que se revise${
+            sing ? '' : 'n'
+          }`
+        : '';
+    return `${entraron}${omitidos}${revision}. El motor corre al terminar.`;
   },
-  detalle: 'El motor corre al terminar. Los casos aparecerán en la bandeja.',
 } as const;
 
 export const BANNER_RECHAZADA = {
