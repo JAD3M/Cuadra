@@ -3,6 +3,51 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 30 oct 2026
+
+- **Historia 3.5 de la v2: reconocer los movimientos que ya existían con una
+  huella (KAN-134; AD-19).** Rama `feat/v2-3-5-huellas` con ODD. Entrega en PRs
+  encadenados, porque pasa de 400 líneas.
+  - **T1 y T2:** `huellaMovimiento` (v1: SHA-256 de cuenta normalizada, fecha,
+    monto con 4 decimales y referencia normalizada) y la migración
+    `1790710400000-HuellaMovimientos`: columna `movimientos.huella`, índice no
+    único `(company_id, huella)`, función SQL `huella_movimiento`, backfill de
+    las filas viejas ejecutado por empresa (el RLS con FORCE lo exige), prueba
+    de paridad con TypeScript y el estado nuevo `pendiente_revision`.
+  - **T3 a T5:** clasificador por huella con multiplicidad uno a uno contra
+    movimientos en cualquier estado: exacto (misma huella y misma referencia
+    cruda), dudoso (misma huella, referencia cruda distinta) o nuevo. Corre
+    dentro del candado de empresa (AD-19), al aceptar la vista previa y también
+    en el worker del CSV. El CSV omite los exactos y los cuenta en
+    `registros_existentes`; los dudosos entran como `pendiente_revision` y ni se
+    concilian ni se descartan. Aceptar importa nuevos y dudosos.
+  - **T6:** mockup acordado con el usuario (artboard 18 ampliado con el resumen
+    y la columna Estado, y el resultado del CSV en Cargas).
+  - **T7:** vista previa con «N nuevos, M ya existentes, K dudosos» y clase por
+    movimiento; Cargas con «N nuevos, M ya existían, K dudosos, E con error».
+    `dudosos` de una carga se calcula al consultar, sin migración y sin índice
+    en `movimientos.carga_id`.
+  - **Decisiones con el usuario:** la nota de CUADRA.md que decía que no se
+    deduplica por contenido se reescribió: ahora se clasifica por huella y las
+    filas idénticas legítimas de un mismo archivo se respetan por cantidad; un
+    dudoso no se descarta ni se concilia; los dudosos de una carga se calculan
+    al consultarla.
+  - **Revisión nativa:** cuatro revisiones aprobadas en cuatro rebanadas, solo
+    con hallazgos informativos: la referencia se lee por posición en
+    `vista-previa.service` (`src/cargas/vista-previa.service.ts:107-113`),
+    `dudosos` es opcional en el contrato del frontend y un test borra filas
+    después de sus aserciones (limpieza).
+  - **Pendiente:** no hay pantalla para resolver un `pendiente_revision`; los
+    dudosos quedan estacionados, fuera de la conciliación y de la bandeja. El
+    lector de BBVA sigue sin validarse con un PDF real. El revisor no tiene
+    `cargas.ver` aunque el mockup lo dibuja en solo consulta. `ContratoError`
+    se clasifica como `servidor`. Falta confirmar que el detalle de bitácora
+    muestre bien aceptar y rechazar. La moneda duplicada espera refactor. Un
+    índice en `movimientos.carga_id` si el conteo de dudosos se vuelve lento.
+  - **Verificación del cierre:** backend 73 suites / 1556 pruebas, typecheck,
+    build, eslint y prettier limpios; frontend 288 archivos / 4663 pruebas,
+    typecheck, lint, `format:check` y build limpios.
+
 ### 29 oct 2026
 
 - **Historia 3.4 de la v2: revisar la vista previa del PDF antes de importar

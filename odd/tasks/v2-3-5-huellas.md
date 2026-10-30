@@ -84,8 +84,8 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   en Cargas; acordado con el usuario el 2026-10-30.
 - [x] **T7 — Frontend.** Resumen en la vista previa, estado `pendiente_revision` y
   resultado del CSV según el mockup acordado.
-- [ ] **T8 — Cierre.** Suites completas, `docs/bitacora.md`, `CUADRA.md` (incluida
-  la nota de la línea 308), KAN-134, PRs en cadena.
+- [ ] **T8 — Cierre.** [x] Suites completas, [x] `docs/bitacora.md`, [x] `CUADRA.md`
+  (incluida la nota de la línea 308), [ ] KAN-134 y PRs en cadena (los hace el padre).
 
 ## Aceptación
 
@@ -185,3 +185,4 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   `Tests: 6 failed, 75 passed`; vista previa `13 failed | 73 passed`; Cargas
   `16 failed`. GREEN: backend 73 suites / 1556 tests; frontend 288 archivos /
   4663 tests; eslint, prettier, typecheck y build limpios.
+- 2026-10-30 T8 (docs): verificación del cierre. Backend 73 suites / 1556 pruebas, typecheck, build, eslint (src/apps/libs/scripts) y prettier limpios; frontend 288 archivos / 4663 pruebas, typecheck, lint, format:check y build limpios. Bitácora y CUADRA.md actualizados (nota de deduplicación reescrita, huella y pendiente_revision documentados). Falta: KAN-134 y PRs.

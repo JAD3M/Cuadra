@@ -299,17 +299,36 @@ Historias: CU-05, CU-06; es la fuente de candidatos de CU-11.
 | `referencia` | varchar(128) | opcional |
 | `monto` | numeric(18,4) | `CHECK <> 0` |
 | `banco`, `cuenta` | varchar | opcionales |
-| `estado` | varchar(32) | abierto · conciliado · descartado |
+| `estado` | varchar(32) | abierto · conciliado · descartado · `pendiente_revision` (v2, 3.5): un dudoso (misma huella que uno existente pero otra referencia cruda); no se concilia ni se descarta, queda fuera de la bandeja y de la conciliación |
+| `huella` | varchar(70) | v2, 3.5: `v1:` + SHA-256 de cuenta normalizada, fecha, monto con 4 decimales y referencia normalizada. Nula en filas que no la tienen. Índice **no único** `ix_movimientos_company_id_huella` sobre `(company_id, huella)` |
 
 **`fecha` es `date`**: el banco da el día, no la hora. Guardar medianoche
 inventaría precisión y al convertir zonas podría saltar al día anterior.
 
-**La idempotencia es por `(company_id, carga_id, linea_numero)`, no por hash
-del contenido.** Lo intuitivo sería deduplicar por contenido, pero dos cargos
-legítimos pueden ser idénticos el mismo día — dos pagos de $500 del mismo
-cliente son dos pagos. Identificar por posición en el archivo resuelve las
-dos cosas: reprocesar no duplica, y dos movimientos idénticos siguen siendo
-dos.
+**Los movimientos se clasifican por huella, con multiplicidad (v2, 3.5).**
+Reprocesar el mismo archivo ya no duplica, pero tampoco se deduplica a ciegas
+por contenido: dos cargos legítimos pueden ser idénticos el mismo día — dos
+pagos de $500 del mismo cliente son dos pagos. Por eso cada movimiento nuevo
+se empareja uno a uno contra los que ya existen en la empresa, en cualquier
+estado:
+
+- **Exacto:** misma huella y misma referencia cruda (tras `trim`). Se omite y
+  se cuenta en `registros_existentes`.
+- **Dudoso:** misma huella pero referencia cruda distinta. Entra como
+  `pendiente_revision`, sin conciliar ni descartar.
+- **Nuevo:** sin pareja. Entra como `abierto`.
+- **Multiplicidad:** el emparejamiento es 1 a 1, así que filas idénticas
+  legítimas dentro de un mismo archivo se respetan por cantidad; el lote no se
+  empareja consigo mismo.
+
+La clasificación (`src/bancos/clasificar-huellas.ts`) corre dentro del candado
+de empresa (AD-19), tanto al aceptar la vista previa de un PDF como en el
+worker del CSV, para que dos cargas simultáneas no dupliquen. La huella la
+calcula `huellaMovimiento` (`src/bancos/huella-movimiento.ts`); la función SQL
+`huella_movimiento` hace lo mismo para el backfill de las filas viejas, que la
+migración `1790710400000-HuellaMovimientos` ejecuta empresa por empresa (el
+RLS con FORCE lo exige), y una prueba de paridad compara ambas. El índice no es
+único a propósito: la unicidad la decide el emparejamiento, no la base.
 
 **`referencia_norm` (CU-11):** columna generada `STORED` con su índice
 `(company_id, referencia_norm)`, calculada por la función SQL
@@ -486,8 +505,30 @@ que entre a conciliación:
 aceptar manda datos de ese lector a conciliación; el revisor no tiene
 `cargas.ver` en la matriz aunque el mockup de Cargas lo dibuja en solo consulta
 (decisión pendiente); `ContratoError` se clasifica como `servidor` aunque la
-escritura probablemente se aplicó; el resumen «N nuevos, M ya existentes» es la
-historia 3.5.
+escritura probablemente se aplicó.
+
+**Huellas (v2, historia 3.5).** La vista previa y el resultado del CSV
+distinguen lo nuevo de lo que ya estaba:
+
+- `GET /cargas/:id/vista-previa` suma `resumen {nuevos, existentes, dudosos}`
+  (informativo, sin candado) y una `clase` por movimiento. La pantalla muestra
+  «Qué pasará al aceptar» y una columna Estado.
+- Aceptar reclasifica dentro del candado e importa **nuevos y dudosos**; omite
+  los exactos. La respuesta suma `nuevos`, `existentes` y `dudosos`; conciliar
+  y sugerir solo arrancan si hay al menos un nuevo.
+- El CSV omite los exactos y los cuenta en `registros_existentes`; los dudosos
+  cuentan en `registros_ok` y entran como `pendiente_revision`.
+- Cargas muestra «N nuevos, M ya existían, K dudosos, E con error». `dudosos`
+  se calcula al consultar la carga (count de sus movimientos
+  `pendiente_revision`, solo en estados de cuenta `procesada`/`con_errores`),
+  sin migración de contador y sin índice en `movimientos.carga_id`.
+
+**Pendientes (3.5):** no hay pantalla para resolver un `pendiente_revision`:
+quedan estacionados, fuera de la conciliación y de la bandeja. Si el conteo de
+`dudosos` se vuelve lento, evaluar un índice en `movimientos.carga_id`. La
+moneda duplicada entre el lector y la normalización sigue pendiente de
+refactor. El lector de BBVA sigue sin validarse con un PDF real y el revisor
+sin `cargas.ver` (ver 3.4).
 
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
