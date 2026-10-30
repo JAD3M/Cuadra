@@ -80,8 +80,8 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   nuevos y dudosos, guarda la huella, cuadra los contadores y `ck_cargas_total_cuadra`.
 - [x] **T5 — CSV.** El worker toma el candado, omite exactos (`existentes`),
   guarda dudosos como `pendiente_revision`, y el resultado de la carga lo muestra.
-- [ ] **T6 — Mockup.** Resumen en la vista previa (artboard 18) y resultado del CSV
-  en Cargas; acordarlo con el usuario. Bloquea T7.
+- [x] **T6 — Mockup.** Resumen en la vista previa (artboard 18) y resultado del CSV
+  en Cargas; acordado con el usuario el 2026-10-30.
 - [ ] **T7 — Frontend.** Resumen en la vista previa, estado `pendiente_revision` y
   resultado del CSV según el mockup acordado.
 - [ ] **T8 — Cierre.** Suites completas, `docs/bitacora.md`, `CUADRA.md` (incluida
@@ -171,3 +171,4 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   40/40 en `vista-previa.integracion.spec.ts` (incluye PDF aceptado a la vez
   que un CSV con los mismos movimientos: 2 filas en total, 2 existentes).
 - 2026-10-30 T6: mockup propuesto, pendiente de acuerdo con el usuario. Artboard 18 suma «Qué pasará al aceptar» (nuevos / ya existentes / dudosos), columna Estado por movimiento, aviso de dudosos (ámbar), aviso de «todo ya existía», texto del banner de aceptada y hint del botón; estados nuevos `sin_repetidos` y `todo_existente`. Cargas: el resultado del CSV pasa a «N nuevos, M ya existían, K dudosos, E con error» con aviso de dudosos. Decisión mía (el usuario la valida en el mockup): K de la carga se calcula al consultar (count de movimientos `pendiente_revision` de esa carga), sin migración ni contador nuevo. No se verificó visualmente.
+- 2026-10-30 T6: mockup acordado por el usuario («están bien los mockups»), incluida la decisión de calcular los dudosos de una carga al consultarla. Siguiente: T7 (backend: `dudosos` en la consulta de la carga; frontend: resumen en la vista previa y resultado del CSV).
