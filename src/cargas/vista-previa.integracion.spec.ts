@@ -3,6 +3,7 @@ import { join } from 'path';
 import type { DataSource } from 'typeorm';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import { ColaSugerencias } from '../sugerencias/cola-sugerencias';
+import { huellaMovimiento } from '../bancos/huella-movimiento';
 import { filas, una } from '../database/testing/base-de-pruebas';
 import request from '../testing/supertest-con-origen';
 import {
@@ -45,6 +46,7 @@ async function limpiar(): Promise<void> {
        (SELECT id FROM movimientos WHERE carga_id IN ${propias})`,
   );
   await ds.query(`DELETE FROM movimientos WHERE carga_id IN ${propias}`);
+  await ds.query(`DELETE FROM movimientos WHERE descripcion = 'vp-previo'`);
   await ds.query(
     `DELETE FROM movimientos_pendientes WHERE carga_id IN ${propias}`,
   );
@@ -113,6 +115,7 @@ describe('GET /cargas/:id/vista-previa (T2)', () => {
       total: 2,
       saldoInicial: '10000.0000',
       saldoFinal: '11250.5000',
+      resumen: { nuevos: 2, existentes: 0, dudosos: 0 },
       movimientos: [
         { fecha: '2026-10-02', monto: '-250.0000', referencia: null },
         { fecha: '2026-10-15', monto: '1500.5000', referencia: 'SINT-0001' },
@@ -247,6 +250,9 @@ describe('POST /cargas/:id/aceptar (T3)', () => {
       cargaId,
       estado: 'procesada',
       movimientos: 2,
+      nuevos: 2,
+      existentes: 0,
+      dudosos: 0,
     });
 
     const movimientos = await filas<Record<string, unknown>>(
@@ -730,5 +736,245 @@ describe('vista previa de una carga sin saldos (anterior a la migración)', () =
       saldoInicial: null,
       saldoFinal: null,
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Historia 3.5 (T4): huellas al aceptar la vista previa.
+// ---------------------------------------------------------------------------
+
+interface FilaDePrueba {
+  fecha: string;
+  monto: string;
+  referencia: string | null;
+}
+
+let consecutivo = 0;
+
+/** Una carga en espera con las filas dadas, sin pasar por el lector de PDF. */
+async function crearEnEspera(
+  rfc: string,
+  filasEnEspera: FilaDePrueba[],
+): Promise<string> {
+  const empresa = entorno.empresa(rfc);
+  const n = ++consecutivo;
+  const { id } = await una<{ id: string }>(
+    ds,
+    `INSERT INTO cargas (company_id, tipo, nombre_archivo, hash_archivo,
+                         estado, total_registros, banco)
+     VALUES ($1, 'estado_cuenta', $2, $3, 'pendiente_vista_previa', $4, 'bbva')
+     RETURNING id`,
+    [
+      empresa,
+      `vp-huella-${n}.pdf`,
+      `h${n}`.padEnd(64, '0'),
+      filasEnEspera.length,
+    ],
+  );
+  for (const [i, f] of filasEnEspera.entries()) {
+    await ds.query(
+      `INSERT INTO movimientos_pendientes
+         (company_id, carga_id, linea_numero, fecha, descripcion, referencia, monto)
+       VALUES ($1, $2, $3, $4, 'vp-espera', $5, $6)`,
+      [empresa, id, i + 1, f.fecha, f.referencia, f.monto],
+    );
+  }
+  return id;
+}
+
+/** Un movimiento que ya estaba en la base, en el estado dado. */
+async function sembrarPrevio(
+  rfc: string,
+  f: FilaDePrueba,
+  estado: string,
+): Promise<void> {
+  await ds.query(
+    `INSERT INTO movimientos (company_id, linea_numero, fecha, descripcion,
+                              referencia, monto, estado, huella)
+     VALUES ($1, $2, $3, 'vp-previo', $4, $5, $6, $7)`,
+    [
+      entorno.empresa(rfc),
+      ++consecutivo,
+      f.fecha,
+      f.referencia,
+      f.monto,
+      estado,
+      huellaMovimiento({ cuenta: null, ...f }),
+    ],
+  );
+}
+
+const A: FilaDePrueba = {
+  fecha: '2026-10-02',
+  monto: '-250.0000',
+  referencia: 'REF-A',
+};
+const B: FilaDePrueba = {
+  fecha: '2026-10-15',
+  monto: '1500.5000',
+  referencia: 'REF-B',
+};
+const C: FilaDePrueba = {
+  fecha: '2026-10-20',
+  monto: '90.0000',
+  referencia: 'REF-C',
+};
+
+const movimientosDeCarga = (cargaId: string) =>
+  filas<{ estado: string; huella: string; linea_numero: number }>(
+    ds,
+    `SELECT estado, huella, linea_numero FROM movimientos
+      WHERE carga_id = $1 ORDER BY linea_numero`,
+    [cargaId],
+  );
+
+describe('huellas al aceptar (3.5, T4)', () => {
+  let conciliar: jest.SpyInstance;
+
+  beforeEach(() => {
+    conciliar = jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+    const cola = entorno.app.get(ColaSugerencias);
+    jest.spyOn(cola, 'activa', 'get').mockReturnValue(false);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('el resumen cuenta nuevos, existentes (cualquier estado) y dudosos', async () => {
+    await sembrarPrevio(FERRETERIA, A, 'descartado');
+    await sembrarPrevio(FERRETERIA, { ...B, referencia: 'ref b' }, 'abierto');
+    const cargaId = await crearEnEspera(FERRETERIA, [A, B, C]);
+    const res = await llamar(
+      'get',
+      `/cargas/${cargaId}/vista-previa`,
+      LUIS,
+      200,
+    );
+    expect(res.body).toMatchObject({
+      total: 3,
+      resumen: { nuevos: 1, existentes: 1, dudosos: 1 },
+    });
+  });
+
+  it('aceptar importa nuevos y dudosos, omite los exactos y cuadra los contadores', async () => {
+    await sembrarPrevio(FERRETERIA, A, 'conciliado');
+    await sembrarPrevio(FERRETERIA, { ...B, referencia: 'ref b' }, 'abierto');
+    const cargaId = await crearEnEspera(FERRETERIA, [A, B, C]);
+    const res = await llamar('post', `/cargas/${cargaId}/aceptar`, LUIS, 200);
+    expect(res.body).toEqual({
+      cargaId,
+      estado: 'procesada',
+      movimientos: 2,
+      nuevos: 1,
+      existentes: 1,
+      dudosos: 1,
+    });
+
+    const importados = await movimientosDeCarga(cargaId);
+    expect(importados.map((m) => [m.linea_numero, m.estado])).toEqual([
+      [2, 'pendiente_revision'],
+      [3, 'abierto'],
+    ]);
+    expect(importados[0].huella).toBe(huellaMovimiento({ cuenta: null, ...B }));
+    expect(importados[1].huella).toBe(huellaMovimiento({ cuenta: null, ...C }));
+    expect((await pendientesDe(cargaId)).n).toBe(0);
+
+    expect(
+      await una(
+        ds,
+        `SELECT estado, total_registros, registros_ok, registros_existentes,
+                registros_error FROM cargas WHERE id = $1`,
+        [cargaId],
+      ),
+    ).toEqual({
+      estado: 'procesada',
+      total_registros: 3,
+      registros_ok: 2,
+      registros_existentes: 1,
+      registros_error: 0,
+    });
+    const [entrada] = await bitacoraDe(cargaId, 'confirmar');
+    expect(entrada.datos).toMatchObject({
+      nuevos: 1,
+      existentes: 1,
+      dudosos: 1,
+    });
+    expect(JSON.stringify(entrada.datos)).not.toContain('REF-');
+    expect(conciliar).toHaveBeenCalledTimes(1);
+  });
+
+  it('todo existente: procesada con ok = 0 y no arranca la conciliación', async () => {
+    await sembrarPrevio(FERRETERIA, A, 'abierto');
+    await sembrarPrevio(FERRETERIA, B, 'descartado');
+    const cargaId = await crearEnEspera(FERRETERIA, [A, B]);
+    const res = await llamar('post', `/cargas/${cargaId}/aceptar`, LUIS, 200);
+    expect(res.body).toMatchObject({
+      movimientos: 0,
+      nuevos: 0,
+      existentes: 2,
+      dudosos: 0,
+    });
+    expect((await conteoDeMovimientos(cargaId)).n).toBe(0);
+    expect(
+      await una(
+        ds,
+        `SELECT estado, registros_ok, registros_existentes FROM cargas WHERE id = $1`,
+        [cargaId],
+      ),
+    ).toEqual({
+      estado: 'procesada',
+      registros_ok: 0,
+      registros_existentes: 2,
+    });
+    expect(conciliar).not.toHaveBeenCalled();
+  });
+
+  it('solo dudosos: entran como pendiente_revision y no se concilia', async () => {
+    await sembrarPrevio(FERRETERIA, { ...A, referencia: 'ref a' }, 'abierto');
+    const cargaId = await crearEnEspera(FERRETERIA, [A]);
+    await llamar('post', `/cargas/${cargaId}/aceptar`, LUIS, 200);
+    expect((await movimientosDeCarga(cargaId)).map((m) => m.estado)).toEqual([
+      'pendiente_revision',
+    ]);
+    expect(conciliar).not.toHaveBeenCalled();
+  });
+
+  it('multiplicidad: la base tiene 1 y la carga trae 2 iguales -> 1 existente y 1 nuevo', async () => {
+    await sembrarPrevio(FERRETERIA, A, 'abierto');
+    const cargaId = await crearEnEspera(FERRETERIA, [A, A]);
+    const res = await llamar('post', `/cargas/${cargaId}/aceptar`, LUIS, 200);
+    expect(res.body).toMatchObject({ nuevos: 1, existentes: 1, dudosos: 0 });
+    expect((await conteoDeMovimientos(cargaId)).n).toBe(1);
+  });
+
+  it('otra empresa con los mismos movimientos no cuenta como existente', async () => {
+    await sembrarPrevio(TRANSPORTES, A, 'abierto');
+    const cargaId = await crearEnEspera(FERRETERIA, [A]);
+    const res = await llamar('post', `/cargas/${cargaId}/aceptar`, LUIS, 200);
+    expect(res.body).toMatchObject({ nuevos: 1, existentes: 0, dudosos: 0 });
+  });
+
+  it('dos cargas con los mismos movimientos aceptadas a la vez: sin duplicar', async () => {
+    const c1 = await crearEnEspera(FERRETERIA, [A, B]);
+    const c2 = await crearEnEspera(FERRETERIA, [A, B]);
+    const respuestas = await Promise.all(
+      [c1, c2].map(async (id) =>
+        request(entorno.app.getHttpServer())
+          .post(`/cargas/${id}/aceptar`)
+          .set('Cookie', await entorno.token(LUIS, FERRETERIA)),
+      ),
+    );
+    expect(respuestas.map((r) => r.status)).toEqual([200, 200]);
+    const cuerpos = respuestas.map(
+      (r) => r.body as { nuevos: number; existentes: number },
+    );
+    expect(cuerpos.map((c) => c.nuevos).sort()).toEqual([0, 2]);
+    expect(cuerpos.map((c) => c.existentes).sort()).toEqual([0, 2]);
+    expect(
+      (await conteoDeMovimientos(c1)).n + (await conteoDeMovimientos(c2)).n,
+    ).toBe(2);
   });
 });

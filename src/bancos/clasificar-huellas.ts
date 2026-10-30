@@ -65,17 +65,23 @@ export function emparejar(
   return clases;
 }
 
+export interface FilaClasificada {
+  clase: ClaseDeHuella;
+  /** La huella calculada, para guardarla al insertar. */
+  huella: string;
+}
+
 /**
  * Clasifica un lote contra `movimientos` de la empresa con UNA consulta. Debe
  * llamarse con el candado de empresa ya tomado (`tomarCandadoDeConciliacion`),
  * en la misma transacción que inserta: así dos cargas simultáneas no se ven a
- * medias. Devuelve una clase por fila, en el orden de entrada.
+ * medias. Devuelve una entrada por fila, en el orden de entrada.
  */
-export async function clasificarPorHuella(
+export async function clasificarConHuella(
   manager: Pick<EntityManager, 'query'>,
   companyId: string,
   filas: readonly EntradaHuella[],
-): Promise<ClaseDeHuella[]> {
+): Promise<FilaClasificada[]> {
   if (filas.length === 0) return [];
   const entrantes = filas.map((f) => ({
     huella: huellaMovimiento(f),
@@ -88,5 +94,30 @@ export async function clasificarPorHuella(
       ORDER BY created_at, id`,
     [companyId, huellas],
   );
-  return emparejar(entrantes, existentes);
+  const clases = emparejar(entrantes, existentes);
+  return clases.map((clase, i) => ({ clase, huella: entrantes[i].huella }));
+}
+
+/** Solo las clases de `clasificarConHuella`. */
+export async function clasificarPorHuella(
+  manager: Pick<EntityManager, 'query'>,
+  companyId: string,
+  filas: readonly EntradaHuella[],
+): Promise<ClaseDeHuella[]> {
+  return (await clasificarConHuella(manager, companyId, filas)).map(
+    (f) => f.clase,
+  );
+}
+
+/** Cuenta cuántas filas hay de cada clase. */
+export function contarClases(clases: readonly ClaseDeHuella[]): {
+  nuevos: number;
+  existentes: number;
+  dudosos: number;
+} {
+  return {
+    nuevos: clases.filter((c) => c === 'nuevo').length,
+    existentes: clases.filter((c) => c === 'exacto').length,
+    dudosos: clases.filter((c) => c === 'dudoso').length,
+  };
 }
