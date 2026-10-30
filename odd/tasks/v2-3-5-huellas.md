@@ -78,10 +78,10 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   empresa. Pruebas de concurrencia (dos cargas simultáneas no duplican).
 - [x] **T4 — Aceptar la vista previa.** `GET` suma el resumen; aceptar importa
   nuevos y dudosos, guarda la huella, cuadra los contadores y `ck_cargas_total_cuadra`.
-- [ ] **T5 — CSV.** El worker toma el candado, omite exactos (`existentes`),
+- [x] **T5 — CSV.** El worker toma el candado, omite exactos (`existentes`),
   guarda dudosos como `pendiente_revision`, y el resultado de la carga lo muestra.
-- [ ] **T6 — Mockup.** Resumen en la vista previa (artboard 18) y resultado del CSV
-  en Cargas; acordarlo con el usuario. Bloquea T7.
+- [x] **T6 — Mockup.** Resumen en la vista previa (artboard 18) y resultado del CSV
+  en Cargas; acordado con el usuario el 2026-10-30.
 - [ ] **T7 — Frontend.** Resumen en la vista previa, estado `pendiente_revision` y
   resultado del CSV según el mockup acordado.
 - [ ] **T8 — Cierre.** Suites completas, `docs/bitacora.md`, `CUADRA.md` (incluida
@@ -154,3 +154,21 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   concurrencia (dos cargas iguales con Promise.all -> una importa 2 y la otra
   los reporta existentes; 2 movimientos en total), multiplicidad 1 vs 2, todo
   existente (ok = 0, sin conciliar), solo dudosos, otra empresa.
+- 2026-10-30 T5 hecha (ruta: escritor delegado). `procesarEstadoDeCuenta` toma
+  el candado de empresa al inicio, lee y valida todas las filas, las clasifica
+  con `clasificarConHuella` (cuenta de la carga en la huella), omite los exactos
+  (`existentes`, que alimenta `registros_existentes`) e inserta nuevos
+  (`abierto`) y dudosos (`pendiente_revision`) con su huella; los dudosos cuentan
+  en `nuevos` (`registros_ok`). DECISION PENDIENTE: `ResultadoDeFila` solo admite
+  `resultado: 'error'` y `ck_cargas_total_cuadra` no tiene contador de dudosos,
+  así que el CSV registra existentes y dudosos solo en contadores (los dudosos
+  son visibles por el estado `pendiente_revision` de sus movimientos); marcarlos
+  en `resultados` o agregar un contador requeriría cambiar un contrato
+  compartido (y quizá una migración). Tres pruebas existentes subían el mismo
+  contenido dos veces en la misma empresa (perfiles, moneda, bitácora): ahora
+  usan una cuenta distinta, porque lo repetido ya se omite. RED: `Tests: 4
+  failed, 35 passed` en `estado-cuenta.integracion.spec.ts`. GREEN: 39/39 ahí y
+  40/40 en `vista-previa.integracion.spec.ts` (incluye PDF aceptado a la vez
+  que un CSV con los mismos movimientos: 2 filas en total, 2 existentes).
+- 2026-10-30 T6: mockup propuesto, pendiente de acuerdo con el usuario. Artboard 18 suma «Qué pasará al aceptar» (nuevos / ya existentes / dudosos), columna Estado por movimiento, aviso de dudosos (ámbar), aviso de «todo ya existía», texto del banner de aceptada y hint del botón; estados nuevos `sin_repetidos` y `todo_existente`. Cargas: el resultado del CSV pasa a «N nuevos, M ya existían, K dudosos, E con error» con aviso de dudosos. Decisión mía (el usuario la valida en el mockup): K de la carga se calcula al consultar (count de movimientos `pendiente_revision` de esa carga), sin migración ni contador nuevo. No se verificó visualmente.
+- 2026-10-30 T6: mockup acordado por el usuario («están bien los mockups»), incluida la decisión de calcular los dudosos de una carga al consultarla. Siguiente: T7 (backend: `dudosos` en la consulta de la carga; frontend: resumen en la vista previa y resultado del CSV).

@@ -19,6 +19,7 @@ import {
 import { MENSAJE_FALLIDA, ProcesadorCargas } from '../cargas/procesador-cargas';
 import type { TrabajoDeCarga } from '../cargas/cola-cargas';
 import { filas, una } from '../database/testing/base-de-pruebas';
+import { huellaMovimiento } from './huella-movimiento';
 import { MENSAJE_MONEDA_FALTANTE_AL_REANUDAR } from './guardar-movimientos';
 
 /**
@@ -383,12 +384,14 @@ describe('perfiles de banco (CU-10)', () => {
   it('el mismo contenido en los tres perfiles da los mismos movimientos', async () => {
     const token = await entorno.token(ANA, FERRETERIA);
     const resultados: Array<Awaited<ReturnType<typeof normalizados>>> = [];
-    for (const [archivo, perfil] of [
-      ['logico-cuadra.csv', 'cuadra'],
-      ['logico-norte.csv', 'banco-norte'],
-      ['logico-sur.csv', 'banco-sur'],
+    // Historia 3.5: el mismo contenido en la misma empresa y cuenta ya no se
+    // vuelve a importar; una cuenta distinta por perfil lo mantiene separado.
+    for (const [archivo, perfil, cuenta] of [
+      ['logico-cuadra.csv', 'cuadra', 'P-1'],
+      ['logico-norte.csv', 'banco-norte', 'P-2'],
+      ['logico-sur.csv', 'banco-sur', 'P-3'],
     ]) {
-      const carga = await cargarYEsperar(token, archivo, { perfil });
+      const carga = await cargarYEsperar(token, archivo, { perfil, cuenta });
       expect(carga.estado).toBe('procesada');
       resultados.push(await normalizados(carga.id));
     }
@@ -531,6 +534,8 @@ describe('POST /cargas/estado-cuenta, moneda obligatoria (historia 3.1)', () => 
     const carga = await cargarYEsperar(
       await entorno.token(LUIS, FERRETERIA),
       'con-moneda-mxn.csv',
+      // Otra cuenta: sus filas coinciden con las de valido-5.csv (3.5).
+      { cuenta: 'MONEDA-1' },
     );
 
     expect(carga).toMatchObject({
@@ -617,12 +622,18 @@ describe('bitácora `cargar` del estado de cuenta (FR-52)', () => {
     const contenido = Buffer.from(
       `${fixture('una-malformada.csv').toString('utf8')}2026-09-07,PARA LA BITACORA,,2.00,MXN\n`,
     );
-    const res = await subir(token, 'una-malformada.csv', contenido).expect(202);
+    const campos = { cuenta: 'BITACORA-1' };
+    const res = await subir(
+      token,
+      'una-malformada.csv',
+      contenido,
+      campos,
+    ).expect(202);
     const carga = await entorno.esperarFin(
       token,
       (res.body as RespuestaDeCarga).id,
     );
-    await subir(token, 'una-malformada.csv', contenido).expect(200);
+    await subir(token, 'una-malformada.csv', contenido, campos).expect(200);
 
     const entradas = await filas<{
       company_id: string;
@@ -738,5 +749,154 @@ describe('reanudar una carga guardada sin la columna moneda (historia 3.1)', () 
     } finally {
       espia.mockRestore();
     }
+  });
+});
+
+describe('movimientos repetidos entre archivos (historia 3.5, T5)', () => {
+  const sufijo = () => randomUUID().slice(0, 8).toUpperCase();
+
+  /** CSV canónico; la descripción cambia por archivo para que el hash difiera. */
+  function csv(descripcion: string, filas: Array<[string, string, string]>) {
+    return Buffer.from(
+      [
+        'fecha,descripcion,referencia,monto,moneda',
+        ...filas.map(([f, ref, m]) => `${f},${descripcion},${ref},${m},MXN`),
+        '',
+      ].join('\n'),
+    );
+  }
+
+  async function cargar(nombre: string, contenido: Buffer, cuenta?: string) {
+    const token = await entorno.token(CARMEN, TRANSPORTES);
+    const res = await subir(
+      token,
+      nombre,
+      contenido,
+      cuenta ? { cuenta } : {},
+    ).expect(202);
+    return entorno.esperarFin(token, (res.body as RespuestaDeCarga).id);
+  }
+
+  const estados = (cargaId: string) =>
+    filas<{ estado: string; huella: string; referencia: string | null }>(
+      ds,
+      `SELECT estado, huella, referencia FROM movimientos
+        WHERE carga_id = $1 ORDER BY linea_numero`,
+      [cargaId],
+    );
+
+  it('otro archivo con filas ya cargadas: las cuenta como existentes y no las duplica', async () => {
+    const [r1, r2, r3, r4] = [1, 2, 3, 4].map((i) => `T5A${i}-${sufijo()}`);
+    const d = '2031-01-10';
+    const uno = await cargar(
+      `t5a-1-${r1}.csv`,
+      csv('PRIMERO', [
+        [d, r1, '10.00'],
+        [d, r2, '20.00'],
+        [d, r3, '30.00'],
+      ]),
+    );
+    expect(uno).toMatchObject({ registrosOk: 3, registrosExistentes: 0 });
+
+    const dos = await cargar(
+      `t5a-2-${r1}.csv`,
+      csv('SEGUNDO', [
+        [d, r2, '20.00'],
+        [d, r3, '30.00'],
+        [d, r4, '40.00'],
+      ]),
+    );
+    expect(dos).toMatchObject({
+      estado: 'procesada',
+      totalRegistros: 3,
+      registrosOk: 1,
+      registrosExistentes: 2,
+      registrosError: 0,
+    });
+    expect((await estados(dos.id)).map((m) => m.referencia)).toEqual([r4]);
+    const { n } = await una<{ n: number }>(
+      ds,
+      `SELECT count(*)::int AS n FROM movimientos
+        WHERE company_id = $1 AND referencia = ANY($2)`,
+      [entorno.empresa(TRANSPORTES), [r1, r2, r3, r4]],
+    );
+    expect(n).toBe(4);
+  });
+
+  it('misma huella con referencia cruda distinta: entra como pendiente_revision', async () => {
+    const s = sufijo();
+    const d = '2031-02-10';
+    await cargar(`t5b-1-${s}.csv`, csv('PRIMERO', [[d, `AB-${s}`, '55.00']]));
+    const dos = await cargar(
+      `t5b-2-${s}.csv`,
+      csv('SEGUNDO', [[d, `ab ${s.toLowerCase()}`, '55.00']]),
+    );
+    expect(dos).toMatchObject({ registrosOk: 1, registrosExistentes: 0 });
+    const [m] = await estados(dos.id);
+    expect(m.estado).toBe('pendiente_revision');
+    expect(m.huella).toBe(
+      huellaMovimiento({
+        cuenta: null,
+        fecha: d,
+        monto: '55.00',
+        referencia: `ab ${s.toLowerCase()}`,
+      }),
+    );
+  });
+
+  it('dos filas idénticas con nada en la base entran las dos; luego 3 contra 2 deja 1 nueva', async () => {
+    const s = `T5C-${sufijo()}`;
+    const d = '2031-03-10';
+    const fila: [string, string, string] = [d, s, '77.00'];
+    const uno = await cargar(`t5c-1-${s}.csv`, csv('PRIMERO', [fila, fila]));
+    expect(uno).toMatchObject({ registrosOk: 2, registrosExistentes: 0 });
+    expect((await estados(uno.id)).map((m) => m.estado)).toEqual([
+      'abierto',
+      'abierto',
+    ]);
+
+    const dos = await cargar(
+      `t5c-2-${s}.csv`,
+      csv('SEGUNDO', [fila, fila, fila]),
+    );
+    expect(dos).toMatchObject({ registrosOk: 1, registrosExistentes: 2 });
+  });
+
+  it('la cuenta distingue: el mismo movimiento de otra cuenta es nuevo', async () => {
+    const s = `T5D-${sufijo()}`;
+    const fila: [string, string, string] = ['2031-04-10', s, '12.00'];
+    await cargar(`t5d-1-${s}.csv`, csv('PRIMERO', [fila]), '1111');
+    const dos = await cargar(`t5d-2-${s}.csv`, csv('SEGUNDO', [fila]), '2222');
+    expect(dos).toMatchObject({ registrosOk: 1, registrosExistentes: 0 });
+  });
+
+  it('dos archivos distintos con los mismos movimientos a la vez: sin duplicar', async () => {
+    const [r1, r2] = [1, 2].map((i) => `T5E${i}-${sufijo()}`);
+    const d = '2031-05-10';
+    const filasComunes: Array<[string, string, string]> = [
+      [d, r1, '5.00'],
+      [d, r2, '6.00'],
+    ];
+    const token = await entorno.token(CARMEN, TRANSPORTES);
+    const respuestas = await Promise.all(
+      ['UNO', 'DOS'].map((quien) =>
+        subir(token, `t5e-${quien}-${r1}.csv`, csv(quien, filasComunes)),
+      ),
+    );
+    const cargas = await Promise.all(
+      respuestas.map((r) => {
+        expect(r.status).toBe(202);
+        return entorno.esperarFin(token, (r.body as RespuestaDeCarga).id);
+      }),
+    );
+    expect(cargas.reduce((t, c) => t + c.registrosOk, 0)).toBe(2);
+    expect(cargas.reduce((t, c) => t + c.registrosExistentes, 0)).toBe(2);
+    const { n } = await una<{ n: number }>(
+      ds,
+      `SELECT count(*)::int AS n FROM movimientos
+        WHERE company_id = $1 AND referencia = ANY($2)`,
+      [entorno.empresa(TRANSPORTES), [r1, r2]],
+    );
+    expect(n).toBe(2);
   });
 });
