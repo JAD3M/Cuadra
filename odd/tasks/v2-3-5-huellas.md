@@ -170,3 +170,4 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   failed, 35 passed` en `estado-cuenta.integracion.spec.ts`. GREEN: 39/39 ahí y
   40/40 en `vista-previa.integracion.spec.ts` (incluye PDF aceptado a la vez
   que un CSV con los mismos movimientos: 2 filas en total, 2 existentes).
+- 2026-10-30 T6: mockup propuesto, pendiente de acuerdo con el usuario. Artboard 18 suma «Qué pasará al aceptar» (nuevos / ya existentes / dudosos), columna Estado por movimiento, aviso de dudosos (ámbar), aviso de «todo ya existía», texto del banner de aceptada y hint del botón; estados nuevos `sin_repetidos` y `todo_existente`. Cargas: el resultado del CSV pasa a «N nuevos, M ya existían, K dudosos, E con error» con aviso de dudosos. Decisión mía (el usuario la valida en el mockup): K de la carga se calcula al consultar (count de movimientos `pendiente_revision` de esa carga), sin migración ni contador nuevo. No se verificó visualmente.
