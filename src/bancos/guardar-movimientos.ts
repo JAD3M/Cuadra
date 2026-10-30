@@ -1,6 +1,8 @@
 import type { EntityManager } from 'typeorm';
+import { tomarCandadoDeConciliacion } from '../conciliacion/candado';
 import type { ResultadoDeFila } from '../cargas/carga.entity';
 import type { ResultadoDeProceso } from '../cargas/resultado-de-proceso';
+import { clasificarConHuella } from './clasificar-huellas';
 import {
   CODIGO_MONEDA_FALTANTE,
   EstadoDeCuentaRechazado,
@@ -25,6 +27,15 @@ export const MENSAJE_MONEDA_FALTANTE_AL_REANUDAR =
  * carga_id, linea_numero), no por contenido: dos filas idénticas son dos
  * movimientos.
  *
+ * Historia 3.5: lo primero es el candado de empresa (AD-19), así dos cargas
+ * con los mismos movimientos se turnan y la segunda ve lo de la primera.
+ * Cada fila válida se clasifica contra `movimientos` por huella, con
+ * multiplicidad (`clasificar-huellas.ts`): los exactos se omiten y se cuentan
+ * como `existentes`; los dudosos entran como `pendiente_revision` (cuentan en
+ * `nuevos`, que alimenta `registros_ok`); los nuevos entran abiertos. Todos con
+ * su huella. `resultados` solo lista errores, así que existentes y dudosos
+ * quedan en los contadores de la carga.
+ *
  * Sin SAVEPOINT por fila: `leerMovimiento` atrapa todo lo que la base
  * rechazaría por culpa de la fila (fecha, monto, largos), así que un error de
  * base aquí siempre es de infraestructura. Con la regla de CU-06 eso aborta
@@ -40,6 +51,7 @@ export async function procesarEstadoDeCuenta(
     perfil,
   }: { banco: string | null; cuenta: string | null; perfil: PerfilBancario },
 ): Promise<ResultadoDeProceso> {
+  await tomarCandadoDeConciliacion(manager, companyId);
   const [archivo] = await manager.query<Array<{ contenido: string | null }>>(
     `SELECT contenido FROM carga_archivos
       WHERE carga_id = $1 AND company_id = $2
@@ -65,18 +77,41 @@ export async function procesarEstadoDeCuenta(
     );
   }
   const errores: ResultadoDeFila[] = [];
-  let nuevos = 0;
+  const validas: Array<{
+    linea: number;
+    leido: Exclude<ReturnType<typeof leerMovimiento>, { motivo: string }>;
+  }> = [];
   for (const { linea, campos } of filas) {
     const leido = leerMovimiento(campos, perfil, iMoneda);
     if ('motivo' in leido) {
       errores.push({ fila: linea, resultado: 'error', motivo: leido.motivo });
       continue;
     }
+    validas.push({ linea, leido });
+  }
+  const clasificadas = await clasificarConHuella(
+    manager,
+    companyId,
+    validas.map(({ leido }) => ({
+      cuenta,
+      fecha: leido.fecha,
+      monto: leido.monto,
+      referencia: leido.referencia,
+    })),
+  );
+  let nuevos = 0;
+  let existentes = 0;
+  for (const [i, { linea, leido }] of validas.entries()) {
+    const { clase, huella } = clasificadas[i];
+    if (clase === 'exacto') {
+      existentes += 1;
+      continue;
+    }
     await manager.query(
       `INSERT INTO movimientos
          (company_id, carga_id, linea_numero, fecha, descripcion,
-          referencia, monto, banco, cuenta)
-       VALUES ($1, $2, $3, $4::date, $5, $6, $7::numeric, $8, $9)`,
+          referencia, monto, banco, cuenta, estado, huella)
+       VALUES ($1, $2, $3, $4::date, $5, $6, $7::numeric, $8, $9, $10, $11)`,
       [
         companyId,
         cargaId,
@@ -88,6 +123,8 @@ export async function procesarEstadoDeCuenta(
         leido.monto,
         banco,
         cuenta,
+        clase === 'dudoso' ? 'pendiente_revision' : 'abierto',
+        huella,
       ],
     );
     nuevos += 1;
@@ -95,7 +132,7 @@ export async function procesarEstadoDeCuenta(
   return {
     resultados: errores,
     nuevos,
-    existentes: 0,
+    existentes,
     errores: errores.length,
   };
 }

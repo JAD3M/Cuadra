@@ -977,4 +977,46 @@ describe('huellas al aceptar (3.5, T4)', () => {
       (await conteoDeMovimientos(c1)).n + (await conteoDeMovimientos(c2)).n,
     ).toBe(2);
   });
+
+  it('aceptar un PDF a la vez que se carga un CSV con los mismos movimientos: sin duplicar', async () => {
+    const cargaPdf = await crearEnEspera(FERRETERIA, [A, B]);
+    const csv = Buffer.from(
+      [
+        'fecha,descripcion,referencia,monto,moneda',
+        ...[A, B].map(
+          (f) => `${f.fecha},DESDE CSV,${f.referencia},${f.monto},MXN`,
+        ),
+        '',
+      ].join('\n'),
+    );
+    const token = await entorno.token(LUIS, FERRETERIA);
+    const [aceptada, subida] = await Promise.all([
+      request(entorno.app.getHttpServer())
+        .post(`/cargas/${cargaPdf}/aceptar`)
+        .set('Cookie', token),
+      request(entorno.app.getHttpServer())
+        .post('/cargas/estado-cuenta')
+        .set('Cookie', token)
+        .attach('archivo', csv, 'vp-huella-csv.csv'),
+    ]);
+    expect(aceptada.status).toBe(200);
+    expect(subida.status).toBe(202);
+    const csvFin = await entorno.esperarFin(
+      token,
+      (subida.body as { id: string }).id,
+    );
+    const pdf = aceptada.body as { nuevos: number; existentes: number };
+    // Gana uno de los dos: el otro los reporta como existentes.
+    expect(pdf.nuevos + csvFin.registrosOk).toBe(2);
+    expect(pdf.existentes + csvFin.registrosExistentes).toBe(2);
+    const { n } = await una<{ n: number }>(
+      ds,
+      `SELECT count(*)::int AS n FROM movimientos
+        WHERE company_id = $1 AND referencia = ANY($2)`,
+      [entorno.empresa(FERRETERIA), [A.referencia, B.referencia]],
+    );
+    expect(n).toBe(2);
+    await ds.query(`DELETE FROM movimientos WHERE carga_id = $1`, [csvFin.id]);
+    await ds.query(`DELETE FROM cargas WHERE id = $1`, [csvFin.id]);
+  });
 });

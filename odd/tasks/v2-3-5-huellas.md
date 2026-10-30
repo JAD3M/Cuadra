@@ -78,7 +78,7 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   empresa. Pruebas de concurrencia (dos cargas simultáneas no duplican).
 - [x] **T4 — Aceptar la vista previa.** `GET` suma el resumen; aceptar importa
   nuevos y dudosos, guarda la huella, cuadra los contadores y `ck_cargas_total_cuadra`.
-- [ ] **T5 — CSV.** El worker toma el candado, omite exactos (`existentes`),
+- [x] **T5 — CSV.** El worker toma el candado, omite exactos (`existentes`),
   guarda dudosos como `pendiente_revision`, y el resultado de la carga lo muestra.
 - [ ] **T6 — Mockup.** Resumen en la vista previa (artboard 18) y resultado del CSV
   en Cargas; acordarlo con el usuario. Bloquea T7.
@@ -154,3 +154,19 @@ lector de BBVA con un PDF real (pendiente en `CUADRA.md`).
   concurrencia (dos cargas iguales con Promise.all -> una importa 2 y la otra
   los reporta existentes; 2 movimientos en total), multiplicidad 1 vs 2, todo
   existente (ok = 0, sin conciliar), solo dudosos, otra empresa.
+- 2026-10-30 T5 hecha (ruta: escritor delegado). `procesarEstadoDeCuenta` toma
+  el candado de empresa al inicio, lee y valida todas las filas, las clasifica
+  con `clasificarConHuella` (cuenta de la carga en la huella), omite los exactos
+  (`existentes`, que alimenta `registros_existentes`) e inserta nuevos
+  (`abierto`) y dudosos (`pendiente_revision`) con su huella; los dudosos cuentan
+  en `nuevos` (`registros_ok`). DECISION PENDIENTE: `ResultadoDeFila` solo admite
+  `resultado: 'error'` y `ck_cargas_total_cuadra` no tiene contador de dudosos,
+  así que el CSV registra existentes y dudosos solo en contadores (los dudosos
+  son visibles por el estado `pendiente_revision` de sus movimientos); marcarlos
+  en `resultados` o agregar un contador requeriría cambiar un contrato
+  compartido (y quizá una migración). Tres pruebas existentes subían el mismo
+  contenido dos veces en la misma empresa (perfiles, moneda, bitácora): ahora
+  usan una cuenta distinta, porque lo repetido ya se omite. RED: `Tests: 4
+  failed, 35 passed` en `estado-cuenta.integracion.spec.ts`. GREEN: 39/39 ahí y
+  40/40 en `vista-previa.integracion.spec.ts` (incluye PDF aceptado a la vez
+  que un CSV con los mismos movimientos: 2 filas en total, 2 existentes).
