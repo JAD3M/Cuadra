@@ -1,5 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+/**
+ * Historia 3.5: qué pasará con cada movimiento leído al aceptar. El frontend
+ * espeja esta lista (`CLASES_VISTA_PREVIA`) y una prueba de deriva la vigila.
+ */
+export const CLASES_MOVIMIENTO_VISTA_PREVIA = [
+  'nuevo',
+  'existente',
+  'dudoso',
+] as const;
+export type ClaseMovimientoVistaPrevia =
+  (typeof CLASES_MOVIMIENTO_VISTA_PREVIA)[number];
+
 /** Un movimiento leído del PDF, tal como entraría a `movimientos`. */
 export class MovimientoVistaPreviaDto {
   @ApiProperty({ example: '2026-10-15' }) fecha!: string;
@@ -10,6 +22,12 @@ export class MovimientoVistaPreviaDto {
   monto!: string;
   @ApiProperty({ example: 'SINT-0001', nullable: true, type: String })
   referencia!: string | null;
+  @ApiProperty({
+    enum: CLASES_MOVIMIENTO_VISTA_PREVIA,
+    description:
+      'nuevo: entra abierto. existente: ya está, se omite. dudoso: misma huella con otra referencia, entra en revisión.',
+  })
+  clase!: ClaseMovimientoVistaPrevia;
 }
 
 /** Historia 3.5: cuántos de los movimientos leídos ya están en Cuadra. */

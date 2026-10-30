@@ -117,8 +117,18 @@ describe('GET /cargas/:id/vista-previa (T2)', () => {
       saldoFinal: '11250.5000',
       resumen: { nuevos: 2, existentes: 0, dudosos: 0 },
       movimientos: [
-        { fecha: '2026-10-02', monto: '-250.0000', referencia: null },
-        { fecha: '2026-10-15', monto: '1500.5000', referencia: 'SINT-0001' },
+        {
+          fecha: '2026-10-02',
+          monto: '-250.0000',
+          referencia: null,
+          clase: 'nuevo',
+        },
+        {
+          fecha: '2026-10-15',
+          monto: '1500.5000',
+          referencia: 'SINT-0001',
+          clase: 'nuevo',
+        },
       ],
     });
   });
@@ -857,6 +867,32 @@ describe('huellas al aceptar (3.5, T4)', () => {
       total: 3,
       resumen: { nuevos: 1, existentes: 1, dudosos: 1 },
     });
+    // Cada movimiento dice su clase, en el orden de lectura (A, B, C).
+    const clases = (
+      res.body as { movimientos: { clase: string }[] }
+    ).movimientos.map((m) => m.clase);
+    expect(clases).toEqual(['existente', 'dudoso', 'nuevo']);
+  });
+
+  it('el detalle de la carga aceptada trae dudosos: los pendiente_revision de esa carga', async () => {
+    await sembrarPrevio(FERRETERIA, { ...B, referencia: 'ref b' }, 'abierto');
+    const cargaId = await crearEnEspera(FERRETERIA, [A, B]);
+    await llamar('post', `/cargas/${cargaId}/aceptar`, LUIS, 200);
+    const res = await llamar('get', `/cargas/${cargaId}`, LUIS, 200);
+    expect(res.body).toMatchObject({
+      estado: 'procesada',
+      registrosOk: 2,
+      registrosExistentes: 0,
+      dudosos: 1,
+    });
+  });
+
+  it('dudosos de otra empresa no cuentan', async () => {
+    await sembrarPrevio(TRANSPORTES, { ...B, referencia: 'ref b' }, 'abierto');
+    const cargaId = await crearEnEspera(FERRETERIA, [B]);
+    await llamar('post', `/cargas/${cargaId}/aceptar`, LUIS, 200);
+    const res = await llamar('get', `/cargas/${cargaId}`, LUIS, 200);
+    expect(res.body).toMatchObject({ dudosos: 0 });
   });
 
   it('aceptar importa nuevos y dudosos, omite los exactos y cuadra los contadores', async () => {

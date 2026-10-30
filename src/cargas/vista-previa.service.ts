@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { EntityManager } from 'typeorm';
 import {
+  type ClaseDeHuella,
   clasificarConHuella,
   contarClases,
 } from '../bancos/clasificar-huellas';
@@ -16,9 +17,18 @@ import { ContextoEmpresa } from '../database/contexto-empresa';
 import { ColaSugerencias } from '../sugerencias/cola-sugerencias';
 import type {
   AceptacionDto,
+  ClaseMovimientoVistaPrevia,
+  MovimientoVistaPreviaDto,
   RechazoDto,
   VistaPreviaDto,
 } from './dto/vista-previa.dto';
+
+/** La clase del clasificador (`exacto`) con el nombre que ve la vista previa. */
+const CLASE_VISTA_PREVIA: Record<ClaseDeHuella, ClaseMovimientoVistaPrevia> = {
+  nuevo: 'nuevo',
+  exacto: 'existente',
+  dudoso: 'dudoso',
+};
 
 /** Quién y desde dónde, para la bitácora. */
 export interface Actor {
@@ -87,13 +97,19 @@ export class VistaPreviaService {
     if (!carga) throw new NotFoundException();
     const enEspera = await this.leerEnEspera(manager, companyId, cargaId);
     // Informativo y sin candado: aceptar vuelve a clasificar dentro de él.
-    const resumen = contarClases(
-      (await clasificarConHuella(manager, companyId, enEspera)).map(
-        (f) => f.clase,
-      ),
+    const clasificadas = await clasificarConHuella(
+      manager,
+      companyId,
+      enEspera,
     );
-    const movimientos: FilaMovimiento[] = enEspera.map(
-      ({ fecha, monto, referencia }) => ({ fecha, monto, referencia }),
+    const resumen = contarClases(clasificadas.map((f) => f.clase));
+    const movimientos: MovimientoVistaPreviaDto[] = enEspera.map(
+      ({ fecha, monto, referencia }, i) => ({
+        fecha,
+        monto,
+        referencia,
+        clase: CLASE_VISTA_PREVIA[clasificadas[i].clase],
+      }),
     );
     return {
       cargaId,

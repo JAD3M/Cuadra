@@ -773,6 +773,7 @@ describe('GET /cargas/:id (CU-06, CU-07, CU-08)', () => {
       registrosOk: 1,
       registrosExistentes: 0,
       registrosError: 0,
+      dudosos: 0,
       resultados: [{ archivo: 'transportes.xml', resultado: 'nuevo' }],
       errorMensaje: null,
     });
