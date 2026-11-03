@@ -241,9 +241,24 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 });
 
 describe('migración reversible', () => {
-  it('down y up de HuellaMovimientos, VistaPreviaDecidida, PendienteVistaPrevia, CambiarQuitarRoles, InvitacionesCancelables, InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
+  it('down y up de BancosVistaPrevia, HuellaMovimientos, VistaPreviaDecidida, PendienteVistaPrevia, CambiarQuitarRoles, InvitacionesCancelables, InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
     // Las tres últimas son de cargas (historias 3.5, 3.4 y 3.3), ajenas a la
     // plataforma: solo se deshacen para llegar a las que sí lo son.
+    // BancosVistaPrevia: quita la tabla, la función y la acción del CHECK.
+    await duenio.undoLastMigration();
+    const { n: bancos } = await una<{ n: number }>(
+      duenio,
+      `SELECT (SELECT count(*) FROM information_schema.tables
+                WHERE table_name = 'bancos_vista_previa')
+            + (SELECT count(*) FROM pg_proc
+                WHERE proname = 'cargas_aceptadas_por_banco') AS n`,
+    );
+    expect(Number(bancos)).toBe(0);
+    await expect(
+      duenio.query(
+        `INSERT INTO bitacora_plataforma (accion) VALUES ('levantar_vista_previa')`,
+      ),
+    ).rejects.toThrow(/ck_bitacora_plataforma_accion/);
     // HuellaMovimientos: quita `huella` y la función, y el estado del CHECK.
     await duenio.undoLastMigration();
     const { n: huellas } = await una<{ n: number }>(
