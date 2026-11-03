@@ -46,8 +46,11 @@ const enviar = () =>
 describe('plataforma: invitar administrador', () => {
   it('la lista trae la columna «Acciones» y un botón por empresa', async () => {
     montarPlataforma('/plataforma');
+    const tabla = await screen.findByRole('table', {
+      name: 'Lista de empresas',
+    });
     expect(
-      await screen.findByRole('columnheader', { name: 'Acciones' }),
+      within(tabla).getByRole('columnheader', { name: 'Acciones' }),
     ).toBeInTheDocument();
     expect(
       screen.getAllByRole('button', { name: /^Invitar administrador de / }),
@@ -124,7 +127,7 @@ describe('plataforma: invitar administrador', () => {
       await screen.findByText('Invitación enviada a admin@aurora.mx.'),
     ).toBeInTheDocument();
     expect(screen.queryByText(/otro@correo\.mx/)).toBeNull();
-    expect(screen.queryByText(/cuenta/i)).toBeNull();
+    expect(screen.queryByText(/\bcuenta\b/i)).toBeNull();
   });
 
   it('con 503 muestra «No se pudo enviar el correo.», conserva el correo y deja el panel abierto', async () => {

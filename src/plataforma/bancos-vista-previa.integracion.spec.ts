@@ -205,6 +205,7 @@ async function loginDueno(): Promise<string> {
 interface BancoDto {
   banco: string;
   aceptadas: number;
+  minimoAceptadas: number;
   levantada: boolean;
   levantadaEn: string | null;
 }
@@ -226,6 +227,7 @@ describe('GET /plataforma/bancos', () => {
     expect(lista.find((b) => b.banco === BANCO)).toEqual({
       banco: BANCO,
       aceptadas: 2,
+      minimoAceptadas: MINIMO_CARGAS_ACEPTADAS,
       levantada: false,
       levantadaEn: null,
     });
@@ -284,6 +286,7 @@ describe('POST /plataforma/bancos/:banco/levantar-vista-previa', () => {
       expect.objectContaining({
         banco: BANCO,
         aceptadas: MINIMO_CARGAS_ACEPTADAS,
+        minimoAceptadas: MINIMO_CARGAS_ACEPTADAS,
         levantada: true,
       }),
     );

@@ -83,6 +83,13 @@ describe('ResultadoLecturaPdf: revisar la vista previa (historia 3.4)', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
 
+  it('con el banco levantado la carga llega procesada: sin pista de espera ni enlace', () => {
+    montar({ ...LECTURA, estado: 'procesada' });
+    expect(screen.getByText('Procesada')).toBeInTheDocument();
+    expect(screen.queryByText(/quedan en espera/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
   it('el id de la carga va codificado en la ruta', () => {
     montar({ ...LECTURA, cargaId: 'a b/c' });
     expect(

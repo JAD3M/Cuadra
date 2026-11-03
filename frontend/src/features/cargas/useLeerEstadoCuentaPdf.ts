@@ -28,7 +28,8 @@ export interface RespuestasLecturaPdf {
 
 /**
  * Leer un PDF de estado de cuenta (historias 3.2 y 3.3). Si cuadra, el
- * servidor lo guarda como una carga `pendiente_vista_previa`: la lista del
+ * servidor lo guarda como una carga `pendiente_vista_previa` (`procesada` si el banco
+ * ya tiene la vista previa levantada): la lista del
  * historial se invalida sin esperarla. Un rechazo no guarda nada y no la toca.
  * Mismas guardas que `useSubirCarga`: un solo envío en vuelo y una respuesta
  * de otra época se descarta. Los saldos llegan como cadenas y así se quedan.

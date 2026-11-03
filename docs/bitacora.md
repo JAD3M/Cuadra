@@ -3,6 +3,58 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 3 nov 2026
+
+- **Historia 3.6 de la v2: el dueño levanta la vista previa obligatoria de un
+  banco (AD-2, AD-7).** Rama `feat/v2-3-6-levantar-vista-previa` con ODD. Sin
+  PR todavía.
+  - **T1:** migración `1790710500000-BancosVistaPrevia`: tabla
+    `bancos_vista_previa` (`banco` PK normalizado en minúsculas,
+    `levantada_por` FK a `plataforma_usuarios`, `levantada_en`), la acción
+    `levantar_vista_previa` en el CHECK de `bitacora_plataforma` y la función
+    `cargas_aceptadas_por_banco()`. La tabla es global, clase 3 (AD-2): sin
+    `company_id` ni RLS, y `cuadra_app` solo tiene `SELECT` e `INSERT`. La
+    función es `SECURITY DEFINER` (`cargas` tiene RLS con FORCE), con
+    `search_path` fijo, `EXECUTE` solo para `cuadra_app` y devuelve únicamente
+    banco y conteo.
+  - **T2:** `GET /plataforma/bancos` y `POST
+    /plataforma/bancos/:banco/levantar-vista-previa`. Levantar responde 422 con
+    menos de 5 cargas aceptadas, 409 si ya estaba levantado, 404 si el banco no
+    tiene lector de PDF y 403 a sesiones de empresa. El renglón y la bitácora de
+    plataforma van en una sola transacción; el `INSERT` usa `ON CONFLICT DO
+    NOTHING` para que la carrera dé 409 y no 500.
+  - **T3:** con el banco levantado, el PDF que cuadra pasa directo a
+    conciliación por `VistaPreviaService.aceptar` (mismas huellas, dudosos y
+    contadores); el cuadre de saldos sigue aplicando y la bitácora `confirmar`
+    lleva `datos.via = 'banco_levantado'`. Con el banco sin levantar, todo igual
+    que antes.
+  - **T4:** mockup de la sección «Bancos» actualizado y aprobado el 3 nov en
+    `Plataforma.dc.html` y `PlataformaClaro.dc.html`; sección en la pantalla del
+    dueño; la pista de «quedan en espera» en la lectura de PDF solo sale con
+    `pendiente_vista_previa`; espejo de `levantar_vista_previa` en
+    `shared/dominio/tipos.ts` (el test de deriva fallaba desde la T2).
+  - **Decisiones con el usuario:**
+    - Una carga cuenta como **revisada** solo si fue **aceptada** (`procesada`
+      de PDF con `saldo_inicial`); las rechazadas no cuentan. El mínimo es 5
+      (`MINIMO_CARGAS_ACEPTADAS`) y sale del backend como `minimoAceptadas`. El
+      conteo es siempre por consulta, nunca un contador guardado.
+    - `bancos_vista_previa` se queda en clase 3: `cargas` no la nombra y
+      pregunta a `BancosVistaPrevia.estaLevantado(banco)` de `plataforma/`.
+  - **Operación:** el rol que corre las migraciones (dueño de la función) debe
+    ser superusuario o tener `BYPASSRLS`; si no, el conteo daría cero sin
+    avisar. La migración falla con un error claro si el rol no puede saltarse
+    RLS.
+  - **Pendiente:** levantar no se puede revertir desde la API (no hay operación
+    inversa; `cuadra_app` no tiene `UPDATE` ni `DELETE`). Falta la mirada visual
+    del usuario a la sección «Bancos» en tema claro y oscuro. Los tests de
+    cargas con banco levantado simulan el estado con un spy porque
+    `arquitectura.spec` prohíbe que `cargas` nombre la tabla. En T1 no hubo RED
+    real (Postgres estaba caído al escribir el spec).
+  - **Commits:** `2f714b1` (documento ODD), `a797069` (migración), `f542740`
+    (endpoints del dueño), `aba6171` (cargas con banco levantado), `b98c124`
+    (la lista devuelve el mínimo), `d423273` (sección de bancos y pista en
+    cargas).
+
 ### 30 oct 2026
 
 - **Historia 3.5 de la v2: reconocer los movimientos que ya existían con una

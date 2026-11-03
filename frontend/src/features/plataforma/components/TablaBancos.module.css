@@ -1,0 +1,62 @@
+/* Lista de bancos de Plataforma.dc.html. Solo tokens de rol. */
+.seccion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-inline-size: 0;
+}
+
+.cargando {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-24);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-sidebar);
+}
+
+.barra {
+  block-size: 48px;
+  border-radius: var(--radius-md);
+  background: var(--color-selected);
+}
+
+.tabla {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-sidebar);
+  overflow: hidden;
+  min-inline-size: 0;
+}
+
+.sinPartir {
+  white-space: nowrap;
+}
+
+.banco {
+  font-weight: 600;
+  text-align: start;
+}
+
+/* El número de cargas no se parte nunca. */
+.cifra {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.acciones {
+  white-space: nowrap;
+}
+
+.accion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.apoyo {
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+}
