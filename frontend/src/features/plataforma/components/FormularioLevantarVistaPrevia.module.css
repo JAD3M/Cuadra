@@ -1,0 +1,40 @@
+/*
+ * Panel «Levantar vista previa» de Plataforma.dc.html: la misma tarjeta que
+ * «Invitar administrador». Solo tokens de rol.
+ */
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  padding: var(--space-24);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-sidebar);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.titulo:focus-visible {
+  outline-offset: 2px;
+}
+
+.texto {
+  margin: 0;
+  max-inline-size: 640px;
+  color: var(--color-text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.accion {
+  min-block-size: var(--control-height);
+  font-size: var(--text-base);
+}

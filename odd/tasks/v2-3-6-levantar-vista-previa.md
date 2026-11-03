@@ -67,7 +67,14 @@ bancos ni tabla `bancos_vista_previa`. El dueño no tiene forma de levantarla.
   `via: 'banco_levantado'`; la respuesta del PDF ahora trae `procesada` si el
   banco está levantado, a revisar en T4) Cargas: si el banco está levantado, el PDF que cuadra pasa directo a
   conciliación; si no, sigue la vista previa. El cuadre de saldos se mantiene.
-- [ ] T4 Frontend del dueño: mockup acordado primero, luego pantalla del banco
+- [x] T4 (delegada; RED real: backend 1 falla, frontend 17 de 17, cargas 1;
+  frontend 289 archivos y 4684 tests, backend 76 suites y 1584 tests, lint,
+  typecheck y format:check limpios; pendiente una mirada visual del usuario en
+  tema claro y oscuro porque el escritor no pudo abrir el mockup) (mockup actualizado y aprobado el 2026-11-03 en `Plataforma.dc.html` y
+  `PlataformaClaro.dc.html`: sección «Bancos»; el mínimo de 5 sale del backend
+  como `minimoAceptadas` en `GET /plataforma/bancos`; incluye revisar que la
+  pantalla de cargas no asuma `pendiente_vista_previa` tras subir un PDF de un
+  banco levantado) Frontend del dueño: mockup acordado primero, luego pantalla del banco
   con su conteo y el botón de levantar.
 - [ ] T5 Docs: `docs/bitacora.md` y `CUADRA.md`.
 

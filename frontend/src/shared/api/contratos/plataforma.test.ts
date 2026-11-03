@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  bancoPlataforma,
+  listaBancosPlataforma,
   empresaCreadaPlataforma,
   listaEmpresasPlataforma,
   solicitudCrearEmpresa,
@@ -42,6 +44,44 @@ describe('contrato de empresas de plataforma', () => {
     ).toEqual({ razonSocial: 'Aurora', rfc: 'FAU210215QK4' });
     expect(
       solicitudCrearEmpresa.safeParse({ razonSocial: 'Aurora' }).success,
+    ).toBe(false);
+  });
+});
+
+describe('contrato de bancos de plataforma', () => {
+  const BANCO = {
+    banco: 'bbva',
+    aceptadas: 5,
+    minimoAceptadas: 5,
+    levantada: false,
+    levantadaEn: null,
+  };
+
+  it('el banco trae el mínimo que fija el servidor; ignora claves de más', () => {
+    expect(bancoPlataforma.parse({ ...BANCO, extra: 1 })).toEqual(BANCO);
+  });
+
+  it('un banco levantado trae su instante ISO', () => {
+    const levantado = {
+      ...BANCO,
+      levantada: true,
+      levantadaEn: '2026-11-03T18:30:00.000Z',
+    };
+    expect(listaBancosPlataforma.parse([levantado])).toEqual([levantado]);
+  });
+
+  it('sin el mínimo falla en voz alta: el frontend no lo inventa', () => {
+    const sinMinimo: Record<string, unknown> = { ...BANCO };
+    delete sinMinimo['minimoAceptadas'];
+    expect(bancoPlataforma.safeParse(sinMinimo).success).toBe(false);
+  });
+
+  it('cargas aceptadas negativas o con decimales no valen', () => {
+    expect(bancoPlataforma.safeParse({ ...BANCO, aceptadas: -1 }).success).toBe(
+      false,
+    );
+    expect(
+      bancoPlataforma.safeParse({ ...BANCO, aceptadas: 1.5 }).success,
     ).toBe(false);
   });
 });

@@ -30,8 +30,8 @@ const saldo = (valor: string): string =>
 
 /**
  * Un PDF que cuadró y quedó guardado (historia 3.3): los movimientos leídos,
- * los dos saldos, el estado de la carga y la pista de que sus movimientos
- * esperan la vista previa. Las cifras no se parten y la caja crece con el
+ * los dos saldos, el estado de la carga y, solo si espera la vista previa, la
+ * pista y el enlace para revisarla (con el banco levantado llega `procesada`). Las cifras no se parten y la caja crece con el
  * número.
  */
 export function ResultadoLecturaPdf({
@@ -62,11 +62,13 @@ export function ResultadoLecturaPdf({
           {ETIQUETAS_ESTADO_CARGA[estado]}
         </EstadoChip>
       </span>
-      <span className={estilos.pista}>{RESUMEN_LECTURA_PDF.espera}</span>
       {estado === 'pendiente_vista_previa' ? (
-        <Link className={estilos.revisar} to={rutaVistaPrevia(cargaId)}>
-          {REVISAR_VISTA_PREVIA}
-        </Link>
+        <>
+          <span className={estilos.pista}>{RESUMEN_LECTURA_PDF.espera}</span>
+          <Link className={estilos.revisar} to={rutaVistaPrevia(cargaId)}>
+            {REVISAR_VISTA_PREVIA}
+          </Link>
+        </>
       ) : null}
     </div>
   );

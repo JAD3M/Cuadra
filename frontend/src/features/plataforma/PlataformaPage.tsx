@@ -10,6 +10,7 @@ import { AlertaError } from '@/shared/ui/AlertaError';
 import { Button } from '@/shared/ui/Button';
 import { AvisoEmpresaCreada } from './components/AvisoEmpresaCreada';
 import { AvisoInvitacionEnviada } from './components/AvisoInvitacionEnviada';
+import { AvisoVistaPreviaLevantada } from './components/AvisoVistaPreviaLevantada';
 import {
   EmpresasPlataforma,
   type FilaEmpresaPlataforma,
@@ -20,12 +21,22 @@ import {
   type ValoresCrearEmpresa,
 } from './components/FormularioCrearEmpresa';
 import { FormularioInvitarAdmin } from './components/FormularioInvitarAdmin';
+import { FormularioLevantarVistaPrevia } from './components/FormularioLevantarVistaPrevia';
+import { TablaBancos, type FilaBanco } from './components/TablaBancos';
 import { describirFalloAlta, type FalloAlta } from './mensajesAlta';
 import { describirFalloInvitar, type FalloInvitar } from './mensajesInvitar';
+import { describirFalloLevantar, type FalloLevantar } from './mensajesBancos';
+import { nombreDeBanco } from './nombreDeBanco';
 import estilos from './PlataformaPage.module.css';
-import { TEXTOS_ALTA_EMPRESA, TEXTOS_PLATAFORMA } from './textos';
+import {
+  TEXTOS_ALTA_EMPRESA,
+  TEXTOS_BANCOS,
+  TEXTOS_PLATAFORMA,
+} from './textos';
+import { useBancosPlataforma } from './useBancosPlataforma';
 import { useCrearEmpresaPlataforma } from './useCrearEmpresaPlataforma';
 import { useInvitarAdminPlataforma } from './useInvitarAdminPlataforma';
+import { useLevantarVistaPrevia } from './useLevantarVistaPrevia';
 import { esFinDeSesion, useEmpresasPlataforma } from './useEmpresasPlataforma';
 
 /**
@@ -82,6 +93,47 @@ export function PlataformaPage() {
     );
   }
 
+  const bancos = useBancosPlataforma();
+  const levantar = useLevantarVistaPrevia();
+  const [levantando, setLevantando] = useState<FilaBanco | null>(null);
+  const [levantado, setLevantado] = useState<string | null>(null);
+  const [falloLevantar, setFalloLevantar] = useState<FalloLevantar | null>(
+    null,
+  );
+
+  function abrirLevantar(banco: FilaBanco) {
+    levantar.reset();
+    setLevantado(null);
+    setFalloLevantar(null);
+    setLevantando(banco);
+  }
+
+  function cerrarLevantar() {
+    levantar.reset();
+    setFalloLevantar(null);
+    setLevantando(null);
+  }
+
+  function confirmarLevantar() {
+    if (!levantando) return;
+    const nombre = nombreDeBanco(levantando.banco);
+    setFalloLevantar(null);
+    setLevantado(null);
+    levantar.mutate(levantando.banco, {
+      onSuccess: () => {
+        setLevantado(nombre);
+        setLevantando(null);
+      },
+      onError: (error) => {
+        setFalloLevantar(describirFalloLevantar(error));
+        // Un 409 o un 422 ya no admiten confirmar lo mismo: el panel se cierra
+        // y la lista (vuelta a pedir) muestra el estado real.
+        setLevantando(null);
+        void bancos.refetch();
+      },
+    });
+  }
+
   function abrirFormulario() {
     setCreada(null);
     setFalloAlta(null);
@@ -114,7 +166,9 @@ export function PlataformaPage() {
   const finDeSesion =
     esFinDeSesion(empresas.error) ||
     esFinDeSesion(crear.error) ||
-    esFinDeSesion(invitar.error);
+    esFinDeSesion(invitar.error) ||
+    esFinDeSesion(bancos.error) ||
+    esFinDeSesion(levantar.error);
   useEffect(() => {
     if (finDeSesion) terminar();
   }, [finDeSesion, terminar]);
@@ -123,6 +177,9 @@ export function PlataformaPage() {
 
   const fallo =
     empresas.isError && !finDeSesion ? mensajeDeError(empresas.error) : null;
+
+  const falloBancos =
+    bancos.isError && !finDeSesion ? mensajeDeError(bancos.error) : null;
 
   return (
     <div className={estilos.pagina}>
@@ -203,6 +260,44 @@ export function PlataformaPage() {
             ) : undefined
           }
         />
+        <section aria-labelledby="titulo-bancos" className={estilos.bancos}>
+          <div className={estilos.titulos}>
+            <h2 id="titulo-bancos" className={estilos.subtituloSeccion}>
+              {TEXTOS_BANCOS.titulo}
+            </h2>
+            <p className={estilos.subtitulo}>{TEXTOS_BANCOS.descripcion}</p>
+          </div>
+          {levantado !== null && (
+            <AvisoVistaPreviaLevantada banco={levantado} />
+          )}
+          {falloLevantar && (
+            <AlertaError
+              titulo={falloLevantar.titulo}
+              detalle={falloLevantar.detalle}
+            />
+          )}
+          {levantando && (
+            <FormularioLevantarVistaPrevia
+              key={levantando.banco}
+              banco={nombreDeBanco(levantando.banco)}
+              pendiente={levantar.isPending}
+              onConfirmar={confirmarLevantar}
+              onCancelar={cerrarLevantar}
+            />
+          )}
+          <TablaBancos
+            bancos={bancos.data ?? null}
+            onLevantar={abrirLevantar}
+            alerta={
+              falloBancos ? (
+                <AlertaError
+                  titulo={falloBancos.titulo}
+                  detalle={falloBancos.detalle}
+                />
+              ) : undefined
+            }
+          />
+        </section>
       </main>
     </div>
   );

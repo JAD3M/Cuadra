@@ -92,6 +92,28 @@ export function sembrarEmpresasPlataforma(
   empresasSimuladas.push(...empresas);
 }
 
+export interface BancoSimulado {
+  banco: string;
+  aceptadas: number;
+  minimoAceptadas: number;
+  levantada: boolean;
+  levantadaEn: string | null;
+}
+
+/** Bancos que tiene el servidor simulado; la lista y «levantar» comparten esto. */
+const bancosSimulados: BancoSimulado[] = [];
+
+/** Bancos cuyo POST «levantar-vista-previa» llegó, en orden. */
+export const levantamientosRecibidos: string[] = [];
+
+/** Deja en el servidor simulado estos bancos (y nada más). */
+export function sembrarBancosPlataforma(
+  bancos: readonly BancoSimulado[],
+): void {
+  bancosSimulados.length = 0;
+  bancosSimulados.push(...bancos.map((b) => ({ ...b })));
+}
+
 let contador = 0;
 
 export function crearHandlersPlataforma() {
@@ -163,6 +185,30 @@ export function crearHandlersPlataforma() {
         return HttpResponse.json({ email: cuerpo.email }, { status: 201 });
       },
     ),
+    http.get('/api/plataforma/bancos', () =>
+      haySesionPlataforma()
+        ? HttpResponse.json(bancosSimulados.map((b) => ({ ...b })))
+        : rechazoDeSesion(),
+    ),
+    // Como el backend: 404 si no existe, 422 si faltan cargas aceptadas, 409 si
+    // ya estaba levantado, 201 con el banco ya levantado.
+    http.post(
+      '/api/plataforma/bancos/:banco/levantar-vista-previa',
+      ({ params }) => {
+        if (!haySesionPlataforma()) return rechazoDeSesion();
+        const id = String(params['banco']);
+        levantamientosRecibidos.push(id);
+        const banco = bancosSimulados.find((b) => b.banco === id);
+        if (!banco) return cuerpoDeError(404);
+        if (banco.levantada) return cuerpoDeError(409);
+        if (banco.aceptadas < banco.minimoAceptadas) {
+          return cuerpoDeError(422);
+        }
+        banco.levantada = true;
+        banco.levantadaEn = '2026-11-03T18:30:00.000Z';
+        return HttpResponse.json({ ...banco }, { status: 201 });
+      },
+    ),
   ];
 }
 
@@ -173,6 +219,8 @@ export function usarHandlersPlataforma(): void {
   cuerposCrearEmpresa.length = 0;
   invitacionesRecibidas.length = 0;
   empresasSimuladas.length = 0;
+  bancosSimulados.length = 0;
+  levantamientosRecibidos.length = 0;
   servidor.use(...crearHandlersPlataforma());
 }
 
@@ -243,6 +291,39 @@ export function invitarPlataformaResponde(cuerpo: object) {
   servidor.use(
     http.post('/api/plataforma/empresas/:id/invitaciones', () =>
       HttpResponse.json(cuerpo, { status: 201 }),
+    ),
+  );
+}
+
+/** `GET /plataforma/bancos` responde `status`. */
+export function bancosPlataformaFalla(status: number) {
+  servidor.use(http.get('/api/plataforma/bancos', () => cuerpoDeError(status)));
+}
+
+/** `GET /plataforma/bancos` falla en la red. */
+export function bancosPlataformaRedDeFallo() {
+  servidor.use(http.get('/api/plataforma/bancos', () => HttpResponse.error()));
+}
+
+/** `POST /plataforma/bancos/:banco/levantar-vista-previa` responde `status` con `mensaje`. */
+export function levantarVistaPreviaFalla(status: number, mensaje?: string) {
+  servidor.use(
+    http.post('/api/plataforma/bancos/:banco/levantar-vista-previa', () =>
+      mensaje === undefined
+        ? cuerpoDeError(status)
+        : HttpResponse.json(
+            { statusCode: status, error: 'x', message: mensaje },
+            { status },
+          ),
+    ),
+  );
+}
+
+/** `POST /plataforma/bancos/:banco/levantar-vista-previa` falla en la red. */
+export function levantarVistaPreviaRedDeFallo() {
+  servidor.use(
+    http.post('/api/plataforma/bancos/:banco/levantar-vista-previa', () =>
+      HttpResponse.error(),
     ),
   );
 }

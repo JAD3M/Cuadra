@@ -50,6 +50,25 @@ export const solicitudCrearEmpresa = z.object({
 /** Respuesta de `POST /plataforma/empresas`: la misma forma que una fila de la lista. */
 export const empresaCreadaPlataforma = empresaPlataforma;
 
+/**
+ * Banco de `GET /plataforma/bancos` y respuesta de
+ * `POST /plataforma/bancos/:banco/levantar-vista-previa` (historia 3.6). El
+ * mínimo de cargas aceptadas lo fija el servidor: la pantalla no lo inventa.
+ * `levantadaEn` es un instante ISO, `null` si la vista previa sigue obligatoria.
+ */
+export const bancoPlataforma = z.object({
+  banco: texto,
+  // Conteos de cargas, no dinero.
+  // eslint-disable-next-line no-restricted-syntax
+  aceptadas: z.number().int().nonnegative(),
+  // eslint-disable-next-line no-restricted-syntax
+  minimoAceptadas: z.number().int().positive(),
+  levantada: z.boolean(),
+  levantadaEn: z.iso.datetime().nullable(),
+});
+
+export const listaBancosPlataforma = z.array(bancoPlataforma);
+
 export type UsuarioPlataforma = z.infer<typeof usuarioPlataforma>;
 export type RespuestaSesionPlataforma = z.infer<
   typeof respuestaSesionPlataforma
@@ -57,3 +76,4 @@ export type RespuestaSesionPlataforma = z.infer<
 export type SolicitudLoginPlataforma = z.infer<typeof solicitudLoginPlataforma>;
 export type EmpresaPlataforma = z.infer<typeof empresaPlataforma>;
 export type SolicitudCrearEmpresa = z.infer<typeof solicitudCrearEmpresa>;
+export type BancoPlataforma = z.infer<typeof bancoPlataforma>;

@@ -419,7 +419,11 @@ describe('plataforma: crear empresa', () => {
     expect(alerta).toHaveTextContent('Ese RFC ya pertenece a otra empresa');
     expect(alerta).toHaveTextContent('No se creó nada.');
     expect(formulario()).toBeInTheDocument();
-    expect(screen.getAllByRole('row')).toHaveLength(3);
+    expect(
+      within(
+        screen.getByRole('table', { name: 'Lista de empresas' }),
+      ).getAllByRole('row'),
+    ).toHaveLength(3);
   });
 
   it('un fallo de red muestra la alerta de conexión y conserva lo escrito', async () => {

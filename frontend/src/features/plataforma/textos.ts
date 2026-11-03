@@ -72,3 +72,32 @@ export const TEXTOS_INVITAR = {
   limiteTitulo: 'Demasiadas invitaciones.',
   limiteDetalle: 'Espera unos minutos e inténtalo de nuevo.',
 } as const;
+
+/** Bancos y vista previa (mockup `Plataforma.dc.html`, historia 3.6). */
+export const TEXTOS_BANCOS = {
+  titulo: 'Bancos',
+  descripcion:
+    'Aquí decides cuándo un banco deja de pedir vista previa. Se cuentan las cargas aceptadas de todas las empresas.',
+  lista: 'Lista de bancos',
+  columnaBanco: 'Banco',
+  columnaAceptadas: 'Cargas aceptadas',
+  columnaEstado: 'Estado',
+  columnaAcciones: 'Acciones',
+  obligatoria: 'Vista previa obligatoria',
+  levantadaEl: (fecha: string) => `Levantada el ${fecha}`,
+  sinAcciones: 'Sin acciones',
+  faltan: (n: number) =>
+    `Faltan ${n} ${n === 1 ? 'carga aceptada' : 'cargas aceptadas'}`,
+  boton: 'Levantar vista previa',
+  etiquetaBoton: (banco: string) => `Levantar la vista previa de ${banco}`,
+  confirmarTitulo: (banco: string) => `Levantar la vista previa de ${banco}`,
+  confirmarTexto: (banco: string) =>
+    `Desde ahora, los PDF de ${banco} de todas las empresas pasarán directo a conciliación, sin vista previa. El cuadre de saldos sigue aplicando. Esto no se puede deshacer desde aquí.`,
+  levantando: 'Levantando…',
+  cancelar: 'Cancelar',
+  levantadaTitulo: (banco: string) => `Vista previa de ${banco} levantada.`,
+  levantadaDetalle: 'Quedó registrada con tu usuario y la fecha.',
+  yaLevantadaTitulo: 'Ese banco ya estaba levantado.',
+  yaLevantadaDetalle: 'No se cambió nada.',
+  sinEvidenciaTitulo: 'Todavía no hay evidencia suficiente.',
+} as const;
