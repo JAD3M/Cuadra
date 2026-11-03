@@ -54,6 +54,8 @@ async function revertirEmailSinMayusculas(): Promise<void> {
   // cuadra_test sobrevive entre suites: una fila 'acceso_denegado' que dejó
   // otra impide revertir AccesoDenegadoEnBitacora.
   await ds.query('TRUNCATE bitacora');
+  // Idem BancosVistaPrevia con una fila 'levantar_vista_previa'.
+  await ds.query('DELETE FROM bitacora_plataforma');
   for (;;) {
     const ultima = await una<{ name: string } | undefined>(
       ds,

@@ -695,6 +695,8 @@ describe('reversibilidad', () => {
     // cuadra_test sobrevive entre suites: una fila 'acceso_denegado' que dejó
     // otra impide revertir AccesoDenegadoEnBitacora.
     await ds.query('TRUNCATE bitacora');
+    // Idem BancosVistaPrevia con una fila 'levantar_vista_previa'.
+    await ds.query('DELETE FROM bitacora_plataforma');
 
     // Todas, de la más nueva a la más vieja: cada `down` debe dejar a la
     // anterior en condiciones de revertirse.

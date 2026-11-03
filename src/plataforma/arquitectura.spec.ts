@@ -37,6 +37,14 @@ const LISTA_BLANCA: ListaBlanca = {
     'plataforma_usuarios',
     'bitacora_plataforma',
   ],
+  // Prueba de esquema de la tabla global de la historia 3.6 (GRANTs, CHECK).
+  'database/bancos-vista-previa.esquema.spec.ts': [
+    'plataforma_usuarios',
+    'bitacora_plataforma',
+    'bancos_vista_previa',
+  ],
+  // Limpia la bitácora de plataforma para poder revertir las migraciones.
+  'database/email-normalizado.spec.ts': ['bitacora_plataforma'],
   // Fixture que inserta un dueño para probar la sesión de plataforma.
   'auth/auth.integracion.spec.ts': ['plataforma_usuarios'],
 };
