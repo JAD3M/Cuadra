@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BancosModule } from '../bancos/bancos.module';
 import { ConciliacionModule } from '../conciliacion/conciliacion.module';
+import { PlataformaModule } from '../plataforma/plataforma.module';
 import { SugerenciasModule } from '../sugerencias/sugerencias.module';
 import { CargasController } from './cargas.controller';
 import { CargasService } from './cargas.service';
@@ -14,6 +15,7 @@ import { VistaPreviaService } from './vista-previa.service';
 @Module({
   imports: [
     BancosModule,
+    PlataformaModule,
     ConciliacionModule,
     SugerenciasModule,
     BullModule.registerQueueAsync({

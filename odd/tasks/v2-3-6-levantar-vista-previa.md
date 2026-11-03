@@ -62,7 +62,10 @@ bancos ni tabla `bancos_vista_previa`. El dueño no tiene forma de levantarla.
   Backend del dueño: consultar banco (aceptadas por consulta, si está
   levantado) y levantar (rechaza con mensaje claro si hay menos de 5; 403 a
   sesión de empresa; escribe `bancos_vista_previa` y `bitacora_plataforma`).
-- [ ] T3 Cargas: si el banco está levantado, el PDF que cuadra pasa directo a
+- [x] T3 (delegada; RED real 5 de 8, GREEN 8/8; suite completa 76 suites y 1584
+  tests; reutiliza `VistaPreviaService.aceptar`; bitácora `confirmar` con
+  `via: 'banco_levantado'`; la respuesta del PDF ahora trae `procesada` si el
+  banco está levantado, a revisar en T4) Cargas: si el banco está levantado, el PDF que cuadra pasa directo a
   conciliación; si no, sigue la vista previa. El cuadre de saldos se mantiene.
 - [ ] T4 Frontend del dueño: mockup acordado primero, luego pantalla del banco
   con su conteo y el botón de levantar.
