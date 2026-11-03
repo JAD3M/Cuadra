@@ -78,6 +78,15 @@
     (endpoints del dueño), `aba6171` (cargas con banco levantado), `b98c124`
     (la lista devuelve el mínimo), `d423273` (sección de bancos y pista en
     cargas).
+- **Limpieza de proceso de los ODD antiguos.** Rama `chore/v2-limpieza-odd`,
+  solo documentos. Las casillas de cierre y las frases «pendiente armar el PR»
+  de las historias 1.4, 1.5 y 3.1 a 3.6 y de los documentos de la enmienda y de
+  las pruebas de auditoría se cerraron con su evidencia (PRs integrados y
+  tarjetas KAN-119, 120 y 130 a 135 en Finalizado). La mirada visual a la
+  sección «Bancos» (3.6) la hizo el usuario en local y la dio por buena. Siguen
+  abiertos: confirmar en producción que el rol que migra es superusuario o
+  `BYPASSRLS`, y la decisión del usuario sobre la 2.7 (si los textos de cada
+  acción incluyen las etiquetas del frontend).
 
 ### 30 oct 2026
 

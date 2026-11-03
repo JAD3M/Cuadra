@@ -65,3 +65,4 @@ que violan cada regla. El spine y la prueba dicen lo mismo.
 - 2026-11-03: decisión del usuario (opción A): `plataforma/` es módulo de
   identidad; semillas y ayudante de pruebas son excepciones nombradas. T1-T3
   hechas; arquitectura 27/27, suite completa, prettier, eslint y tsc verificados.
+- 2026-11-03: cierre de proceso: PR #76 integrado en master.

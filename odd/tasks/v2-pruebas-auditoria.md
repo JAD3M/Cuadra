@@ -61,3 +61,4 @@ cableado entre `plataforma` y `cargas`; T3 no cambia el comportamiento.
     sin cambio de comportamiento).
   - Verificación: `npm test --` 78 suites / 1590 pruebas verdes; prettier,
     eslint y `tsc --noEmit` limpios.
+- 2026-11-03: cierre de proceso: PR #77 integrado en master.

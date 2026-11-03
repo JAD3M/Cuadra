@@ -103,7 +103,8 @@ Los siete criterios de la Story 3.1 en `epics.md`.
 
 - 2026-10-27: decisiones de producto tomadas (marca derivada, columna opcional
   `moneda`); mockup aprobado; exploración hecha; documento creado.
-- Espejo en Engram (`odd/v2-3-1-cargar-cfdi-y-csv/tasks`): pendiente; `mem_save`
+- Espejo en Engram (`odd/v2-3-1-cargar-cfdi-y-csv/tasks`): ya guardado (observación 661,
+  «Historia 3.1 integrada en master (PRs #50-#53)»); antes `mem_save`
   falló dos veces con «Claude host session registration could not be confirmed».
   Se reintenta más adelante.
 - 2026-10-27 T1 hecha (escritor delegado, ruta delegada). RED observado antes
@@ -187,3 +188,4 @@ Los siete criterios de la Story 3.1 en `epics.md`.
 - Siguiente: T4.
 - 2026-10-27 T4 hecha: bitácora escrita (`docs/bitacora.md`). KAN-130 se cierra al integrar. Suites verificadas en T1 (1357 backend), T3b (1360 backend, 4446 frontend).
 - Siguiente: revisión única de la rama completa, PRs en cadena (4) y KAN-130.
+- 2026-11-03: cierre de proceso: historia integrada en master con los PRs #50-#53 y #58 (pendientes de cargas); KAN-130 Finalizado en Jira; el espejo de Engram existe (observación 661).
