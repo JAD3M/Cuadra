@@ -10,6 +10,7 @@ import {
   LUIS,
   TRANSPORTES,
 } from '../cargas/testing/app-de-cargas';
+import { rolesConPermiso } from '../auth/permisos/matriz';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import { filas, una } from '../database/testing/base-de-pruebas';
 import type { ResolucionRespuestaDto } from './dto/resolucion.dto';
@@ -768,6 +769,15 @@ describe('RS-D1..D4: segregación de funciones (D-08)', () => {
         motivo: 'rol_insuficiente',
         rolesDelUsuario: ['admin'],
       });
+      // Los roles exigidos salen de la matriz, y hoy son estos tres.
+      expect(fila.datos.rolesRequeridos).toEqual([
+        ...rolesConPermiso('conciliaciones.resolver'),
+      ]);
+      expect(fila.datos.rolesRequeridos).toEqual([
+        'admin',
+        'contador',
+        'revisor',
+      ]);
     },
   );
 

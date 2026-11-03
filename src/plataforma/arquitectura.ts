@@ -69,6 +69,36 @@ export function buscarInfracciones(
   return infracciones;
 }
 
+const INSERT_EN_DUENOS = /\binsert\s+into\s+"?plataforma_usuarios\b/i;
+const ESCRITURA_POR_REPOSITORIO = /\.(save|insert|upsert)\s*\(/;
+
+/**
+ * Historia 1.3. Rutas (relativas a `src/`) del código de producto que escribe
+ * un dueño en `plataforma_usuarios`: SQL `INSERT INTO` o escritura por
+ * repositorio de la entidad. Excluye specs y migraciones, y no cuenta
+ * comentarios ni lecturas. Debe devolver solo `sembrar-dueno.ts`.
+ */
+export function buscarEscritoresDeDuenos(
+  archivos: readonly ArchivoFuente[],
+): string[] {
+  return archivos
+    .filter(
+      (a) =>
+        !a.ruta.endsWith('.spec.ts') &&
+        !a.ruta.startsWith('database/migrations/'),
+    )
+    .filter((a) => {
+      const codigo = sinComentarios(a.contenido);
+      return (
+        INSERT_EN_DUENOS.test(codigo) ||
+        (/\bPlataformaUsuario\b/.test(codigo) &&
+          ESCRITURA_POR_REPOSITORIO.test(codigo))
+      );
+    })
+    .map((a) => a.ruta)
+    .sort();
+}
+
 /**
  * AD-2, clase 2 (identidad). Quién puede ESCRIBIR (INSERT/UPDATE/DELETE) las
  * tablas de identidad. Leerlas (SELECT, JOIN) lo puede hacer cualquier módulo.
