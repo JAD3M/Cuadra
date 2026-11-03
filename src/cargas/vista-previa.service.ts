@@ -134,11 +134,16 @@ export class VistaPreviaService {
    * 404 si la carga no existe o es de otra empresa; 409 si no está en
    * 'pendiente_vista_previa' (también la segunda aceptación: el candado
    * serializa, así que la perdedora ya la ve procesada).
+   *
+   * Historia 3.6: también es el camino de un banco con la vista previa
+   * levantada, que acepta sin contador; `datosExtra` (p. ej. `{ via }`) se
+   * suma a los datos de la bitácora para distinguirlo.
    */
   async aceptar(
     companyId: string,
     cargaId: string,
     actor: Actor,
+    datosExtra: Record<string, unknown> = {},
   ): Promise<AceptacionDto> {
     const manager = this.contexto.manager();
     // Primero el candado, antes de cualquier fila: el mismo orden que usan
@@ -220,6 +225,7 @@ export class VistaPreviaService {
         nuevos,
         existentes,
         dudosos,
+        ...datosExtra,
       },
       ip: actor.ip ?? null,
       userAgent: actor.userAgent ?? null,

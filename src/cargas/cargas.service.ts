@@ -31,6 +31,8 @@ import {
   registrarRechazoDePdf,
 } from './guardar-estado-cuenta-pdf';
 import { registrarCargar } from './registrar-carga';
+import { VistaPreviaService } from './vista-previa.service';
+import { BancosVistaPrevia } from '../plataforma/bancos-vista-previa.service';
 import type { LineaNoLeida } from '../bancos/pdf/lector-bbva';
 import {
   aEstado,
@@ -134,6 +136,8 @@ export class CargasService {
     private readonly cola: ColaCargas,
     private readonly perfiles: PerfilesBancarios,
     private readonly transaccion: TransaccionEmpresa,
+    private readonly vistaPrevia: VistaPreviaService,
+    private readonly bancosLevantados: BancosVistaPrevia,
   ) {}
 
   /**
@@ -218,7 +222,10 @@ export class CargasService {
    * movimiento (`sin_movimientos`). Un rechazo no crea carga ni
    * movimientos y deja bitácora (`registrarRechazoDePdf`, fuera de la transacción de
    * la petición). Un PDF que pasa queda en 'pendiente_vista_previa' con sus
-   * movimientos en espera, sin encolar nada. Nunca se guarda ni se registra el
+   * movimientos en espera, sin encolar nada, salvo que el dueño haya levantado
+   * la vista previa de ese banco (historia 3.6): entonces, ya guardado y
+   * cuadrado, se acepta solo, por el mismo camino que usa el contador
+   * (`VistaPreviaService.aceptar`). Nunca se guarda ni se registra el
    * contenido del archivo.
    */
   async guardarEstadoCuentaPdf(
@@ -364,6 +371,17 @@ export class CargasService {
         carga.id,
         reabierta ? { resubida: true } : {},
       );
+      // El cuadre ya pasó. Con el banco levantado no se espera al contador:
+      // misma aceptación, misma transacción, solo marcada en la bitácora.
+      if (await this.bancosLevantados.estaLevantado(idBanco)) {
+        const aceptada = await this.vistaPrevia.aceptar(
+          companyId,
+          carga.id,
+          { userId },
+          { via: 'banco_levantado' },
+        );
+        carga = { ...carga, estado: aceptada.estado };
+      }
     }
     return {
       banco: idBanco,
