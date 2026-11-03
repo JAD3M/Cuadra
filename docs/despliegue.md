@@ -104,4 +104,16 @@ quien decide es el dueño de Cuadra y se anota en la bitácora:
 4. **Correo.** Proveedor SMTP con dominio verificado para el remitente.
 5. **Costo y operación.** Costo mensual y quién atiende una caída.
 
+6. **Rol que migra.** La migración de la historia 3.6 crea
+   `cargas_aceptadas_por_banco()`, una función `SECURITY DEFINER` que cuenta
+   cargas de todas las empresas saltándose RLS, así que el rol que migra (su
+   dueño) debe ser superusuario o tener `BYPASSRLS`; si no, la migración falla
+   con un error claro. Con el compose de este repositorio ya se cumple: la
+   imagen oficial de Postgres hace superusuario al usuario de `POSTGRES_USER`
+   (`cuadra`), que es el dueño del esquema y quien corre `migrate`. Con un
+   Postgres administrado, comprueba que el rol de migraciones cumpla eso; si no,
+   crea un rol dedicado con solo `BYPASSRLS` (mejor que un superusuario, porque la
+   función corre con los privilegios de su dueño) y haz que sea su dueño, lo que
+   exige un cambio pequeño en la migración.
+
 Mientras tanto no hay host elegido y este documento no promete uno.

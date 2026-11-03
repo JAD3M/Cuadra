@@ -95,7 +95,7 @@ reales hasta entonces).
   (puede repetirse); un 400 de PDF con código conocido pero cuerpo incompleto
   muestra su rechazo con título y mensaje, sin los detalles que falten, y no el
   rechazo genérico.
-- [ ] **T5 — Cierre.** Suites completas (backend y frontend), lint y formato,
+- [x] **T5 — Cierre.** Suites completas (backend y frontend), lint y formato,
   entrada en `docs/bitacora.md`, `CUADRA.md` y KAN-132, PR (en cadena si pasa de
   400 líneas).
 
@@ -160,3 +160,4 @@ reales hasta entonces).
   `saldoFinal` (texto del lector); contrato tolerante (campos inválidos se
   omiten); `key` = índice + línea. Sin commit. Siguiente: T5.
 - 2026-10-29: T5 (parte documental) hecha. Verificación completa sobre `7759bb2` (worker de solo lectura): backend `npm test` 68 suites / 1447 pruebas, typecheck, build, eslint y prettier limpios; frontend vitest 280 archivos / 4528 pruebas, typecheck, lint, format:check y build limpios. Entrada en `docs/bitacora.md` y `CUADRA.md` actualizado (estado, bitácora, sección del PDF). Faltan: KAN-132, push y los PRs apilados (decide el usuario).
+- 2026-11-03: cierre de proceso: historia integrada en master con los PRs #59-#62; KAN-132 Finalizado en Jira.

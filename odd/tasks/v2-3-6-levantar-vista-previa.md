@@ -71,8 +71,9 @@ bancos ni tabla `bancos_vista_previa`. El dueño no tiene forma de levantarla.
   conciliación; si no, sigue la vista previa. El cuadre de saldos se mantiene.
 - [x] T4 (delegada; RED real: backend 1 falla, frontend 17 de 17, cargas 1;
   frontend 289 archivos y 4684 tests, backend 76 suites y 1584 tests, lint,
-  typecheck y format:check limpios; pendiente una mirada visual del usuario en
-  tema claro y oscuro porque el escritor no pudo abrir el mockup) (mockup actualizado y aprobado el 2026-11-03 en `Plataforma.dc.html` y
+  typecheck y format:check limpios; la mirada visual del usuario en
+  tema claro y oscuro, pendiente porque el escritor no pudo abrir el mockup, quedó
+  hecha el 2026-11-03: ver Progreso) (mockup actualizado y aprobado el 2026-11-03 en `Plataforma.dc.html` y
   `PlataformaClaro.dc.html`: sección «Bancos»; el mínimo de 5 sale del backend
   como `minimoAceptadas` en `GET /plataforma/bancos`; incluye revisar que la
   pantalla de cargas no asuma `pendiente_vista_previa` tras subir un PDF de un
@@ -91,4 +92,5 @@ Pendiente. Se registra por tarea (inline o delegada, commit).
 ## Progreso
 
 - 2026-11-03: exploración hecha, documento creado, ninguna tarea iniciada.
-- 2026-11-03: T1 a T4 hechas (`a797069`, `f542740`, `aba6171`, `b98c124`, `d423273`); T5 docs escrita en `docs/bitacora.md` y `CUADRA.md`. Falta armar el PR.
+- 2026-11-03: T1 a T4 hechas (`a797069`, `f542740`, `aba6171`, `b98c124`, `d423273`); T5 docs escrita en `docs/bitacora.md` y `CUADRA.md`. Falta armar el PR (ver el cierre de proceso más abajo).
+- 2026-11-03: cierre de proceso: PRs #72-#75 integrados en master; KAN-135 Finalizado en Jira. Mirada visual hecha: el usuario vio la sección «Bancos» corriendo en local en la pantalla del dueño y dijo que se ve bien. Rol que migra en producción: sin acción hasta elegir host (con el compose del repositorio ya es superusuario; nota en `docs/despliegue.md`, «Cómo se elegirá el host»). Historia 2.7: el usuario decidió que basta con la lista de acciones del backend, así que queda cumplida.

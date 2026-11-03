@@ -164,3 +164,8 @@ Los cinco criterios de la Story 2.7 en `epics.md`.
 - Commit T3: `a9cc766`.
 - 2026-10-27 T4 hecha: bitácora (`docs/bitacora.md`) escrita; tres revisiones nativas aprobadas. Suites verificadas por tarea (1318 backend, 4412 frontend).
 - Siguiente: PRs en cadena.
+- 2026-11-03: decisión del usuario sobre el criterio «los textos de cada acción
+  salen del dominio del backend»: basta con que la **lista de acciones** salga del
+  backend (`src/common/entities/tipos.ts`, con espejo y prueba de deriva). Las
+  etiquetas en español (`ETIQUETAS_ACCION_BITACORA`, en el frontend) no tienen
+  que venir del backend. El criterio queda cumplido tal como está.
