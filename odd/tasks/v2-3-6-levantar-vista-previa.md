@@ -57,7 +57,9 @@ bancos ni tabla `bancos_vista_previa`. El dueño no tiene forma de levantarla.
   `levantar_vista_previa` en el CHECK de `bitacora_plataforma`, función de
   conteo de aceptadas por banco. Actualizar `tipos.ts` y los conteos de
   `undoLastMigration` en los specs de esquema.
-- [ ] T2 Backend del dueño: consultar banco (aceptadas por consulta, si está
+- [x] T2 (delegada; RED real 9 de 10 fallan, GREEN 10/10; suite completa 75
+  suites y 1576 tests; 422 si hay menos de 5, 409 si ya está levantado)
+  Backend del dueño: consultar banco (aceptadas por consulta, si está
   levantado) y levantar (rechaza con mensaje claro si hay menos de 5; 403 a
   sesión de empresa; escribe `bancos_vista_previa` y `bitacora_plataforma`).
 - [ ] T3 Cargas: si el banco está levantado, el PDF que cuadra pasa directo a

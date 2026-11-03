@@ -68,3 +68,20 @@ export class InvitacionEnviadaDto {
   @ApiProperty({ example: 'primera.admin@cliente.mx' })
   email!: string;
 }
+
+export class BancoPlataformaDto {
+  @ApiProperty({ example: 'bbva' })
+  banco!: string;
+
+  @ApiProperty({
+    description:
+      'Cargas aceptadas de este banco entre todas las empresas, calculadas por consulta (no es un contador guardado).',
+  })
+  aceptadas!: number;
+
+  @ApiProperty({ description: 'La vista previa obligatoria ya se levantó.' })
+  levantada!: boolean;
+
+  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  levantadaEn!: string | null;
+}

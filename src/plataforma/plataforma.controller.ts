@@ -19,12 +19,15 @@ import {
   ApiParam,
   ApiTags,
   ApiTooManyRequestsResponse,
+  ApiUnprocessableEntityResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { UsuarioAutenticado } from '../auth/tipos';
 import { Scope, UsuarioActual } from '../common/decorators/decoradores';
 import { Limite } from '../limite/limite.decorator';
+import { BancosVistaPrevia } from './bancos-vista-previa.service';
 import {
+  BancoPlataformaDto,
   CrearEmpresaDto,
   EmpresaPlataformaDto,
   InvitacionEnviadaDto,
@@ -41,6 +44,7 @@ export class PlataformaController {
   constructor(
     private readonly empresas: EmpresasPlataforma,
     private readonly invitaciones: InvitacionesPlataforma,
+    private readonly bancos: BancosVistaPrevia,
   ) {}
 
   /**
@@ -119,5 +123,50 @@ export class PlataformaController {
       dto.email,
       actual.plataformaUsuarioId,
     );
+  }
+
+  /** `cargas` tiene RLS: el conteo sale de una función que solo agrega. */
+  @Get('bancos')
+  @ApiCookieAuth()
+  @ApiOperation({
+    summary: 'Bancos con lector de PDF y su vista previa',
+    description:
+      'Cuántas cargas aceptadas tiene cada banco (calculado por consulta, entre todas las empresas) y si su vista previa obligatoria ya se levantó.',
+  })
+  @ApiOkResponse({ type: [BancoPlataformaDto] })
+  @ApiUnauthorizedResponse({ description: 'Sin sesión o venció.' })
+  @ApiForbiddenResponse({
+    description: 'La sesión no es de plataforma. Queda en la bitácora.',
+  })
+  listarBancos(): Promise<BancoPlataformaDto[]> {
+    return this.bancos.listar();
+  }
+
+  @Post('bancos/:banco/levantar-vista-previa')
+  @ApiCookieAuth()
+  @ApiOperation({
+    summary: 'Levanta la vista previa obligatoria de un banco',
+    description:
+      'Exige al menos 5 cargas aceptadas del banco. Queda en `bancos_vista_previa` con quién y cuándo, y en la bitácora de plataforma, en una sola transacción.',
+  })
+  @ApiParam({ name: 'banco', example: 'bbva' })
+  @ApiCreatedResponse({ type: BancoPlataformaDto })
+  @ApiNotFoundResponse({ description: 'El banco no tiene lector de PDF.' })
+  @ApiConflictResponse({ description: 'La vista previa ya estaba levantada.' })
+  @ApiUnprocessableEntityResponse({
+    description: 'El banco tiene menos de 5 cargas aceptadas.',
+  })
+  @ApiUnauthorizedResponse({ description: 'Sin sesión o venció.' })
+  @ApiForbiddenResponse({
+    description: 'La sesión no es de plataforma. Queda en la bitácora.',
+  })
+  levantarVistaPrevia(
+    @Param('banco') banco: string,
+    @UsuarioActual() actual: UsuarioAutenticado,
+  ): Promise<BancoPlataformaDto> {
+    if (actual.scope !== 'plataforma') {
+      throw new UnauthorizedException('No autorizado');
+    }
+    return this.bancos.levantar(actual.plataformaUsuarioId, banco);
   }
 }
