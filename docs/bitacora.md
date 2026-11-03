@@ -5,6 +5,30 @@
 
 ### 3 nov 2026
 
+- **Auditoría de arquitectura de las historias 1.1 a 3.6 y enmienda del
+  spine.** Rama `chore/v2-enmienda-spine`, documento
+  `odd/tasks/v2-enmienda-spine.md`. La auditoría no encontró fugas entre
+  empresas, dinero en flotante ni tablas sin RLS; sí desviaciones que ningún
+  test vigilaba. Sin PR todavía.
+  - **Spine (AD-2):** la clase 2 (identidad) solo la escriben `auth`,
+    `companies`, `usuarios`, `invitaciones`, `recuperacion` y `plataforma`, más
+    dos excepciones nombradas (`database/seeds/seed.ts`,
+    `testing/sesion-de-pruebas.ts`); cualquiera puede leerlas. La estructura de
+    módulos lista los módulos de identidad. Quedan registradas como
+    desviaciones deliberadas `bitacora_plataforma.company_id` informativo, el
+    `DELETE` de `movimientos_pendientes` y `cargas_aceptadas_por_banco()` como
+    única salida de RLS.
+  - **Pruebas de arquitectura:** `arquitectura-identidad.spec.ts` falla si otro
+    archivo escribe la clase 2 por SQL (`INSERT INTO`/`UPDATE`/`DELETE FROM`) o
+    por TypeORM (manager, `getRepository`, repositorio inyectado,
+    QueryBuilder), con fixtures de cada forma, de lectura permitida y de los
+    módulos y excepciones permitidos; el repositorio real pasa. La regla de
+    clase 3 vigila ahora también `cargas_aceptadas_por_banco`.
+  - **Límite conocido:** la regla de identidad es por texto; no ve SQL armado
+    por concatenación ni repositorios pasados como parámetro.
+  - **Fuera de alcance, sin decidir:** el test de integración de la 3.6 sin
+    spy, el test de que solo `sembrar-dueno.ts` crea dueños y la lista de roles
+    de `resolucion.service.ts`.
 - **Historia 3.6 de la v2: el dueño levanta la vista previa obligatoria de un
   banco (AD-2, AD-7).** Rama `feat/v2-3-6-levantar-vista-previa` con ODD. Sin
   PR todavía.
