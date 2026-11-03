@@ -12,6 +12,7 @@ import { Company } from '../companies/company.entity';
 import { Conciliacion } from '../conciliacion/conciliacion.entity';
 import { Movimiento } from '../bancos/movimiento.entity';
 import { MovimientoPendiente } from '../bancos/movimiento-pendiente.entity';
+import { BancoVistaPrevia } from '../plataforma/banco-vista-previa.entity';
 import { BitacoraPlataforma } from '../plataforma/bitacora-plataforma.entity';
 import { PlataformaUsuario } from '../plataforma/plataforma-usuario.entity';
 import { SugerenciaIa } from '../sugerencias/sugerencia-ia.entity';
@@ -35,4 +36,5 @@ export const ENTIDADES = [
   TokenRecuperacion,
   PlataformaUsuario,
   BitacoraPlataforma,
+  BancoVistaPrevia,
 ];
