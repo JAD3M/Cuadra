@@ -42,6 +42,8 @@ const LISTA_BLANCA: ListaBlanca = {
     'plataforma_usuarios',
     'bitacora_plataforma',
     'bancos_vista_previa',
+    // Prueba la función SECURITY DEFINER contra Postgres real.
+    'cargas_aceptadas_por_banco',
   ],
   // Limpia la bitácora de plataforma para poder revertir las migraciones.
   'database/email-normalizado.spec.ts': ['bitacora_plataforma'],
@@ -114,6 +116,26 @@ describe('arquitectura: tablas de plataforma (clase 3)', () => {
       expect(r.map((i) => [i.nombre, i.linea])).toEqual([
         ['BitacoraPlataforma', 1],
         ['bancos_vista_previa', 3],
+      ]);
+    });
+
+    it('detecta la función SECURITY DEFINER cargas_aceptadas_por_banco fuera de plataforma/', () => {
+      const r = buscarInfracciones([
+        {
+          ruta: 'cargas/y.service.ts',
+          contenido: 'q(`SELECT * FROM cargas_aceptadas_por_banco()`);',
+        },
+        {
+          ruta: 'plataforma/ok.service.ts',
+          contenido: 'q(`SELECT * FROM cargas_aceptadas_por_banco()`);',
+        },
+      ]);
+      expect(r).toEqual([
+        {
+          ruta: 'cargas/y.service.ts',
+          nombre: 'cargas_aceptadas_por_banco',
+          linea: 1,
+        },
       ]);
     });
 
