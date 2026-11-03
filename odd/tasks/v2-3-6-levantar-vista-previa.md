@@ -30,7 +30,9 @@ bancos ni tabla `bancos_vista_previa`. El dueño no tiene forma de levantarla.
   (`estaLevantado(banco)`). El usuario pidió respetar la arquitectura.
 - 2026-11-03: el usuario **aprobó** las dos propuestas anteriores. La función
   fija `search_path`, revoca `EXECUTE` a `PUBLIC`, lo da solo a `cuadra_app`,
-  sin SQL dinámico, y su dueño no debe ser superusuario (verificar en T1).
+  sin SQL dinámico. Corrección de T1: el dueño debe ser superusuario o
+  BYPASSRLS (con RLS FORCE en `cargas` otro rol contaría cero); la migración
+  falla con error claro si no lo es.
 - El mínimo es 5 cargas aceptadas. Sin regla extra de tasa de aciertos (no está
   en los criterios).
 
@@ -76,7 +78,7 @@ bancos ni tabla `bancos_vista_previa`. El dueño no tiene forma de levantarla.
   pantalla de cargas no asuma `pendiente_vista_previa` tras subir un PDF de un
   banco levantado) Frontend del dueño: mockup acordado primero, luego pantalla del banco
   con su conteo y el botón de levantar.
-- [ ] T5 Docs: `docs/bitacora.md` y `CUADRA.md`.
+- [x] T5 (delegada) Docs: `docs/bitacora.md` y `CUADRA.md`.
 
 ## Aceptación
 
@@ -89,3 +91,4 @@ Pendiente. Se registra por tarea (inline o delegada, commit).
 ## Progreso
 
 - 2026-11-03: exploración hecha, documento creado, ninguna tarea iniciada.
+- 2026-11-03: T1 a T4 hechas (`a797069`, `f542740`, `aba6171`, `b98c124`, `d423273`); T5 docs escrita en `docs/bitacora.md` y `CUADRA.md`. Falta armar el PR.

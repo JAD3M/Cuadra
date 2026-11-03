@@ -530,6 +530,41 @@ moneda duplicada entre el lector y la normalización sigue pendiente de
 refactor. El lector de BBVA sigue sin validarse con un PDF real y el revisor
 sin `cargas.ver` (ver 3.4).
 
+**Vista previa levantada por banco (v2, historia 3.6).** La vista previa de un
+PDF es obligatoria hasta que el dueño la levanta para ese banco:
+
+- Tabla `bancos_vista_previa` (`banco` PK normalizado en minúsculas,
+  `levantada_por` FK a `plataforma_usuarios`, `levantada_en`). Clase 3 (AD-2):
+  global, sin `company_id` ni RLS; solo `plataforma/` la nombra y `cuadra_app`
+  tiene `SELECT` e `INSERT`. `cargas` pregunta a
+  `BancosVistaPrevia.estaLevantado(banco)`.
+- «Revisada» es solo una carga **aceptada** (`procesada`, de PDF, con
+  `saldo_inicial`); las rechazadas no cuentan. El mínimo es 5
+  (`MINIMO_CARGAS_ACEPTADAS`) y sale del backend como `minimoAceptadas`. El
+  conteo se calcula por consulta con `cargas_aceptadas_por_banco()`
+  (`SECURITY DEFINER`, `search_path` fijo, `EXECUTE` solo `cuadra_app`, devuelve
+  solo banco y conteo); nunca hay un contador guardado.
+- **Operación:** el rol que migra (dueño de la función) debe ser superusuario o
+  `BYPASSRLS`, porque `cargas` tiene RLS con FORCE y si no el conteo daría cero.
+  La migración falla con un error claro si no lo es.
+- Endpoints del dueño: `GET /plataforma/bancos` y `POST
+  /plataforma/bancos/:banco/levantar-vista-previa` (422 con menos de 5
+  aceptadas, 409 si ya estaba levantado, 404 banco desconocido, 403 a sesiones
+  de empresa). Una sola transacción con `bitacora_plataforma` (acción
+  `levantar_vista_previa`); `ON CONFLICT DO NOTHING` para la carrera.
+- Con el banco levantado, el PDF que cuadra pasa directo a conciliación por
+  `VistaPreviaService.aceptar` (mismas huellas, dudosos y contadores); el
+  cuadre de saldos sigue aplicando y la bitácora `confirmar` lleva
+  `datos.via = 'banco_levantado'`. Sin levantar, igual que antes.
+- Frontend: sección «Bancos» en la pantalla del dueño (mockup en
+  `Plataforma.dc.html` y `PlataformaClaro.dc.html`); la lectura de PDF solo
+  avisa que «quedan en espera» con `pendiente_vista_previa`.
+
+**Pendientes (3.6):** levantar no es reversible desde la API (sin operación
+inversa). Falta la verificación visual de «Bancos» en tema claro y oscuro. Los
+tests de cargas con banco levantado simulan el estado con un spy porque
+`arquitectura.spec` prohíbe que `cargas` nombre la tabla.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**
