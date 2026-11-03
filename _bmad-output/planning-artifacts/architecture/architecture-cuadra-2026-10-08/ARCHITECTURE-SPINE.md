@@ -15,6 +15,8 @@ companions: []
 
 # Architecture Spine — Cuadra v2
 
+> Enmendada el 3 nov 2026 (auditoría de las historias 1.1 a 3.6): desviaciones deliberadas de AD-2 registradas abajo. La clase 2 solo la escriben los módulos de identidad y dos archivos de infraestructura nombrados; una prueba de arquitectura lo vigila.
+
 ## Design Paradigm
 
 **Monolito modular** (ratifica la v1): un solo servicio NestJS, un módulo por capacidad, y la lógica de decisión como **funciones puras** sin Nest ni base de datos. El aislamiento entre empresas lo impone la base de datos (RLS), no el código.
@@ -46,8 +48,12 @@ flowchart LR
 - **Prevents:** una consulta que filtra por empresa "a mano" y se equivoca; datos de una empresa visibles a otra; una tabla nueva sin clasificar y con permisos de más; que `cuadra_app` necesite un permiso que nadie le dio.
 - **Rule:** toda tabla pertenece a una de tres clases y la migración que la crea declara cuál. Un solo rol de base de datos, `cuadra_app` (`NOBYPASSRLS`), con GRANTs exactos por clase:
   - **Clase 1, dominio** (`cargas`, `carga_archivos`, `cfdi`, `movimientos`, `decisiones`, `decision_lineas`, `decision_comentarios`, `bitacora`, `sugerencias_ia`, `evidencia_sombra`, `muestras_verificacion`): `company_id`, `ENABLE` y `FORCE ROW LEVEL SECURITY`, política sobre `current_setting('app.company_id')` y filtro `company_id` explícito en toda consulta. Sin `DELETE`; las de solo agregar (`bitacora`, `sugerencias_ia`, `evidencia_sombra`, `muestras_verificacion`) solo `SELECT` e `INSERT`.
-  - **Clase 2, identidad** (`companies`, `users`, `user_company_roles`, `sesiones`, `invitaciones`, `tokens_recuperacion`): sin RLS porque se leen antes de elegir empresa. Solo las tocan los módulos `auth` y `companies`. `DELETE` solo sobre `sesiones`, `invitaciones`, `tokens_recuperacion` y `user_company_roles` (quitar un rol, FR-45). Las columnas editables de `companies` se otorgan una por una.
+  - **Clase 2, identidad** (`companies`, `users`, `user_company_roles`, `sesiones`, `invitaciones`, `tokens_recuperacion`): sin RLS porque se leen antes de elegir empresa. Solo pueden **escribirlas** (`INSERT`/`UPDATE`/`DELETE`, por SQL o por repositorio de TypeORM) los módulos de identidad `auth`, `companies`, `usuarios`, `invitaciones`, `recuperacion` y `plataforma` (el dueño crea empresas, invita al primer administrador y restablece contraseñas), más dos excepciones nombradas que no son producto: `database/seeds/seed.ts` y `testing/sesion-de-pruebas.ts`. **Leerlas** (`SELECT`, `JOIN`, por ejemplo `JOIN users` para mostrar un nombre) puede hacerlo cualquier módulo. Las migraciones quedan fuera de la regla. Una prueba de arquitectura (`src/plataforma/arquitectura-identidad.spec.ts`) falla si otro archivo las escribe. `DELETE` solo sobre `sesiones`, `invitaciones`, `tokens_recuperacion` y `user_company_roles` (quitar un rol, FR-45). Las columnas editables de `companies` se otorgan una por una.
   - **Clase 3, plataforma** (`plataforma_usuarios`, `bancos_vista_previa`, `bitacora_plataforma`): sin `company_id` y sin RLS. Solo las referencia el módulo `plataforma/`; una prueba de arquitectura falla si otro módulo las nombra.
+  **Desviaciones deliberadas de AD-2** (auditoría del 3 nov 2026):
+  - `bitacora_plataforma.company_id` es informativo: nullable, sin clave foránea y sin RLS, porque una acción de plataforma puede no afectar a ninguna empresa y el rastro debe sobrevivir a ella (comentarios de la migración `1790709200000-PlataformaUsuarios.ts`).
+  - `movimientos_pendientes` (clase 1) tiene `DELETE` para `cuadra_app`: es una tabla de espera que se limpia al aceptar o rechazar la vista previa (`src/cargas/vista-previa.service.ts`, migración `1790710300000-VistaPreviaDecidida.ts`).
+  - `cargas_aceptadas_por_banco()` es la única salida de RLS del sistema (`SECURITY DEFINER`): devuelve solo banco y conteo, con `search_path` fijo y `EXECUTE` solo para `cuadra_app`. El rol que migra debe ser superusuario o tener `BYPASSRLS`. Solo `plataforma/` puede llamarla; la prueba de arquitectura de clase 3 vigila su nombre.
   Una petición abre una transacción que fija `app.company_id` (`TransaccionEmpresaInterceptor`); los workers usan `TransaccionEmpresa.ejecutar`. Los efectos externos (encolar, correo) van en `alConfirmar`, después del COMMIT. Los GRANTs viajan en la misma migración que la tabla.
 
 ### AD-3 — Nada cierra un caso sin una persona [ADOPTED]
@@ -258,9 +264,12 @@ flowchart TB
 ```text
 src/
   common/        # tipos.ts, decoradores, dinero
-  auth/          # sesión opaca, guards (empresa / plataforma), permisos
-  plataforma/    # rutas del dueño, bitacora_plataforma, bancos_vista_previa (clase 3)
-  companies/     # empresas, usuarios, roles, invitaciones, tolerancia, separacion_funciones
+  auth/          # sesión opaca, guards (empresa / plataforma), permisos (identidad)
+  plataforma/    # rutas del dueño, bitacora_plataforma, bancos_vista_previa (clase 3); también escribe identidad: crea empresas, invita al primer admin, restablece contraseñas
+  companies/     # empresas, roles, tolerancia, separacion_funciones (identidad)
+  usuarios/      # usuarios, roles, invitaciones pendientes (identidad)
+  invitaciones/  # aceptar una invitación (identidad)
+  recuperacion/  # recuperar contraseña (identidad)
   cargas/        # subida, cola, worker, estados de carga
   bancos/        # lectores puros por banco, cuadre común, extracción de texto
   cfdi/          # lector de CFDI, cancelación

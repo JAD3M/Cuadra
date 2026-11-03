@@ -10,6 +10,8 @@ export const NOMBRES_CLASE_3 = [
   'bitacora_plataforma',
   // Aún no existe; la regla queda puesta antes que la tabla.
   'bancos_vista_previa',
+  // Única función SECURITY DEFINER (salida de RLS): solo `plataforma/` la llama.
+  'cargas_aceptadas_por_banco',
   // Clases de entidad (y su nombre en `@Entity`/relaciones por string).
   'PlataformaUsuario',
   'BitacoraPlataforma',
@@ -63,6 +65,124 @@ export function buscarInfracciones(
         }
       }
     });
+  }
+  return infracciones;
+}
+
+/**
+ * AD-2, clase 2 (identidad). Quién puede ESCRIBIR (INSERT/UPDATE/DELETE) las
+ * tablas de identidad. Leerlas (SELECT, JOIN) lo puede hacer cualquier módulo.
+ */
+export const TABLAS_CLASE_2 = [
+  'companies',
+  'users',
+  'user_company_roles',
+  'sesiones',
+  'invitaciones',
+  'tokens_recuperacion',
+] as const;
+
+/** Entidades de TypeORM de esas tablas. */
+export const ENTIDADES_CLASE_2 = [
+  'Company',
+  'User',
+  'UserCompanyRole',
+  'Sesion',
+  'Invitacion',
+  'TokenRecuperacion',
+] as const;
+
+/** Módulos (primer segmento bajo `src/`) que pueden escribir la clase 2. */
+export const MODULOS_IDENTIDAD = [
+  'auth',
+  'companies',
+  'usuarios',
+  'invitaciones',
+  'recuperacion',
+  'plataforma',
+] as const;
+
+/** Infraestructura que no es producto y escribe identidad a propósito. */
+export const EXCEPCIONES_IDENTIDAD = [
+  // Siembra empresas, usuarios y roles de desarrollo.
+  'database/seeds/seed.ts',
+  // Abre una sesión directa para las pruebas de integración.
+  'testing/sesion-de-pruebas.ts',
+] as const;
+
+const METODOS_ESCRITURA = 'save|insert|update|delete|remove|softDelete|upsert';
+
+function lineaDe(texto: string, indice: number): number {
+  return texto.slice(0, indice).split('\n').length;
+}
+
+export function buscarEscriturasIdentidad(
+  archivos: readonly ArchivoFuente[],
+): Infraccion[] {
+  const infracciones: Infraccion[] = [];
+  const entidades = ENTIDADES_CLASE_2.join('|');
+  const tablas = TABLAS_CLASE_2.join('|');
+  for (const archivo of archivos) {
+    const { ruta } = archivo;
+    if (ruta.endsWith('.spec.ts')) continue;
+    if (ruta.startsWith('database/migrations/')) continue;
+    if ((MODULOS_IDENTIDAD as readonly string[]).includes(ruta.split('/')[0]))
+      continue;
+    if ((EXCEPCIONES_IDENTIDAD as readonly string[]).includes(ruta)) continue;
+    const codigo = sinComentarios(archivo.contenido);
+    const hallazgos: { nombre: string; indice: number }[] = [];
+    const buscar = (re: RegExp, grupo = 1): void => {
+      for (const m of codigo.matchAll(re)) {
+        hallazgos.push({ nombre: m[grupo], indice: m.index ?? 0 });
+      }
+    };
+    // SQL: INSERT INTO / UPDATE / DELETE FROM sobre una tabla de identidad.
+    buscar(
+      new RegExp(
+        `\\b(?:insert\\s+into|update|delete\\s+from)\\s+"?(${tablas})"?(?![\\w])`,
+        'gi',
+      ),
+    );
+    // TypeORM: `manager.save(User, ...)`, `getRepository(User).delete(...)`.
+    buscar(
+      new RegExp(`\\.(?:${METODOS_ESCRITURA})\\(\\s*(${entidades})\\b`, 'g'),
+    );
+    buscar(
+      new RegExp(
+        `getRepository\\(\\s*(${entidades})\\s*\\)\\s*\\.(?:${METODOS_ESCRITURA})\\(`,
+        'g',
+      ),
+    );
+    // QueryBuilder: `.into(User)`, `.delete().from(User)`.
+    buscar(new RegExp(`\\.into\\(\\s*(${entidades})\\s*\\)`, 'g'));
+    buscar(
+      new RegExp(`\\.delete\\(\\)\\s*\\.from\\(\\s*(${entidades})\\s*\\)`, 'g'),
+    );
+    // Repositorio inyectado: `@InjectRepository(Sesion) private repo` y luego
+    // `this.repo.save(...)`.
+    for (const m of codigo.matchAll(
+      new RegExp(
+        `InjectRepository\\(\\s*(${entidades})\\s*\\)\\s*(?:(?:private|public|protected)\\s+)?(?:readonly\\s+)?(\\w+)`,
+        'g',
+      ),
+    )) {
+      const uso = new RegExp(
+        `this\\.${m[2]}\\.(?:${METODOS_ESCRITURA})\\(`,
+        'g',
+      );
+      for (const u of codigo.matchAll(uso)) {
+        hallazgos.push({ nombre: m[1], indice: u.index ?? 0 });
+      }
+    }
+    hallazgos
+      .sort((a, b) => a.indice - b.indice)
+      .forEach((h) =>
+        infracciones.push({
+          ruta,
+          nombre: h.nombre,
+          linea: lineaDe(codigo, h.indice),
+        }),
+      );
   }
   return infracciones;
 }

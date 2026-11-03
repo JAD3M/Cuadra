@@ -44,12 +44,15 @@ RLS. Sí encontró desviaciones de forma que ningún test vigila:
 
 ## Tareas
 
-- [ ] T1 Enmendar el spine: B2 (módulos de identidad y regla de escritura), B3,
-  B5 y la excepción de B1.
-- [ ] T2 Prueba de arquitectura: solo los módulos autorizados escriben las tablas
-  de clase 2 (con fixtures sintéticos que demuestren que detecta una violación) y
-  `cargas_aceptadas_por_banco` queda vigilada como `bancos_vista_previa`.
-- [ ] T3 Bitácora y cierre.
+- [x] T1 Enmendar el spine: B2 (seis módulos de identidad escriben, dos
+  excepciones nombradas, lectura libre), B3, B5 y la excepción de B1. Evidencia:
+  `ARCHITECTURE-SPINE.md` (AD-2 clase 2, desviaciones, estructura de módulos).
+- [x] T2 Pruebas de arquitectura. RED observado (20 de 20 fallaban: la función
+  no existía), luego GREEN. `buscarEscriturasIdentidad` en
+  `src/plataforma/arquitectura.ts`, specs en `arquitectura-identidad.spec.ts`;
+  `cargas_aceptadas_por_banco` en `NOMBRES_CLASE_3`. Sin escrituras nuevas fuera
+  de la lista en el repositorio real.
+- [x] T3 Bitácora y cierre: entrada del 3 nov en `docs/bitacora.md`.
 
 ## Aceptación
 
@@ -59,3 +62,6 @@ que violan cada regla. El spine y la prueba dicen lo mismo.
 ## Progreso
 
 - 2026-11-03: documento creado, ninguna tarea iniciada.
+- 2026-11-03: decisión del usuario (opción A): `plataforma/` es módulo de
+  identidad; semillas y ayudante de pruebas son excepciones nombradas. T1-T3
+  hechas; arquitectura 27/27, suite completa, prettier, eslint y tsc verificados.
