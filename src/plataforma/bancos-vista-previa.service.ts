@@ -41,6 +41,7 @@ export class BancosVistaPrevia {
       return {
         banco,
         aceptadas: aceptadas.get(banco) ?? 0,
+        minimoAceptadas: MINIMO_CARGAS_ACEPTADAS,
         levantada: levantadaEn !== undefined,
         levantadaEn: levantadaEn ? levantadaEn.toISOString() : null,
       };
@@ -100,6 +101,7 @@ export class BancosVistaPrevia {
       return {
         banco,
         aceptadas,
+        minimoAceptadas: MINIMO_CARGAS_ACEPTADAS,
         levantada: true,
         levantadaEn: insertadas[0].levantadaEn.toISOString(),
       };

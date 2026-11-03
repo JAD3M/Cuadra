@@ -79,6 +79,13 @@ export class BancoPlataformaDto {
   })
   aceptadas!: number;
 
+  @ApiProperty({
+    example: 5,
+    description:
+      'Cargas aceptadas que el banco necesita para poder levantar su vista previa. Lo fija el servidor.',
+  })
+  minimoAceptadas!: number;
+
   @ApiProperty({ description: 'La vista previa obligatoria ya se levantó.' })
   levantada!: boolean;
 
