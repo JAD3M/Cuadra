@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
+import { rolesConPermiso } from '../auth/permisos/matriz';
 import { AccesosDenegados } from '../bitacora/accesos-denegados';
 import { Bitacora } from '../bitacora/bitacora.entity';
 import { tomarCandadoDeConciliacion } from '../conciliacion/candado';
@@ -41,8 +42,6 @@ interface LadoBloqueado {
   estado: string;
   cargaId: string | null;
 }
-
-const ROLES_DE_RESOLUCION: Rol[] = ['admin', 'contador', 'revisor'];
 
 /**
  * CU-15. Resuelve una propuesta de conciliación. Todo corre en la
@@ -236,7 +235,7 @@ export class ResolucionService {
       userId: quien.userId,
       metodo: quien.metodo,
       ruta: quien.ruta,
-      rolesRequeridos: ROLES_DE_RESOLUCION,
+      rolesRequeridos: [...rolesConPermiso('conciliaciones.resolver')],
       rolesDelUsuario: roles.map((fila) => fila.rol),
       ip: quien.ip,
       userAgent: quien.userAgent,
