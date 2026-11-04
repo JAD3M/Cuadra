@@ -87,8 +87,9 @@ Estimación de planificación: ~400 líneas en total; un solo PR.
   `deriva.test.ts` pasa de 13 a 15 listas.
 - Suite completa: 1643/1644; falla `src/plataforma/plataforma.esquema.spec.ts`
   (prueba de reversibilidad) porque deshace migraciones desde la última y
-  ahora la primera es `TablasDecisiones`. Pendiente: anteponer su undo a esa
-  prueba (archivo fuera de la superficie autorizada).
+  ahora la primera es `TablasDecisiones`. Resuelto por el padre: se antepuso
+  su undo a esa prueba; las suites afectadas pasan (8/8, 138 pruebas).
+- Commit: `01063ae`.
 - `tsc --noEmit`, `eslint src` y `prettier --check src` limpios.
 
 ## Siguiente paso
