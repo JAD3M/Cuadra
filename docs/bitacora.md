@@ -5,6 +5,39 @@
 
 ### 3 nov 2026
 
+- **Historia 3.7 de la v2: ver el historial de cargas y el motivo de una carga
+  rechazada.** Rama `feat/v2-3-7-historial-de-cargas` con ODD, documento
+  `odd/tasks/v2-3-7-historial-de-cargas.md`. Sin PR todavía. La lista, el enlace
+  a la vista previa y el aislamiento por empresa ya existían; faltaba abrir una
+  carga rechazada y ver el motivo.
+  - **T1:** migración `1790710600000-MotivoRechazoCarga` (`motivo_rechazo` en
+    `cargas`); `POST /cargas/:id/rechazar` acepta `motivo` opcional (texto,
+    recortado, máximo 500) y, si falta o va en blanco, guarda «Descartada desde
+    la vista previa». RED con 5 fallos; GREEN con 79 suites / 1616 pruebas.
+  - **T2:** `GET /cargas/:id` expone `motivoRechazo`; 404 para carga de otra
+    empresa y 403 sin permiso. RED con 3 fallos; GREEN con 79 suites / 1621
+    pruebas.
+  - **T3:** campo «Motivo (opcional)» en la Vista previa y fila `rechazada`
+    expandible en Cargas (una abierta a la vez). Mockups 4 y 18 actualizados y
+    aprobados antes de escribir el código. RED con 29 fallos en 6 archivos;
+    GREEN con 291 archivos / 4718 pruebas, typecheck, eslint y prettier.
+  - **Revisión nativa:** T1+T2 y T3 aprobadas, sin hallazgos bloqueantes. A
+    sugerencia de la revisión se añadieron dos pruebas de caracterización: motivo
+    que no es texto (400) y motivo de exactamente 500 caracteres (200); pasaron a
+    la primera, sin RED, porque el DTO ya lo hacía.
+  - **Decisión (opción A):** solo cuenta el descarte de la vista previa. Un PDF
+    que no cuadra sigue sin crear carga (AD-8) y su rechazo se ve al subir y como
+    entrada `rechazar` en la bitácora.
+  - **Decisión:** el texto de las líneas no leídas no se guarda. `cargas.service`
+    rechaza con 400 un PDF con una sola línea no leída antes de crear la carga
+    (AD-8), así que una carga en `pendiente_vista_previa` nunca las trae.
+  - **Decisión:** las etiquetas en español de los estados se quedan en el
+    frontend; UX-DR4 y AD-12 piden que salgan de `tipos.ts` las listas de
+    valores, no las etiquetas. El frontend pide el motivo a `GET /cargas/:id` al
+    expandir la fila, porque `GET /cargas` no lo trae.
+  - **Fuera de alcance:** crear la carga `rechazada` por cuadre o líneas
+    ilegibles, con motivo y líneas. Sería historia aparte, solo si el contador lo
+    necesita, y exige enmendar AD-8. Sin verificación visual en navegador.
 - **Auditoría de arquitectura de las historias 1.1 a 3.6 y enmienda del
   spine.** Rama `chore/v2-enmienda-spine`, documento
   `odd/tasks/v2-enmienda-spine.md`. La auditoría no encontró fugas entre

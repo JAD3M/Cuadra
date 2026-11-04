@@ -67,20 +67,23 @@ filas no son clicables y descartar una vista previa
   2026-11-03: las líneas no leídas no existen en una vista previa; ver Decisiones.)
   Evidencia 2026-11-03: RED (5 fallos: columna `motivo_rechazo` inexistente y 200 en vez de 400),
   GREEN con `npm test` 79 suites / 1616 pruebas, tsc, eslint y prettier limpios. Migración
-  `1790710600000-MotivoRechazoCarga`. Ruta: delegada (escritor único). Commit: pendiente del padre.
+  `1790710600000-MotivoRechazoCarga`. Ruta: delegada (escritor único). Commit: c437a3e.
 - [x] T2 Backend: `GET /cargas/:id` expone el motivo de una carga `rechazada`; pruebas de 404 para carga de otra empresa y 403 sin permiso.
   Evidencia 2026-11-03: RED (3 fallos: falta `motivoRechazo` en la respuesta), GREEN con `npm test`
   79 suites / 1621 pruebas, tsc, eslint y prettier limpios. `motivo_rechazo` entra a `SQL_ESTADO`
   (también lo ven las respuestas del POST); se actualizó el `toEqual` de `cargas.integracion.spec.ts`.
-  Ruta: delegada (escritor único). Commit: pendiente del padre.
+  Ruta: delegada (escritor único). Commit: 87fb471.
 - [x] T3 Frontend: mockup primero (Cargas y el campo opcional en la Vista previa), acordado con el usuario; luego fila clicable y detalle de la carga
   rechazada (motivo); espejo de tipos si cambian.
   Evidencia 2026-11-03: RED (29 fallos en 6 archivos: campo ausente, contrato sin `motivoRechazo`, fila sin botón, CSS sin clases),
   GREEN con `npm test` 291 archivos / 4718 pruebas, typecheck, eslint y prettier limpios. Vista previa: campo «Motivo (opcional)»
   (`ConfirmarRechazo`), el cuerpo `{motivo}` solo si el texto recortado no está vacío. Cargas: fila `rechazada` expandible
   (botón de 44 px + clic en la fila, una abierta a la vez), `GET /cargas/:id` al abrir (`useDetalleCarga`, misma clave que el sondeo).
-  Sin verificación visual en navegador. Ruta: delegada (escritor único). Commit: pendiente del padre.
-- [ ] T4 Docs: `docs/bitacora.md` y `CUADRA.md`.
+  Sin verificación visual en navegador. Ruta: delegada (escritor único). Commit: 7ba0f23.
+- [x] T4 Docs: `docs/bitacora.md` y `CUADRA.md`.
+  Evidencia 2026-11-03: entrada 3.7 en la bitácora y sección «Motivo del descarte (v2, historia 3.7)» en `CUADRA.md`.
+  Dos pruebas de caracterización en `vista-previa.integracion.spec.ts` (motivo numérico: 400; motivo de 500 caracteres: 200 y guardado):
+  pasaron a la primera, sin RED, porque el DTO ya lo implementa. Suite: 54 pruebas pasan. Ruta: delegada (escritor único).
 
 ## Aceptación
 
@@ -94,3 +97,6 @@ Pendiente. Se registra por tarea (inline o delegada, commit).
 
 - 2026-11-03: exploración hecha, documento creado, rama creada, ninguna tarea
   iniciada.
+- 2026-11-03: T1-T3 commiteadas (c437a3e, 87fb471, 7ba0f23). Revisión nativa de
+  T1+T2 y de T3 aprobadas, sin hallazgos bloqueantes. T4 hecha. PR pendiente
+  (lo abre el padre).
