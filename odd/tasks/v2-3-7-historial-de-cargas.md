@@ -79,7 +79,7 @@ filas no son clicables y descartar una vista previa
   GREEN con `npm test` 291 archivos / 4718 pruebas, typecheck, eslint y prettier limpios. Vista previa: campo «Motivo (opcional)»
   (`ConfirmarRechazo`), el cuerpo `{motivo}` solo si el texto recortado no está vacío. Cargas: fila `rechazada` expandible
   (botón de 44 px + clic en la fila, una abierta a la vez), `GET /cargas/:id` al abrir (`useDetalleCarga`, misma clave que el sondeo).
-  Sin verificación visual en navegador. Ruta: delegada (escritor único). Commit: 7ba0f23.
+  Sin verificación visual en navegador. Ruta: delegada (escritor único). Commit: ec613a4.
 - [x] T4 Docs: `docs/bitacora.md` y `CUADRA.md`.
   Evidencia 2026-11-03: entrada 3.7 en la bitácora y sección «Motivo del descarte (v2, historia 3.7)» en `CUADRA.md`.
   Dos pruebas de caracterización en `vista-previa.integracion.spec.ts` (motivo numérico: 400; motivo de 500 caracteres: 200 y guardado):
@@ -97,6 +97,6 @@ Pendiente. Se registra por tarea (inline o delegada, commit).
 
 - 2026-11-03: exploración hecha, documento creado, rama creada, ninguna tarea
   iniciada.
-- 2026-11-03: T1-T3 commiteadas (c437a3e, 87fb471, 7ba0f23). Revisión nativa de
+- 2026-11-03: T1-T3 commiteadas (c437a3e, 87fb471, ec613a4). Revisión nativa de
   T1+T2 y de T3 aprobadas, sin hallazgos bloqueantes. T4 hecha. PR pendiente
   (lo abre el padre).
