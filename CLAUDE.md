@@ -52,6 +52,12 @@ historias. Al terminar una, corre los tests, agrega la entrada en
 
 Antes de proponer o escribir nada, en este orden:
 
+0. **Reglas y contexto:** lee `CUADRA.md` (no se carga solo) y ten
+   presentes las «Reglas no negociables» de arriba. Los escritores y
+   explicadores delegados parten en frío y no heredan este archivo:
+   copia en cada prompt las reglas que aplican (`company_id`, `NUMERIC`,
+   RLS, el motor decide y la IA solo sugiere, un falso positivo es peor
+   que no conciliar).
 1. **Epics:** `_bmad-output/planning-artifacts/epics.md`. Ubica la
    historia que sigue (la v2 se numera por épica: 4.1, 4.2…) y lee sus
    criterios de aceptación completos.
