@@ -1,4 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
+import { IsOptional, IsString, MaxLength } from 'class-validator';
 
 /**
  * Historia 3.5: qué pasará con cada movimiento leído al aceptar. El frontend
@@ -98,4 +100,26 @@ export class AceptacionDto {
 export class RechazoDto {
   @ApiProperty() cargaId!: string;
   @ApiProperty({ example: 'rechazada' }) estado!: 'rechazada';
+}
+
+export const MOTIVO_RECHAZO_MAXIMO = 500;
+
+/** Historia 3.7: lo que se guarda si el descarte no trae motivo. */
+export const MOTIVO_RECHAZO_POR_DEFECTO = 'Descartada desde la vista previa';
+
+/** Historia 3.7: cuerpo opcional de `POST /cargas/:id/rechazar`. */
+export class RechazarVistaPreviaDto {
+  @ApiPropertyOptional({
+    maxLength: MOTIVO_RECHAZO_MAXIMO,
+    description: `Por qué se descarta. Si se omite o va vacío se guarda "${MOTIVO_RECHAZO_POR_DEFECTO}".`,
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => {
+    if (typeof value !== 'string') return value;
+    const recortado = value.trim();
+    return recortado === '' ? undefined : recortado;
+  })
+  @IsString()
+  @MaxLength(MOTIVO_RECHAZO_MAXIMO)
+  motivo?: string;
 }

@@ -241,9 +241,17 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 });
 
 describe('migración reversible', () => {
-  it('down y up de BancosVistaPrevia, HuellaMovimientos, VistaPreviaDecidida, PendienteVistaPrevia, CambiarQuitarRoles, InvitacionesCancelables, InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
+  it('down y up de MotivoRechazoCarga, BancosVistaPrevia, HuellaMovimientos, VistaPreviaDecidida, PendienteVistaPrevia, CambiarQuitarRoles, InvitacionesCancelables, InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
     // Las tres últimas son de cargas (historias 3.5, 3.4 y 3.3), ajenas a la
     // plataforma: solo se deshacen para llegar a las que sí lo son.
+    // MotivoRechazoCarga: quita `cargas.motivo_rechazo`.
+    await duenio.undoLastMigration();
+    const { n: motivos } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM information_schema.columns
+        WHERE table_name = 'cargas' AND column_name = 'motivo_rechazo'`,
+    );
+    expect(motivos).toBe(0);
     // BancosVistaPrevia: quita la tabla, la función y la acción del CHECK.
     await duenio.undoLastMigration();
     const { n: bancos } = await una<{ n: number }>(

@@ -776,6 +776,7 @@ describe('GET /cargas/:id (CU-06, CU-07, CU-08)', () => {
       dudosos: 0,
       resultados: [{ archivo: 'transportes.xml', resultado: 'nuevo' }],
       errorMensaje: null,
+      motivoRechazo: null,
     });
   });
 

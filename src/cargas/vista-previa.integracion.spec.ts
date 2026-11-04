@@ -6,6 +6,7 @@ import { ColaSugerencias } from '../sugerencias/cola-sugerencias';
 import { huellaMovimiento } from '../bancos/huella-movimiento';
 import { filas, una } from '../database/testing/base-de-pruebas';
 import request from '../testing/supertest-con-origen';
+import { MOTIVO_RECHAZO_POR_DEFECTO } from './dto/vista-previa.dto';
 import {
   ANA,
   type AppDeCargas,
@@ -93,9 +94,11 @@ async function llamar(
   correo: string | null,
   esperado: number,
   rfc: string = FERRETERIA,
+  cuerpo?: object,
 ) {
   let req = request(entorno.app.getHttpServer())[metodo](ruta);
   if (correo) req = req.set('Cookie', await entorno.token(correo, rfc));
+  if (cuerpo) req = req.send(cuerpo);
   return req.expect(esperado);
 }
 
@@ -517,6 +520,87 @@ describe('POST /cargas/:id/rechazar (T4)', () => {
       'rechazada',
     );
     await llamar('get', `/cargas/${cargaId}/vista-previa`, LUIS, 404);
+  });
+
+  async function motivoGuardado(cargaId: string): Promise<string | null> {
+    const { motivo_rechazo } = await una<{ motivo_rechazo: string | null }>(
+      ds,
+      `SELECT motivo_rechazo FROM cargas WHERE id = $1`,
+      [cargaId],
+    );
+    return motivo_rechazo;
+  }
+
+  it('con motivo: se guarda recortado en la carga y la bitácora no lo lleva', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200, FERRETERIA, {
+      motivo: '  Es el estado de otra cuenta  ',
+    });
+    expect(await motivoGuardado(cargaId)).toBe('Es el estado de otra cuenta');
+    const [entrada] = await bitacoraDe(cargaId, 'rechazar');
+    expect(entrada.datos).not.toHaveProperty('motivo');
+  });
+
+  it('sin cuerpo: se guarda el mensaje fijo del backend', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    expect(await motivoGuardado(cargaId)).toBe(MOTIVO_RECHAZO_POR_DEFECTO);
+    expect(MOTIVO_RECHAZO_POR_DEFECTO).toBe('Descartada desde la vista previa');
+  });
+
+  it('con motivo en blanco: se guarda el mensaje fijo', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200, FERRETERIA, {
+      motivo: '   ',
+    });
+    expect(await motivoGuardado(cargaId)).toBe(MOTIVO_RECHAZO_POR_DEFECTO);
+  });
+
+  it('con motivo de más de 500 caracteres: 400 y la vista previa sigue en espera', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 400, FERRETERIA, {
+      motivo: 'x'.repeat(501),
+    });
+    expect(await motivoGuardado(cargaId)).toBeNull();
+    expect((await pendientesDe(cargaId)).n).toBe(2);
+  });
+
+  it('con motivo que no es texto: 400 y la carga sigue pendiente_vista_previa', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 400, FERRETERIA, {
+      motivo: 123,
+    });
+    expect(await motivoGuardado(cargaId)).toBeNull();
+    const { estado } = await una<{ estado: string }>(
+      ds,
+      `SELECT estado FROM cargas WHERE id = $1`,
+      [cargaId],
+    );
+    expect(estado).toBe('pendiente_vista_previa');
+  });
+
+  it('con motivo de exactamente 500 caracteres: se acepta y se guarda completo', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    const motivo = 'x'.repeat(500);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200, FERRETERIA, {
+      motivo,
+    });
+    expect(await motivoGuardado(cargaId)).toBe(motivo);
+  });
+
+  it('con motivo de una carga ajena: 404 y no se guarda nada', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar(
+      'post',
+      `/cargas/${cargaId}/rechazar`,
+      CARMEN,
+      404,
+      TRANSPORTES,
+      {
+        motivo: 'No es mía',
+      },
+    );
+    expect(await motivoGuardado(cargaId)).toBeNull();
   });
 
   it('rechazar dos veces: la segunda es 409 y no duplica la bitácora', async () => {
@@ -1054,5 +1138,51 @@ describe('huellas al aceptar (3.5, T4)', () => {
     expect(n).toBe(2);
     await ds.query(`DELETE FROM movimientos WHERE carga_id = $1`, [csvFin.id]);
     await ds.query(`DELETE FROM cargas WHERE id = $1`, [csvFin.id]);
+  });
+});
+
+describe('GET /cargas/:id expone el motivo del descarte (3.7 T2)', () => {
+  it('descartada con motivo escrito: lo devuelve recortado', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200, FERRETERIA, {
+      motivo: '  Es el estado de otra cuenta  ',
+    });
+    const res = await llamar('get', `/cargas/${cargaId}`, LUIS, 200);
+    expect(res.body).toMatchObject({
+      id: cargaId,
+      estado: 'rechazada',
+      motivoRechazo: 'Es el estado de otra cuenta',
+    });
+  });
+
+  it('descartada sin motivo: devuelve el mensaje fijo, y el admin también la ve', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    const res = await llamar('get', `/cargas/${cargaId}`, ANA, 200);
+    expect(res.body).toMatchObject({
+      estado: 'rechazada',
+      motivoRechazo: MOTIVO_RECHAZO_POR_DEFECTO,
+    });
+  });
+
+  it('una carga nunca descartada devuelve motivoRechazo null', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    const res = await llamar('get', `/cargas/${cargaId}`, LUIS, 200);
+    expect(res.body).toMatchObject({
+      estado: 'pendiente_vista_previa',
+      motivoRechazo: null,
+    });
+  });
+
+  it('una carga de otra empresa: 404', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    await llamar('get', `/cargas/${cargaId}`, CARMEN, 404, TRANSPORTES);
+  });
+
+  it('sin sesión: 401; revisor: 403', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('get', `/cargas/${cargaId}`, null, 401);
+    await llamar('get', `/cargas/${cargaId}`, JORGE, 403, TRANSPORTES);
   });
 });

@@ -22,6 +22,7 @@ import type {
   RechazoDto,
   VistaPreviaDto,
 } from './dto/vista-previa.dto';
+import { MOTIVO_RECHAZO_POR_DEFECTO } from './dto/vista-previa.dto';
 
 /** La clase del clasificador (`exacto`) con el nombre que ve la vista previa. */
 const CLASE_VISTA_PREVIA: Record<ClaseDeHuella, ClaseMovimientoVistaPrevia> = {
@@ -256,6 +257,7 @@ export class VistaPreviaService {
     companyId: string,
     cargaId: string,
     actor: Actor,
+    motivo?: string,
   ): Promise<RechazoDto> {
     const manager = this.contexto.manager();
     const carga = await this.bloquearEnEspera(manager, companyId, cargaId);
@@ -268,9 +270,10 @@ export class VistaPreviaService {
       [cargaId, companyId],
     );
     await manager.query(
-      `UPDATE cargas SET estado = 'rechazada', updated_at = now()
+      `UPDATE cargas SET estado = 'rechazada', motivo_rechazo = $3,
+              updated_at = now()
         WHERE id = $1 AND company_id = $2`,
-      [cargaId, companyId],
+      [cargaId, companyId, motivo?.trim() || MOTIVO_RECHAZO_POR_DEFECTO],
     );
     await manager.insert(Bitacora, {
       companyId,

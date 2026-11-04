@@ -43,6 +43,7 @@ import {
 } from './cargas.service';
 import {
   AceptacionDto,
+  RechazarVistaPreviaDto,
   RechazoDto,
   VistaPreviaDto,
 } from './dto/vista-previa.dto';
@@ -239,12 +240,18 @@ export class CargasController {
     @UsuarioActual() usuario: Sesion,
     @Param('id', ParseUUIDPipe) id: string,
     @Req() solicitud: Request,
+    @Body() cuerpo: RechazarVistaPreviaDto,
   ): Promise<RechazoDto> {
-    return this.vistaPrevia.rechazar(usuario.companyId, id, {
-      userId: usuario.userId,
-      ip: solicitud.ip,
-      userAgent: solicitud.headers['user-agent'],
-    });
+    return this.vistaPrevia.rechazar(
+      usuario.companyId,
+      id,
+      {
+        userId: usuario.userId,
+        ip: solicitud.ip,
+        userAgent: solicitud.headers['user-agent'],
+      },
+      cuerpo?.motivo,
+    );
   }
 
   /** La empresa sale del token; un `companyId` en la query no se lee. */
