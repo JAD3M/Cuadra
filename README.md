@@ -61,11 +61,12 @@ Cuadra demo contra http://localhost:3000
 
   Regla                              Movimientos
   llm_sugerencia                        4
+  moneda_no_soportada                   1
   monto_candidato_ocupado               1
   monto_multiples_candidatos            1
   monto_unico                           7
   referencia_ambigua                    1
-  referencia_cfdi_no_compatible         2
+  referencia_cfdi_no_compatible         1
   referencia_monto_diferente            1
   referencia_monto_exacto              13
   sin_candidato_monto                  11

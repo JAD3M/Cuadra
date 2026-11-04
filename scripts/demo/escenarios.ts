@@ -417,7 +417,7 @@ function escenariosExplicitos(): EscenarioDemo[] {
           '10150.00',
           'A-4002',
           'SPEI RECIBIDO CLIENTE ETA',
-          igual(sin('referencia_cfdi_no_compatible')),
+          igual(sin('moneda_no_soportada')),
         ),
       ],
     },

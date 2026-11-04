@@ -28,11 +28,29 @@ const ESTADOS = ['confirmada', 'propuesta', 'rechazada'] as const;
 
 let ds: DataSource;
 
+/**
+ * Deshace las migraciones posteriores a RetirarConciliaciones (4.3), para que
+ * este spec siga partiendo de ella como última aunque se agreguen más después.
+ * Devuelve cuántas deshizo, para volver a aplicarlas al terminar.
+ */
+async function deshacerPosterioresAlRetiro(ds: DataSource): Promise<number> {
+  let n = 0;
+  for (;;) {
+    const [ultima] = await ds.query<{ t: string }[]>(
+      `SELECT max(timestamp)::bigint AS t FROM migrations`,
+    );
+    if (Number(ultima.t) <= 1790711000000) return n;
+    await ds.undoLastMigration();
+    n++;
+  }
+}
+
 beforeAll(async () => {
   const url = urlDePruebas();
   await crearBaseDePruebas(url);
   ds = await new DataSource({ ...opcionesDataSource, url }).initialize();
   await ds.runMigrations();
+  await deshacerPosterioresAlRetiro(ds);
   // La 4.3 retiró `conciliaciones`; esta migración de la 4.1 sigue en el
   // historial y copia desde ella. Se deshace el retiro (que recrea la tabla,
   // vacía) para probar la copia tal como corrió entonces.
