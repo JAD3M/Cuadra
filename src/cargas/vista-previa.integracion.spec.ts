@@ -565,6 +565,29 @@ describe('POST /cargas/:id/rechazar (T4)', () => {
     expect((await pendientesDe(cargaId)).n).toBe(2);
   });
 
+  it('con motivo que no es texto: 400 y la carga sigue pendiente_vista_previa', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 400, FERRETERIA, {
+      motivo: 123,
+    });
+    expect(await motivoGuardado(cargaId)).toBeNull();
+    const { estado } = await una<{ estado: string }>(
+      ds,
+      `SELECT estado FROM cargas WHERE id = $1`,
+      [cargaId],
+    );
+    expect(estado).toBe('pendiente_vista_previa');
+  });
+
+  it('con motivo de exactamente 500 caracteres: se acepta y se guarda completo', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    const motivo = 'x'.repeat(500);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200, FERRETERIA, {
+      motivo,
+    });
+    expect(await motivoGuardado(cargaId)).toBe(motivo);
+  });
+
   it('con motivo de una carga ajena: 404 y no se guarda nada', async () => {
     const cargaId = await subirPdf(LUIS, FERRETERIA);
     await llamar(
