@@ -5,6 +5,30 @@
 
 ### 4 nov 2026
 
+- **Historia 4.4 de la v2: proponer una pareja de factura y pago, con su regla y
+  confianza.** Rama `feat/v2-4-4-pareja-factura-pago` con ODD, documento
+  `odd/tasks/v2-4-4-pareja-factura-pago.md` (KAN-140). El motor de la 4.2 ya
+  cubría los criterios 1, 2 y 4; esta historia cerró lo que faltaba.
+  - **Moneda no soportada (AC3):** un CFDI que no está en MXN nunca es candidato,
+    ni por referencia ni por monto. Si la referencia del movimiento apunta a uno,
+    el caso queda con el motivo nuevo `moneda_no_soportada` (migración
+    `1790712000000-MonedaNoSoportada`, que ensancha el CHECK de
+    `regla_sin_match`). Los movimientos siempre son MXN; los specs que esperaban
+    empate USD con USD eran sintéticos y se corrigieron.
+  - **Nivel de confianza (AC6):** `NIVELES_CONFIANZA` en `tipos.ts` (una sola
+    lista, la reutiliza la IA) y `nivelDeConfianza(score)` derivado de las
+    puntuaciones de las reglas: regla 1 `alta`, regla 2 `media`, regla 3 `baja`.
+    El caso lo expone junto a `score` y `regla`, solo para `origen = regla`: una
+    propuesta del LLM guarda 0.5 y habría salido «media». El orden de AC2 ya lo
+    daba `ORDER BY score DESC`; ahora tiene su prueba.
+  - **Prueba de arquitectura (AC5):** ni el motor ni la IA escriben una decisión
+    `confirmada` (ni las columnas de la persona). Se comprobó por mutación.
+  - **Suite del backend:** 86 suites, 1748 pruebas; frontend verde.
+  - **Revisión nativa** de T1+T2 (riesgo medio): aprobada. Seguimiento opcional:
+    probar directamente el `down` de la migración nueva.
+  - **Pendiente:** la pantalla del caso aún no muestra el nivel (contrato
+    `contratos/caso.ts`); requiere actualizar antes el mockup.
+
 - **Historia 4.3 de la v2: retirar la tabla vieja de conciliaciones.** Rama
   `feat/v2-4-3-retirar-conciliaciones` con ODD, documento
   `odd/tasks/v2-4-3-retirar-conciliaciones.md` (KAN-139). Paso 4 de AD-20.

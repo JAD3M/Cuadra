@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { ContextoEmpresa } from '../database/contexto-empresa';
 import type { EstadoMovimiento } from '../common/entities/tipos';
 import type { EstadoBandeja } from '../bandeja/dto/bandeja.dto';
+import { nivelDeConfianza } from '../conciliacion/evaluar-par';
 import type { PropuestaCasoDto, RespuestaCasoDto } from './dto/caso.dto';
 
 /**
@@ -140,6 +141,8 @@ function aPropuesta(f: FilaSql): PropuestaCasoDto {
     origen: f.origen as PropuestaCasoDto['origen'],
     score: f.score,
     regla: f.regla,
+    // Solo el motor de reglas tiene nivel; el LLM y lo manual quedan en null.
+    confianza: f.origen === 'regla' ? nivelDeConfianza(f.score) : null,
     motivo: f.motivo,
     diferenciaMonto: f.diferencia_monto,
     confirmadaAt: f.confirmada_at ? f.confirmada_at.toISOString() : null,

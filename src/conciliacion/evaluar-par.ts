@@ -1,6 +1,6 @@
 // src/conciliacion/evaluar-par.ts
 import { aTexto, CERO, dinero, type Dinero } from '../common/dinero';
-import type { ReglaSinMatch } from '../common/entities/tipos';
+import type { NivelConfianza, ReglaSinMatch } from '../common/entities/tipos';
 import { clavesDeCfdi, esReferenciaUsable } from './referencia-normalizer';
 
 /**
@@ -15,6 +15,24 @@ export const REGLA_MONTO_UNICO = 'monto_unico';
 export const SCORE_REFERENCIA_MONTO_EXACTO = 1.0;
 export const SCORE_REFERENCIA_MONTO_DIFERENTE = 0.5;
 export const SCORE_MONTO_UNICO = 0.4;
+
+/**
+ * Nivel de confianza de la propuesta de una regla, derivado de su puntuación:
+ * regla 1 alta, regla 2 media, regla 3 baja. Los umbrales salen de las
+ * constantes de arriba. Un score nulo, no numérico o fuera del rango de las
+ * reglas devuelve null: nunca cae en 'alta' por omisión.
+ */
+export function nivelDeConfianza(
+  score: number | string | null | undefined,
+): NivelConfianza | null {
+  if (score === null || score === undefined || score === '') return null;
+  const n = typeof score === 'number' ? score : Number(score);
+  if (!Number.isFinite(n)) return null;
+  if (n > SCORE_REFERENCIA_MONTO_EXACTO || n < SCORE_MONTO_UNICO) return null;
+  if (n >= SCORE_REFERENCIA_MONTO_EXACTO) return 'alta';
+  if (n >= SCORE_REFERENCIA_MONTO_DIFERENTE) return 'media';
+  return 'baja';
+}
 
 export type ReglaConciliacion =
   | typeof REGLA_REFERENCIA_MONTO_EXACTO

@@ -56,9 +56,9 @@ ya existen. Mapeo del 2026-11-04 contra los 6 criterios:
 - [x] **T1** Moneda no soportada (AC3): motivo `moneda_no_soportada` en `tipos.ts`
   y migración del CHECK, el motor excluye CFDI no-MXN, el caso lo muestra; specs
   USD corregidos.
-- [ ] **T2** Nivel de confianza (AC6) y orden (AC2): `nivelDeConfianza(score)`,
+- [x] **T2** Nivel de confianza (AC6) y orden (AC2): `nivelDeConfianza(score)`,
   expuesto en el caso, spec de coincidencia con la puntuación y del orden.
-- [ ] **T3** Prueba de arquitectura (AC5): el motor y la IA no escriben `confirmada`.
+- [x] **T3** Prueba de arquitectura (AC5): el motor y la IA no escriben `confirmada`.
 - [ ] **T4** Cierre: bitácora, `CUADRA.md`, Jira KAN-140, PR y repaso.
 
 ## Rutas
@@ -75,4 +75,27 @@ T1 hecha en `5f78244`. Ruta: delegada, un escritor (disparador: 2+ archivos no
 triviales y una migración). RED observado en `evaluar-par.spec.ts` (2 fallos antes
 del motor). Backend 84 suites / 1725 pruebas verdes con `--runInBand`; lint,
 prettier y frontend verdes. Revisión nativa: riesgo medio, `under_budget`, sin
-revisión debida todavía (el rango se acumula hasta ~400 líneas). Siguiente: T2.
+revisión debida todavía (el rango se acumula hasta ~400 líneas).
+
+T2 hecha en `e488934`. Ruta: delegada, un escritor (disparador: 2+ archivos no
+triviales). RED observado: 6 pruebas fallidas antes de implementar. El nivel solo
+se calcula para `origen = regla` (una propuesta del LLM guarda score 0.5 y se
+vería como «media»; queda `null`). `CONFIANZAS` de sugerencias ahora apunta a
+`NIVELES_CONFIANZA` (una sola lista). El orden de AC2 ya lo daba
+`ORDER BY score DESC`; ahora tiene su prueba. Backend 85 suites / 1731 pruebas,
+lint, prettier y frontend verdes (verificado por el padre). La pantalla del caso
+aún no muestra el nivel; el contrato zod `contratos/caso.ts` ignora la clave nueva
+(fuera de alcance, requiere mockup).
+
+Revisión nativa de T1+T2 (rango desde el punto de ramificación, riesgo medio,
+464 líneas, `slice_budget_reached`): consentimiento concedido por el usuario,
+lente `review-reliability`, **aprobada** y acusada. Un hallazgo no bloqueante
+(R3-001): el `down` de `MonedaNoSoportada` no tiene prueba directa; queda como
+trabajo posterior, no reabre la revisión.
+
+T3 hecha en `51cfc6f`. Ruta: inline (un archivo nuevo, patrón de la 4.3 ya
+entendido). Excepción de RED: el repositorio ya cumplía, así que no hay RED
+natural; se comprobó con mutación (violaciones inyectadas en `evaluar-par.ts` y
+`sugerencias/candidatos.ts` hicieron fallar la prueba, luego revertidas) y con un
+control de que el módulo `resolucion/`, donde la persona confirma, sí se detecta.
+Backend 86 suites / 1748 pruebas, lint y prettier verdes. Siguiente: T4.

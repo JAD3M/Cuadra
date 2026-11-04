@@ -2,6 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   ESTADOS_MOVIMIENTO,
   type EstadoMovimiento,
+  NIVELES_CONFIANZA,
+  type NivelConfianza,
   ORIGENES_CONCILIACION,
   type OrigenConciliacion,
 } from '../../common/entities/tipos';
@@ -56,6 +58,13 @@ export class PropuestaCasoDto {
   @ApiProperty({ nullable: true, type: String, example: '0.9500' })
   score: string | null;
   @ApiProperty({ nullable: true, type: String }) regla: string | null;
+  @ApiProperty({
+    enum: NIVELES_CONFIANZA,
+    nullable: true,
+    description:
+      'Derivado del score de la regla (alta/media/baja); null si no lo propuso el motor de reglas.',
+  })
+  confianza: NivelConfianza | null;
   @ApiProperty({ nullable: true, type: String }) motivo: string | null;
   @ApiProperty({ nullable: true, type: String, example: '-0.0040' })
   diferenciaMonto: string | null;
