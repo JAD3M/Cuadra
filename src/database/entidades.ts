@@ -10,6 +10,8 @@ import { Sesion } from '../auth/sesion.entity';
 import { Cfdi } from '../cfdi/cfdi.entity';
 import { Company } from '../companies/company.entity';
 import { Conciliacion } from '../conciliacion/conciliacion.entity';
+import { Decision } from '../conciliacion/decision.entity';
+import { DecisionLinea } from '../conciliacion/decision-linea.entity';
 import { Movimiento } from '../bancos/movimiento.entity';
 import { MovimientoPendiente } from '../bancos/movimiento-pendiente.entity';
 import { BancoVistaPrevia } from '../plataforma/banco-vista-previa.entity';
@@ -29,6 +31,8 @@ export const ENTIDADES = [
   Movimiento,
   MovimientoPendiente,
   Conciliacion,
+  Decision,
+  DecisionLinea,
   Bitacora,
   SugerenciaIa,
   Sesion,

@@ -48,6 +48,29 @@ Trabajamos historia por historia (CU-01 … CU-26). No adelantes
 historias. Al terminar una, corre los tests, agrega la entrada en
 `docs/bitacora.md` y actualiza el estado en `CUADRA.md`.
 
+## Al arrancar una sesión o una historia nueva
+
+Antes de proponer o escribir nada, en este orden:
+
+1. **Epics:** `_bmad-output/planning-artifacts/epics.md`. Ubica la
+   historia que sigue (la v2 se numera por épica: 4.1, 4.2…) y lee sus
+   criterios de aceptación completos.
+2. **Arquitectura:** `ARCHITECTURE-SPINE.md` (en
+   `_bmad-output/planning-artifacts/architecture/`) y `arquitectura.ts`.
+   Lee los AD que la historia cita en su línea «Cubre».
+3. **Jira (proyecto KAN):** busca la historia y su estado. Al empezar
+   pásala a En curso y al integrar los PR, a Finalizado. Las consultas
+   JQL devuelven archivos enormes: extrae solo clave, estado y resumen
+   con `jq`.
+4. **Engram:** `mem_search` del cierre de la historia anterior, para
+   saber qué dejó pendiente.
+5. **Recién entonces** abre el documento ODD `odd/tasks/<historia>.md`
+   y avanza tarea por tarea hasta el PR, sin pedir permiso entre
+   pasos. Para solo cuando haya una duda real de producto.
+
+Nunca deduzcas «lo que sigue» solo de la bitácora o de Engram: la lista
+de historias manda.
+
 Toda la implementación de una historia, backend y frontend, se trabaja
 con ODD: un documento por historia en `odd/tasks/`, una historia a la
 vez. Al terminar la historia se arma el PR (en cadena si pasa de 400

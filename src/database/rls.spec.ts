@@ -28,6 +28,8 @@ const TABLAS_CON_RLS = [
   'carga_archivos',
   'sugerencias_ia',
   'movimientos_pendientes',
+  'decisiones',
+  'decision_lineas',
 ] as const;
 
 /** Dueño del esquema: migra, siembra y cuenta sin RLS. */
@@ -278,6 +280,139 @@ describe('RLS de sugerencias_ia (CU-17)', () => {
     ['DELETE', 'DELETE FROM sugerencias_ia'],
     ['TRUNCATE', 'TRUNCATE sugerencias_ia'],
   ])('cuadra_app no puede hacer %s (solo agrega)', async (_op, sql) => {
+    await expect(
+      comoEmpresa(de(FERRETERIA), (qr) => qr.query(sql)),
+    ).rejects.toMatchObject({ code: '42501' });
+  });
+});
+
+describe('RLS de decisiones y decision_lineas (4.1)', () => {
+  const movimientos = new Map<string, string>();
+  const cfdis = new Map<string, string>();
+  const decisiones = new Map<string, string>();
+  const huella = (rfc: string) => `v1:rls-4-1-${rfc}`;
+
+  const INSERTAR_DECISION = `INSERT INTO decisiones (company_id, movimiento_id, tipo, estado, origen, huella_conjunto)
+     VALUES ($1, $2, 'conciliacion', 'propuesta', 'regla', $3) RETURNING id`;
+  const INSERTAR_LINEA = `INSERT INTO decision_lineas (company_id, decision_id, estado_decision, cfdi_id)
+     VALUES ($1, $2, 'propuesta', $3)`;
+
+  beforeAll(async () => {
+    let n = 0;
+    for (const rfc of [FERRETERIA, TRANSPORTES]) {
+      n += 1;
+      const { id: movimientoId } = await una<{ id: string }>(
+        duenio,
+        `INSERT INTO movimientos (company_id, linea_numero, fecha, descripcion, monto)
+         VALUES ($1, 9100, '2026-09-02', 'RLS DECISIONES', 100) RETURNING id`,
+        [de(rfc)],
+      );
+      movimientos.set(rfc, movimientoId);
+      const { id: cfdiId } = await una<{ id: string }>(
+        duenio,
+        `INSERT INTO cfdi (company_id, uuid_fiscal, rfc_emisor, rfc_receptor,
+                           fecha_emision, tipo_comprobante, subtotal, total, xml_raw)
+         VALUES ($1, $2, 'AAA010101AAA', $3, '2026-09-01T10:00:00', 'I', 100, 116,
+                 '{"_xml":"<x/>"}'::jsonb) RETURNING id`,
+        [de(rfc), `7777777${n}-7777-7777-8777-777777777777`, rfc],
+      );
+      cfdis.set(rfc, cfdiId);
+      const { id } = await una<{ id: string }>(duenio, INSERTAR_DECISION, [
+        de(rfc),
+        movimientoId,
+        huella(rfc),
+      ]);
+      decisiones.set(rfc, id);
+      await duenio.query(INSERTAR_LINEA, [de(rfc), id, cfdiId]);
+    }
+  });
+
+  afterAll(async () => {
+    // El dueño borra: cuadra_app no tiene DELETE sobre estas tablas.
+    await duenio.query(
+      `DELETE FROM decision_lineas WHERE decision_id = ANY($1)`,
+      [[...decisiones.values()]],
+    );
+    await duenio.query(`DELETE FROM decisiones WHERE id = ANY($1)`, [
+      [...decisiones.values()],
+    ]);
+    await duenio.query(`DELETE FROM cfdi WHERE id = ANY($1)`, [
+      [...cfdis.values()],
+    ]);
+    await duenio.query(`DELETE FROM movimientos WHERE linea_numero = 9100`);
+  });
+
+  it.each(['decisiones', 'decision_lineas'])(
+    'sin empresa fijada, cuadra_app ve cero filas de %s aunque existan',
+    async (tabla) => {
+      const { n } = await una<{ n: number }>(
+        duenio,
+        `SELECT count(*)::int AS n FROM ${tabla}`,
+      );
+      expect(n).toBeGreaterThanOrEqual(2);
+      expect(await filas(app, `SELECT * FROM ${tabla}`)).toEqual([]);
+    },
+  );
+
+  it.each(['decisiones', 'decision_lineas'])(
+    'con Ferretería fijada ve solo sus filas de %s',
+    async (tabla) => {
+      const companias = await comoEmpresa(de(FERRETERIA), (qr) =>
+        filas<{ company_id: string }>(
+          qr,
+          `SELECT DISTINCT company_id FROM ${tabla}`,
+        ),
+      );
+      expect(companias).toEqual([{ company_id: de(FERRETERIA) }]);
+    },
+  );
+
+  it('con Ferretería fijada no puede insertar una decisión de Transportes', async () => {
+    await expect(
+      comoEmpresa(de(FERRETERIA), (qr) =>
+        qr.query(INSERTAR_DECISION, [
+          de(TRANSPORTES),
+          movimientos.get(TRANSPORTES),
+          'v1:intruso',
+        ]),
+      ),
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it('con Ferretería fijada no puede insertar una línea de Transportes', async () => {
+    await expect(
+      comoEmpresa(de(FERRETERIA), (qr) =>
+        qr.query(INSERTAR_LINEA, [
+          de(TRANSPORTES),
+          decisiones.get(TRANSPORTES),
+          cfdis.get(TRANSPORTES),
+        ]),
+      ),
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it('con Ferretería fijada actualiza lo suyo y no toca lo de Transportes', async () => {
+    await comoEmpresa(de(FERRETERIA), async (qr) => {
+      const propio = await filas<unknown>(
+        qr,
+        `UPDATE decisiones SET requiere_revision = true WHERE id = $1`,
+        [decisiones.get(FERRETERIA)],
+      );
+      expect((propio as unknown as [unknown, number])[1]).toBe(1);
+      const ajeno = await filas<unknown>(
+        qr,
+        `UPDATE decisiones SET requiere_revision = true WHERE id = $1`,
+        [decisiones.get(TRANSPORTES)],
+      );
+      expect((ajeno as unknown as [unknown, number])[1]).toBe(0);
+    });
+  });
+
+  it.each([
+    ['decisiones', 'DELETE FROM decisiones'],
+    ['decision_lineas', 'DELETE FROM decision_lineas'],
+    ['decisiones', 'TRUNCATE decisiones'],
+  ])('cuadra_app no puede borrar %s (%s)', async (_tabla, sql) => {
     await expect(
       comoEmpresa(de(FERRETERIA), (qr) => qr.query(sql)),
     ).rejects.toMatchObject({ code: '42501' });
