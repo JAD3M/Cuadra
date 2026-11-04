@@ -37,6 +37,17 @@ export const VACIO_CARGAS = {
 } as const;
 
 /** Encabezados de la tabla, en el orden de K2. */
+/** Fila abierta de una carga rechazada (historia 3.7). */
+export const MOTIVO_RECHAZO = {
+  etiqueta: 'Motivo del rechazo',
+  cargando: 'Cargando motivo…',
+  error: 'No se pudo cargar el motivo.',
+  vacio: 'Sin motivo registrado.',
+  /** Nombre accesible del botón de la fila: «Ver motivo del rechazo de x.pdf». */
+  verMotivo: (archivo: string): string =>
+    `Ver motivo del rechazo de ${archivo}`,
+} as const;
+
 export const COLUMNAS_CARGAS = {
   tipo: 'Tipo',
   archivo: 'Archivo',

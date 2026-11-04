@@ -3,6 +3,7 @@ import { useCallback, useRef } from 'react';
 import { api } from '@/shared/api';
 import {
   respuestaDecisionVistaPrevia,
+  type CuerpoRechazarCarga,
   type RespuestaDecisionVistaPrevia,
 } from '@/shared/api/contratos';
 import { clavesBandeja } from '@/features/bandeja/claves';
@@ -14,6 +15,11 @@ export type AccionVistaPrevia = 'aceptar' | 'rechazar';
 export interface PeticionDecision {
   accion: AccionVistaPrevia;
   cargaId: string;
+  /**
+   * Solo al rechazar (historia 3.7): ya recortado y no vacío. Ausente = sin
+   * cuerpo, y el servidor guarda su mensaje fijo.
+   */
+  motivo?: string;
 }
 
 type VariablesDecision = PeticionDecision & {
@@ -45,10 +51,13 @@ export function useDecidirVistaPrevia() {
   const epocaActual = useEpocaVigente(epoca);
 
   const mutacion = useMutation({
-    mutationFn: ({ accion, cargaId }: VariablesDecision) =>
+    mutationFn: ({ accion, cargaId, motivo }: VariablesDecision) =>
       api.fetch(`/cargas/${encodeURIComponent(cargaId)}/${accion}`, {
         method: 'POST',
         schema: respuestaDecisionVistaPrevia,
+        ...(accion === 'rechazar' && motivo !== undefined
+          ? { body: { motivo } satisfies CuerpoRechazarCarga }
+          : {}),
       }),
     onSuccess: (_datos, variables) => {
       if (variables.epoca !== epocaActual.current) return;

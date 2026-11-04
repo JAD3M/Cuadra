@@ -158,10 +158,10 @@ function VistaPreviaConAcceso({
     decision.decidir({ accion: 'aceptar', cargaId });
   }
 
-  function rechazar() {
+  function rechazar(motivo?: string) {
     volverAlBoton.current = false;
     setConfirmando(false);
-    decision.decidir({ accion: 'rechazar', cargaId });
+    decision.decidir({ accion: 'rechazar', cargaId, motivo });
   }
 
   function abrirConfirmacion() {

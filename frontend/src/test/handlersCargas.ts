@@ -99,6 +99,7 @@ function detalleDeItem(item: ItemCarga): DetalleCarga {
     registrosError: item.registrosError,
     resultados: [],
     errorMensaje: null,
+    motivoRechazo: null,
   };
 }
 

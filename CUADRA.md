@@ -228,7 +228,7 @@ Historias: CU-03, CU-04.
 | Columna | Tipo | Notas |
 |---|---|---|
 | `tipo` | varchar(32) | `cfdi` · `estado_cuenta` |
-| `estado` | varchar(32) | pendiente → procesando → procesada / con_errores / fallida (CU-08). `pendiente_vista_previa` (v2, 3.3): un PDF cuyos saldos cuadran, con sus movimientos en espera; no entra a la cola ni a conciliación. `rechazada` (v2, 3.4): el contador descartó la vista previa; no entra nada a `movimientos`. Se distingue de `fallida` (falló la lectura) |
+| `estado` | varchar(32) | pendiente → procesando → procesada / con_errores / fallida (CU-08). `pendiente_vista_previa` (v2, 3.3): un PDF cuyos saldos cuadran, con sus movimientos en espera; no entra a la cola ni a conciliación. `rechazada` (v2, 3.4): el contador descartó la vista previa (su motivo queda en `motivo_rechazo`, v2, 3.7); no entra nada a `movimientos`. Se distingue de `fallida` (falló la lectura) |
 | `saldo_inicial`, `saldo_final` | NUMERIC(18,4) | v2, 3.4: los saldos del PDF, escritos al guardarlo; nulos en cargas que no vienen de PDF (y en las de la 3.3 anteriores a la migración) |
 | `nombre_archivo` | varchar(512) | como lo llamó el usuario |
 | `hash_archivo` | char(64) | SHA-256 en hex: del archivo (estado de cuenta) o de los hashes ordenados del lote (CFDI) |
@@ -564,6 +564,24 @@ PDF es obligatoria hasta que el dueño la levanta para ese banco:
 inversa). Falta la verificación visual de «Bancos» en tema claro y oscuro. Los
 tests de cargas con banco levantado simulan el estado con un spy porque
 `arquitectura.spec` prohíbe que `cargas` nombre la tabla.
+
+**Motivo del descarte (v2, historia 3.7), terminada el 3 nov 2026.** Admin y
+contador abren una carga `rechazada` desde Cargas y ven por qué se descartó:
+
+- `cargas.motivo_rechazo` (texto, nulo): migración
+  `1790710600000-MotivoRechazoCarga`. `POST /cargas/:id/rechazar` acepta
+  `motivo` opcional (texto, recortado, máximo 500); si falta o va en blanco se
+  guarda «Descartada desde la vista previa». `GET /cargas/:id` expone
+  `motivoRechazo`; carga de otra empresa responde 404.
+- Frontend: la Vista previa gana el campo «Motivo (opcional)» al confirmar el
+  rechazo; en Cargas la fila `rechazada` se expande (una abierta a la vez) y
+  pide el motivo a `GET /cargas/:id`. Mockups 4 y 18 actualizados y aprobados.
+- Solo cuenta el descarte de la vista previa. El texto de líneas no leídas no se
+  guarda: AD-8 rechaza el PDF antes de crear la carga.
+
+**Pendientes (3.7):** crear la carga `rechazada` por cuadre o líneas ilegibles,
+con motivo y líneas, sería historia aparte y exige enmendar AD-8; solo si el
+contador lo necesita. Falta la verificación visual en navegador.
 
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 

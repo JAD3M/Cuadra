@@ -135,6 +135,10 @@ export const CONFIRMAR_RECHAZO = {
   titulo: '¿Rechazar esta vista previa?',
   confirmar: 'Sí, rechazar',
   cancelar: 'Cancelar',
+  /** Campo opcional (historia 3.7): el servidor pone su mensaje si va vacío. */
+  motivoEtiqueta: 'Motivo (opcional)',
+  motivoAyuda:
+    'Si lo dejas vacío, se registrará «Descartada desde la vista previa».',
   /** «Se descartarán los 14 movimientos leídos…» / «Se descartará el movimiento leído…». */
   detalle: (total: number): string =>
     `${
