@@ -6,6 +6,7 @@ import { ColaSugerencias } from '../sugerencias/cola-sugerencias';
 import { huellaMovimiento } from '../bancos/huella-movimiento';
 import { filas, una } from '../database/testing/base-de-pruebas';
 import request from '../testing/supertest-con-origen';
+import { MOTIVO_RECHAZO_POR_DEFECTO } from './dto/vista-previa.dto';
 import {
   ANA,
   type AppDeCargas,
@@ -93,9 +94,11 @@ async function llamar(
   correo: string | null,
   esperado: number,
   rfc: string = FERRETERIA,
+  cuerpo?: object,
 ) {
   let req = request(entorno.app.getHttpServer())[metodo](ruta);
   if (correo) req = req.set('Cookie', await entorno.token(correo, rfc));
+  if (cuerpo) req = req.send(cuerpo);
   return req.expect(esperado);
 }
 
@@ -517,6 +520,64 @@ describe('POST /cargas/:id/rechazar (T4)', () => {
       'rechazada',
     );
     await llamar('get', `/cargas/${cargaId}/vista-previa`, LUIS, 404);
+  });
+
+  async function motivoGuardado(cargaId: string): Promise<string | null> {
+    const { motivo_rechazo } = await una<{ motivo_rechazo: string | null }>(
+      ds,
+      `SELECT motivo_rechazo FROM cargas WHERE id = $1`,
+      [cargaId],
+    );
+    return motivo_rechazo;
+  }
+
+  it('con motivo: se guarda recortado en la carga y la bitácora no lo lleva', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200, FERRETERIA, {
+      motivo: '  Es el estado de otra cuenta  ',
+    });
+    expect(await motivoGuardado(cargaId)).toBe('Es el estado de otra cuenta');
+    const [entrada] = await bitacoraDe(cargaId, 'rechazar');
+    expect(entrada.datos).not.toHaveProperty('motivo');
+  });
+
+  it('sin cuerpo: se guarda el mensaje fijo del backend', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    expect(await motivoGuardado(cargaId)).toBe(MOTIVO_RECHAZO_POR_DEFECTO);
+    expect(MOTIVO_RECHAZO_POR_DEFECTO).toBe('Descartada desde la vista previa');
+  });
+
+  it('con motivo en blanco: se guarda el mensaje fijo', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200, FERRETERIA, {
+      motivo: '   ',
+    });
+    expect(await motivoGuardado(cargaId)).toBe(MOTIVO_RECHAZO_POR_DEFECTO);
+  });
+
+  it('con motivo de más de 500 caracteres: 400 y la vista previa sigue en espera', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 400, FERRETERIA, {
+      motivo: 'x'.repeat(501),
+    });
+    expect(await motivoGuardado(cargaId)).toBeNull();
+    expect((await pendientesDe(cargaId)).n).toBe(2);
+  });
+
+  it('con motivo de una carga ajena: 404 y no se guarda nada', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar(
+      'post',
+      `/cargas/${cargaId}/rechazar`,
+      CARMEN,
+      404,
+      TRANSPORTES,
+      {
+        motivo: 'No es mía',
+      },
+    );
+    expect(await motivoGuardado(cargaId)).toBeNull();
   });
 
   it('rechazar dos veces: la segunda es 409 y no duplica la bitácora', async () => {

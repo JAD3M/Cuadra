@@ -134,6 +134,13 @@ export class Carga extends EntidadBase {
   @Column({ type: 'numeric', precision: 18, scale: 4, nullable: true })
   saldoFinal: string | null;
 
+  /**
+   * Historia 3.7: por qué se descartó la vista previa. NULL fuera de las
+   * cargas 'rechazada'.
+   */
+  @Column({ type: 'text', nullable: true })
+  motivoRechazo: string | null;
+
   @Column({ type: 'timestamptz', nullable: true })
   procesadaAt: Date | null;
 
