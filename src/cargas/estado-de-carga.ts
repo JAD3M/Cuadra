@@ -19,6 +19,11 @@ export interface EstadoDeCarga {
   resultados: ResultadoDeCarga[];
   /** Solo en 'fallida': mensaje genérico; el detalle va al log. */
   errorMensaje: string | null;
+  /**
+   * Historia 3.7: por qué se descartó la vista previa. Solo una carga
+   * 'rechazada' lo trae; en cualquier otra es null.
+   */
+  motivoRechazo: string | null;
 }
 
 export interface FilaCarga {
@@ -31,6 +36,7 @@ export interface FilaCarga {
   dudosos: number;
   resultados: ResultadoDeCarga[];
   error_mensaje: string | null;
+  motivo_rechazo: string | null;
 }
 
 /**
@@ -48,7 +54,7 @@ export const SQL_ESTADO = `cargas.id, cargas.estado, cargas.total_registros,
                 AND m.carga_id = cargas.id
                 AND m.estado = 'pendiente_revision')
        ELSE 0 END AS dudosos,
-  cargas.resultados, cargas.error_mensaje`;
+  cargas.resultados, cargas.error_mensaje, cargas.motivo_rechazo`;
 
 export function aEstado(fila: FilaCarga): EstadoDeCarga {
   return {
@@ -61,5 +67,6 @@ export function aEstado(fila: FilaCarga): EstadoDeCarga {
     dudosos: fila.dudosos,
     resultados: fila.resultados,
     errorMensaje: fila.error_mensaje,
+    motivoRechazo: fila.motivo_rechazo,
   };
 }

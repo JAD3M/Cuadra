@@ -62,7 +62,11 @@ filas no son clicables y descartar una vista previa
   Evidencia 2026-11-03: RED (5 fallos: columna `motivo_rechazo` inexistente y 200 en vez de 400),
   GREEN con `npm test` 79 suites / 1616 pruebas, tsc, eslint y prettier limpios. Migración
   `1790710600000-MotivoRechazoCarga`. Ruta: delegada (escritor único). Commit: pendiente del padre.
-- [ ] T2 Backend: `GET /cargas/:id` expone el motivo de una carga `rechazada`; pruebas de 404 para carga de otra empresa y 403 sin permiso.
+- [x] T2 Backend: `GET /cargas/:id` expone el motivo de una carga `rechazada`; pruebas de 404 para carga de otra empresa y 403 sin permiso.
+  Evidencia 2026-11-03: RED (3 fallos: falta `motivoRechazo` en la respuesta), GREEN con `npm test`
+  79 suites / 1621 pruebas, tsc, eslint y prettier limpios. `motivo_rechazo` entra a `SQL_ESTADO`
+  (también lo ven las respuestas del POST); se actualizó el `toEqual` de `cargas.integracion.spec.ts`.
+  Ruta: delegada (escritor único). Commit: pendiente del padre.
 - [ ] T3 Frontend: mockup primero (Cargas y el campo opcional en la Vista previa), acordado con el usuario; luego fila clicable y detalle de la carga
   rechazada (motivo); espejo de tipos si cambian.
 - [ ] T4 Docs: `docs/bitacora.md` y `CUADRA.md`.

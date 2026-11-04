@@ -1117,3 +1117,49 @@ describe('huellas al aceptar (3.5, T4)', () => {
     await ds.query(`DELETE FROM cargas WHERE id = $1`, [csvFin.id]);
   });
 });
+
+describe('GET /cargas/:id expone el motivo del descarte (3.7 T2)', () => {
+  it('descartada con motivo escrito: lo devuelve recortado', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200, FERRETERIA, {
+      motivo: '  Es el estado de otra cuenta  ',
+    });
+    const res = await llamar('get', `/cargas/${cargaId}`, LUIS, 200);
+    expect(res.body).toMatchObject({
+      id: cargaId,
+      estado: 'rechazada',
+      motivoRechazo: 'Es el estado de otra cuenta',
+    });
+  });
+
+  it('descartada sin motivo: devuelve el mensaje fijo, y el admin también la ve', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    const res = await llamar('get', `/cargas/${cargaId}`, ANA, 200);
+    expect(res.body).toMatchObject({
+      estado: 'rechazada',
+      motivoRechazo: MOTIVO_RECHAZO_POR_DEFECTO,
+    });
+  });
+
+  it('una carga nunca descartada devuelve motivoRechazo null', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    const res = await llamar('get', `/cargas/${cargaId}`, LUIS, 200);
+    expect(res.body).toMatchObject({
+      estado: 'pendiente_vista_previa',
+      motivoRechazo: null,
+    });
+  });
+
+  it('una carga de otra empresa: 404', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('post', `/cargas/${cargaId}/rechazar`, LUIS, 200);
+    await llamar('get', `/cargas/${cargaId}`, CARMEN, 404, TRANSPORTES);
+  });
+
+  it('sin sesión: 401; revisor: 403', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    await llamar('get', `/cargas/${cargaId}`, null, 401);
+    await llamar('get', `/cargas/${cargaId}`, JORGE, 403, TRANSPORTES);
+  });
+});
