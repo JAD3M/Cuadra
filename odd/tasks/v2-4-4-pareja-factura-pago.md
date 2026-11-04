@@ -53,7 +53,7 @@ ya existen. Mapeo del 2026-11-04 contra los 6 criterios:
 
 ## Tareas
 
-- [ ] **T1** Moneda no soportada (AC3): motivo `moneda_no_soportada` en `tipos.ts`
+- [x] **T1** Moneda no soportada (AC3): motivo `moneda_no_soportada` en `tipos.ts`
   y migración del CHECK, el motor excluye CFDI no-MXN, el caso lo muestra; specs
   USD corregidos.
 - [ ] **T2** Nivel de confianza (AC6) y orden (AC2): `nivelDeConfianza(score)`,
@@ -71,4 +71,8 @@ Backend: `npm test` (con Postgres en 5432), `npm run lint`, `npm run format:chec
 
 ## Progreso
 
-Mapeo hecho; sin código escrito. Siguiente: T1.
+T1 hecha en `5f78244`. Ruta: delegada, un escritor (disparador: 2+ archivos no
+triviales y una migración). RED observado en `evaluar-par.spec.ts` (2 fallos antes
+del motor). Backend 84 suites / 1725 pruebas verdes con `--runInBand`; lint,
+prettier y frontend verdes. Revisión nativa: riesgo medio, `under_budget`, sin
+revisión debida todavía (el rango se acumula hasta ~400 líneas). Siguiente: T2.
