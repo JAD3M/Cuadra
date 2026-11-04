@@ -583,6 +583,28 @@ contador abren una carga `rechazada` desde Cargas y ven por qué se descartó:
 con motivo y líneas, sería historia aparte y exige enmendar AD-8; solo si el
 contador lo necesita. Falta la verificación visual en navegador.
 
+**Tablas de decisiones (v2, historia 4.1), terminada el 4 nov 2026.** Paso 1 y 2
+de AD-20: el modelo nuevo existe y tiene los datos de la v1, pero la aplicación
+sigue leyendo y escribiendo `conciliaciones` (eso es la 4.2):
+
+- `decisiones` y `decision_lineas`: migración `1790710700000-TablasDecisiones`.
+  Clase 1 (`company_id`, RLS con FORCE, política, GRANTs `SELECT, INSERT, UPDATE`
+  sin `DELETE`). Estados `VARCHAR` con `CHECK` (`ESTADOS_DECISION`,
+  `TIPOS_DECISION` en `tipos.ts`, con espejo en el frontend). Columnas
+  generadas `vigente` e índices únicos parciales: una decisión vigente por
+  movimiento y una línea vigente por factura. FK compuesta
+  `(decision_id, estado_decision)` con `ON UPDATE CASCADE`.
+- `huella_conjunto(uuid[])`: función SQL (`'v1:'` + sha256 de los ids ordenados
+  unidos con `|`) con espejo en `src/conciliacion/huella-conjunto.ts` y prueba
+  de paridad. Migración `1790710800000-HuellaConjunto`.
+- Copia de la v1: migración `1790710900000-CopiarConciliacionesADecisiones`.
+  Cada fila de `conciliaciones` nace como decisión con el mismo `id` y una
+  línea; es idempotente y falla si los conteos no coinciden.
+
+**Pendientes (4.1):** `decision_comentarios` entra con la 5.9. La FK compuesta de
+AD-4 no incluye `company_id`: solo el dueño del esquema podría cruzar empresas
+(RLS cubre al rol de la app); cerrarlo exige enmendar el spine.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

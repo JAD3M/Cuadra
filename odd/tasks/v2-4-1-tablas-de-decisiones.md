@@ -67,8 +67,11 @@ Estimación de planificación: ~400 líneas en total; un solo PR.
 - [x] **T3** Función SQL `huella_conjunto` + espejo TS + prueba de paridad.
 - [x] **T4** Backfill de `conciliaciones` a `decisiones`/`decision_lineas` con el
   mismo `id`; prueba de conteo, ids de bitácora vigentes y doble empresa.
-- [ ] **T5** Cierre: toda la suite de la v1 en verde, entrada en
-  `docs/bitacora.md`, estado en `CUADRA.md`, Jira KAN-137, PR.
+- [x] **T5** Cierre: toda la suite de la v1 en verde (82 suites, 1665 pruebas),
+  entrada en `docs/bitacora.md`, estado en `CUADRA.md`, Jira KAN-137, PR.
+
+Commits: T1+T2 `01063ae` (+ evidencia `67e372e`), T3 `258d6d7`, T4 `1dac727`.
+Revisión: T1+T2 aprobada, T3+T4 aprobada.
 
 ## Evidencia
 

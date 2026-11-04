@@ -3,6 +3,31 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 4 nov 2026
+
+- **Historia 4.1 de la v2: preparar las tablas de decisiones y copiar los datos
+  de la v1.** Rama `feat/v2-4-1-tablas-de-decisiones` con ODD, documento
+  `odd/tasks/v2-4-1-tablas-de-decisiones.md` (KAN-137). Es el paso 1 y 2 de
+  AD-20: la aplicación sigue usando `conciliaciones`.
+  - **T1+T2:** `decisiones` y `decision_lineas` (migración
+    `1790710700000-TablasDecisiones`), entidades, enums `ESTADOS_DECISION` y
+    `TIPOS_DECISION` con espejo en el frontend, RLS con FORCE y pruebas de
+    aislamiento con dos empresas. RED con 25 fallos; GREEN con las tres suites
+    en 90/90.
+  - **T3:** función SQL `huella_conjunto` con espejo en TypeScript y prueba de
+    paridad (200 casos). El orden de los ids es por valor de `uuid`, no por
+    texto, para no depender de la collation.
+  - **T4:** copia de `conciliaciones` a `decisiones` y `decision_lineas` con el
+    mismo `id`, empresa por empresa; idempotente y con error si los conteos no
+    coinciden. No hay datos de la v1 que choquen con los índices nuevos
+    (`ux_conciliaciones_par` lo impide).
+  - **Revisión nativa:** CLAUDE.md, T1+T2 y T3+T4 aprobadas. Una sugerencia
+    (prueba de FK de CFDI entre empresas) se aplicó en T3.
+  - **Decisión:** `decision_comentarios` no entra (es la 5.9). **Riesgo
+    conocido:** la FK compuesta de AD-4 no incluye `company_id`.
+  - **Proceso:** `CLAUDE.md` gana la sección «Al arrancar una sesión o una
+    historia nueva» (epics, spine, Jira, Engram y luego el ODD).
+
 ### 3 nov 2026
 
 - **Historia 3.7 de la v2: ver el historial de cargas y el motivo de una carga
