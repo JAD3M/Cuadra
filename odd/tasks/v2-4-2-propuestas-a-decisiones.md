@@ -70,7 +70,7 @@ necesita una forma determinista de forzar `rowCount = 0` y `23505`.
   cabecera + línea + bitácora en una sentencia y lee "vigente" de `decisiones`.
 - [x] **T2** Bandeja y detalle del caso leen de `decisiones`/`decision_lineas`
   y muestran lo mismo que en la v1.
-- [ ] **T3** Resolución: `confirmar` y `rechazar` sobre `decisiones` con
+- [x] **T3** Resolución: `confirmar` y `rechazar` sobre `decisiones` con
   `rowCount` verificado, hermanas a `obsoleta`, bitácora en la misma sentencia,
   orden de bloqueo AD-19, 409 en simultáneas y en transiciones no permitidas.
   Pruebas nombradas: (a) dos confirmaciones simultáneas del mismo movimiento
@@ -137,6 +137,48 @@ necesita una forma determinista de forzar `rowCount = 0` y `23505`.
   `src/sugerencias/sugerencias.integracion.spec.ts` (T4, IA-26). 77 suites en
   verde (1667 pruebas).
 
+### T3
+
+- Ruta: escritor delegado (lectura de preparación hecha por el escritor).
+- RED: `npm test -- src/resolucion` con el spec ya migrado a `sembrarDecision`
+  / `decisiones` / `decision_lineas` / bitácora `decisiones` y el servicio aún
+  sobre `conciliaciones` (404 en todo): 56 fallidas, 7 pasan (63).
+- GREEN: `resolucion.service.ts` reescrito. Candado de empresa, luego
+  `decisiones` (objetivo y hermanas juntas) `ORDER BY id FOR UPDATE`, luego CFDI
+  y movimiento. La transición es una sola sentencia CTE (`objetivo` ->
+  `hermanas` obsoletas -> `cfdis` -> `movs` -> `auditoria` en bitácora) y se
+  verifica lo afectado: decisión sin confirmada_at, CFDI distinto de los
+  esperados o movimiento distinto de 1 -> 409 (la excepción revierte la
+  transacción de la petición); 23505 -> 409 con `traducir`. `rechazar` hace lo
+  mismo con una sentencia (UPDATE guardado + bitácora). `liberoAlgunLado` mira
+  decisiones `propuesta/confirmada` por movimiento y por CFDI (vía líneas).
+  `npm test -- src/resolucion`: 63/63. `npm test -- src/resolucion src/bandeja
+  src/casos src/conciliacion`: 10 suites, 342/342 (RS-C5 de la bandeja vuelve a
+  verde sin tocar ese archivo). `npx tsc --noEmit`, `npx eslint "src/**/*.ts"`
+  y `npx prettier --check "src/**/*.ts"` limpios.
+- Pruebas nuevas (a)-(e): (a) `Promise.all` de dos propuestas del mismo
+  movimiento: un 200 y un 409, queda una confirmada y una obsoleta; (b) hermanas
+  por movimiento y por solo CFDI quedan `obsoleta` con su línea en cascada y su
+  bitácora `rechazar` / `decisiones` / `MOTIVO_HERMANA`, más el CHECK de persona
+  y fecha; (c) confirmar rechazada/obsoleta/confirmada y rechazar
+  rechazada/obsoleta dan 409 sin cambiar nada; (d) y (e) abajo; más `rechazar`
+  libera al motor solo si no queda otra decisión viva.
+- Cómo (d) y (e) son deterministas: no hay carreras ni mocks. Un trigger
+  `BEFORE UPDATE ... WHEN (OLD.id = '<id>')` que devuelve NULL (creado y borrado
+  por el propio test con la conexión del dueño) hace que el UPDATE guardado de
+  esa fila (decisión, CFDI o movimiento) afecte 0 filas aunque las
+  comprobaciones previas pasaron; se afirma 409 y que decisión, hermanas, línea,
+  CFDI, movimiento y bitácora quedan como estaban (rollback completo). Para
+  `23505` se siembra otra decisión `confirmada` sobre el mismo movimiento (índice
+  vigente de `decisiones`) o sobre el mismo CFDI con otro movimiento (índice
+  vigente de `decision_lineas`, que salta al cascadear el estado por la FK).
+- Suite completa tras T3: 4 suites rojas (15 pruebas), todas esperadas:
+  `src/bitacora/bitacora.integracion.spec.ts`,
+  `src/companies/tolerancia.integracion.spec.ts`,
+  `src/demo/demo.integracion.spec.ts` (T5) y
+  `src/sugerencias/sugerencias.integracion.spec.ts` (T4). 78 suites en verde
+  (1678 pruebas).
+
 ## Siguiente paso
 
-T3.
+T4.
