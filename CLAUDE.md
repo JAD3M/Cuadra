@@ -71,6 +71,24 @@ Antes de proponer o escribir nada, en este orden:
 Nunca deduzcas «lo que sigue» solo de la bitácora o de Engram: la lista
 de historias manda.
 
+## Al cerrar una historia: repaso
+
+Cuando los PR de una historia quedan integrados, antes de pasar a la
+siguiente, haz un repaso con el usuario. Es parte del cierre, no un
+extra. Debe contestar, en corto:
+
+1. **Objetivo:** qué pedía la historia (el «para qué» de sus criterios).
+2. **Qué cambió:** lo construido, por tarea, y cómo cumple cada criterio.
+3. **Qué resolvimos:** decisiones, desvíos del plan o del spine, y
+   problemas que aparecieron en el camino, con su porqué.
+4. **Qué quedó pendiente o en riesgo:** lo conocido, lo que se
+   pospuso y a qué historia pasa.
+5. **Qué aprendimos:** lo que conviene recordar en la siguiente.
+
+Guárdalo en Engram con `mem_save` (tema `repaso/<historia>`, tipo
+`decision`) y deja lo importante en la bitácora. Preséntalo al usuario
+antes de proponer la historia que sigue.
+
 Toda la implementación de una historia, backend y frontend, se trabaja
 con ODD: un documento por historia en `odd/tasks/`, una historia a la
 vez. Al terminar la historia se arma el PR (en cadena si pasa de 400
