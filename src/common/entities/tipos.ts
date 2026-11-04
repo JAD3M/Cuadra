@@ -61,6 +61,20 @@ export const ESTADOS_CONCILIACION = [
 ] as const;
 export type EstadoConciliacion = (typeof ESTADOS_CONCILIACION)[number];
 
+/** Ciclo de vida cerrado de una decisión (AD-4). */
+export const ESTADOS_DECISION = [
+  'propuesta',
+  'confirmada',
+  'rechazada',
+  'reabierta',
+  'descartada',
+  'obsoleta',
+] as const;
+export type EstadoDecision = (typeof ESTADOS_DECISION)[number];
+
+export const TIPOS_DECISION = ['conciliacion', 'descarte'] as const;
+export type TipoDecision = (typeof TIPOS_DECISION)[number];
+
 /**
  * Quién propuso el cruce. El motor de reglas y el LLM solo llegan a
  * 'propuesta'; cerrar un caso siempre lo hace una persona.

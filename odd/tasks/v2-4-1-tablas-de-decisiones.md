@@ -31,6 +31,7 @@ código sigue leyendo y escribiendo `conciliaciones`.
   `(company_id, movimiento_id)` y `(company_id, cfdi_id)`.
 - 2026-11-04: `huella_conjunto` = `'v1:' || sha256(ids ordenados unidos con '|')`,
   mismo estilo que `huella_movimiento`. Es decisión de implementación.
+- 2026-11-04, riesgo conocido: la FK compuesta de AD-4 no incluye company_id; solo el dueño del esquema podría cruzar empresas, RLS cubre al rol de la app.
 - `diferencia_monto` de `conciliaciones` pasa a la diferencia del grupo.
   `lote_id uuid NULL`; `requiere_revision boolean NOT NULL DEFAULT false`.
 
@@ -57,10 +58,10 @@ código sigue leyendo y escribiendo `conciliaciones`.
 
 Estimación de planificación: ~400 líneas en total; un solo PR.
 
-- [ ] **T1** Tipos y entidades: enums `ESTADOS_DECISION` (6) y `TIPOS_DECISION`
+- [x] **T1** Tipos y entidades: enums `ESTADOS_DECISION` (6) y `TIPOS_DECISION`
   con su espejo en el frontend; entidades `Decision` y `DecisionLinea`
   registradas en `ENTIDADES`. Ruta: delegada (escritor).
-- [ ] **T2** Migración: tablas, CHECK, FK compuestas, índices únicos parciales,
+- [x] **T2** Migración: tablas, CHECK, FK compuestas, índices únicos parciales,
   RLS FORCE, política y GRANTs; registro de columnas generadas. RED: las specs
   de RLS y esquema fallan con las tablas añadidas a sus listas.
 - [ ] **T3** Función SQL `huella_conjunto` + espejo TS + prueba de paridad.
@@ -73,6 +74,23 @@ Estimación de planificación: ~400 líneas en total; un solo PR.
 
 (Se llena por tarea: RED, GREEN, hash del commit.)
 
+### T1 + T2 (una sola unidad de trabajo)
+
+- Ruta: delegada (escritor). Evidencia de disparo: 2+ archivos no triviales.
+- RED: `npm test -- src/conciliacion/decision.spec.ts src/database/rls.spec.ts src/database/esquema.spec.ts`
+  dio 25 pruebas en rojo y 65 en verde (3 suites falladas) por
+  `relation "decisiones" does not exist` y las tablas ausentes en las listas
+  de RLS y esquema (p. ej. "activa y fuerza RLS en todas las tablas de
+  dominio", "crea todas las tablas", los 11 casos de `decision.spec.ts`).
+- GREEN: las mismas tres suites, 90/90 en verde (incluye "deja el esquema
+  idéntico a las entidades" y "reversibilidad"). Espejo del frontend:
+  `deriva.test.ts` pasa de 13 a 15 listas.
+- Suite completa: 1643/1644; falla `src/plataforma/plataforma.esquema.spec.ts`
+  (prueba de reversibilidad) porque deshace migraciones desde la última y
+  ahora la primera es `TablasDecisiones`. Pendiente: anteponer su undo a esa
+  prueba (archivo fuera de la superficie autorizada).
+- `tsc --noEmit`, `eslint src` y `prettier --check src` limpios.
+
 ## Siguiente paso
 
-T1.
+T3.
