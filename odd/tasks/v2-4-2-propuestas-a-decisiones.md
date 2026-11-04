@@ -80,9 +80,18 @@ necesita una forma determinista de forzar `rowCount = 0` y `23505`.
   `23505` se traducen a 409; (e) factura y movimiento cambian de estado solo con
   la transición.
 - [x] **T4** Sugerencias: exclusiones y persistencia de la IA sobre `decisiones`.
-- [ ] **T5** Bitácora (historial y listado leen `decisiones` y conservan las
-  filas históricas), specs restantes migrados, suite completa en verde, bitácora
-  del proyecto, `CUADRA.md`, Jira KAN-138, PRs y repaso de la historia.
+- [x] **T5** Bitácora (historial y listado leen `decisiones` y conservan las
+  filas históricas), specs restantes migrados, suite completa en verde (82
+  suites, 1703 pruebas, repetida por el padre), bitácora del proyecto,
+  `CUADRA.md`, Jira KAN-138, PR y repaso de la historia.
+
+Commits: T1 `8b31db9`, T2 `2804ba2`, T3 `3571c1a`, T4 `b0e4c50`, T5 `3218132`.
+Revisión nativa: T1, T2, T3 y el agregado con T4 aprobados (ver abajo); T5 queda
+bajo el presupuesto de 400 líneas.
+
+Revisión: advertencia recurrente («corte parcial») aceptada por el PR único;
+falso positivo sobre el índice vigente de `decision_lineas` (una `propuesta`
+no es vigente); sugerencia de validar la auditoría en `confirmar` aplicada en T5.
 
 ## Evidencia
 
@@ -246,4 +255,4 @@ necesita una forma determinista de forzar `rowCount = 0` y `23505`.
 
 ## Siguiente paso
 
-T5.
+PR único, repaso de la historia y la 4.3 (retirar la tabla `conciliaciones`).

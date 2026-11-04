@@ -5,6 +5,28 @@
 
 ### 4 nov 2026
 
+- **Historia 4.2 de la v2: pasar propuestas y confirmaciones al modelo de
+  decisiones.** Rama `feat/v2-4-2-propuestas-a-decisiones` con ODD, documento
+  `odd/tasks/v2-4-2-propuestas-a-decisiones.md` (KAN-138). Paso 3 de AD-20: un
+  corte atómico en un solo PR, porque un PR intermedio dejaría leer una tabla y
+  escribir en otra. Sin migración de esquema.
+  - **T1:** el motor guarda decisión, línea y bitácora en una sentencia y lee
+    «vigente» de `decisiones`; helper de pruebas `sembrarDecision`.
+  - **T2:** bandeja y detalle del caso leen `decisiones`; `obsoleta` y
+    `rechazada` no se ven.
+  - **T3:** confirmar y rechazar con transición atómica, hermanas a `obsoleta`
+    (mismo movimiento o mismo CFDI), bloqueo AD-19, `rowCount` verificado y 409.
+    `rowCount = 0` se prueba con un trigger `BEFORE UPDATE ... RETURN NULL`.
+  - **T4:** sugerencias de la IA sobre decisiones (`llm`, `propuesta`).
+  - **T5:** bitácora lee `decisiones` y conserva las filas históricas de
+    `conciliaciones`; `confirmar` valida también su auditoría (sugerencia de la
+    revisión). Suite del backend: 82 suites, 1703 pruebas.
+  - **Decisiones:** bitácora de las hermanas con la acción `rechazar` existente
+    (sin acciones nuevas); la API y el frontend no cambian.
+  - **Revisión nativa:** T1, T2, T3 y el agregado con T4 aprobados. Una
+    advertencia sobre un índice de `decision_lineas` resultó falso positivo: una
+    `propuesta` no es vigente.
+
 - **Historia 4.1 de la v2: preparar las tablas de decisiones y copiar los datos
   de la v1.** Rama `feat/v2-4-1-tablas-de-decisiones` con ODD, documento
   `odd/tasks/v2-4-1-tablas-de-decisiones.md` (KAN-137). Es el paso 1 y 2 de
