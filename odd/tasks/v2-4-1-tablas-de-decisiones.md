@@ -64,11 +64,14 @@ Estimación de planificación: ~400 líneas en total; un solo PR.
 - [x] **T2** Migración: tablas, CHECK, FK compuestas, índices únicos parciales,
   RLS FORCE, política y GRANTs; registro de columnas generadas. RED: las specs
   de RLS y esquema fallan con las tablas añadidas a sus listas.
-- [ ] **T3** Función SQL `huella_conjunto` + espejo TS + prueba de paridad.
-- [ ] **T4** Backfill de `conciliaciones` a `decisiones`/`decision_lineas` con el
+- [x] **T3** Función SQL `huella_conjunto` + espejo TS + prueba de paridad.
+- [x] **T4** Backfill de `conciliaciones` a `decisiones`/`decision_lineas` con el
   mismo `id`; prueba de conteo, ids de bitácora vigentes y doble empresa.
-- [ ] **T5** Cierre: toda la suite de la v1 en verde, entrada en
-  `docs/bitacora.md`, estado en `CUADRA.md`, Jira KAN-137, PR.
+- [x] **T5** Cierre: toda la suite de la v1 en verde (82 suites, 1665 pruebas),
+  entrada en `docs/bitacora.md`, estado en `CUADRA.md`, Jira KAN-137, PR.
+
+Commits: T1+T2 `01063ae` (+ evidencia `67e372e`), T3 `258d6d7`, T4 `1dac727`.
+Revisión: T1+T2 aprobada, T3+T4 aprobada.
 
 ## Evidencia
 
@@ -92,6 +95,57 @@ Estimación de planificación: ~400 líneas en total; un solo PR.
 - Commit: `01063ae`.
 - `tsc --noEmit`, `eslint src` y `prettier --check src` limpios.
 
+### T3
+
+- Ruta: delegada (escritor). Evidencia de disparo: 2+ archivos no triviales
+  (migración, espejo TS, paridad, dos specs).
+- Decisiones: ids ordenados por valor `uuid`; mayúsculas se normalizan a
+  minúsculas en el espejo (el tipo `uuid` lo hace en SQL); duplicados se
+  conservan; la lista vacía es válida y es la huella de `'v1|'`.
+- RED: `npm test -- src/conciliacion/huella-conjunto.paridad.spec.ts src/plataforma/plataforma.esquema.spec.ts`
+  dio 2 suites falladas (1 prueba en rojo, 21 en verde): la paridad por
+  `Cannot find module './huella-conjunto'` y la reversibilidad porque el undo
+  de `HuellaConjunto` deshacía otra migración. Esa corrida fallida dejó la
+  base `_test` con una fila de bitácora inválida; se borró esa fila.
+- GREEN: `huella-conjunto.paridad`, `decision` (suma la prueba de CFDI de otra
+  empresa contra `fk_decision_lineas_cfdi`) y `plataforma.esquema`: 48/48.
+- Suite completa: 81 suites, 1659/1659 en verde. `tsc --noEmit`, `eslint` y
+  `prettier --check` limpios.
+- Commit: pendiente.
+
+### T4
+
+- Ruta: delegada (escritor). Evidencia de disparo: 2+ archivos no triviales
+  (migración, spec de copia, spec de reversibilidad).
+- Migración `1790710900000-CopiarConciliacionesADecisiones.ts`: copia por
+  empresa (fija `app.company_id` en la transacción), mismo `id`, `created_at`
+  y `updated_at`; `huella_conjunto(ARRAY[cfdi_id])`; una línea por decisión;
+  idempotente (`ON CONFLICT (id) DO NOTHING` y línea solo si no existe). Falla
+  si los conteos por empresa (origen, decisiones, líneas) difieren. `down`
+  borra solo decisiones con id en `conciliaciones` y sus líneas, como dueño
+  (`cuadra_app` no tiene DELETE).
+- Caso límite de datos v1: ninguno. `ux_conciliaciones_par` impide dos filas
+  con mismo movimiento y CFDI (misma huella), y los únicos parciales de
+  confirmadas de la v1 equivalen a los de `vigente` de la 4.1. Si algo
+  chocara, el INSERT falla en voz alta; no se descarta nada.
+- Nota técnica: TypeORM trata como migración toda función exportada del
+  archivo; por eso solo se exportan constantes SQL y la clase, y la spec corre
+  `new CopiarConciliacionesADecisiones1790710900000().up(qr)`.
+- RED: `npm test -- src/conciliacion/copiar-conciliaciones.spec.ts` dio
+  `Cannot find module '../database/migrations/1790710900000-CopiarConciliacionesADecisiones'`
+  (1 suite fallada, 0 pruebas). Un segundo RED intermedio por exportar una
+  función (`migrationClass is not a constructor`, 6 en rojo) llevó al ajuste
+  anterior. El undo de la nueva migración en la prueba de reversibilidad se
+  antepuso junto con la migración.
+- GREEN: `copiar-conciliaciones.spec.ts` 6/6 (conteos y ids por empresa, línea
+  por decisión con CFDI y `estado_decision`, `vigente` solo en confirmada,
+  huella = espejo TS, fechas, bitácora sin huérfanas, idempotencia,
+  `conciliaciones` intacta, aislamiento como `cuadra_app`).
+  `plataforma.esquema` + `src/conciliacion` + `src/database`: 14 suites, 317/317.
+- Suite completa: 82 suites, 1665/1665. `tsc --noEmit`, `eslint` y
+  `prettier --check` limpios.
+- Commit: pendiente.
+
 ## Siguiente paso
 
-T3.
+T5.
