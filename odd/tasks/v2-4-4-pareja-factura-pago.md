@@ -56,7 +56,7 @@ ya existen. Mapeo del 2026-11-04 contra los 6 criterios:
 - [x] **T1** Moneda no soportada (AC3): motivo `moneda_no_soportada` en `tipos.ts`
   y migración del CHECK, el motor excluye CFDI no-MXN, el caso lo muestra; specs
   USD corregidos.
-- [ ] **T2** Nivel de confianza (AC6) y orden (AC2): `nivelDeConfianza(score)`,
+- [x] **T2** Nivel de confianza (AC6) y orden (AC2): `nivelDeConfianza(score)`,
   expuesto en el caso, spec de coincidencia con la puntuación y del orden.
 - [ ] **T3** Prueba de arquitectura (AC5): el motor y la IA no escriben `confirmada`.
 - [ ] **T4** Cierre: bitácora, `CUADRA.md`, Jira KAN-140, PR y repaso.
@@ -75,4 +75,14 @@ T1 hecha en `5f78244`. Ruta: delegada, un escritor (disparador: 2+ archivos no
 triviales y una migración). RED observado en `evaluar-par.spec.ts` (2 fallos antes
 del motor). Backend 84 suites / 1725 pruebas verdes con `--runInBand`; lint,
 prettier y frontend verdes. Revisión nativa: riesgo medio, `under_budget`, sin
-revisión debida todavía (el rango se acumula hasta ~400 líneas). Siguiente: T2.
+revisión debida todavía (el rango se acumula hasta ~400 líneas).
+
+T2 hecha en `e488934`. Ruta: delegada, un escritor (disparador: 2+ archivos no
+triviales). RED observado: 6 pruebas fallidas antes de implementar. El nivel solo
+se calcula para `origen = regla` (una propuesta del LLM guarda score 0.5 y se
+vería como «media»; queda `null`). `CONFIANZAS` de sugerencias ahora apunta a
+`NIVELES_CONFIANZA` (una sola lista). El orden de AC2 ya lo daba
+`ORDER BY score DESC`; ahora tiene su prueba. Backend 85 suites / 1731 pruebas,
+lint, prettier y frontend verdes (verificado por el padre). La pantalla del caso
+aún no muestra el nivel; el contrato zod `contratos/caso.ts` ignora la clave nueva
+(fuera de alcance, requiere mockup). Siguiente: T3.
