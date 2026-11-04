@@ -117,6 +117,17 @@ describe('evaluarPar', () => {
     ).toBeNull();
   });
 
+  it('CFDI en otra moneda: nunca hay propuesta, ni siquiera moneda con moneda', () => {
+    const usd = cfdi({ id: 'c1', moneda: 'USD' });
+    for (const porReferencia of [true, false]) {
+      expect(
+        evaluarPar(mov({ id: 'm1', moneda: 'USD' }), usd, CERO, {
+          porReferencia,
+        }),
+      ).toBeNull();
+    }
+  });
+
   it('fecha: mismo día sí, día anterior no', () => {
     const emitido = cfdi({ id: 'c1', fechaEmision: '2026-03-10' });
     expect(
@@ -453,6 +464,49 @@ describe('evaluarConMotivos (CU-13)', () => {
     expect(r.sinMatch[0].motivo).toMatch(/moneda/);
   });
 
+  it('moneda_no_soportada: la referencia apunta a un CFDI que no es MXN', () => {
+    const r = ev(
+      [mov({ id: 'm1', referencia: 'A-0001001' })],
+      [cfdi({ id: 'c1', moneda: 'USD' })],
+    );
+    expect(r.propuestas).toEqual([]);
+    expect(r.sinMatch).toEqual([
+      expect.objectContaining({
+        movimientoId: 'm1',
+        regla: 'moneda_no_soportada',
+      }),
+    ]);
+    expect(r.sinMatch[0].motivo).toContain('moneda no soportada');
+    expect(r.sinMatch[0].motivo).toContain('USD');
+    expect(r.sinMatch[0].motivo).toContain('A-0001001');
+  });
+
+  it('moneda_no_soportada: un CFDI en USD tampoco empata por monto', () => {
+    const r = ev(
+      [mov({ id: 'm1', referencia: null })],
+      [cfdi({ id: 'c1', moneda: 'USD' })],
+    );
+    expect(r.propuestas).toEqual([]);
+    expect(r.sinMatch[0].regla).toBe('sin_candidato_monto');
+  });
+
+  it('un CFDI en USD no hace ambiguo el monto de uno en MXN', () => {
+    const r = ev(
+      [mov({ id: 'm1', referencia: null })],
+      [cfdi({ id: 'c1' }), cfdi({ id: 'c2', folio: '2', moneda: 'USD' })],
+    );
+    expect(r.propuestas).toEqual([expect.objectContaining({ cfdiId: 'c1' })]);
+  });
+
+  it('referencia con un CFDI en MXN y otro en USD: sigue siendo ambigua', () => {
+    const r = ev(
+      [mov({ id: 'm1', referencia: 'A-0001001' })],
+      [cfdi({ id: 'c1' }), cfdi({ id: 'c2', moneda: 'USD' })],
+    );
+    expect(r.propuestas).toEqual([]);
+    expect(r.sinMatch[0].regla).toBe('referencia_ambigua');
+  });
+
   it('referencia_cfdi_no_compatible: dice que falló la fecha, con ambos valores', () => {
     const r = ev(
       [mov({ id: 'm1', referencia: 'A-0001001', fecha: '2026-02-01' })],
@@ -592,30 +646,7 @@ describe('tolerancia solo en MXN (CU-12)', () => {
     expect(en('1154.99')).toBe('referencia_monto_diferente');
   });
 
-  it('otra moneda: la tolerancia no aplica y el monto sigue exacto', () => {
-    const p = evaluarPar(
-      mov({ id: 'm1', monto: '1156.00', moneda: 'USD' }),
-      cfdi({ id: 'c1', moneda: 'USD' }),
-      tolerancia,
-      { porReferencia: true },
-    );
-    expect(p?.regla).toBe('referencia_monto_diferente');
-    expect(p?.score).toBe(0.5);
-    expect(p?.diferenciaMonto).toBe('-4.0000');
-  });
-
-  it('otra moneda: sin referencia, una diferencia pequeña no da monto_unico', () => {
-    expect(
-      evaluarPar(
-        mov({ id: 'm1', monto: '1159.99', moneda: 'USD' }),
-        cfdi({ id: 'c1', moneda: 'USD' }),
-        tolerancia,
-        { porReferencia: false },
-      ),
-    ).toBeNull();
-  });
-
-  it('seleccionarPropuestas: monto_unico dentro de tolerancia en MXN, no en USD', () => {
+  it('seleccionarPropuestas: monto_unico dentro de tolerancia en MXN, nunca con CFDI en USD', () => {
     const conMoneda = (moneda: string) =>
       seleccionarPropuestas(
         [mov({ id: 'm1', monto: '1156.00', moneda })],

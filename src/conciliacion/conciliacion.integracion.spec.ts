@@ -845,18 +845,22 @@ describe('tolerancia por empresa (CU-12)', () => {
     ).toBe('0');
   });
 
-  it('en USD la tolerancia de la empresa no aplica', async () => {
+  it('un CFDI en USD no se propone y el caso queda con «moneda no soportada»', async () => {
     await fijar(A, '50');
-    await movimiento(A, {
+    const mov = await movimiento(A, {
       referencia: 'A1001',
       monto: '1120.00',
-      moneda: 'USD',
     });
     await factura(A, { moneda: 'USD' });
     await servicio.conciliar(A);
-    expect(await propuestasNuevas(A)).toEqual([
-      expect.objectContaining({ regla: 'referencia_monto_diferente' }),
-    ]);
+    expect(await propuestasNuevas(A)).toEqual([]);
+    const fila = await una<{ regla: string; motivo: string }>(
+      ds,
+      `SELECT regla_sin_match AS regla, motivo_sin_match AS motivo FROM movimientos WHERE id = $1`,
+      [mov],
+    );
+    expect(fila.regla).toBe('moneda_no_soportada');
+    expect(fila.motivo).toContain('moneda no soportada');
   });
 });
 

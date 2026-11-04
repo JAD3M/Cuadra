@@ -317,7 +317,8 @@ describe('demo: el motor y la IA simulada reproducen lo esperado (CU-18)', () =>
       referencia_ambigua: 1,
       monto_multiples_candidatos: 1,
       cfdi_multiples_movimientos: 1,
-      referencia_cfdi_no_compatible: 2,
+      referencia_cfdi_no_compatible: 1,
+      moneda_no_soportada: 1,
     });
     expect(sim.paresIA).toBe(4);
   });

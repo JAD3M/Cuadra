@@ -65,6 +65,13 @@ export interface Propuesta {
   motivo: string;
 }
 
+/** AC3 (4.4): solo se concilia contra CFDI en MXN; los movimientos siempre son MXN. */
+export const MONEDA_SOPORTADA = 'MXN';
+
+export function monedaSoportada(cfdi: CfdiAbierto): boolean {
+  return cfdi.moneda === MONEDA_SOPORTADA;
+}
+
 /** Moneda igual y el movimiento no es anterior a la emisión (solo fecha). */
 export function compatibles(
   mov: MovimientoAbierto,
@@ -159,6 +166,11 @@ function motivoSinMatch(regla: ReglaSinMatch, ctx: ContextoSinMatch): string {
         `El CFDI ${factura}, único que coincide con el monto ${mov.monto}, ` +
         `ya está vinculado a otro movimiento.`
       );
+    case 'moneda_no_soportada':
+      return (
+        `${ref} coincide con el CFDI ${factura}, pero su moneda (${cfdi!.moneda}) ` +
+        `es moneda no soportada: solo se concilia contra CFDI en ${MONEDA_SOPORTADA}.`
+      );
     case 'cfdi_multiples_movimientos':
       return (
         `El CFDI ${factura} coincide con el monto ${mov.monto}, pero otros ` +
@@ -178,7 +190,7 @@ export function evaluarPar(
   tolerancia: Dinero,
   opciones: { porReferencia: boolean },
 ): Propuesta | null {
-  if (!compatibles(mov, cfdi)) return null;
+  if (!monedaSoportada(cfdi) || !compatibles(mov, cfdi)) return null;
   const dif = diferencia(mov, cfdi);
   const dentro = dif.abs().lte(toleranciaEn(cfdi.moneda, tolerancia));
 
@@ -235,6 +247,7 @@ function predicadosDelMotor(
     !rechazados.has(`${m.id}|${c.id}`);
   const porMonto = (m: MovimientoAbierto, c: CfdiAbierto): boolean =>
     permitido(m, c) &&
+    monedaSoportada(c) &&
     compatibles(m, c) &&
     diferencia(m, c).abs().lte(toleranciaEn(c.moneda, tolerancia));
   return { movsOcupados, cfdisOcupados, permitido, porMonto };
@@ -328,6 +341,8 @@ export function evaluarConMotivos(
         const [unico] = porReferencia;
         if (porReferencia.length > 1) {
           sin(m, 'referencia_ambigua', { cantidad: porReferencia.length });
+        } else if (!monedaSoportada(unico)) {
+          sin(m, 'moneda_no_soportada', { cfdi: unico });
         } else if (cfdisOcupados.has(unico.id)) {
           sin(m, 'referencia_cfdi_ocupado', { cfdi: unico });
         } else {

@@ -50,11 +50,19 @@ async function borrarBase(url: string): Promise<void> {
   }
 }
 
-/** Todas las migraciones salvo la de retiro: el esquema tal como lo dejó la 4.1. */
-function migracionesSinRetiro(): string[] {
+/**
+ * Las migraciones hasta la de retiro (inclusive, o exclusive con `incluirRetiro`
+ * en false). Las posteriores no son de este spec: así sigue valiendo que el
+ * retiro sea la última aunque se agreguen migraciones después.
+ */
+function migracionesHastaRetiro(incluirRetiro: boolean): string[] {
   const dir = join(__dirname, 'migrations');
   return readdirSync(dir)
-    .filter((f) => f.endsWith('.ts') && !f.startsWith(PREFIJO_RETIRO))
+    .filter((f) => f.endsWith('.ts'))
+    .filter((f) => {
+      const marca = f.slice(0, PREFIJO_RETIRO.length);
+      return incluirRetiro ? marca <= PREFIJO_RETIRO : marca < PREFIJO_RETIRO;
+    })
     .sort()
     .map((f) => join(dir, f));
 }
@@ -277,9 +285,9 @@ let radiografiaPrevia: Awaited<ReturnType<typeof radiografia>>;
 
 beforeAll(async () => {
   // La secuencia entera, desde una base vacía y con el glob real (AC3).
-  completa = await baseNueva(URL_COMPLETA);
+  completa = await baseNueva(URL_COMPLETA, migracionesHastaRetiro(true));
   // El esquema tal como queda antes de retirar la tabla: referencia del `down`.
-  previa = await baseNueva(URL_PREVIA, migracionesSinRetiro());
+  previa = await baseNueva(URL_PREVIA, migracionesHastaRetiro(false));
   radiografiaPrevia = await radiografia(previa);
 }, 180_000);
 
