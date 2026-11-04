@@ -70,6 +70,42 @@ no tiene `DELETE` y la reversión corre con el rol dueño.
 
 (Se llena por tarea: ruta, RED, GREEN, hash del commit.)
 
+### T1
+
+- **Ruta:** escritor delegado (más de 2 archivos no triviales: migración, tres
+  specs nuevos, adaptación de specs, documentación).
+- **Qué cuenta como «nombrar la tabla»** (prueba
+  `src/conciliacion/tabla-conciliaciones-retirada.arquitectura.spec.ts`): fuera
+  de comentarios, en `.ts` de producción bajo `src/` (sin `*.spec.ts` ni
+  `database/migrations/`): SQL `FROM|JOIN|INTO|UPDATE|TABLE|TRUNCATE
+  conciliaciones` (con o sin comillas, esquema, saltos de línea, y `TRUNCATE a,
+  conciliaciones`), `@Entity('conciliaciones')` e `import` de la entidad
+  `Conciliacion`. Reutiliza `sinComentarios` de `plataforma/arquitectura.ts`
+  (sin tocar sus reglas) y prueba el escáner con fixtures (casos que sí y que no
+  cuentan).
+- **RED:** la prueba de arquitectura falló con
+  `conciliacion/conciliacion.entity.ts:17 (entity)` y
+  `database/entidades.ts:12 (import)`; 22 de 23 casos pasaban (los del escáner).
+  El spec de migración falló por no existir `RetirarConciliaciones` (la tabla
+  seguía y la migración no estaba registrada).
+- **GREEN:** ambos specs en verde (29 casos); `src/database src/plataforma
+  src/conciliacion src/resolucion src/bitacora`: 28 suites, 578 pruebas.
+- **Migración:** `1790711000000-RetirarConciliaciones.ts`. `up` bloquea la tabla,
+  verifica por empresa (con `app.company_id` fijado) que cada fila tiene su
+  decisión (mismo id y movimiento) y su línea (mismo CFDI), y falla con
+  «No se retira conciliaciones…» sin cambiar nada; luego `DROP TABLE`. `down`
+  la recrea idéntica y la repuebla (una línea, estados v1). Prueba
+  `src/database/retiro-conciliaciones.migracion.spec.ts` sobre bases propias
+  (secuencia completa desde cero; `down` igual a la radiografía previa al
+  retiro; base con datos v1: decisiones = conciliaciones, tabla fuera, bitácora
+  intacta; `down` repuebla y omite multilínea/obsoleta; falla si falta decisión
+  o línea).
+- **Referencias históricas que quedan** (no cuentan): `'conciliaciones'` en
+  `ENTIDADES_BITACORA` y su espejo del frontend, la ruta `/conciliaciones`, el
+  permiso `conciliaciones.resolver`, `ENTIDADES_DE_DECISION` en
+  `bitacora.service.ts`, comentarios en `decision.entity.ts`, `cfdi.entity.ts`
+  y `movimiento.entity.ts`, y las migraciones.
+
 ## Siguiente paso
 
 T1.

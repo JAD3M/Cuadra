@@ -9,7 +9,6 @@ import { TokenRecuperacion } from '../auth/token-recuperacion.entity';
 import { Sesion } from '../auth/sesion.entity';
 import { Cfdi } from '../cfdi/cfdi.entity';
 import { Company } from '../companies/company.entity';
-import { Conciliacion } from '../conciliacion/conciliacion.entity';
 import { Decision } from '../conciliacion/decision.entity';
 import { DecisionLinea } from '../conciliacion/decision-linea.entity';
 import { Movimiento } from '../bancos/movimiento.entity';
@@ -30,7 +29,6 @@ export const ENTIDADES = [
   Cfdi,
   Movimiento,
   MovimientoPendiente,
-  Conciliacion,
   Decision,
   DecisionLinea,
   Bitacora,

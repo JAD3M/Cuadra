@@ -56,6 +56,44 @@ scripts/respaldo/restaurar.sh [--conservar] archivo.dump [base_origen]
   como respaldo.
 - Recuperar de verdad (reemplazar la base viva) es un paso manual y deliberado.
 
+## Revertir el retiro de `conciliaciones`
+
+La migración `RetirarConciliaciones` (historia 4.3) borra la tabla vieja
+`conciliaciones`; desde la 4.2 todo vive en `decisiones` y `decision_lineas`.
+Antes de borrar, `up` comprueba empresa por empresa que cada fila tiene su
+decisión y su línea; si falta alguna, falla con un error que lo dice y no
+cambia nada. La bitácora no se toca: sus filas de la entidad `conciliaciones`
+son el historial.
+
+Revertirla es el último recurso. Antes, toma un respaldo con
+`scripts/respaldo/respaldar.sh --verificar` (sección anterior): el `down` es de
+mejor esfuerzo y el respaldo es la única vuelta exacta.
+
+```
+# producción: rol dueño del esquema (DATABASE_URL), no cuadra_app
+docker compose --profile tools run --rm migrate \
+  node node_modules/typeorm/cli.js migration:revert -d dist/database/data-source.js
+# desarrollo
+npm run migration:revert
+```
+
+Deshace solo la última migración, y debe ser esta: corre con el dueño porque
+`cuadra_app` no tiene `DELETE` ni `CREATE`. El `down`:
+
+- **Recrea** `conciliaciones` tal como estaba: columnas, CHECK, índices
+  únicos y parciales, llaves compuestas, RLS con `FORCE`, su política y los
+  GRANT de `cuadra_app` (`SELECT, INSERT, UPDATE`).
+- **Repuebla** la tabla, con los mismos ids, desde las decisiones de tipo
+  `conciliacion` que tienen una sola línea y están en `propuesta`,
+  `confirmada` o `rechazada`.
+- **No restaura** las decisiones con varias líneas (historia 4.5), ni las que
+  están en `reabierta`, `descartada` u `obsoleta`: `conciliaciones` no tiene
+  cómo representarlas. Tampoco las que choquen con los índices únicos de la
+  tabla (se conserva la confirmada o, si no, la más reciente). Esas
+  decisiones siguen en `decisiones`; el `down` no falla por ellas.
+- No vuelve a poner la aplicación en la versión que escribía en
+  `conciliaciones`: eso es desplegar el código anterior.
+
 ## Desarrollo
 
 `docker compose -f docker-compose.dev.yml up -d --build`. La API consume las

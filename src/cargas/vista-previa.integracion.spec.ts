@@ -43,7 +43,7 @@ async function limpiar(): Promise<void> {
   const propias = `(SELECT id FROM cargas WHERE tipo = 'estado_cuenta'
                      AND nombre_archivo LIKE 'vp-%')`;
   await ds.query(
-    `DELETE FROM conciliaciones WHERE movimiento_id IN
+    `DELETE FROM decisiones WHERE movimiento_id IN
        (SELECT id FROM movimientos WHERE carga_id IN ${propias})`,
   );
   await ds.query(`DELETE FROM movimientos WHERE carga_id IN ${propias}`);

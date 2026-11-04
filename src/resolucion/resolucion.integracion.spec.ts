@@ -48,7 +48,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await ds.query(
-    'TRUNCATE cfdi, cargas, movimientos, conciliaciones, decisiones, decision_lineas, bitacora CASCADE',
+    'TRUNCATE cfdi, cargas, movimientos, decisiones, decision_lineas, bitacora CASCADE',
   );
 });
 
