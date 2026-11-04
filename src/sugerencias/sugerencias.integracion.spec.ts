@@ -9,6 +9,7 @@ import {
   TRANSPORTES,
 } from '../cargas/testing/app-de-cargas';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
+import { sembrarDecision } from '../conciliacion/siembra-decisiones';
 import { ProveedorTolerancia } from '../conciliacion/tolerancia';
 import { filas, una } from '../database/testing/base-de-pruebas';
 import { TransaccionEmpresa } from '../database/transaccion-empresa';
@@ -58,7 +59,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await ds.query(
-    'TRUNCATE cfdi, cargas, movimientos, conciliaciones, bitacora, sugerencias_ia CASCADE',
+    'TRUNCATE cfdi, cargas, movimientos, decisiones, decision_lineas, bitacora, sugerencias_ia CASCADE',
   );
 });
 
@@ -192,14 +193,17 @@ interface FilaLlm {
   motivo: string;
 }
 
-const conciliacionesLlm = (empresa?: string) =>
+const decisionesLlm = (empresa?: string) =>
   filas<FilaLlm>(
     ds,
-    `SELECT id, company_id, cfdi_id, movimiento_id, estado, origen, regla,
-            score::text AS score, diferencia_monto::text AS diferencia_monto, motivo
-       FROM conciliaciones
-      WHERE origen = 'llm' AND ($1::uuid IS NULL OR company_id = $1)
-      ORDER BY created_at, id`,
+    `SELECT d.id, d.company_id, l.cfdi_id, d.movimiento_id, d.estado, d.origen,
+            d.regla, d.score::text AS score,
+            d.diferencia_monto::text AS diferencia_monto, d.motivo
+       FROM decisiones d
+       JOIN decision_lineas l
+         ON l.decision_id = d.id AND l.company_id = d.company_id
+      WHERE d.origen = 'llm' AND ($1::uuid IS NULL OR d.company_id = $1)
+      ORDER BY d.created_at, d.id`,
     [empresa ?? null],
   );
 
@@ -251,7 +255,7 @@ describe('propuesta del modelo (IA-12 a IA-16)', () => {
       obsoletas: 0,
       interrumpida: false,
     });
-    const [fila] = await conciliacionesLlm();
+    const [fila] = await decisionesLlm();
     expect(fila).toMatchObject({
       company_id: A,
       cfdi_id: cfdis[0],
@@ -282,6 +286,37 @@ describe('propuesta del modelo (IA-12 a IA-16)', () => {
     });
     expect(hash).toMatch(/^[0-9a-f]{64}$/);
 
+    // Cabecera + una línea 'propuesta' + bitácora con entidad 'decisiones'.
+    const cabecera = await una<{
+      tipo: string;
+      requiere_revision: boolean;
+      huella: string;
+    }>(
+      ds,
+      `SELECT tipo, requiere_revision, huella_conjunto AS huella
+         FROM decisiones WHERE id = $1`,
+      [fila.id],
+    );
+    expect(cabecera).toMatchObject({
+      tipo: 'conciliacion',
+      requiere_revision: false,
+    });
+    expect(
+      await filas<{ cfdi_id: string; estado_decision: string }>(
+        ds,
+        `SELECT cfdi_id, estado_decision FROM decision_lineas
+          WHERE decision_id = $1`,
+        [fila.id],
+      ),
+    ).toEqual([{ cfdi_id: cfdis[0], estado_decision: 'propuesta' }]);
+    expect(
+      await filas<{ entidad: string }>(
+        ds,
+        `SELECT entidad FROM bitacora WHERE accion = 'crear' AND entidad_id = $1`,
+        [fila.id],
+      ),
+    ).toEqual([{ entidad: 'decisiones' }]);
+
     // ck_movimientos_sin_match_par: los tres se limpian juntos.
     expect(await movimientoFila(m)).toEqual({
       estado: 'abierto',
@@ -303,7 +338,7 @@ describe('propuesta del modelo (IA-12 a IA-16)', () => {
 
     await servicio(new ProveedorFalso(sugiere())).sugerirParaEmpresa(A);
 
-    const [fila] = await conciliacionesLlm();
+    const [fila] = await decisionesLlm();
     expect(fila.movimiento_id).toBe(m);
     expect(fila.diferencia_monto).toBe('-2.1500');
   });
@@ -354,7 +389,7 @@ describe('propuesta del modelo (IA-12 a IA-16)', () => {
       await ds.query(`DROP FUNCTION fallar_bitacora_llm()`);
     }
 
-    expect(await conciliacionesLlm()).toEqual([]);
+    expect(await decisionesLlm()).toEqual([]);
     expect(await libro()).toEqual([]);
     expect(await bitacoraDe('crear')).toEqual([]);
     expect(await movimientoFila(m)).toMatchObject({
@@ -374,7 +409,7 @@ describe('elegibilidad (IA-01 a IA-04)', () => {
     expect(proveedor.llamadas).toBe(0);
     expect(resumen).toMatchObject({ elegibles: 0, llamadas: 0 });
     expect(await libro()).toEqual([]);
-    expect(await conciliacionesLlm()).toEqual([]);
+    expect(await decisionesLlm()).toEqual([]);
   });
 
   it.each(['conciliado', 'descartado'])(
@@ -396,11 +431,13 @@ describe('elegibilidad (IA-01 a IA-04)', () => {
 
   it('un movimiento con propuesta vigente, de cualquier origen, no se pregunta', async () => {
     const { m, cfdis } = await ambiguo();
-    await ds.query(
-      `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen)
-       VALUES ($1,$2,$3,'propuesta','manual')`,
-      [A, cfdis[1], m],
-    );
+    await sembrarDecision(ds, {
+      companyId: A,
+      cfdiId: cfdis[1],
+      movimientoId: m,
+      estado: 'propuesta',
+      origen: 'manual',
+    });
     const proveedor = new ProveedorFalso(sugiere());
 
     await servicio(proveedor).sugerirParaEmpresa(A);
@@ -408,13 +445,75 @@ describe('elegibilidad (IA-01 a IA-04)', () => {
     expect(proveedor.llamadas).toBe(0);
   });
 
+  it('un movimiento con una decisión confirmada tampoco se pregunta', async () => {
+    const { m, cfdis } = await ambiguo();
+    await sembrarDecision(ds, {
+      companyId: A,
+      cfdiId: cfdis[1],
+      movimientoId: m,
+      estado: 'confirmada',
+      confirmadaPorId: entorno.persona(ANA),
+    });
+    const proveedor = new ProveedorFalso(sugiere());
+
+    await servicio(proveedor).sugerirParaEmpresa(A);
+
+    expect(proveedor.llamadas).toBe(0);
+  });
+
+  it('una decisión obsoleta no ocupa el movimiento: sí se pregunta y se propone', async () => {
+    const { m, cfdis } = await ambiguo();
+    await sembrarDecision(ds, {
+      companyId: A,
+      cfdiId: cfdis[0],
+      movimientoId: m,
+      estado: 'obsoleta',
+      origen: 'regla',
+    });
+    const proveedor = new ProveedorFalso(sugiere('C1'));
+
+    const resumen = await servicio(proveedor).sugerirParaEmpresa(A);
+
+    // La obsoleta no cuenta como par existente: C1 sigue entre los candidatos.
+    expect(proveedor.llamadas).toBe(1);
+    expect(proveedor.recibidas[0].candidatos).toHaveLength(2);
+    expect(resumen.propuestas).toBe(1);
+    const [fila] = await decisionesLlm();
+    expect(fila).toMatchObject({ cfdi_id: cfdis[0], estado: 'propuesta' });
+  });
+
+  it('una decisión rechazada bloquea volver a sugerir ese par', async () => {
+    const { m, cfdis } = await ambiguo();
+    await sembrarDecision(ds, {
+      companyId: A,
+      cfdiId: cfdis[0],
+      movimientoId: m,
+      estado: 'rechazada',
+      origen: 'llm',
+      motivo: 'no era',
+    });
+    const proveedor = new ProveedorFalso(sugiere('C1'));
+
+    await servicio(proveedor).sugerirParaEmpresa(A);
+
+    // Solo queda el otro CFDI como candidato; el rechazado no se vuelve a ofrecer.
+    expect(proveedor.recibidas[0].candidatos).toHaveLength(1);
+    const propuestas = (await decisionesLlm()).filter(
+      (f) => f.estado === 'propuesta',
+    );
+    expect(propuestas.every((f) => f.cfdi_id !== cfdis[0])).toBe(true);
+  });
+
   it('un par que una persona rechazó sale de los candidatos; sin candidatos no se llama', async () => {
     const { m, cfdis } = await ambiguo(A, { folios: ['1001', '1002', '1003'] });
-    await ds.query(
-      `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen, motivo)
-       VALUES ($1,$2,$3,'rechazada','llm','no era')`,
-      [A, cfdis[0], m],
-    );
+    await sembrarDecision(ds, {
+      companyId: A,
+      cfdiId: cfdis[0],
+      movimientoId: m,
+      estado: 'rechazada',
+      origen: 'llm',
+      motivo: 'no era',
+    });
     const proveedor = new ProveedorFalso();
     await servicio(proveedor).sugerirParaEmpresa(A);
     expect(proveedor.recibidas[0].candidatos.map((c) => c.serieFolio)).toEqual([
@@ -423,11 +522,16 @@ describe('elegibilidad (IA-01 a IA-04)', () => {
     ]);
 
     // Con todos los pares rechazados no queda nada que preguntar.
-    await ds.query(
-      `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen, motivo)
-       VALUES ($1,$2,$3,'rechazada','llm','no era'), ($1,$4,$3,'rechazada','llm','no era')`,
-      [A, cfdis[1], m, cfdis[2]],
-    );
+    for (const cfdiId of [cfdis[1], cfdis[2]]) {
+      await sembrarDecision(ds, {
+        companyId: A,
+        cfdiId,
+        movimientoId: m,
+        estado: 'rechazada',
+        origen: 'llm',
+        motivo: 'no era',
+      });
+    }
     const otro = new ProveedorFalso();
     const resumen = await servicio(otro).sugerirParaEmpresa(A);
     expect(otro.llamadas).toBe(0);
@@ -447,7 +551,7 @@ describe('elegibilidad (IA-01 a IA-04)', () => {
     expect(espia).not.toHaveBeenCalled();
     expect(resumen).toMatchObject({ llamadas: 0, propuestas: 0 });
     expect(await libro()).toEqual([]);
-    expect(await conciliacionesLlm()).toEqual([]);
+    expect(await decisionesLlm()).toEqual([]);
   });
 });
 
@@ -463,6 +567,22 @@ describe('idempotencia y respuestas sin sugerencia (IA-09, IA-15, IA-17)', () =>
     expect(proveedor.llamadas).toBe(1);
     expect(segunda).toMatchObject({ llamadas: 0, omitidos: 1 });
     expect(await libro()).toHaveLength(1);
+  });
+
+  it('correr dos veces no duplica la decisión, su línea ni la bitácora', async () => {
+    await ambiguo();
+    const svc = servicio(new ProveedorFalso(sugiere()));
+
+    await svc.sugerirParaEmpresa(A);
+    await svc.sugerirParaEmpresa(A);
+
+    expect(await decisionesLlm()).toHaveLength(1);
+    const { lineas } = await una<{ lineas: number }>(
+      ds,
+      `SELECT count(*)::int AS lineas FROM decision_lineas`,
+    );
+    expect(lineas).toBe(1);
+    expect(await bitacoraDe('crear')).toHaveLength(1);
   });
 
   it('si cambian los candidatos, la huella cambia y se vuelve a preguntar', async () => {
@@ -497,7 +617,7 @@ describe('idempotencia y respuestas sin sugerencia (IA-09, IA-15, IA-17)', () =>
       const resumen = await svc.sugerirParaEmpresa(A);
 
       expect(resumen).toMatchObject({ propuestas: 0, sinSugerencia: 1 });
-      expect(await conciliacionesLlm()).toEqual([]);
+      expect(await decisionesLlm()).toEqual([]);
       expect(await libro()).toEqual([
         expect.objectContaining({
           movimiento_id: m,
@@ -531,7 +651,7 @@ describe('fallos del proveedor (IA-18 a IA-21)', () => {
       interrumpida: true,
     });
     expect(await libro()).toEqual([]);
-    expect(await conciliacionesLlm()).toEqual([]);
+    expect(await decisionesLlm()).toEqual([]);
     expect((await movimientoFila(a.m)).regla).toBe(
       'monto_multiples_candidatos',
     );
@@ -603,21 +723,25 @@ describe('revalidación bajo el candado (IA-12)', () => {
       [
         'apareció una conciliación del movimiento',
         (m, cfdis) =>
-          ds.query(
-            `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen)
-           VALUES ($1,$2,$3,'propuesta','manual')`,
-            [A, cfdis[1], m],
-          ),
+          sembrarDecision(ds, {
+            companyId: A,
+            cfdiId: cfdis[1],
+            movimientoId: m,
+            estado: 'propuesta',
+            origen: 'manual',
+          }),
       ],
       [
         'el CFDI elegido se ocupó con otro movimiento',
         async (_m, cfdis) => {
           const otro = await movimiento(A, { monto: '1160.00' });
-          await ds.query(
-            `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen)
-           VALUES ($1,$2,$3,'propuesta','regla')`,
-            [A, cfdis[0], otro],
-          );
+          await sembrarDecision(ds, {
+            companyId: A,
+            cfdiId: cfdis[0],
+            movimientoId: otro,
+            estado: 'propuesta',
+            origen: 'regla',
+          });
         },
       ],
       [
@@ -654,11 +778,14 @@ describe('revalidación bajo el candado (IA-12)', () => {
       [
         'el par quedó rechazado',
         (m, cfdis) =>
-          ds.query(
-            `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen, motivo)
-           VALUES ($1,$2,$3,'rechazada','manual','no')`,
-            [A, cfdis[0], m],
-          ),
+          sembrarDecision(ds, {
+            companyId: A,
+            cfdiId: cfdis[0],
+            movimientoId: m,
+            estado: 'rechazada',
+            origen: 'manual',
+            motivo: 'no',
+          }),
       ],
     ];
 
@@ -666,7 +793,7 @@ describe('revalidación bajo el candado (IA-12)', () => {
     '%s: no se inserta nada y no queda fila en el libro',
     async (_nombre, cambio) => {
       const { m, cfdis } = await ambiguo();
-      const llamadasAntes = (await conciliacionesLlm()).length;
+      const llamadasAntes = (await decisionesLlm()).length;
       const proveedor = new ProveedorFalso(async () => {
         await cambio(m, cfdis);
         return sugiere('C1');
@@ -675,7 +802,7 @@ describe('revalidación bajo el candado (IA-12)', () => {
       const resumen = await servicio(proveedor).sugerirParaEmpresa(A);
 
       expect(resumen).toMatchObject({ propuestas: 0, obsoletas: 1 });
-      expect(await conciliacionesLlm()).toHaveLength(llamadasAntes);
+      expect(await decisionesLlm()).toHaveLength(llamadasAntes);
       expect(await libro()).toEqual([]);
       expect(await bitacoraDe('crear')).toEqual([]);
     },
@@ -718,10 +845,11 @@ describe('revalidación bajo el candado (IA-12)', () => {
     await concurrente;
 
     expect(resumen.propuestas + resumen.obsoletas).toBe(1);
-    expect((await conciliacionesLlm()).length).toBe(resumen.propuestas);
+    expect((await decisionesLlm()).length).toBe(resumen.propuestas);
     const vivas = await una<{ n: number }>(
       ds,
-      `SELECT count(*)::int AS n FROM conciliaciones WHERE estado <> 'rechazada'`,
+      `SELECT count(*)::int AS n FROM decisiones
+        WHERE estado IN ('propuesta', 'confirmada')`,
     );
     expect(vivas.n).toBe(resumen.propuestas);
   });
@@ -738,12 +866,12 @@ describe('aislamiento entre empresas (IA-25)', () => {
     expect(proveedor.llamadas).toBe(1);
     expect(JSON.stringify(proveedor.recibidas)).toContain('FERRETERIA');
     expect(JSON.stringify(proveedor.recibidas)).not.toContain('TRANSPORTES');
-    expect(await conciliacionesLlm(B)).toEqual([]);
+    expect(await decisionesLlm(B)).toEqual([]);
     expect(await libro(B)).toEqual([]);
     expect((await movimientoFila(deB.m)).regla).toBe(
       'monto_multiples_candidatos',
     );
-    expect(await conciliacionesLlm(A)).toHaveLength(1);
+    expect(await decisionesLlm(A)).toHaveLength(1);
     expect(await libro(A)).toHaveLength(1);
   });
 
@@ -753,7 +881,7 @@ describe('aislamiento entre empresas (IA-25)', () => {
 
     await servicio(new ProveedorFalso(sugiere())).sugerirParaEmpresa(B);
 
-    expect(await conciliacionesLlm(A)).toEqual([]);
+    expect(await decisionesLlm(A)).toEqual([]);
     expect((await movimientoFila(deA.m)).regla).toBe(
       'monto_multiples_candidatos',
     );
@@ -768,7 +896,7 @@ describe('el modelo nunca cierra un caso (IA-23)', () => {
       new ProveedorFalso(sugiere('C1', 'alta')),
     ).sugerirParaEmpresa(A);
 
-    const [fila] = await conciliacionesLlm();
+    const [fila] = await decisionesLlm();
     expect(fila.estado).toBe('propuesta');
     expect((await movimientoFila(m)).estado).toBe('abierto');
     const { estado } = await una<{ estado: string }>(
@@ -779,7 +907,7 @@ describe('el modelo nunca cierra un caso (IA-23)', () => {
     expect(estado).toBe('abierta');
     const { persona } = await una<{ persona: string | null }>(
       ds,
-      'SELECT confirmada_por_id AS persona FROM conciliaciones WHERE id = $1',
+      'SELECT confirmada_por_id AS persona FROM decisiones WHERE id = $1',
       [fila.id],
     );
     expect(persona).toBeNull();
@@ -790,24 +918,28 @@ describe('el modelo nunca cierra un caso (IA-23)', () => {
 
     await expect(
       ds.query(
-        `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen)
-         VALUES ($1,$2,$3,'confirmada','llm')`,
-        [A, cfdis[0], m],
+        `INSERT INTO decisiones (company_id, movimiento_id, tipo, estado, origen,
+                                 huella_conjunto)
+         VALUES ($1,$2,'conciliacion','confirmada','llm','huella-de-prueba')`,
+        [A, m],
       ),
-    ).rejects.toThrow(/ck_conciliaciones_confirmada_requiere_persona/);
+    ).rejects.toThrow(/ck_decisiones_confirmada_requiere_persona/);
+    expect(cfdis).toHaveLength(2);
 
     // Solo los CHECK de siempre: ninguno liga 'llm' con un estado.
     const checks = await filas<{ conname: string }>(
       ds,
       `SELECT conname FROM pg_constraint
-        WHERE conrelid = 'conciliaciones'::regclass AND contype = 'c'
+        WHERE conrelid = 'decisiones'::regclass AND contype = 'c'
         ORDER BY conname`,
     );
     expect(checks.map((c) => c.conname)).toEqual([
-      'ck_conciliaciones_confirmada_requiere_persona',
-      'ck_conciliaciones_estado',
-      'ck_conciliaciones_origen',
-      'ck_conciliaciones_score_rango',
+      'ck_decisiones_confirmada_requiere_persona',
+      'ck_decisiones_descarte_coherente',
+      'ck_decisiones_estado',
+      'ck_decisiones_origen',
+      'ck_decisiones_score_rango',
+      'ck_decisiones_tipo',
     ]);
   });
 });
@@ -827,18 +959,29 @@ describe('integración con CU-14, CU-15 y CU-16 (IA-26 a IA-28)', () => {
   it('IA-26: la bandeja lista la propuesta llm con score NULL, sin exponer el origen', async () => {
     const { m } = await ambiguo();
     await servicio(new ProveedorFalso(sugiere())).sugerirParaEmpresa(A);
-    const [llm] = await conciliacionesLlm();
+    const [llm] = await decisionesLlm();
 
     // Otro movimiento con una propuesta del motor (0.9) y una llm (NULL): gana la del motor.
     const m2 = await movimiento(A, { monto: '500.00' });
     const c2 = await factura(A, { folio: '2001', total: '500.00' });
     const c3 = await factura(A, { folio: '2002', total: '500.00' });
-    await ds.query(
-      `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen, regla, score)
-       VALUES ($1,$2,$3,'propuesta','regla','monto_unico','0.9000'),
-              ($1,$4,$3,'propuesta','llm','llm_sugerencia',NULL)`,
-      [A, c2, m2, c3],
-    );
+    await sembrarDecision(ds, {
+      companyId: A,
+      cfdiId: c2,
+      movimientoId: m2,
+      estado: 'propuesta',
+      origen: 'regla',
+      regla: 'monto_unico',
+      score: '0.9000',
+    });
+    await sembrarDecision(ds, {
+      companyId: A,
+      cfdiId: c3,
+      movimientoId: m2,
+      estado: 'propuesta',
+      origen: 'llm',
+      regla: 'llm_sugerencia',
+    });
 
     const res = await conToken(http().get('/bandeja')).expect(200);
     const datos = (
@@ -873,7 +1016,7 @@ describe('integración con CU-14, CU-15 y CU-16 (IA-26 a IA-28)', () => {
   it('IA-27: una persona confirma una propuesta llm y queda confirmada con su nombre en la bitácora', async () => {
     const { m, cfdis } = await ambiguo();
     await servicio(new ProveedorFalso(sugiere())).sugerirParaEmpresa(A);
-    const [llm] = await conciliacionesLlm();
+    const [llm] = await decisionesLlm();
 
     const res = await conToken(
       http().post(`/conciliaciones/${llm.id}/confirmar`),
@@ -884,7 +1027,7 @@ describe('integración con CU-14, CU-15 y CU-16 (IA-26 a IA-28)', () => {
     expect(res.body).toMatchObject({ id: llm.id, estado: 'confirmada' });
     const fila = await una<{ estado: string; persona: string; origen: string }>(
       ds,
-      `SELECT estado, confirmada_por_id AS persona, origen FROM conciliaciones WHERE id = $1`,
+      `SELECT estado, confirmada_por_id AS persona, origen FROM decisiones WHERE id = $1`,
       [llm.id],
     );
     expect(fila).toEqual({ estado: 'confirmada', persona: ana, origen: 'llm' });
@@ -904,7 +1047,7 @@ describe('integración con CU-14, CU-15 y CU-16 (IA-26 a IA-28)', () => {
   it('IA-27: al rechazarla, el par no vuelve a salir entre los candidatos', async () => {
     const { cfdis } = await ambiguo(A, { folios: ['1001', '1002', '1003'] });
     await servicio(new ProveedorFalso(sugiere('C1'))).sugerirParaEmpresa(A);
-    const [llm] = await conciliacionesLlm();
+    const [llm] = await decisionesLlm();
     expect(llm.cfdi_id).toBe(cfdis[0]);
 
     // conciliar() corre solo tras el rechazo; aquí se controla a mano.
@@ -930,7 +1073,7 @@ describe('integración con CU-14, CU-15 y CU-16 (IA-26 a IA-28)', () => {
   it('IA-28: el historial y el listado de la bitácora muestran el crear sin usuario y con origen llm', async () => {
     await ambiguo();
     await servicio(new ProveedorFalso(sugiere())).sugerirParaEmpresa(A);
-    const [llm] = await conciliacionesLlm();
+    const [llm] = await decisionesLlm();
 
     const historial = await conToken(
       http().get(`/conciliaciones/${llm.id}/historial`),
@@ -952,7 +1095,7 @@ describe('integración con CU-14, CU-15 y CU-16 (IA-26 a IA-28)', () => {
     });
 
     const listado = await conToken(
-      http().get('/bitacora?entidad=conciliaciones&accion=crear'),
+      http().get('/bitacora?entidad=decisiones&accion=crear'),
     ).expect(200);
     const crear = (
       listado.body as {

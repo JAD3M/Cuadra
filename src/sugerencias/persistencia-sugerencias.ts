@@ -121,31 +121,46 @@ export class PersistenciaSugerencias {
       if (!vigente) return 'obsoleta';
 
       const ocupados = await manager.query<unknown[]>(
-        `SELECT 1 FROM conciliaciones
-          WHERE company_id = $1 AND estado <> 'rechazada'
-            AND (movimiento_id = $2 OR cfdi_id = $3)
+        `SELECT 1 FROM decisiones d
+          WHERE d.company_id = $1 AND d.estado IN ('propuesta', 'confirmada')
+            AND (d.movimiento_id = $2
+                 OR EXISTS (SELECT 1 FROM decision_lineas l
+                             WHERE l.decision_id = d.id
+                               AND l.company_id = d.company_id
+                               AND l.cfdi_id = $3))
           LIMIT 1`,
         [companyId, movimiento.id, p.cfdiId],
       );
       if (ocupados.length > 0) return 'obsoleta';
 
       // La misma forma que `ConciliacionService.insertar`: el CTE deja la
-      // conciliación y su fila `crear` en UNA sentencia. Un par que
-      // ON CONFLICT descarta (p. ej. uno rechazado) no sale de RETURNING:
-      // 0 filas es obsoleta. El autor es el sistema (`user_id` NULL).
+      // decisión, su línea y su fila `crear` en UNA sentencia. Una decisión que
+      // ON CONFLICT descarta no sale de RETURNING: 0 filas es obsoleta. El autor es el sistema (`user_id` NULL).
       // La diferencia se calcula con decimal.js sobre lo releído, nunca con number.
       const diferencia = aTexto(dinero(mov.monto).minus(dinero(cfdi.total)), 4);
       const auditadas = await manager.query<{ id: string }[]>(
-        `WITH creada AS (
-           INSERT INTO conciliaciones
-                  (company_id, cfdi_id, movimiento_id, estado, origen, regla,
-                   score, diferencia_monto, motivo)
-           VALUES ($1, $2, $3, 'propuesta', 'llm', $4, NULL, $5::numeric, $6)
-           ON CONFLICT (company_id, cfdi_id, movimiento_id) DO NOTHING
-           RETURNING id, cfdi_id, movimiento_id, regla, diferencia_monto
+        `WITH fuente AS (SELECT uuidv7() AS id),
+         creada AS (
+           INSERT INTO decisiones
+                  (id, company_id, movimiento_id, tipo, estado, origen, regla,
+                   score, diferencia_monto, motivo, requiere_revision,
+                   huella_conjunto)
+           SELECT f.id, $1::uuid, $3::uuid, 'conciliacion', 'propuesta', 'llm',
+                  $4::text, NULL, $5::numeric, $6::text, false,
+                  huella_conjunto(ARRAY[$2::uuid])
+             FROM fuente f
+           ON CONFLICT DO NOTHING
+           RETURNING id, movimiento_id, regla, diferencia_monto
+         ),
+         lineas AS (
+           INSERT INTO decision_lineas
+                  (company_id, decision_id, estado_decision, cfdi_id)
+           SELECT $1::uuid, c.id, 'propuesta', $2::uuid
+             FROM creada c
+           RETURNING decision_id
          )
          INSERT INTO bitacora (company_id, user_id, entidad, entidad_id, accion, datos)
-         SELECT $1, NULL, 'conciliaciones', c.id, 'crear',
+         SELECT $1, NULL, 'decisiones', c.id, 'crear',
                 jsonb_build_object(
                   'despues', jsonb_build_object('estado', 'propuesta'),
                   'origen', 'llm',
@@ -154,7 +169,7 @@ export class PersistenciaSugerencias {
                   'inputHash', $8::text,
                   'confianza', $9::text,
                   'diferenciaMonto', c.diferencia_monto::text,
-                  'cfdiId', c.cfdi_id,
+                  'cfdiId', $2::uuid,
                   'movimientoId', c.movimiento_id)
            FROM creada c
          RETURNING id`,
@@ -187,7 +202,7 @@ export class PersistenciaSugerencias {
 
   /**
    * El modelo no sugirió nada (o lo que dijo no pasó la validación): se anota
-   * para no volver a preguntar lo mismo. No toca conciliaciones ni movimientos.
+   * para no volver a preguntar lo mismo. No toca decisiones ni movimientos.
    */
   async registrarSinSugerencia(
     companyId: string,

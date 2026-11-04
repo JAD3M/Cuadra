@@ -79,7 +79,7 @@ necesita una forma determinista de forzar `rowCount = 0` y `23505`.
   decisión que no es `propuesta` da 409 sin cambiar nada; (d) `rowCount = 0` y
   `23505` se traducen a 409; (e) factura y movimiento cambian de estado solo con
   la transición.
-- [ ] **T4** Sugerencias: exclusiones y persistencia de la IA sobre `decisiones`.
+- [x] **T4** Sugerencias: exclusiones y persistencia de la IA sobre `decisiones`.
 - [ ] **T5** Bitácora (historial y listado leen `decisiones` y conservan las
   filas históricas), specs restantes migrados, suite completa en verde, bitácora
   del proyecto, `CUADRA.md`, Jira KAN-138, PRs y repaso de la historia.
@@ -179,6 +179,39 @@ necesita una forma determinista de forzar `rowCount = 0` y `23505`.
   `src/sugerencias/sugerencias.integracion.spec.ts` (T4). 78 suites en verde
   (1678 pruebas).
 
+### T4
+
+- Ruta: escritor delegado (lectura de preparación hecha por el escritor).
+- RED: `npm test -- src/sugerencias` con `sugerencias.integracion.spec.ts` y
+  `sugerencias-cola.integracion.spec.ts` ya sembrando por `sembrarDecision` /
+  leyendo `decisiones` y el código aún sobre `conciliaciones`: 20 fallidas,
+  128 pasan (148); 2 suites rojas.
+- GREEN: `sugerencias.service.ts` (movimientos elegibles: `NOT EXISTS` sobre
+  `decisiones` propuesta/confirmada; pares existentes: `decisiones` +
+  `decision_lineas` con propuesta/confirmada/rechazada, la obsoleta no cuenta) y
+  `persistencia-sugerencias.ts` (comprobación de ocupado por movimiento o por
+  CFDI vía línea; CTE `fuente` (uuidv7) -> `creada` (decisiones, origen `llm`,
+  `huella_conjunto(ARRAY[cfdi])`, `ON CONFLICT DO NOTHING`) -> `lineas` ->
+  bitácora `decisiones`/`crear` con el mismo payload, en una sentencia; candado
+  de empresa primero, igual que antes). `npm test -- src/sugerencias`: 147 de
+  148 pasan; la única roja es IA-28 (historial y listado de la bitácora, que
+  leen `conciliaciones` hasta T5; el spec ya consulta `entidad=decisiones`).
+  `npm test -- src/sugerencias src/resolucion src/bandeja src/casos
+  src/conciliacion`: 18 suites, 489 de 490 (la misma IA-28). `npx tsc
+  --noEmit`, `npx eslint "src/**/*.ts"` y `npx prettier --check "src/**/*.ts"`
+  limpios.
+- Pruebas nuevas: bitácora con entidad `decisiones`, cabecera `conciliacion` +
+  una línea `propuesta` + origen `llm`; confirmada ocupa el movimiento; obsoleta
+  no lo ocupa (se pregunta y se propone); rechazada bloquea volver a sugerir ese
+  par; correr dos veces no duplica decisión, línea ni bitácora. Aislamiento por
+  empresa y CHECK de `decisiones` (confirmada sin persona) migrados.
+- Suite completa tras T4: 4 suites rojas (12 pruebas), todas esperadas:
+  `src/bitacora/bitacora.integracion.spec.ts`,
+  `src/companies/tolerancia.integracion.spec.ts`,
+  `src/demo/demo.integracion.spec.ts` (T5) y
+  `src/sugerencias/sugerencias.integracion.spec.ts` (solo IA-28, depende del
+  historial/listado de la bitácora de T5). 78 suites en verde (1685 pruebas).
+
 ## Siguiente paso
 
-T4.
+T5.
