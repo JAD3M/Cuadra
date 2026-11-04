@@ -23,7 +23,6 @@ const TABLAS_CON_RLS = [
   'cargas',
   'cfdi',
   'movimientos',
-  'conciliaciones',
   'bitacora',
   'carga_archivos',
   'sugerencias_ia',

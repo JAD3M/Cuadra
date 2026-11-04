@@ -5,6 +5,26 @@
 
 ### 4 nov 2026
 
+- **Historia 4.3 de la v2: retirar la tabla vieja de conciliaciones.** Rama
+  `feat/v2-4-3-retirar-conciliaciones` con ODD, documento
+  `odd/tasks/v2-4-3-retirar-conciliaciones.md` (KAN-139). Paso 4 de AD-20.
+  - **Migración de retiro** `1790711000000-RetirarConciliaciones`: `up` verifica
+    por empresa que cada conciliación tenga su decisión y su línea y falla en voz
+    alta sin cambiar nada; luego borra la tabla. `down` la recrea y la repuebla
+    de mejor esfuerzo (no devuelve decisiones multilínea ni estados fuera de la
+    v1). La reversión corre con el rol dueño y está en `docs/despliegue.md`.
+  - **Prueba de arquitectura:** ningún código de producción nombra la tabla.
+    «Nombrar» es SQL, `@Entity` o importar `Conciliacion`; la ruta, el permiso y
+    el nombre histórico en la bitácora no cuentan.
+  - **Pruebas de migración** sobre bases propias: secuencia completa desde cero,
+    base con datos de la v1 (decisiones = conciliaciones, bitácora intacta) y
+    fallo limpio si falta una decisión.
+  - **Suite del backend:** 84 suites, 1722 pruebas. El escritor se detuvo con tres
+    specs fuera de su superficie que aún borraban de `conciliaciones`; las
+    corregí yo.
+  - **Revisión nativa** de alto riesgo, cuatro lentes: aprobada. Seguimiento
+    opcional: que el `down` registre cuántas decisiones omite.
+
 - **Historia 4.2 de la v2: pasar propuestas y confirmaciones al modelo de
   decisiones.** Rama `feat/v2-4-2-propuestas-a-decisiones` con ODD, documento
   `odd/tasks/v2-4-2-propuestas-a-decisiones.md` (KAN-138). Paso 3 de AD-20: un

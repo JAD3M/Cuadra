@@ -16,6 +16,10 @@ import { huellaConjunto } from './huella-conjunto';
  * `conciliaciones` a `decisiones` (mismo id) y `decision_lineas`. Se siembra
  * la v1 primero y luego se corre el mismo backfill que la migración, dentro
  * de una transacción que siempre se revierte.
+ *
+ * Historia 4.3: la tabla `conciliaciones` ya no existe en el esquema final, así
+ * que el spec recrea la tabla con el `down` de `RetirarConciliaciones` (lo que
+ * también ejercita ese `down`) y vuelve a migrar al terminar.
  */
 
 const FERRETERIA = 'FDB190215QK4';
@@ -29,11 +33,19 @@ beforeAll(async () => {
   await crearBaseDePruebas(url);
   ds = await new DataSource({ ...opcionesDataSource, url }).initialize();
   await ds.runMigrations();
+  // La 4.3 retiró `conciliaciones`; esta migración de la 4.1 sigue en el
+  // historial y copia desde ella. Se deshace el retiro (que recrea la tabla,
+  // vacía) para probar la copia tal como corrió entonces.
+  await ds.undoLastMigration();
   await sembrar(ds);
 }, 60_000);
 
 afterAll(async () => {
-  if (ds?.isInitialized) await ds.destroy();
+  // Deja la base compartida en la última migración, con la tabla ya retirada.
+  if (ds?.isInitialized) {
+    await ds.runMigrations();
+    await ds.destroy();
+  }
 });
 
 /** Lo mismo que corre la migración (`up`), sobre la transacción de la prueba. */

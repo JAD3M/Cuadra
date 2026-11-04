@@ -88,7 +88,7 @@ describe('auditor: solo consulta (FR-54)', () => {
       const cookie = await entorno.token(LUIS, FERRETERIA);
       const antes = [
         await conteo('cargas'),
-        await conteo('conciliaciones'),
+        await conteo('decisiones'),
         await conteo('bitacora'),
       ];
 
@@ -100,7 +100,7 @@ describe('auditor: solo consulta (FR-54)', () => {
 
       expect(res.status).toBe(403);
       expect(await conteo('cargas')).toBe(antes[0]);
-      expect(await conteo('conciliaciones')).toBe(antes[1]);
+      expect(await conteo('decisiones')).toBe(antes[1]);
       const filasDenegadas = await denegados();
       expect(await conteo('bitacora')).toBe(antes[2] + 1);
       expect(filasDenegadas).toHaveLength(1);

@@ -241,9 +241,49 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 });
 
 describe('migración reversible', () => {
-  it('down y up de CopiarConciliacionesADecisiones, HuellaConjunto, TablasDecisiones, MotivoRechazoCarga, BancosVistaPrevia, HuellaMovimientos, VistaPreviaDecidida, PendienteVistaPrevia, CambiarQuitarRoles, InvitacionesCancelables, InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
+  it('down y up de RetirarConciliaciones, CopiarConciliacionesADecisiones, HuellaConjunto, TablasDecisiones, MotivoRechazoCarga, BancosVistaPrevia, HuellaMovimientos, VistaPreviaDecidida, PendienteVistaPrevia, CambiarQuitarRoles, InvitacionesCancelables, InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
     // Las tres últimas son de cargas (historias 3.5, 3.4 y 3.3), ajenas a la
     // plataforma: solo se deshacen para llegar a las que sí lo son.
+    // RetirarConciliaciones (4.3): el down recrea `conciliaciones` con su RLS
+    // FORCE, su política y sus GRANTs, y la repuebla desde `decisiones`.
+    const { n: esperadas } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM decisiones d
+        WHERE d.tipo = 'conciliacion'
+          AND d.estado IN ('propuesta', 'confirmada', 'rechazada')
+          AND (SELECT count(*) FROM decision_lineas l WHERE l.decision_id = d.id) = 1`,
+    );
+    await duenio.undoLastMigration();
+    const rlsRetirada = await una<{ rls: boolean; forzada: boolean }>(
+      duenio,
+      `SELECT relrowsecurity AS rls, relforcerowsecurity AS forzada
+         FROM pg_class WHERE oid = to_regclass('public.conciliaciones')`,
+    );
+    expect(rlsRetirada).toEqual({ rls: true, forzada: true });
+    const { n: politicas } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM pg_policies
+        WHERE tablename = 'conciliaciones' AND policyname = 'rls_conciliaciones_company'`,
+    );
+    expect(politicas).toBe(1);
+    const permisosRetirada = await una<{
+      s: boolean;
+      i: boolean;
+      u: boolean;
+      d: boolean;
+    }>(
+      duenio,
+      `SELECT has_table_privilege('cuadra_app', 'conciliaciones', 'SELECT') AS s,
+              has_table_privilege('cuadra_app', 'conciliaciones', 'INSERT') AS i,
+              has_table_privilege('cuadra_app', 'conciliaciones', 'UPDATE') AS u,
+              has_table_privilege('cuadra_app', 'conciliaciones', 'DELETE') AS d`,
+    );
+    expect(permisosRetirada).toEqual({ s: true, i: true, u: true, d: false });
+    const { n: repobladas } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM conciliaciones`,
+    );
+    expect(repobladas).toBe(esperadas);
     // CopiarConciliacionesADecisiones: solo borra datos copiados; no cambia el
     // esquema. Se verifica que no quede una decisión con id de conciliación.
     await duenio.undoLastMigration();
