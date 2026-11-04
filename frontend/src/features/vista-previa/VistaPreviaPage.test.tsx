@@ -649,3 +649,86 @@ describe('VistaPreviaPage: rechazar', () => {
     expect(aceptadas).toBe(0);
   });
 });
+
+describe('VistaPreviaPage: motivo del rechazo (3.7)', () => {
+  function espiarRechazo() {
+    const visto: { cuerpo: string | null } = { cuerpo: null };
+    servidor.use(
+      leerVistaPrevia(),
+      http.post(RUTA_RECHAZAR, async ({ request, params }) => {
+        visto.cuerpo = await request.text();
+        return HttpResponse.json({
+          cargaId: String(params.id),
+          estado: 'rechazada',
+        });
+      }),
+    );
+    return visto;
+  }
+
+  it('sin motivo no manda cuerpo (el servidor pone el suyo)', async () => {
+    const visto = espiarRechazo();
+    montar();
+    await esperarContenido();
+    const u = usuario();
+    await u.click(rechazar());
+    await u.click(screen.getByRole('button', { name: 'Sí, rechazar' }));
+    await screen.findByText('Vista previa rechazada.');
+    expect(visto.cuerpo).toBe('');
+  });
+
+  it('con motivo manda {"motivo"} recortado', async () => {
+    const visto = espiarRechazo();
+    montar();
+    await esperarContenido();
+    const u = usuario();
+    await u.click(rechazar());
+    await u.type(
+      screen.getByRole('textbox', { name: 'Motivo (opcional)' }),
+      '  PDF de otra cuenta ',
+    );
+    await u.click(screen.getByRole('button', { name: 'Sí, rechazar' }));
+    await screen.findByText('Vista previa rechazada.');
+    expect(JSON.parse(visto.cuerpo ?? '')).toEqual({
+      motivo: 'PDF de otra cuenta',
+    });
+  });
+
+  it('un motivo en blanco no manda cuerpo', async () => {
+    const visto = espiarRechazo();
+    montar();
+    await esperarContenido();
+    const u = usuario();
+    await u.click(rechazar());
+    await u.type(
+      screen.getByRole('textbox', { name: 'Motivo (opcional)' }),
+      '   ',
+    );
+    await u.click(screen.getByRole('button', { name: 'Sí, rechazar' }));
+    await screen.findByText('Vista previa rechazada.');
+    expect(visto.cuerpo).toBe('');
+  });
+
+  it('aceptar nunca manda cuerpo', async () => {
+    let cuerpo: string | null = null;
+    servidor.use(
+      leerVistaPrevia(),
+      http.post(RUTA_ACEPTAR, async ({ request, params }) => {
+        cuerpo = await request.text();
+        return HttpResponse.json({
+          cargaId: String(params.id),
+          estado: 'procesada',
+          movimientos: 3,
+          nuevos: 3,
+          existentes: 0,
+          dudosos: 0,
+        });
+      }),
+    );
+    montar();
+    await esperarContenido();
+    await usuario().click(aceptar());
+    await screen.findByText('Importación aceptada.');
+    expect(cuerpo).toBe('');
+  });
+});

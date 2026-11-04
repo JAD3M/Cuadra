@@ -1,12 +1,14 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '@/shared/ui/Button';
+import { MOTIVO_RECHAZO_MAXIMO } from '@/features/vista-previa/constantes';
 import { CONFIRMAR_RECHAZO } from '@/features/vista-previa/textos';
 import estilos from './ConfirmarRechazo.module.css';
 
 export interface ConfirmarRechazoProps {
   /** Cuántos movimientos se descartarían. */
   total: number;
-  onConfirmar: () => void;
+  /** `motivo` solo viene si la persona escribió algo (recortado). */
+  onConfirmar: (motivo?: string) => void;
   onCancelar: () => void;
 }
 
@@ -22,6 +24,9 @@ export function ConfirmarRechazo({
 }: ConfirmarRechazoProps) {
   const idTitulo = useId();
   const idDetalle = useId();
+  const idMotivo = useId();
+  const idAyuda = useId();
+  const [motivo, setMotivo] = useState('');
   const raiz = useRef<HTMLDivElement>(null);
   useEffect(() => {
     raiz.current?.focus();
@@ -43,8 +48,31 @@ export function ConfirmarRechazo({
           {CONFIRMAR_RECHAZO.detalle(total)}
         </span>
       </div>
+      <div className={estilos.campo}>
+        <label htmlFor={idMotivo} className={estilos.etiqueta}>
+          {CONFIRMAR_RECHAZO.motivoEtiqueta}
+        </label>
+        <textarea
+          id={idMotivo}
+          className={estilos.control}
+          rows={3}
+          maxLength={MOTIVO_RECHAZO_MAXIMO}
+          value={motivo}
+          aria-describedby={idAyuda}
+          onChange={(evento) => setMotivo(evento.target.value)}
+        />
+        <span id={idAyuda} className={estilos.ayuda}>
+          {CONFIRMAR_RECHAZO.motivoAyuda}
+        </span>
+      </div>
       <div className={estilos.botones}>
-        <Button variante="peligro" onClick={onConfirmar}>
+        <Button
+          variante="peligro"
+          onClick={() => {
+            const limpio = motivo.trim();
+            onConfirmar(limpio === '' ? undefined : limpio);
+          }}
+        >
           {CONFIRMAR_RECHAZO.confirmar}
         </Button>
         <Button variante="secundario" onClick={onCancelar}>

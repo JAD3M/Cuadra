@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ContratoError } from '@/shared/api';
 import { ESTADOS_CARGA } from '@/shared/dominio';
 import {
+  cuerpoRechazarCarga,
   detalleCarga,
   perfilesBancarios,
   respuestaCarga,
@@ -531,5 +532,41 @@ describe('respuestaDecisionVistaPrevia (historia 3.4)', () => {
     expect(() =>
       respuestaDecisionVistaPrevia.parse({ cargaId: G(1), estado: 'otra' }),
     ).toThrow();
+  });
+});
+
+describe('motivo del rechazo (3.7)', () => {
+  it('detalleCarga acepta motivoRechazo como texto o null', () => {
+    expect(
+      detalleCarga.parse(detalle({ motivoRechazo: 'PDF de otra cuenta' }))
+        .motivoRechazo,
+    ).toBe('PDF de otra cuenta');
+    expect(
+      detalleCarga.parse(detalle({ motivoRechazo: null })).motivoRechazo,
+    ).toBeNull();
+  });
+
+  it('una respuesta sin motivoRechazo sigue válida (se lee como sin motivo)', () => {
+    expect(detalleCarga.safeParse(detalle()).success).toBe(true);
+  });
+
+  it('motivoRechazo que no es texto ni null falla', () => {
+    expect(detalleCarga.safeParse(detalle({ motivoRechazo: 5 })).success).toBe(
+      false,
+    );
+  });
+
+  it('respuestaCarga también trae motivoRechazo', () => {
+    expect(
+      respuestaCarga.parse({
+        ...detalle({ motivoRechazo: null }),
+        yaExistia: false,
+      }).motivoRechazo,
+    ).toBeNull();
+  });
+
+  it('cuerpoRechazarCarga pide un motivo de texto', () => {
+    expect(cuerpoRechazarCarga.safeParse({ motivo: 'x' }).success).toBe(true);
+    expect(cuerpoRechazarCarga.safeParse({ motivo: 3 }).success).toBe(false);
   });
 });

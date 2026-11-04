@@ -1,5 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import { describe, expect, it } from 'vitest';
+import { ESTADOS_CARGA } from '@/shared/dominio';
 import { itemCarga, LISTA_CINCO_ESTADOS } from '@/test/fixturesCargas';
 import { TablaCargas } from './TablaCargas';
 
@@ -77,9 +79,18 @@ describe('TablaCargas', () => {
     expect(nombres).toEqual(['lote-9.xml', 'lote-1.xml', 'lote-5.xml']);
   });
 
-  it('las filas no son clicables (2.5)', () => {
+  it('las filas de los demás estados no son clicables (2.5); solo la rechazada se abre (3.7)', () => {
     render(<TablaCargas cargas={LISTA_CINCO_ESTADOS} />);
     expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+    const otros = ESTADOS_CARGA.filter((e) => e !== 'rechazada').map(
+      (estado, i) => itemCarga(i + 1, { estado }),
+    );
+    render(
+      <MemoryRouter>
+        <TablaCargas cargas={otros} />
+      </MemoryRouter>,
+    );
     expect(screen.queryByRole('button')).toBeNull();
   });
 });

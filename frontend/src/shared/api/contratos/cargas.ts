@@ -98,7 +98,19 @@ export const detalleCarga = z.object({
   resultados: z.array(resultadoDeCarga),
   /** Solo en `fallida`: un mensaje genérico del servidor. */
   errorMensaje: z.string().nullable(),
+  /**
+   * Historia 3.7: el motivo con el que se descartó la vista previa; `null` en
+   * toda carga que no está `rechazada`. Una respuesta que no lo trae se lee
+   * como «sin motivo».
+   */
+  motivoRechazo: z.string().nullable().optional(),
 });
+
+/**
+ * Cuerpo opcional de `POST /cargas/:id/rechazar` (historia 3.7). Sin motivo no
+ * se manda cuerpo: el servidor guarda su mensaje fijo.
+ */
+export const cuerpoRechazarCarga = z.object({ motivo: z.string() });
 
 /** El POST responde el detalle y además dice si el lote ya se había cargado. */
 export const respuestaCarga = detalleCarga.extend({ yaExistia: z.boolean() });
@@ -204,6 +216,7 @@ export type ResultadoDeCarga = z.infer<typeof resultadoDeCarga>;
 export type ResultadoArchivoSinError = z.infer<typeof archivoSinError>;
 export type DetalleCarga = z.infer<typeof detalleCarga>;
 export type RespuestaCarga = z.infer<typeof respuestaCarga>;
+export type CuerpoRechazarCarga = z.infer<typeof cuerpoRechazarCarga>;
 export type RespuestaLecturaPdf = z.infer<typeof respuestaLecturaPdf>;
 export type LineaNoLeida = z.infer<typeof lineaNoLeida>;
 export type VistaPreviaCarga = z.infer<typeof vistaPreviaCarga>;

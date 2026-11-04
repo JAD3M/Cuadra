@@ -123,6 +123,11 @@ const PARES: Par[] = [
   ['--color-text', '--color-danger-tint'],
   ['--color-text-secondary', '--color-danger-tint'],
   ['--color-text-soft', '--estado-sugerencia-tile-bg'],
+  // Motivo del rechazo (3.7): la fila abierta de Cargas y el campo de la
+  // confirmación de la Vista previa viven sobre --color-inset. El motivo va en
+  // danger-title, la etiqueta y la ayuda en muted, el texto escrito en text y
+  // «Sin motivo registrado.» en text-secondary: todos ya están declarados arriba
+  // (danger-title/inset y los cuatro niveles de texto sobre los fondos base).
   // Bitácora (CU-26, U7): la fila de un acceso denegado pinta sus celdas con
   // --color-danger-row; sobre ella van la fecha y «Sistema» (text-secondary),
   // el autor (text), el detalle (text-soft) y el id de la entidad (muted). El

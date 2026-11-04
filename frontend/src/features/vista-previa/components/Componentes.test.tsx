@@ -260,3 +260,69 @@ describe('EstadoVistaPrevia', () => {
     expect(screen.getByText(texto)).toHaveAttribute('data-tono', tono);
   });
 });
+
+describe('ConfirmarRechazo: motivo opcional (3.7)', () => {
+  const montarDialogo = (alConfirmar = vi.fn()) => {
+    render(
+      <ConfirmarRechazo
+        total={3}
+        onConfirmar={alConfirmar}
+        onCancelar={() => undefined}
+      />,
+    );
+    return alConfirmar;
+  };
+
+  it('muestra el campo «Motivo (opcional)» de 3 filas y 500 caracteres, descrito por su ayuda', () => {
+    montarDialogo();
+    const campo = screen.getByRole('textbox', { name: 'Motivo (opcional)' });
+    expect(campo.tagName).toBe('TEXTAREA');
+    expect(campo).toHaveAttribute('rows', '3');
+    expect(campo).toHaveAttribute('maxlength', '500');
+    expect(campo).not.toBeRequired();
+    expect(campo).toHaveAccessibleDescription(
+      'Si lo dejas vacío, se registrará «Descartada desde la vista previa».',
+    );
+  });
+
+  it('el campo vive dentro del alertdialog junto a «Sí, rechazar» y «Cancelar»', () => {
+    montarDialogo();
+    const dialogo = screen.getByRole('alertdialog');
+    expect(
+      within(dialogo).getByRole('textbox', { name: 'Motivo (opcional)' }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialogo).getByRole('button', { name: 'Sí, rechazar' }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialogo).getByRole('button', { name: 'Cancelar' }),
+    ).toBeInTheDocument();
+  });
+
+  it('sin escribir nada confirma sin motivo', async () => {
+    const alConfirmar = montarDialogo();
+    await userEvent.click(screen.getByRole('button', { name: 'Sí, rechazar' }));
+    expect(alConfirmar).toHaveBeenCalledTimes(1);
+    expect(alConfirmar).toHaveBeenCalledWith(undefined);
+  });
+
+  it('un motivo en blanco cuenta como vacío', async () => {
+    const alConfirmar = montarDialogo();
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'Motivo (opcional)' }),
+      '   ',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Sí, rechazar' }));
+    expect(alConfirmar).toHaveBeenCalledWith(undefined);
+  });
+
+  it('con texto confirma con el motivo recortado', async () => {
+    const alConfirmar = montarDialogo();
+    await userEvent.type(
+      screen.getByRole('textbox', { name: 'Motivo (opcional)' }),
+      '  PDF de otra cuenta  ',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Sí, rechazar' }));
+    expect(alConfirmar).toHaveBeenCalledWith('PDF de otra cuenta');
+  });
+});

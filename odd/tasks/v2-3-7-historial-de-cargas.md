@@ -30,6 +30,12 @@ filas no son clicables y descartar una vista previa
   guarda un mensaje fijo del backend. Consecuencia (UX-DR1): la pantalla de la
   vista previa gana un campo, así que el mockup se actualiza y se acuerda antes
   de escribir esa parte del frontend (T3).
+- 2026-11-03, con el usuario: mockups actualizados y **aprobados** (canvas
+  «Cuadra — mockups del frontend», tableros 4 · Cargas y 18 · Vista previa del
+  PDF). La carga rechazada se abre como **fila expandible** en la tabla (sin
+  pantalla ni ruta nuevas); la Vista previa gana el campo «Motivo (opcional)» en
+  la confirmación de rechazo. Como `GET /cargas` no trae el motivo, el frontend lo
+  pide a `GET /cargas/:id` al expandir.
 - Pendiente como historia aparte, solo si el contador lo necesita en el historial:
   crear la carga `rechazada` por cuadre o líneas ilegibles, con motivo y líneas.
   Exige enmendar AD-8 en el spine.
@@ -67,8 +73,13 @@ filas no son clicables y descartar una vista previa
   79 suites / 1621 pruebas, tsc, eslint y prettier limpios. `motivo_rechazo` entra a `SQL_ESTADO`
   (también lo ven las respuestas del POST); se actualizó el `toEqual` de `cargas.integracion.spec.ts`.
   Ruta: delegada (escritor único). Commit: pendiente del padre.
-- [ ] T3 Frontend: mockup primero (Cargas y el campo opcional en la Vista previa), acordado con el usuario; luego fila clicable y detalle de la carga
+- [x] T3 Frontend: mockup primero (Cargas y el campo opcional en la Vista previa), acordado con el usuario; luego fila clicable y detalle de la carga
   rechazada (motivo); espejo de tipos si cambian.
+  Evidencia 2026-11-03: RED (29 fallos en 6 archivos: campo ausente, contrato sin `motivoRechazo`, fila sin botón, CSS sin clases),
+  GREEN con `npm test` 291 archivos / 4718 pruebas, typecheck, eslint y prettier limpios. Vista previa: campo «Motivo (opcional)»
+  (`ConfirmarRechazo`), el cuerpo `{motivo}` solo si el texto recortado no está vacío. Cargas: fila `rechazada` expandible
+  (botón de 44 px + clic en la fila, una abierta a la vez), `GET /cargas/:id` al abrir (`useDetalleCarga`, misma clave que el sondeo).
+  Sin verificación visual en navegador. Ruta: delegada (escritor único). Commit: pendiente del padre.
 - [ ] T4 Docs: `docs/bitacora.md` y `CUADRA.md`.
 
 ## Aceptación

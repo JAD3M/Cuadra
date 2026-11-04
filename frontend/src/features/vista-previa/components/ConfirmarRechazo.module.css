@@ -33,3 +33,41 @@
   flex-wrap: wrap;
   gap: var(--space-12);
 }
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.etiqueta {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label-wide);
+  text-transform: uppercase;
+}
+
+.control {
+  box-sizing: border-box;
+  inline-size: 100%;
+  padding: var(--space-12) var(--space-14);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  background: var(--color-inset);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-md);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.ayuda {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
