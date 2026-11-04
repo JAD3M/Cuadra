@@ -76,6 +76,10 @@ export const REGLAS_SIN_MATCH = [
 ] as const;
 export type ReglaSinMatch = (typeof REGLAS_SIN_MATCH)[number];
 
+/** Nivel de confianza de una propuesta del motor de reglas (AC6). */
+export const NIVELES_CONFIANZA = ['alta', 'media', 'baja'] as const;
+export type NivelConfianza = (typeof NIVELES_CONFIANZA)[number];
+
 export const REGLA_LLM_SUGERENCIA = 'llm_sugerencia';
 
 export const RESULTADOS_SUGERENCIA = ['propuesta', 'sin_sugerencia'] as const;

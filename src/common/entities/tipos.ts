@@ -99,6 +99,14 @@ export const REGLAS_SIN_MATCH = [
 ] as const;
 export type ReglaSinMatch = (typeof REGLAS_SIN_MATCH)[number];
 
+/**
+ * Nivel de confianza de una propuesta del motor de reglas (CU-11, AC6).
+ * Se deriva de la puntuación de su regla con `nivelDeConfianza`; nunca se
+ * guarda ni se inventa fuera de ahí.
+ */
+export const NIVELES_CONFIANZA = ['alta', 'media', 'baja'] as const;
+export type NivelConfianza = (typeof NIVELES_CONFIANZA)[number];
+
 /** CU-17. `regla` de la conciliación que propone el modelo. */
 export const REGLA_LLM_SUGERENCIA = 'llm_sugerencia';
 

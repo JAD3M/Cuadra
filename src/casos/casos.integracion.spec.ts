@@ -17,6 +17,15 @@ import { una } from '../database/testing/base-de-pruebas';
 import { sembrarDecision } from '../conciliacion/siembra-decisiones';
 import type { RespuestaBandejaDto } from '../bandeja/dto/bandeja.dto';
 import type { RespuestaCasoDto } from './dto/caso.dto';
+import {
+  REGLA_MONTO_UNICO,
+  REGLA_REFERENCIA_MONTO_DIFERENTE,
+  REGLA_REFERENCIA_MONTO_EXACTO,
+  SCORE_MONTO_UNICO,
+  SCORE_REFERENCIA_MONTO_DIFERENTE,
+  SCORE_REFERENCIA_MONTO_EXACTO,
+  nivelDeConfianza,
+} from '../conciliacion/evaluar-par';
 
 /**
  * CU-23 de punta a punta contra Postgres real con RLS: el detalle del caso
@@ -282,6 +291,48 @@ describe('CAS-3 forma de la respuesta', () => {
       null,
     ]);
     expect(r.sinMatch).toBeNull();
+  });
+
+  it('AC2/AC6: las propuestas de las reglas 1, 2 y 3 salen en ese orden, con la regla y la confianza de su score', async () => {
+    const m = await movimiento(A);
+    // Se siembran en desorden para que el orden sea del score, no de la inserción.
+    await conciliacion(A, await factura(A), m, 'propuesta', {
+      regla: REGLA_MONTO_UNICO,
+      score: SCORE_MONTO_UNICO.toFixed(4),
+    });
+    await conciliacion(A, await factura(A), m, 'propuesta', {
+      regla: REGLA_REFERENCIA_MONTO_EXACTO,
+      score: SCORE_REFERENCIA_MONTO_EXACTO.toFixed(4),
+    });
+    await conciliacion(A, await factura(A), m, 'propuesta', {
+      regla: REGLA_REFERENCIA_MONTO_DIFERENTE,
+      score: SCORE_REFERENCIA_MONTO_DIFERENTE.toFixed(4),
+    });
+    const r = await obtener(m);
+    expect(r.propuestas.map((p) => [p.regla, p.confianza])).toEqual([
+      [REGLA_REFERENCIA_MONTO_EXACTO, 'alta'],
+      [REGLA_REFERENCIA_MONTO_DIFERENTE, 'media'],
+      [REGLA_MONTO_UNICO, 'baja'],
+    ]);
+    for (const p of r.propuestas) {
+      expect(p.confianza).toBe(nivelDeConfianza(p.score));
+    }
+  });
+
+  it('AC6: una propuesta del LLM o manual no inventa nivel de confianza', async () => {
+    const m = await movimiento(A);
+    await conciliacion(A, await factura(A), m, 'propuesta', {
+      origen: 'llm',
+      regla: 'llm_sugerencia',
+      score: '0.5000',
+    });
+    const m2 = await movimiento(A);
+    await conciliacion(A, await factura(A), m2, 'propuesta', {
+      origen: 'manual',
+      score: null,
+    });
+    expect((await obtener(m)).propuestas[0].confianza).toBeNull();
+    expect((await obtener(m2)).propuestas[0].confianza).toBeNull();
   });
 
   it('la primera propuesta es la mejorPropuesta de la bandeja, y el empate de score lo rompe el id', async () => {

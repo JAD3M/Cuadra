@@ -8,6 +8,8 @@
  * el módulo enlaza la implementación y el servicio no conoce al proveedor.
  */
 
+import { NIVELES_CONFIANZA } from '../common/entities/tipos';
+
 /**
  * Lo único que sale de la casa hacia el modelo. Sin RFC, UUID, XML ni ids: el
  * candidato se identifica con una etiqueta opaca (C1..CN) que solo el servidor
@@ -36,7 +38,7 @@ export interface CandidatoEntrada {
   receptor: string;
 }
 
-export const CONFIANZAS = ['alta', 'media', 'baja'] as const;
+export const CONFIANZAS = NIVELES_CONFIANZA;
 export type Confianza = (typeof CONFIANZAS)[number];
 
 /**
