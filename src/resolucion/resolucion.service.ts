@@ -117,6 +117,7 @@ export class ResolucionService {
       confirmadaAt: string | null;
       cfdis: number;
       movimientos: number;
+      auditoria: number;
       hermanas: string[];
     };
     try {
@@ -216,7 +217,8 @@ export class ResolucionService {
     if (
       resultado.confirmadaAt === null ||
       resultado.cfdis !== decision.cfdiIds.length ||
-      resultado.movimientos !== 1
+      resultado.movimientos !== 1 ||
+      resultado.auditoria !== 1 + resultado.hermanas.length
     ) {
       throw new ConflictException(
         'La conciliación cambió mientras se confirmaba: no se aplicó nada',

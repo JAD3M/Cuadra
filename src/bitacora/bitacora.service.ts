@@ -32,13 +32,27 @@ interface FilaListadoSql extends FilaSql {
 }
 
 /**
- * Columna de `conciliaciones` que enlaza cada entidad con su historia: la
- * bitácora de una conciliación no guarda el CFDI ni el movimiento en una
- * forma única (CU-15 tiene dos), así que se llega por la tabla.
+ * Entidades de bitácora que cuentan la historia de una decisión: 'conciliaciones'
+ * (filas escritas por la v1; el id de la decisión copiada es el de la
+ * conciliación) y 'decisiones' (filas nuevas, historia 4.2).
  */
-const COLUMNA_DE_CONCILIACION: Record<string, string> = {
-  cfdi: 'c.cfdi_id',
-  movimientos: 'c.movimiento_id',
+const ENTIDADES_DE_DECISION = "('conciliaciones', 'decisiones')";
+
+/**
+ * Cómo se llega desde un CFDI o un movimiento a las decisiones que lo tocan:
+ * la bitácora de una decisión no guarda el CFDI ni el movimiento en una forma
+ * única (CU-15 tiene dos), así que se pasa por las tablas. `EXISTS` no
+ * multiplica filas; `$1` es siempre la empresa.
+ */
+const DECISION_DE: Record<string, (id: string) => string> = {
+  cfdi: (id) =>
+    `EXISTS (SELECT 1 FROM decision_lineas l
+              WHERE l.decision_id = b.entidad_id AND l.company_id = $1
+                AND l.cfdi_id = ${id})`,
+  movimientos: (id) =>
+    `EXISTS (SELECT 1 FROM decisiones d
+              WHERE d.id = b.entidad_id AND d.company_id = $1
+                AND d.movimiento_id = ${id})`,
 };
 
 /**
@@ -52,9 +66,9 @@ export class BitacoraService {
   constructor(private readonly contexto: ContextoEmpresa) {}
 
   /**
-   * Eventos de una conciliación, del más antiguo al más nuevo. Una propuesta
+   * Eventos de una decisión, del más antiguo al más nuevo. Una propuesta
    * anterior a CU-16 no tiene fila 'crear' y devuelve solo lo posterior. El
-   * 404 es el mismo para una conciliación inexistente y para una ajena.
+   * 404 es el mismo para una decisión inexistente y para una ajena.
    */
   async historial(
     companyId: string,
@@ -62,7 +76,7 @@ export class BitacoraService {
   ): Promise<RespuestaHistorialDto> {
     const manager = this.contexto.manager();
     const existe = await manager.query<{ id: string }[]>(
-      'SELECT id FROM conciliaciones WHERE id = $1 AND company_id = $2',
+      'SELECT id FROM decisiones WHERE id = $1 AND company_id = $2',
       [conciliacionId, companyId],
     );
     if (existe.length === 0) {
@@ -75,7 +89,7 @@ export class BitacoraService {
          FROM bitacora b
          LEFT JOIN users u ON u.id = b.user_id
         WHERE b.company_id = $1
-          AND b.entidad = 'conciliaciones'
+          AND b.entidad IN ${ENTIDADES_DE_DECISION}
           AND b.entidad_id = $2
         ORDER BY b.created_at ASC, b.id ASC`,
       [companyId, conciliacionId],
@@ -87,7 +101,7 @@ export class BitacoraService {
    * Bitácora de la empresa, del más nuevo al más antiguo. Los filtros se
    * combinan con AND y sus valores siempre viajan como parámetros. La
    * historia de un CFDI o de un movimiento incluye las filas de sus
-   * conciliaciones (join por llave primaria, sin multiplicar filas).
+   * decisiones (EXISTS por llave, sin multiplicar filas).
    */
   /**
    * Personas que se pueden elegir en el filtro de la bitácora: las que
@@ -135,14 +149,13 @@ export class BitacoraService {
     };
 
     const { entidad, entidadId } = consulta;
-    const columna =
-      entidad === undefined ? undefined : COLUMNA_DE_CONCILIACION[entidad];
-    if (entidadId !== undefined && columna !== undefined && entidad) {
+    const decisionDe = entidad === undefined ? undefined : DECISION_DE[entidad];
+    if (entidadId !== undefined && decisionDe !== undefined && entidad) {
       const e = parametro(entidad);
       const id = parametro(entidadId);
       donde.push(
         `((b.entidad = ${e} AND b.entidad_id = ${id})
-          OR (b.entidad = 'conciliaciones' AND ${columna} = ${id}))`,
+          OR (b.entidad IN ${ENTIDADES_DE_DECISION} AND ${decisionDe(id)}))`,
       );
     } else {
       if (entidad !== undefined)
@@ -178,8 +191,6 @@ export class BitacoraService {
 
     const desdeSql = `
       FROM bitacora b
-      LEFT JOIN conciliaciones c
-        ON b.entidad = 'conciliaciones' AND c.id = b.entidad_id AND c.company_id = $1
       LEFT JOIN users u ON u.id = b.user_id
      WHERE ${donde.join(' AND ')}`;
 

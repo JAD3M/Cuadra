@@ -27,7 +27,7 @@ export class ConsultaBitacoraDto {
     maxLength: 64,
     example: 'conciliaciones',
     description:
-      'Cualquier valor de hasta 64 caracteres; sin coincidencias da una página vacía. Las entidades que la aplicación escribe hoy: conciliaciones, companies.',
+      'Cualquier valor de hasta 64 caracteres; sin coincidencias da una página vacía. Las entidades que la aplicación escribe hoy: conciliaciones (historial de la v1), decisiones, companies.',
   })
   @IsOptional()
   @IsString()

@@ -15,8 +15,9 @@ import {
 
 /**
  * Cabecera de una decisión sobre un movimiento (AD-4): una conciliación con
- * una o varias facturas, o un descarte. Historia 4.1 solo crea la tabla; el
- * código sigue usando `conciliaciones`.
+ * una o varias facturas, o un descarte. La historia 4.1 creó la tabla y la 4.2
+ * pasó el código a usarla; `conciliaciones` queda solo como historial hasta
+ * que la 4.3 la retire.
  */
 @Entity('decisiones')
 // Destino de la FK compuesta de `decision_lineas`.

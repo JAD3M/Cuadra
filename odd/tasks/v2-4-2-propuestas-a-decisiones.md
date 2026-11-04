@@ -212,6 +212,38 @@ necesita una forma determinista de forzar `rowCount = 0` y `23505`.
   `src/sugerencias/sugerencias.integracion.spec.ts` (solo IA-28, depende del
   historial/listado de la bitácora de T5). 78 suites en verde (1685 pruebas).
 
+### T5 (código)
+
+- Ruta: escritor delegado (lectura de preparación hecha por el escritor).
+- RED: `npm test -- src/bitacora src/companies/tolerancia src/demo
+  src/sugerencias/sugerencias.integracion src/resolucion` con los specs ya
+  migrados a `decisiones`/`decision_lineas` (`sembrarDecision`) y el servicio
+  de bitácora aún leyendo `conciliaciones`: 16 fallidas, 240 pasan (256). Rojas:
+  AU-10..AU-13 del historial, HD-1, AU-26, HD-4, IA-28 (sugerencias), las 4 de
+  la demo y las 2 nuevas de (f) (confirmar sin la fila de bitácora daba 200).
+- GREEN: `bitacora.service.ts` (el 404 y el historial leen `decisiones` y
+  aceptan las entidades `conciliaciones` y `decisiones`; el enlace por CFDI o
+  movimiento usa `EXISTS` sobre `decision_lineas`/`decisiones` con
+  `company_id`, sin join que multiplique filas) y `resolucion.service.ts`
+  (`confirmar` exige `auditoria = 1 + hermanas`, mismo 409 y reversión).
+  `npm test -- src/bitacora src/companies src/demo src/sugerencias
+  src/resolucion`: 20 suites, 362 pruebas en verde. Suite completa del
+  backend: 82 suites, 1703 pruebas en verde. `npx tsc --noEmit`, `npx eslint
+  "src/**/*.ts"` y `npx prettier --check "src/**/*.ts"` limpios.
+- Pruebas nuevas: HD-1 (historial mezcla filas `conciliaciones` y
+  `decisiones` en orden), HD-2 (404 de decisión ajena con eventos), HD-3
+  (filtro `entidad=decisiones` y `conciliaciones`, sin duplicar por id), HD-4
+  (historia por CFDI sin decisiones de otra empresa) y (f) (bitácora faltante
+  del objetivo o de una hermana: 409 y reversión total, con trigger).
+- Referencias de producción a `conciliaciones` que quedan (ninguna consulta la
+  tabla): entidad legacy `conciliacion.entity.ts`, comentario de
+  `decision.entity.ts`, nombre histórico de bitácora (`tipos.ts`,
+  `bitacora.service.ts`, `bitacora.entity.ts`, DTO), rutas y permisos
+  (`@Controller('conciliaciones')`, `conciliaciones.resolver`, matriz) y
+  comentarios de `cfdi.entity.ts`/`movimiento.entity.ts`.
+- Siguiente paso: cierre T5: bitácora del proyecto, CUADRA.md, Jira, PR único
+  y repaso.
+
 ## Siguiente paso
 
 T5.

@@ -46,7 +46,7 @@ beforeAll(async () => {
   A = entorno.empresa(FERRETERIA);
   B = entorno.empresa(TRANSPORTES);
   await ds.query(
-    'TRUNCATE cfdi, cargas, movimientos, conciliaciones, bitacora, sugerencias_ia CASCADE',
+    'TRUNCATE cfdi, cargas, movimientos, decisiones, decision_lineas, bitacora, sugerencias_ia CASCADE',
   );
   await ds.query('UPDATE companies SET tolerancia_monto = 0');
   const direccion = (
@@ -85,7 +85,7 @@ describe('demo de punta a punta (CU-18)', () => {
 
     const porEstado = await filas<{ estado: string; n: string }>(
       ds,
-      `SELECT estado, count(*) n FROM conciliaciones WHERE company_id = $1 GROUP BY estado`,
+      `SELECT estado, count(*) n FROM decisiones WHERE company_id = $1 GROUP BY estado`,
       [A],
     );
     const mapa = Object.fromEntries(porEstado.map((f) => [f.estado, +f.n]));
@@ -97,13 +97,13 @@ describe('demo de punta a punta (CU-18)', () => {
     // Nadie confirmó nada que viniera del modelo: el LLM solo propone.
     expect(
       await contar(
-        `SELECT count(*) n FROM conciliaciones WHERE company_id = $1 AND origen = 'llm' AND estado = 'confirmada'`,
+        `SELECT count(*) n FROM decisiones WHERE company_id = $1 AND origen = 'llm' AND estado = 'confirmada'`,
         [A],
       ),
     ).toBe(0);
     expect(
       await contar(
-        `SELECT count(*) n FROM conciliaciones WHERE company_id = $1 AND origen = 'llm' AND estado = 'propuesta'`,
+        `SELECT count(*) n FROM decisiones WHERE company_id = $1 AND origen = 'llm' AND estado = 'propuesta'`,
         [A],
       ),
     ).toBe(final.ia);
@@ -143,7 +143,7 @@ describe('demo de punta a punta (CU-18)', () => {
     }
     const motivos = await filas<{ motivo: string }>(
       ds,
-      `SELECT motivo FROM conciliaciones WHERE company_id = $1 AND origen = 'llm'`,
+      `SELECT motivo FROM decisiones WHERE company_id = $1 AND origen = 'llm'`,
       [A],
     );
     for (const { motivo } of motivos) {
@@ -164,17 +164,19 @@ describe('demo de punta a punta (CU-18)', () => {
     expect([tcu.sugerencia, tcu.sin_match, tcu.conciliado]).toEqual([3, 1, 0]);
     expect(
       await contar(
-        `SELECT count(*) n FROM conciliaciones WHERE company_id = $1 AND estado = 'propuesta'`,
+        `SELECT count(*) n FROM decisiones WHERE company_id = $1 AND estado = 'propuesta'`,
         [B],
       ),
     ).toBe(3);
-    // Ninguna conciliación une un CFDI de una empresa con un movimiento de otra.
+    // Ninguna decisión une un CFDI de una empresa con un movimiento de otra.
     expect(
       await contar(
-        `SELECT count(*) n FROM conciliaciones c
-           JOIN cfdi f ON f.id = c.cfdi_id
-           JOIN movimientos m ON m.id = c.movimiento_id
-          WHERE f.company_id <> c.company_id OR m.company_id <> c.company_id`,
+        `SELECT count(*) n FROM decisiones d
+           JOIN decision_lineas l ON l.decision_id = d.id
+           JOIN cfdi f ON f.id = l.cfdi_id
+           JOIN movimientos m ON m.id = d.movimiento_id
+          WHERE f.company_id <> d.company_id OR m.company_id <> d.company_id
+             OR l.company_id <> d.company_id`,
       ),
     ).toBe(0);
   });

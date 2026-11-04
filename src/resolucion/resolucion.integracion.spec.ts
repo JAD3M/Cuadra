@@ -1162,6 +1162,57 @@ describe('4.2 (e): CFDI y movimiento cambian solo junto con la transición', () 
   });
 });
 
+describe('4.2 (f): una fila de bitácora que falta al confirmar da 409 y revierte todo', () => {
+  /**
+   * Hace que el INSERT en bitácora de una entidad_id concreta se omita en
+   * silencio (BEFORE INSERT que devuelve NULL): la sentencia atómica cuenta
+   * una fila de auditoría menos de las esperadas. Devuelve la función que lo quita.
+   */
+  async function omitirBitacoraDe(id: string): Promise<() => Promise<void>> {
+    const nombre = 'trg_omitir_bitacora';
+    await ds.query(
+      `CREATE OR REPLACE FUNCTION ${nombre}() RETURNS trigger
+         LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$`,
+    );
+    await ds.query(
+      `CREATE TRIGGER ${nombre} BEFORE INSERT ON bitacora
+         FOR EACH ROW WHEN (NEW.entidad_id = '${id}') EXECUTE FUNCTION ${nombre}()`,
+    );
+    return async () => {
+      await ds.query(`DROP TRIGGER IF EXISTS ${nombre} ON bitacora`);
+      await ds.query(`DROP FUNCTION IF EXISTS ${nombre}()`);
+    };
+  }
+
+  it.each(['el objetivo', 'una hermana'] as const)(
+    'si falta la fila de bitácora de %s: 409 y ni decisiones, ni CFDI, ni movimiento cambian',
+    async (cual) => {
+      const cfdiId = await factura(A);
+      const movimientoId = await movimiento(A);
+      const id = await conciliacion(A, cfdiId, movimientoId);
+      const hermana = await conciliacion(A, await factura(A), movimientoId);
+      const quitar = await omitirBitacoraDe(
+        cual === 'el objetivo' ? id : hermana,
+      );
+      try {
+        await confirmar(id).expect(409);
+      } finally {
+        await quitar();
+      }
+
+      expect((await conciliacionEn(id)).estado).toBe('propuesta');
+      expect((await conciliacionEn(hermana)).estado).toBe('propuesta');
+      expect(await lineaDe(hermana)).toMatchObject({
+        estadoDecision: 'propuesta',
+      });
+      expect(await estadoDe('cfdi', cfdiId)).toBe('abierta');
+      expect(await estadoDe('movimientos', movimientoId)).toBe('abierto');
+      expect(await bitacoraDe(id)).toHaveLength(0);
+      expect(await bitacoraDe(hermana)).toHaveLength(0);
+    },
+  );
+});
+
 describe('4.2: rechazar libera al motor solo cuando corresponde', () => {
   it('una rechazada u obsoleta sobre el mismo movimiento no cuenta como viva: conciliar corre', async () => {
     const m1 = await movimiento(A);
