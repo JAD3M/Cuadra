@@ -241,9 +241,16 @@ describe('permisos de cuadra_app sobre las tablas de clase 3', () => {
 });
 
 describe('migración reversible', () => {
-  it('down y up de TablasDecisiones, MotivoRechazoCarga, BancosVistaPrevia, HuellaMovimientos, VistaPreviaDecidida, PendienteVistaPrevia, CambiarQuitarRoles, InvitacionesCancelables, InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
+  it('down y up de HuellaConjunto, TablasDecisiones, MotivoRechazoCarga, BancosVistaPrevia, HuellaMovimientos, VistaPreviaDecidida, PendienteVistaPrevia, CambiarQuitarRoles, InvitacionesCancelables, InvitacionesMultirol, RolAuditor, TokensRecuperacion, Invitaciones, CrearEmpresas, PlataformaUsuarios y AccionesBitacoraPlataforma dejan el esquema intacto', async () => {
     // Las tres últimas son de cargas (historias 3.5, 3.4 y 3.3), ajenas a la
     // plataforma: solo se deshacen para llegar a las que sí lo son.
+    // HuellaConjunto: quita la función `huella_conjunto`.
+    await duenio.undoLastMigration();
+    const { n: conjuntos } = await una<{ n: number }>(
+      duenio,
+      `SELECT count(*)::int AS n FROM pg_proc WHERE proname = 'huella_conjunto'`,
+    );
+    expect(conjuntos).toBe(0);
     // TablasDecisiones: quita `decisiones` y `decision_lineas`.
     await duenio.undoLastMigration();
     const { n: decisiones } = await una<{ n: number }>(

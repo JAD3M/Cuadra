@@ -64,7 +64,7 @@ Estimación de planificación: ~400 líneas en total; un solo PR.
 - [x] **T2** Migración: tablas, CHECK, FK compuestas, índices únicos parciales,
   RLS FORCE, política y GRANTs; registro de columnas generadas. RED: las specs
   de RLS y esquema fallan con las tablas añadidas a sus listas.
-- [ ] **T3** Función SQL `huella_conjunto` + espejo TS + prueba de paridad.
+- [x] **T3** Función SQL `huella_conjunto` + espejo TS + prueba de paridad.
 - [ ] **T4** Backfill de `conciliaciones` a `decisiones`/`decision_lineas` con el
   mismo `id`; prueba de conteo, ids de bitácora vigentes y doble empresa.
 - [ ] **T5** Cierre: toda la suite de la v1 en verde, entrada en
@@ -92,6 +92,24 @@ Estimación de planificación: ~400 líneas en total; un solo PR.
 - Commit: `01063ae`.
 - `tsc --noEmit`, `eslint src` y `prettier --check src` limpios.
 
+### T3
+
+- Ruta: delegada (escritor). Evidencia de disparo: 2+ archivos no triviales
+  (migración, espejo TS, paridad, dos specs).
+- Decisiones: ids ordenados por valor `uuid`; mayúsculas se normalizan a
+  minúsculas en el espejo (el tipo `uuid` lo hace en SQL); duplicados se
+  conservan; la lista vacía es válida y es la huella de `'v1|'`.
+- RED: `npm test -- src/conciliacion/huella-conjunto.paridad.spec.ts src/plataforma/plataforma.esquema.spec.ts`
+  dio 2 suites falladas (1 prueba en rojo, 21 en verde): la paridad por
+  `Cannot find module './huella-conjunto'` y la reversibilidad porque el undo
+  de `HuellaConjunto` deshacía otra migración. Esa corrida fallida dejó la
+  base `_test` con una fila de bitácora inválida; se borró esa fila.
+- GREEN: `huella-conjunto.paridad`, `decision` (suma la prueba de CFDI de otra
+  empresa contra `fk_decision_lineas_cfdi`) y `plataforma.esquema`: 48/48.
+- Suite completa: 81 suites, 1659/1659 en verde. `tsc --noEmit`, `eslint` y
+  `prettier --check` limpios.
+- Commit: pendiente.
+
 ## Siguiente paso
 
-T3.
+T4.

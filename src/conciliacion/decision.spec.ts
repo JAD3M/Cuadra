@@ -287,4 +287,32 @@ describe('decision_lineas', () => {
       ).rejects.toThrow(/fk_decisiones_movimiento/);
     });
   });
+
+  it('no deja que una línea apunte a un CFDI de otra empresa', async () => {
+    await enTransaccion(async (qr) => {
+      const e = await escenario(qr);
+      const { id: otra } = await una<{ id: string }>(
+        qr,
+        `SELECT id FROM companies WHERE rfc <> 'FDB190215QK4' LIMIT 1`,
+      );
+      const { id: cfdiAjeno } = await una<{ id: string }>(
+        qr,
+        `INSERT INTO cfdi (company_id, uuid_fiscal, rfc_emisor, rfc_receptor,
+                           fecha_emision, tipo_comprobante, subtotal, total, xml_raw)
+         VALUES ($1, '99999999-9999-7999-9999-999999999999', 'AAA010101AAA',
+                 'BBB010101BBB', '2026-09-01T10:00:00', 'I', 100, 116,
+                 '{"_xml":"<x/>"}'::jsonb)
+         RETURNING id`,
+        [otra],
+      );
+      const a = await decision(qr, e, 0, 'propuesta');
+      await expect(
+        qr.query(
+          `INSERT INTO decision_lineas (company_id, decision_id, estado_decision, cfdi_id)
+           VALUES ($1, $2, 'propuesta', $3)`,
+          [e.emp, a, cfdiAjeno],
+        ),
+      ).rejects.toThrow(/fk_decision_lineas_cfdi/);
+    });
+  });
 });
