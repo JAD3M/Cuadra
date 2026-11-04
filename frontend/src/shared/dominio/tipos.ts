@@ -98,6 +98,7 @@ export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 
 export const ENTIDADES_BITACORA = [
   'conciliaciones',
+  'decisiones',
   'companies',
   'cargas',
 ] as const;

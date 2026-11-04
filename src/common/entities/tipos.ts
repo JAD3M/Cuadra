@@ -139,14 +139,16 @@ export const ACCIONES_BITACORA = [
 export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 
 /**
- * Entidades que la aplicación escribe hoy en la bitácora: 'conciliaciones'
- * (crear, confirmar y rechazar) y 'companies' (actualizar la tolerancia y
+ * Entidades que la aplicación escribe hoy en la bitácora: 'decisiones' (desde
+ * la historia 4.2: crear, confirmar y rechazar), 'conciliaciones' (solo
+ * historial de la v1, ya no se escribe) y 'companies' (actualizar la tolerancia y
  * acceso_denegado) y 'cargas' (cargar, historia 3.1: una entrada por carga
  * terminada, con `entidad_id` = la carga). Es la lista para la interfaz y la documentación; GET
  * /bitacora sigue aceptando cualquier `entidad` de hasta 64 caracteres.
  */
 export const ENTIDADES_BITACORA = [
   'conciliaciones',
+  'decisiones',
   'companies',
   'cargas',
 ] as const;

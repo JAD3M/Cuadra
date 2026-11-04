@@ -60,9 +60,12 @@ la bitácora con un insert aparte. Ver el mapa del explorador (2026-11-04).
 El cambio es un corte atómico (AD-20 paso 3): leer y escribir deben pasar juntos.
 Cada tarea se prueba con sus specs; la suite completa solo debe estar en verde al
 cerrar el corte (T5). Estimación de planificación: >400 líneas (unas 4.500 de
-specs a migrar); estrategia de entrega por acordar.
+specs a migrar). Estrategia de entrega (2026-11-04, con el usuario): **un solo PR
+grande**, porque el corte es atómico y un PR intermedio no pasaría CI. Los
+commits por tarea sirven para revisar. Nota de la revisión: la prueba (d) de T3
+necesita una forma determinista de forzar `rowCount = 0` y `23505`.
 
-- [ ] **T1** Helper de siembra de decisiones + `tipos.ts` (`ENTIDADES_BITACORA`
+- [x] **T1** Helper de siembra de decisiones + `tipos.ts` (`ENTIDADES_BITACORA`
   con `decisiones`) y espejo del frontend. El motor (`conciliar()`) inserta
   cabecera + línea + bitácora en una sentencia y lee "vigente" de `decisiones`.
 - [ ] **T2** Bandeja y detalle del caso leen de `decisiones`/`decision_lineas`
@@ -85,6 +88,28 @@ specs a migrar); estrategia de entrega por acordar.
 
 (Se llena por tarea: ruta, RED, GREEN, hash del commit.)
 
+### T1
+
+- Ruta: escritor delegado (mapa previo en el documento; lectura de preparación
+  hecha por el escritor).
+- RED: `npm test -- src/conciliacion/conciliacion.integracion.spec.ts` con el
+  spec ya migrado a `decisiones`/`decision_lineas` y el motor aún escribiendo
+  `conciliaciones`: 24 fallidas, 30 pasan (54).
+- GREEN: mismo comando tras migrar el motor (CTE `fuente` -> `cabeceras` ->
+  `lineas` -> bitácora en una sentencia): 54/54. `npm test -- src/conciliacion
+  src/database src/plataforma`: 21 suites, 412 pruebas en verde. `npx tsc
+  --noEmit`, `npx eslint "src/**/*.ts"` y `npx prettier --check "src/**/*.ts"`
+  limpios. Frontend: `tests/dominio` 219 en verde, tsc y prettier limpios.
+- Pruebas nuevas: obsoleta no ocupa el movimiento, rechazada sigue bloqueando
+  aunque exista una obsoleta, cabecera + una línea + huella, y la bitácora con
+  entidad `decisiones`.
+- Suite completa tras T1: 3 suites rojas (7 pruebas), todas esperadas porque
+  aún leen `conciliaciones` (que el motor ya no escribe):
+  `src/bitacora/bitacora.integracion.spec.ts` (T5),
+  `src/companies/tolerancia.integracion.spec.ts` y
+  `src/demo/demo.integracion.spec.ts` (se migran con T5; cuentan como specs
+  restantes). 79 suites en verde (1661 pruebas).
+
 ## Siguiente paso
 
-Acordar la estrategia de entrega y empezar T1.
+T2.
