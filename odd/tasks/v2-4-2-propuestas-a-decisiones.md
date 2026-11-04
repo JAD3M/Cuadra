@@ -70,6 +70,12 @@ specs a migrar); estrategia de entrega por acordar.
 - [ ] **T3** Resolución: `confirmar` y `rechazar` sobre `decisiones` con
   `rowCount` verificado, hermanas a `obsoleta`, bitácora en la misma sentencia,
   orden de bloqueo AD-19, 409 en simultáneas y en transiciones no permitidas.
+  Pruebas nombradas: (a) dos confirmaciones simultáneas del mismo movimiento
+  (`Promise.all`): una 200, la otra 409 y ninguna 500; (b) las hermanas quedan
+  `obsoleta` en la misma sentencia y con su fila de bitácora; (c) confirmar una
+  decisión que no es `propuesta` da 409 sin cambiar nada; (d) `rowCount = 0` y
+  `23505` se traducen a 409; (e) factura y movimiento cambian de estado solo con
+  la transición.
 - [ ] **T4** Sugerencias: exclusiones y persistencia de la IA sobre `decisiones`.
 - [ ] **T5** Bitácora (historial y listado leen `decisiones` y conservan las
   filas históricas), specs restantes migrados, suite completa en verde, bitácora
