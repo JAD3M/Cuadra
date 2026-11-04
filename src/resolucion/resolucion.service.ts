@@ -8,7 +8,6 @@ import {
 import { QueryFailedError } from 'typeorm';
 import { rolesConPermiso } from '../auth/permisos/matriz';
 import { AccesosDenegados } from '../bitacora/accesos-denegados';
-import { Bitacora } from '../bitacora/bitacora.entity';
 import { tomarCandadoDeConciliacion } from '../conciliacion/candado';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import type { ContextoDeCambio } from '../companies/tolerancia.service';
@@ -16,12 +15,12 @@ import { ContextoEmpresa } from '../database/contexto-empresa';
 import type { Rol } from '../common/entities/tipos';
 import type { ResolucionRespuestaDto } from './dto/resolucion.dto';
 
-interface ConciliacionBloqueada {
+interface DecisionBloqueada {
   id: string;
   estado: string;
-  cfdiId: string;
   movimientoId: string;
-  diferenciaMonto: string;
+  cfdiIds: string[];
+  diferenciaMonto: string | null;
   regla: string | null;
   score: string | null;
   motivo: string | null;
@@ -44,10 +43,16 @@ interface LadoBloqueado {
 }
 
 /**
- * CU-15. Resuelve una propuesta de conciliación. Todo corre en la
- * transacción de la petición (RLS como cuadra_app) y cada consulta filtra
- * `company_id` además. Orden de candados, igual que `conciliar()`: consultivo
- * de la empresa -> conciliación -> CFDI -> movimiento.
+ * CU-15. Resuelve una propuesta (`decisiones`, tipo 'conciliacion'). Todo corre
+ * en la transacción de la petición (RLS como cuadra_app) y cada consulta
+ * filtra `company_id` además. Orden de candados (AD-19), igual que
+ * `conciliar()`: consultivo de la empresa -> decisiones por `id` ascendente
+ * (la objetivo y sus hermanas juntas) -> CFDI -> movimiento.
+ *
+ * La transición es una sola sentencia con CTE que cambia la decisión, cierra
+ * a las hermanas, el CFDI y el movimiento y escribe la bitácora (AD-7). Cada
+ * UPDATE lleva su guarda de estado y aquí se verifica cuántas filas afectó:
+ * si algo no afectó lo esperado, 409 y la transacción de la petición revierte.
  *
  * El motor propone; aquí solo una persona cierra o descarta.
  */
@@ -63,10 +68,10 @@ export class ResolucionService {
 
   /**
    * Confirma una propuesta: cierra el CFDI ('conciliada') y el movimiento
-   * ('conciliado') y rechaza las hermanas que quedan sin sentido. Orden de
-   * comprobaciones: 404 -> 409 -> 403 (D-08: quien subió cualquiera de las
-   * dos cargas no puede confirmar). Nada aquí llama a `conciliar`: no se
-   * libera nada.
+   * ('conciliado') y pasa a 'obsoleta' las hermanas que quedan sin sentido.
+   * Orden de comprobaciones: 404 -> 409 -> 403 (D-08: quien subió cualquiera
+   * de las dos cargas no puede confirmar). Nada aquí llama a `conciliar`: no
+   * se libera nada.
    */
   async confirmar(
     companyId: string,
@@ -74,130 +79,160 @@ export class ResolucionService {
     quien: ContextoDeConfirmacion,
   ): Promise<ResolucionRespuestaDto> {
     const manager = this.contexto.manager();
-    const propuesta = await this.cargarPropuesta(companyId, id);
+    const decision = await this.cargarPropuesta(companyId, id, true);
+    const cfdiId = decision.cfdiIds[0];
 
-    const [cfdi] = await manager.query<LadoBloqueado[]>(
+    const cfdis = await manager.query<LadoBloqueado[]>(
       `SELECT estado, carga_id AS "cargaId" FROM cfdi
-        WHERE id = $1 AND company_id = $2 FOR UPDATE`,
-      [propuesta.cfdiId, companyId],
+        WHERE id = ANY($1::uuid[]) AND company_id = $2
+        ORDER BY id FOR UPDATE`,
+      [decision.cfdiIds, companyId],
     );
-    if (cfdi.estado !== 'abierta') {
+    if (cfdis.length !== decision.cfdiIds.length) {
+      throw new ConflictException('El CFDI de la propuesta ya no existe');
+    }
+    const cerrado = cfdis.find((cfdi) => cfdi.estado !== 'abierta');
+    if (cerrado) {
       throw new ConflictException(
-        `El CFDI está '${cfdi.estado}': solo se confirma contra uno abierto`,
+        `El CFDI está '${cerrado.estado}': solo se confirma contra uno abierto`,
       );
     }
     const [movimiento] = await manager.query<LadoBloqueado[]>(
       `SELECT estado, carga_id AS "cargaId" FROM movimientos
         WHERE id = $1 AND company_id = $2 FOR UPDATE`,
-      [propuesta.movimientoId, companyId],
+      [decision.movimientoId, companyId],
     );
+    if (!movimiento) {
+      throw new ConflictException('El movimiento de la propuesta ya no existe');
+    }
     if (movimiento.estado !== 'abierto') {
       throw new ConflictException(
         `El movimiento está '${movimiento.estado}': solo se confirma contra uno abierto`,
       );
     }
 
-    await this.exigirSegregacion(companyId, quien, cfdi, movimiento);
+    await this.exigirSegregacion(companyId, quien, cfdis, movimiento);
 
-    let confirmadaAt: string;
+    let resultado: {
+      confirmadaAt: string | null;
+      cfdis: number;
+      movimientos: number;
+      auditoria: number;
+      hermanas: string[];
+    };
     try {
-      const [filas] = await manager.query<[{ confirmadaAt: string }[], number]>(
-        `UPDATE conciliaciones
-            SET estado = 'confirmada', confirmada_por_id = $3, confirmada_at = now(),
-                updated_at = now()
-          WHERE id = $1 AND company_id = $2 AND estado = 'propuesta'
-          RETURNING confirmada_at AS "confirmadaAt"`,
-        [id, companyId, quien.userId],
-      );
-      confirmadaAt = new Date(filas[0].confirmadaAt).toISOString();
-      await manager.query(
-        `UPDATE cfdi SET estado = 'conciliada', updated_at = now()
-          WHERE id = $1 AND company_id = $2 AND estado = 'abierta'`,
-        [propuesta.cfdiId, companyId],
-      );
-      // El motivo de "sin match" ya no aplica; los tres van juntos (CHECK).
-      await manager.query(
-        `UPDATE movimientos
-            SET estado = 'conciliado', motivo_sin_match = NULL, regla_sin_match = NULL,
-                evaluado_at = NULL, updated_at = now()
-          WHERE id = $1 AND company_id = $2 AND estado = 'abierto'`,
-        [propuesta.movimientoId, companyId],
+      [resultado] = await manager.query<(typeof resultado)[]>(
+        `WITH objetivo AS (
+           UPDATE decisiones
+              SET estado = 'confirmada', confirmada_por_id = $3,
+                  confirmada_at = now(), updated_at = now()
+            WHERE id = $2 AND company_id = $1 AND estado = 'propuesta'
+           RETURNING id, confirmada_at, diferencia_monto, regla, score
+         ),
+         hermanas AS (
+           UPDATE decisiones d
+              SET estado = 'obsoleta', motivo = $6, updated_at = now()
+            WHERE d.company_id = $1 AND d.id <> $2 AND d.estado = 'propuesta'
+              AND EXISTS (SELECT 1 FROM objetivo)
+              AND (d.movimiento_id = $4
+                   OR EXISTS (SELECT 1 FROM decision_lineas l
+                               WHERE l.decision_id = d.id AND l.company_id = $1
+                                 AND l.cfdi_id = ANY($5::uuid[])))
+           RETURNING d.id, d.movimiento_id,
+                     (SELECT l.cfdi_id FROM decision_lineas l
+                       WHERE l.decision_id = d.id AND l.company_id = $1
+                       ORDER BY l.cfdi_id LIMIT 1) AS cfdi_id
+         ),
+         cfdis AS (
+           UPDATE cfdi SET estado = 'conciliada', updated_at = now()
+            WHERE company_id = $1 AND id = ANY($5::uuid[]) AND estado = 'abierta'
+              AND EXISTS (SELECT 1 FROM objetivo)
+           RETURNING id
+         ),
+         movs AS (
+           UPDATE movimientos
+              SET estado = 'conciliado', motivo_sin_match = NULL,
+                  regla_sin_match = NULL, evaluado_at = NULL, updated_at = now()
+            WHERE company_id = $1 AND id = $4 AND estado = 'abierto'
+              AND EXISTS (SELECT 1 FROM objetivo)
+           RETURNING id
+         ),
+         auditoria AS (
+           INSERT INTO bitacora
+                  (company_id, user_id, entidad, entidad_id, accion, datos, ip, user_agent)
+           SELECT $1::uuid, $3::uuid, 'decisiones', o.id, 'confirmar',
+                  jsonb_build_object(
+                    'antes', jsonb_build_object('estado', 'propuesta'),
+                    'despues', jsonb_build_object(
+                      'estado', 'confirmada',
+                      'confirmadaPorId', $3::uuid,
+                      'confirmadaAt', to_char(o.confirmada_at AT TIME ZONE 'UTC',
+                                              'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
+                    'cfdi', jsonb_build_object('id', $7::uuid,
+                                               'antes', 'abierta', 'despues', 'conciliada'),
+                    'movimiento', jsonb_build_object('id', $4::uuid,
+                                                     'antes', 'abierto', 'despues', 'conciliado'),
+                    'diferenciaMonto', o.diferencia_monto::text)
+                  || jsonb_strip_nulls(jsonb_build_object(
+                    'regla', o.regla, 'score', o.score::text)),
+                  $8::inet, $9
+             FROM objetivo o
+           UNION ALL
+           SELECT $1::uuid, $3::uuid, 'decisiones', h.id, 'rechazar',
+                  jsonb_build_object(
+                    'antes', jsonb_build_object('estado', 'propuesta'),
+                    'despues', jsonb_build_object('estado', 'obsoleta', 'motivo', $6::text),
+                    'cfdiId', h.cfdi_id,
+                    'movimientoId', h.movimiento_id,
+                    'causa', jsonb_build_object('conciliacionId', $2::uuid)),
+                  $8::inet, $9
+             FROM hermanas h
+           RETURNING id
+         )
+         SELECT (SELECT to_char(confirmada_at AT TIME ZONE 'UTC',
+                                'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') FROM objetivo) AS "confirmadaAt",
+                (SELECT count(*) FROM cfdis)::int AS cfdis,
+                (SELECT count(*) FROM movs)::int AS movimientos,
+                (SELECT count(*) FROM auditoria)::int AS auditoria,
+                COALESCE((SELECT array_agg(id::text ORDER BY id) FROM hermanas),
+                         '{}'::text[]) AS hermanas`,
+        [
+          companyId,
+          id,
+          quien.userId,
+          decision.movimientoId,
+          decision.cfdiIds,
+          MOTIVO_HERMANA,
+          cfdiId,
+          quien.ip ?? null,
+          quien.userAgent ?? null,
+        ],
       );
     } catch (error) {
       throw this.traducir(error);
     }
 
-    const [hermanas] = await manager.query<
-      [{ id: string; cfdiId: string; movimientoId: string }[], number]
-    >(
-      `UPDATE conciliaciones
-          SET estado = 'rechazada', motivo = $5, updated_at = now()
-        WHERE company_id = $1 AND id <> $2 AND estado = 'propuesta'
-          AND (cfdi_id = $3 OR movimiento_id = $4)
-        RETURNING id, cfdi_id AS "cfdiId", movimiento_id AS "movimientoId"`,
-      [companyId, id, propuesta.cfdiId, propuesta.movimientoId, MOTIVO_HERMANA],
-    );
-
-    await manager.insert(Bitacora, {
-      companyId,
-      userId: quien.userId,
-      entidad: 'conciliaciones',
-      entidadId: id,
-      accion: 'confirmar',
-      datos: {
-        antes: { estado: 'propuesta' },
-        despues: {
-          estado: 'confirmada',
-          confirmadaPorId: quien.userId,
-          confirmadaAt,
-        },
-        cfdi: {
-          id: propuesta.cfdiId,
-          antes: 'abierta',
-          despues: 'conciliada',
-        },
-        movimiento: {
-          id: propuesta.movimientoId,
-          antes: 'abierto',
-          despues: 'conciliado',
-        },
-        diferenciaMonto: propuesta.diferenciaMonto,
-        regla: propuesta.regla ?? undefined,
-        score: propuesta.score ?? undefined,
-      },
-      ip: quien.ip ?? null,
-      userAgent: quien.userAgent ?? null,
-    });
-    if (hermanas.length > 0) {
-      await manager.insert(
-        Bitacora,
-        hermanas.map((hermana) => ({
-          companyId,
-          userId: quien.userId,
-          entidad: 'conciliaciones',
-          entidadId: hermana.id,
-          accion: 'rechazar' as const,
-          datos: {
-            antes: { estado: 'propuesta' },
-            despues: { estado: 'rechazada', motivo: MOTIVO_HERMANA },
-            cfdiId: hermana.cfdiId,
-            movimientoId: hermana.movimientoId,
-            causa: { conciliacionId: id },
-          },
-          ip: quien.ip ?? null,
-          userAgent: quien.userAgent ?? null,
-        })),
+    // Cada UPDATE debe haber afectado exactamente lo esperado. Si no, 409: la
+    // excepción revierte toda la transacción (decisión, hermanas y bitácora).
+    if (
+      resultado.confirmadaAt === null ||
+      resultado.cfdis !== decision.cfdiIds.length ||
+      resultado.movimientos !== 1 ||
+      resultado.auditoria !== 1 + resultado.hermanas.length
+    ) {
+      throw new ConflictException(
+        'La conciliación cambió mientras se confirmaba: no se aplicó nada',
       );
     }
 
     return {
       id,
       estado: 'confirmada',
-      cfdiId: propuesta.cfdiId,
-      movimientoId: propuesta.movimientoId,
-      motivo: propuesta.motivo,
-      confirmadaAt,
-      rechazadasAutomaticamente: hermanas.map((hermana) => hermana.id),
+      cfdiId,
+      movimientoId: decision.movimientoId,
+      motivo: decision.motivo,
+      confirmadaAt: resultado.confirmadaAt,
+      rechazadasAutomaticamente: resultado.hermanas,
     };
   }
 
@@ -209,12 +244,13 @@ export class ResolucionService {
   private async exigirSegregacion(
     companyId: string,
     quien: ContextoDeConfirmacion,
-    cfdi: LadoBloqueado,
+    cfdis: LadoBloqueado[],
     movimiento: LadoBloqueado,
   ): Promise<void> {
-    const cargas = [cfdi.cargaId, movimiento.cargaId].filter(
-      (carga): carga is string => carga !== null,
-    );
+    const cargas = [
+      ...cfdis.map((cfdi) => cfdi.cargaId),
+      movimiento.cargaId,
+    ].filter((carga): carga is string => carga !== null);
     if (cargas.length === 0) return;
     const subio = await this.contexto.manager().query<unknown[]>(
       `SELECT 1 FROM cargas
@@ -258,52 +294,71 @@ export class ResolucionService {
     quien: ContextoDeCambio,
   ): Promise<ResolucionRespuestaDto> {
     const manager = this.contexto.manager();
-    const propuesta = await this.cargarPropuesta(companyId, id);
+    const decision = await this.cargarPropuesta(companyId, id, false);
+    const cfdiId = decision.cfdiIds[0];
 
-    // Mismo orden que confirmar (PR2): CFDI y luego movimiento.
+    // Mismo orden que confirmar (AD-19): CFDI y luego movimiento.
     await manager.query(
-      `SELECT 1 FROM cfdi WHERE id = $1 AND company_id = $2 FOR UPDATE`,
-      [propuesta.cfdiId, companyId],
+      `SELECT 1 FROM cfdi WHERE id = ANY($1::uuid[]) AND company_id = $2
+        ORDER BY id FOR UPDATE`,
+      [decision.cfdiIds, companyId],
     );
     await manager.query(
       `SELECT 1 FROM movimientos WHERE id = $1 AND company_id = $2 FOR UPDATE`,
-      [propuesta.movimientoId, companyId],
+      [decision.movimientoId, companyId],
     );
 
-    let motivoFinal: string | null;
+    let filas: { motivo: string | null; auditoria: number }[];
     try {
-      const [filas] = await manager.query<
-        [{ motivo: string | null }[], number]
-      >(
-        `UPDATE conciliaciones
-            SET estado = 'rechazada', motivo = COALESCE($3, motivo), updated_at = now()
-          WHERE id = $1 AND company_id = $2 AND estado = 'propuesta'
-          RETURNING motivo`,
-        [id, companyId, motivo ?? null],
+      filas = await manager.query(
+        `WITH rechazada AS (
+           UPDATE decisiones
+              SET estado = 'rechazada', motivo = COALESCE($3::text, motivo),
+                  updated_at = now()
+            WHERE id = $2 AND company_id = $1 AND estado = 'propuesta'
+           RETURNING id, motivo, diferencia_monto
+         ),
+         auditoria AS (
+           INSERT INTO bitacora
+                  (company_id, user_id, entidad, entidad_id, accion, datos, ip, user_agent)
+           SELECT $1::uuid, $4::uuid, 'decisiones', r.id, 'rechazar',
+                  jsonb_build_object(
+                    'antes', jsonb_build_object('estado', 'propuesta',
+                                                'motivo', $5::text),
+                    'despues', jsonb_build_object('estado', 'rechazada',
+                                                  'motivo', r.motivo),
+                    'cfdiId', $6::uuid,
+                    'movimientoId', $7::uuid,
+                    'diferenciaMonto', r.diferencia_monto::text),
+                  $8::inet, $9
+             FROM rechazada r
+           RETURNING id
+         )
+         SELECT r.motivo, (SELECT count(*) FROM auditoria)::int AS auditoria
+           FROM rechazada r`,
+        [
+          companyId,
+          id,
+          motivo ?? null,
+          quien.userId,
+          decision.motivo,
+          cfdiId,
+          decision.movimientoId,
+          quien.ip ?? null,
+          quien.userAgent ?? null,
+        ],
       );
-      motivoFinal = filas[0].motivo;
     } catch (error) {
       throw this.traducir(error);
     }
+    if (filas.length !== 1 || filas[0].auditoria !== 1) {
+      throw new ConflictException(
+        'La conciliación cambió mientras se rechazaba: no se aplicó nada',
+      );
+    }
+    const motivoFinal = filas[0].motivo;
 
-    await manager.insert(Bitacora, {
-      companyId,
-      userId: quien.userId,
-      entidad: 'conciliaciones',
-      entidadId: id,
-      accion: 'rechazar',
-      datos: {
-        antes: { estado: 'propuesta', motivo: propuesta.motivo },
-        despues: { estado: 'rechazada', motivo: motivoFinal },
-        cfdiId: propuesta.cfdiId,
-        movimientoId: propuesta.movimientoId,
-        diferenciaMonto: propuesta.diferenciaMonto,
-      },
-      ip: quien.ip ?? null,
-      userAgent: quien.userAgent ?? null,
-    });
-
-    if (await this.liberoAlgunLado(companyId, id, propuesta)) {
+    if (await this.liberoAlgunLado(companyId, id, decision)) {
       this.contexto.alConfirmar(async () => {
         try {
           await this.conciliacion.conciliar(companyId);
@@ -319,8 +374,8 @@ export class ResolucionService {
     return {
       id,
       estado: 'rechazada',
-      cfdiId: propuesta.cfdiId,
-      movimientoId: propuesta.movimientoId,
+      cfdiId,
+      movimientoId: decision.movimientoId,
       motivo: motivoFinal,
       confirmadaAt: null,
       rechazadasAutomaticamente: [],
@@ -328,24 +383,45 @@ export class ResolucionService {
   }
 
   /**
-   * Candado de empresa, luego la conciliación FOR UPDATE. Inexistente y ajena
-   * dan el mismo 404 (RLS y `company_id` la esconden igual). Solo una
-   * 'propuesta' puede transicionar.
+   * Candado de empresa y luego las decisiones FOR UPDATE por `id` ascendente:
+   * la objetivo y, al confirmar, también sus hermanas (mismo movimiento o
+   * mismo CFDI, en 'propuesta'). Inexistente y ajena dan el mismo 404 (RLS y
+   * `company_id` la esconden igual). Solo una 'propuesta' puede transicionar.
    */
   private async cargarPropuesta(
     companyId: string,
     id: string,
-  ): Promise<ConciliacionBloqueada> {
+    conHermanas: boolean,
+  ): Promise<DecisionBloqueada> {
     const manager = this.contexto.manager();
     await tomarCandadoDeConciliacion(manager, companyId);
-    const filas = await manager.query<ConciliacionBloqueada[]>(
-      `SELECT id, estado, cfdi_id AS "cfdiId", movimiento_id AS "movimientoId",
-              diferencia_monto::text AS "diferenciaMonto", regla,
-              score::text AS score, motivo
-         FROM conciliaciones
-        WHERE id = $1 AND company_id = $2
-          FOR UPDATE`,
-      [id, companyId],
+    await manager.query(
+      `SELECT d.id FROM decisiones d
+        WHERE d.company_id = $1
+          AND (d.id = $2
+               OR ($3::boolean AND d.estado = 'propuesta'
+                   AND (d.movimiento_id = (SELECT x.movimiento_id FROM decisiones x
+                                            WHERE x.id = $2 AND x.company_id = $1)
+                        OR EXISTS (SELECT 1 FROM decision_lineas l
+                                    WHERE l.decision_id = d.id AND l.company_id = $1
+                                      AND l.cfdi_id IN (SELECT y.cfdi_id FROM decision_lineas y
+                                                         WHERE y.decision_id = $2
+                                                           AND y.company_id = $1)))))
+        ORDER BY d.id
+          FOR UPDATE OF d`,
+      [companyId, id, conHermanas],
+    );
+    const filas = await manager.query<DecisionBloqueada[]>(
+      `SELECT d.id, d.estado, d.movimiento_id AS "movimientoId",
+              d.diferencia_monto::text AS "diferenciaMonto", d.regla,
+              d.score::text AS score, d.motivo,
+              COALESCE((SELECT array_agg(l.cfdi_id::text ORDER BY l.cfdi_id)
+                          FROM decision_lineas l
+                         WHERE l.decision_id = d.id AND l.company_id = $1),
+                       '{}'::text[]) AS "cfdiIds"
+         FROM decisiones d
+        WHERE d.id = $2 AND d.company_id = $1 AND d.tipo = 'conciliacion'`,
+      [companyId, id],
     );
     if (filas.length === 0) {
       throw new NotFoundException('Conciliación no encontrada');
@@ -355,27 +431,36 @@ export class ResolucionService {
         `La conciliación ya está '${filas[0].estado}': solo una propuesta se puede resolver`,
       );
     }
+    if (filas[0].cfdiIds.length === 0) {
+      throw new ConflictException('La propuesta no tiene CFDI asociado');
+    }
     return filas[0];
   }
 
-  /** Libre = el movimiento o el CFDI quedaron sin otra propuesta viva. */
+  /**
+   * Libre = el movimiento o algún CFDI quedaron sin otra decisión viva
+   * (propuesta o confirmada): el motor puede volver a proponerles algo.
+   */
   private async liberoAlgunLado(
     companyId: string,
     id: string,
-    par: ConciliacionBloqueada,
+    decision: DecisionBloqueada,
   ): Promise<boolean> {
     const [{ libre }] = await this.contexto
       .manager()
       .query<{ libre: boolean }[]>(
         `SELECT (
-         NOT EXISTS (SELECT 1 FROM conciliaciones
+         NOT EXISTS (SELECT 1 FROM decisiones
                       WHERE company_id = $1 AND id <> $2 AND movimiento_id = $3
                         AND estado IN ('propuesta', 'confirmada'))
-         OR NOT EXISTS (SELECT 1 FROM conciliaciones
-                         WHERE company_id = $1 AND id <> $2 AND cfdi_id = $4
-                           AND estado = 'propuesta')
+         OR EXISTS (SELECT 1 FROM unnest($4::uuid[]) AS c(cfdi_id)
+                     WHERE NOT EXISTS (SELECT 1 FROM decision_lineas l
+                                         JOIN decisiones d ON d.id = l.decision_id
+                                        WHERE l.company_id = $1 AND l.cfdi_id = c.cfdi_id
+                                          AND d.id <> $2
+                                          AND d.estado IN ('propuesta', 'confirmada')))
        ) AS libre`,
-        [companyId, id, par.movimientoId, par.cfdiId],
+        [companyId, id, decision.movimientoId, decision.cfdiIds],
       );
     return libre;
   }

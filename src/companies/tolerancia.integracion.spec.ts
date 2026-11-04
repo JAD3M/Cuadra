@@ -45,7 +45,9 @@ async function limpiar() {
   if (!ds?.isInitialized) return;
   await ds.query(`UPDATE companies SET tolerancia_monto = 0`);
   await ds.query(`DELETE FROM bitacora WHERE entidad = 'companies'`);
-  await ds.query('TRUNCATE cfdi, cargas, movimientos, conciliaciones CASCADE');
+  await ds.query(
+    'TRUNCATE cfdi, cargas, movimientos, decisiones, decision_lineas CASCADE',
+  );
 }
 
 const tolerancia = async (empresa: string) =>
@@ -257,7 +259,7 @@ describe('PUT /empresa/tolerancia: efecto y bitácora', () => {
       filas<{ regla: string; score: string; diferencia_monto: string }>(
         ds,
         `SELECT regla, score::text AS score, diferencia_monto::text AS diferencia_monto
-           FROM conciliaciones WHERE company_id = $1`,
+           FROM decisiones WHERE company_id = $1`,
         [A],
       );
 
@@ -284,7 +286,7 @@ describe('PUT /empresa/tolerancia: efecto y bitácora', () => {
     ]);
 
     // La siguiente corrida ya usa la nueva tolerancia y conserva la diferencia real.
-    await ds.query('TRUNCATE conciliaciones');
+    await ds.query('TRUNCATE decisiones, decision_lineas');
     await servicio.conciliar(A);
     expect(await propuestas()).toEqual([
       {

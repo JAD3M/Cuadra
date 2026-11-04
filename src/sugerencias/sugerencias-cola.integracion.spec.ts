@@ -88,14 +88,14 @@ const llm = () =>
   }>(
     ds,
     `SELECT estado, origen, regla, score::text AS score
-       FROM conciliaciones WHERE origen = 'llm'`,
+       FROM decisiones WHERE origen = 'llm'`,
   );
 const ledger = () =>
   filas<{ resultado: string }>(ds, 'SELECT resultado FROM sugerencias_ia');
 
 const limpiar = () =>
   ds.query(
-    'TRUNCATE cfdi, cargas, movimientos, conciliaciones, bitacora, sugerencias_ia CASCADE',
+    'TRUNCATE cfdi, cargas, movimientos, decisiones, decision_lineas, bitacora, sugerencias_ia CASCADE',
   );
 
 describe('cola de sugerencias con proveedor activo', () => {
@@ -155,7 +155,7 @@ describe('cola de sugerencias con proveedor activo', () => {
     await esperarHasta(async () => (await llm()).length === 1);
     const { n } = await una<{ n: string }>(
       ds,
-      `SELECT count(*)::text AS n FROM conciliaciones WHERE estado = 'confirmada'`,
+      `SELECT count(*)::text AS n FROM decisiones WHERE estado = 'confirmada'`,
     );
     expect(n).toBe('0');
   });

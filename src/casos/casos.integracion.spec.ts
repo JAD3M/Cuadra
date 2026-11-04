@@ -14,6 +14,7 @@ import {
   TRANSPORTES,
 } from '../cargas/testing/app-de-cargas';
 import { una } from '../database/testing/base-de-pruebas';
+import { sembrarDecision } from '../conciliacion/siembra-decisiones';
 import type { RespuestaBandejaDto } from '../bandeja/dto/bandeja.dto';
 import type { RespuestaCasoDto } from './dto/caso.dto';
 
@@ -57,7 +58,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await ds.query('TRUNCATE cfdi, cargas, movimientos, conciliaciones CASCADE');
+  await ds.query('TRUNCATE cfdi, cargas, movimientos, decisiones CASCADE');
 });
 
 async function movimiento(
@@ -114,41 +115,35 @@ async function factura(
   return id;
 }
 
-async function conciliacion(
+/** Siembra una decisión (cabecera + línea): el modelo de la historia 4.2. */
+function conciliacion(
   empresa: string,
   cfdiId: string,
   movimientoId: string,
-  estado: 'propuesta' | 'rechazada' | 'confirmada',
+  estado: 'propuesta' | 'rechazada' | 'confirmada' | 'obsoleta',
   o: {
     score?: string | null;
     regla?: string;
     origen?: 'regla' | 'llm' | 'manual';
     diferencia?: string;
     confirmo?: string;
+    confirmadaAt?: Date;
   } = {},
 ): Promise<string> {
-  const persona =
-    estado === 'confirmada' ? entorno.persona(o.confirmo ?? ANA) : null;
-  const { id } = await una<{ id: string }>(
-    ds,
-    `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen, regla, score,
-                                 diferencia_monto, motivo, confirmada_por_id, confirmada_at)
-     VALUES ($1,$2,$3,$4::text,$9,$5,$6,$7,'Motivo de ' || $4::text,$8,
-             CASE WHEN $8::uuid IS NULL THEN NULL ELSE now() END)
-     RETURNING id`,
-    [
-      empresa,
-      cfdiId,
-      movimientoId,
-      estado,
-      o.regla ?? 'monto_unico',
-      o.score === undefined ? '0.9000' : o.score,
-      o.diferencia ?? '0.0000',
-      persona,
-      o.origen ?? 'regla',
-    ],
-  );
-  return id;
+  return sembrarDecision(ds, {
+    companyId: empresa,
+    movimientoId,
+    cfdiId,
+    estado,
+    origen: o.origen ?? 'regla',
+    regla: o.regla ?? 'monto_unico',
+    score: o.score === undefined ? '0.9000' : o.score,
+    diferenciaMonto: o.diferencia ?? '0.0000',
+    motivo: `Motivo de ${estado}`,
+    confirmadaPorId:
+      estado === 'confirmada' ? entorno.persona(o.confirmo ?? ANA) : null,
+    confirmadaAt: o.confirmadaAt ?? null,
+  });
 }
 
 const caso = (token: string, id: string, query = '') =>
@@ -237,7 +232,7 @@ describe('CAS-2 alcance por empresa y solo lectura', () => {
     const m = await movimiento(A);
     await conciliacion(A, await factura(A), m, 'propuesta');
     const instantanea = async () => {
-      const tablas = ['movimientos', 'conciliaciones', 'cfdi'];
+      const tablas = ['movimientos', 'decisiones', 'decision_lineas', 'cfdi'];
       const huellas: string[] = [];
       for (const t of tablas) {
         const { h } = await una<{ h: string }>(
@@ -326,6 +321,58 @@ describe('CAS-3 forma de la respuesta', () => {
     expect(p.confirmadaAt).toMatch(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/);
     expect(p.confirmadaPor?.nombre).toEqual(expect.any(String));
     expect(r.sinMatch).toBeNull();
+  });
+
+  it('una obsoleta y una rechazada no salen como propuesta; solo la viva', async () => {
+    const m = await movimiento(A);
+    const viva = await conciliacion(A, await factura(A), m, 'propuesta', {
+      score: '0.2000',
+    });
+    await conciliacion(A, await factura(A), m, 'obsoleta', { score: '0.9900' });
+    await conciliacion(A, await factura(A), m, 'rechazada', {
+      score: '0.9800',
+    });
+    const r = await obtener(m);
+    expect(r.estado).toBe('sugerencia');
+    expect(r.propuestas.map((p) => p.conciliacionId)).toEqual([viva]);
+  });
+
+  it('con solo obsoletas y rechazadas el caso es sin_match y sin propuestas', async () => {
+    const m = await movimiento(A, { regla: 'sin_candidato_monto' });
+    await conciliacion(A, await factura(A), m, 'obsoleta');
+    await conciliacion(A, await factura(A), m, 'rechazada');
+    const r = await obtener(m);
+    expect(r.estado).toBe('sin_match');
+    expect(r.propuestas).toEqual([]);
+  });
+
+  it('un conciliado no muestra la obsoleta y la confirmada trae persona y fecha', async () => {
+    const m = await movimiento(A, { estado: 'conciliado' });
+    const conf = await conciliacion(A, await factura(A), m, 'confirmada', {
+      confirmo: CARMEN,
+      confirmadaAt: new Date('2026-09-05T12:30:00.000Z'),
+    });
+    await conciliacion(A, await factura(A), m, 'obsoleta', { score: '0.9900' });
+    const r = await obtener(m);
+    expect(r.propuestas).toHaveLength(1);
+    expect(r.propuestas[0]).toMatchObject({
+      conciliacionId: conf,
+      estado: 'confirmada',
+      confirmadaAt: '2026-09-05T12:30:00.000Z',
+    });
+    expect(r.propuestas[0].confirmadaPor?.nombre).toEqual(expect.any(String));
+  });
+
+  it('empate de score: gana el id menor y las propuestas salen en ese orden', async () => {
+    const m = await movimiento(A);
+    const a = await conciliacion(A, await factura(A), m, 'propuesta', {
+      score: '0.5000',
+    });
+    const b = await conciliacion(A, await factura(A), m, 'propuesta', {
+      score: '0.5000',
+    });
+    const r = await obtener(m);
+    expect(r.propuestas.map((p) => p.conciliacionId)).toEqual([a, b].sort());
   });
 
   it('un sin_match con regla y motivo guardados los devuelve y no trae propuestas', async () => {

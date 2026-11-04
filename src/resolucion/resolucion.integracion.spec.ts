@@ -12,7 +12,9 @@ import {
 } from '../cargas/testing/app-de-cargas';
 import { rolesConPermiso } from '../auth/permisos/matriz';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
+import { sembrarDecision } from '../conciliacion/siembra-decisiones';
 import { filas, una } from '../database/testing/base-de-pruebas';
+import { MOTIVO_HERMANA } from './resolucion.service';
 import type { ResolucionRespuestaDto } from './dto/resolucion.dto';
 
 /**
@@ -46,7 +48,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await ds.query(
-    'TRUNCATE cfdi, cargas, movimientos, conciliaciones, bitacora CASCADE',
+    'TRUNCATE cfdi, cargas, movimientos, conciliaciones, decisiones, decision_lineas, bitacora CASCADE',
   );
 });
 
@@ -118,20 +120,21 @@ async function conciliacion(
   empresa: string,
   cfdiId: string,
   movimientoId: string,
-  estado: 'propuesta' | 'rechazada' | 'confirmada' = 'propuesta',
+  estado: 'propuesta' | 'rechazada' | 'confirmada' | 'obsoleta' = 'propuesta',
   diferencia = '0.0000',
 ): Promise<string> {
-  const persona = estado === 'confirmada' ? entorno.persona(ANA) : null;
-  const { id } = await una<{ id: string }>(
-    ds,
-    `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen, regla, score,
-                                 diferencia_monto, motivo, confirmada_por_id, confirmada_at)
-     VALUES ($1,$2,$3,$4::text,'regla','monto_unico','0.9000',$5,'Motivo de propuesta',$6,
-             CASE WHEN $6::uuid IS NULL THEN NULL ELSE now() END)
-     RETURNING id`,
-    [empresa, cfdiId, movimientoId, estado, diferencia, persona],
-  );
-  return id;
+  return sembrarDecision(ds, {
+    companyId: empresa,
+    movimientoId,
+    cfdiId,
+    estado,
+    origen: 'regla',
+    regla: 'monto_unico',
+    score: '0.9000',
+    diferenciaMonto: diferencia,
+    motivo: 'Motivo de propuesta',
+    confirmadaPorId: estado === 'confirmada' ? entorno.persona(ANA) : null,
+  });
 }
 
 /** Una propuesta lista para resolver, con su CFDI y su movimiento. */
@@ -172,7 +175,7 @@ const estadoDe = async (tabla: 'cfdi' | 'movimientos', id: string) =>
 const conciliacionEn = (id: string) =>
   una<{ estado: string; motivo: string | null }>(
     ds,
-    'SELECT estado, motivo FROM conciliaciones WHERE id = $1',
+    'SELECT estado, motivo FROM decisiones WHERE id = $1',
     [id],
   );
 
@@ -356,7 +359,7 @@ describe('RS-X6: bitácora', () => {
     expect(resto).toHaveLength(0);
     expect(fila).toMatchObject({
       accion: 'rechazar',
-      entidad: 'conciliaciones',
+      entidad: 'decisiones',
       userId: entorno.persona(ANA),
     });
     expect(fila.datos).toEqual({
@@ -370,7 +373,7 @@ describe('RS-X6: bitácora', () => {
 });
 
 describe('RS-X7: permisos de cuadra_app', () => {
-  it('no puede borrar conciliaciones ni tocar la bitácora salvo insertar', async () => {
+  it('no puede borrar decisiones ni tocar la bitácora salvo insertar', async () => {
     const privilegio = async (tabla: string, permiso: string) =>
       (
         await una<{ ok: boolean }>(
@@ -380,8 +383,8 @@ describe('RS-X7: permisos de cuadra_app', () => {
         )
       ).ok;
 
-    expect(await privilegio('conciliaciones', 'UPDATE')).toBe(true);
-    expect(await privilegio('conciliaciones', 'DELETE')).toBe(false);
+    expect(await privilegio('decisiones', 'UPDATE')).toBe(true);
+    expect(await privilegio('decisiones', 'DELETE')).toBe(false);
     expect(await privilegio('bitacora', 'INSERT')).toBe(true);
     expect(await privilegio('bitacora', 'UPDATE')).toBe(false);
     expect(await privilegio('bitacora', 'DELETE')).toBe(false);
@@ -437,8 +440,9 @@ describe('RS-R4, RS-R5: conciliar después del commit', () => {
 
     const vivas = await filas(
       ds,
-      `SELECT id FROM conciliaciones
-        WHERE cfdi_id = $1 AND movimiento_id = $2 AND estado <> 'rechazada'`,
+      `SELECT d.id FROM decisiones d
+         JOIN decision_lineas l ON l.decision_id = d.id
+        WHERE l.cfdi_id = $1 AND d.movimiento_id = $2 AND d.estado <> 'rechazada'`,
       [cfdiId, movimientoId],
     );
     expect(vivas).toHaveLength(0);
@@ -500,7 +504,7 @@ describe('POST /conciliaciones/:id/confirmar (RS-C1..C3)', () => {
     }>(
       ds,
       `SELECT estado, confirmada_por_id AS "porId", confirmada_at AS at
-         FROM conciliaciones WHERE id = $1`,
+         FROM decisiones WHERE id = $1`,
       [id],
     );
     expect(fila.estado).toBe('confirmada');
@@ -644,7 +648,7 @@ describe('RS-X6: bitácora al confirmar', () => {
     expect(resto).toHaveLength(0);
     expect(fila).toMatchObject({
       accion: 'confirmar',
-      entidad: 'conciliaciones',
+      entidad: 'decisiones',
       userId: entorno.persona(ANA),
     });
     expect(fila.datos).toMatchObject({
@@ -685,8 +689,8 @@ describe('RS-S1..S3: hermanas al confirmar', () => {
     ).toEqual([p2, p3].sort());
     for (const hermana of [p2, p3]) {
       expect(await conciliacionEn(hermana)).toEqual({
-        estado: 'rechazada',
-        motivo: 'cerrada al confirmar otra conciliación',
+        estado: 'obsoleta',
+        motivo: MOTIVO_HERMANA,
       });
       const [fila, ...resto] = await bitacoraDe(hermana);
       expect(resto).toHaveLength(0);
@@ -694,10 +698,7 @@ describe('RS-S1..S3: hermanas al confirmar', () => {
       expect(fila.userId).toBe(entorno.persona(ANA));
       expect(fila.datos).toMatchObject({
         antes: { estado: 'propuesta' },
-        despues: {
-          estado: 'rechazada',
-          motivo: 'cerrada al confirmar otra conciliación',
-        },
+        despues: { estado: 'obsoleta', motivo: MOTIVO_HERMANA },
         causa: { conciliacionId: p1 },
       });
     }
@@ -831,7 +832,7 @@ describe('RS-K1..K3: concurrencia al confirmar', () => {
       (await conciliacionEn(p1)).estado,
       (await conciliacionEn(p2)).estado,
     ].sort();
-    expect(estados).toEqual(['confirmada', 'rechazada']);
+    expect(estados).toEqual(['confirmada', 'obsoleta']);
     expect(await estadoDe('movimientos', m1)).toBe('conciliado');
     const conciliadas = await filas(
       ds,
@@ -866,9 +867,10 @@ describe('RS-K1..K3: concurrencia al confirmar', () => {
     expect(res.status).toBe(200);
     const vivas = await filas(
       ds,
-      `SELECT id, estado FROM conciliaciones
-        WHERE (cfdi_id = $1 OR movimiento_id = $2 OR cfdi_id = $3)
-          AND estado IN ('propuesta', 'confirmada')`,
+      `SELECT d.id, d.estado FROM decisiones d
+         JOIN decision_lineas l ON l.decision_id = d.id
+        WHERE (l.cfdi_id = $1 OR d.movimiento_id = $2 OR l.cfdi_id = $3)
+          AND d.estado IN ('propuesta', 'confirmada')`,
       [cfdiId, movimientoId, otroCfdi],
     );
     expect(vivas).toEqual([{ id, estado: 'confirmada' }]);
@@ -886,9 +888,359 @@ describe('RS-K1..K3: concurrencia al confirmar', () => {
     expect(await estadoDe('movimientos', movimientoId)).toBe('conciliado');
     const todas = await filas(
       ds,
-      `SELECT id FROM conciliaciones WHERE cfdi_id = $1 OR movimiento_id = $2`,
+      `SELECT d.id FROM decisiones d
+         JOIN decision_lineas l ON l.decision_id = d.id
+        WHERE l.cfdi_id = $1 OR d.movimiento_id = $2`,
       [cfdiId, movimientoId],
     );
     expect(todas).toHaveLength(1);
+  });
+});
+
+const lineaDe = (decisionId: string) =>
+  una<{ estadoDecision: string; vigente: boolean }>(
+    ds,
+    `SELECT estado_decision AS "estadoDecision", vigente
+       FROM decision_lineas WHERE decision_id = $1`,
+    [decisionId],
+  );
+
+/**
+ * Hace que todo UPDATE de una fila concreta se omita en silencio (trigger
+ * BEFORE UPDATE que devuelve NULL): la sentencia protegida ve rowCount = 0 sin
+ * carreras ni mocks. Devuelve la función que lo quita.
+ */
+async function omitirUpdatesDe(
+  tabla: 'decisiones' | 'cfdi' | 'movimientos',
+  id: string,
+): Promise<() => Promise<void>> {
+  const nombre = `trg_omitir_${tabla}`;
+  await ds.query(
+    `CREATE OR REPLACE FUNCTION ${nombre}() RETURNS trigger
+       LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$`,
+  );
+  await ds.query(
+    `CREATE TRIGGER ${nombre} BEFORE UPDATE ON ${tabla}
+       FOR EACH ROW WHEN (OLD.id = '${id}') EXECUTE FUNCTION ${nombre}()`,
+  );
+  return async () => {
+    await ds.query(`DROP TRIGGER IF EXISTS ${nombre} ON ${tabla}`);
+    await ds.query(`DROP FUNCTION IF EXISTS ${nombre}()`);
+  };
+}
+
+describe('4.2 (a): dos confirmaciones simultáneas del mismo movimiento', () => {
+  it('una da 200, la otra 409 (nunca 500) y queda una confirmada y la otra obsoleta', async () => {
+    const m1 = await movimiento(A);
+    const c1 = await factura(A);
+    const c2 = await factura(A);
+    const p1 = await conciliacion(A, c1, m1);
+    const p2 = await conciliacion(A, c2, m1);
+
+    const resultados = await Promise.all([confirmar(p1), confirmar(p2)]);
+
+    expect(resultados.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect(
+      [(await conciliacionEn(p1)).estado, (await conciliacionEn(p2)).estado]
+        .sort()
+        .join(),
+    ).toBe('confirmada,obsoleta');
+    const confirmadas = await filas(
+      ds,
+      `SELECT id FROM decisiones WHERE movimiento_id = $1 AND estado = 'confirmada'`,
+      [m1],
+    );
+    expect(confirmadas).toHaveLength(1);
+    expect(await estadoDe('movimientos', m1)).toBe('conciliado');
+  });
+});
+
+describe('4.2 (b): las hermanas pasan a obsoleta en la misma sentencia', () => {
+  it('el movimiento compartido y el CFDI compartido las obsoletan, con su bitácora y su línea', async () => {
+    const [c1, c2] = [await factura(A), await factura(A)];
+    const [m1, m2] = [await movimiento(A), await movimiento(A)];
+    const objetivo = await conciliacion(A, c1, m1);
+    const soloMovimiento = await conciliacion(A, c2, m1);
+    const soloCfdi = await conciliacion(A, c1, m2);
+
+    const res = await confirmar(objetivo).expect(200);
+
+    expect(
+      [
+        ...(res.body as ResolucionRespuestaDto).rechazadasAutomaticamente,
+      ].sort(),
+    ).toEqual([soloMovimiento, soloCfdi].sort());
+    for (const hermana of [soloMovimiento, soloCfdi]) {
+      expect((await conciliacionEn(hermana)).estado).toBe('obsoleta');
+      expect(await lineaDe(hermana)).toEqual({
+        estadoDecision: 'obsoleta',
+        vigente: false,
+      });
+      const [fila, ...resto] = await bitacoraDe(hermana);
+      expect(resto).toHaveLength(0);
+      expect(fila).toMatchObject({ accion: 'rechazar', entidad: 'decisiones' });
+      expect(fila.datos).toMatchObject({
+        despues: { estado: 'obsoleta', motivo: MOTIVO_HERMANA },
+        causa: { conciliacionId: objetivo },
+      });
+    }
+  });
+
+  it('la confirmada cumple el CHECK (persona y fecha) y su línea la sigue por cascada', async () => {
+    const { id } = await propuesta();
+
+    await confirmar(id).expect(200);
+
+    const fila = await una<{ porId: string | null; at: Date | null }>(
+      ds,
+      `SELECT confirmada_por_id AS "porId", confirmada_at AS at
+         FROM decisiones WHERE id = $1`,
+      [id],
+    );
+    expect(fila.porId).toBe(entorno.persona(ANA));
+    expect(fila.at).toBeInstanceOf(Date);
+    expect(await lineaDe(id)).toEqual({
+      estadoDecision: 'confirmada',
+      vigente: true,
+    });
+  });
+});
+
+describe('4.2 (c): confirmar lo que no es propuesta da 409 y no cambia nada', () => {
+  it.each(['rechazada', 'obsoleta', 'confirmada'] as const)(
+    'una decisión %s: 409, con CFDI, movimiento, hermanas y bitácora intactos',
+    async (estado) => {
+      const cfdiId = await factura(A);
+      const movimientoId = await movimiento(A);
+      const id = await conciliacion(A, cfdiId, movimientoId, estado);
+      const otra = await conciliacion(A, await factura(A), await movimiento(A));
+      // Una hermana por movimiento: no debe tocarse si el objetivo no transiciona.
+      const hermana =
+        estado === 'confirmada'
+          ? null
+          : await conciliacion(A, await factura(A), movimientoId);
+
+      await confirmar(id).expect(409);
+
+      expect((await conciliacionEn(id)).estado).toBe(estado);
+      expect((await conciliacionEn(otra)).estado).toBe('propuesta');
+      if (hermana)
+        expect((await conciliacionEn(hermana)).estado).toBe('propuesta');
+      expect(await estadoDe('cfdi', cfdiId)).toBe('abierta');
+      expect(await estadoDe('movimientos', movimientoId)).toBe('abierto');
+      expect(await bitacoraDe(id)).toHaveLength(0);
+      expect(await bitacoraDe(hermana ?? otra)).toHaveLength(0);
+    },
+  );
+
+  it.each(['rechazada', 'obsoleta'] as const)(
+    'rechazar una decisión %s da 409 y no escribe',
+    async (estado) => {
+      const id = await conciliacion(
+        A,
+        await factura(A),
+        await movimiento(A),
+        estado,
+      );
+
+      await rechazar(id).expect(409);
+
+      expect((await conciliacionEn(id)).estado).toBe(estado);
+      expect(await bitacoraDe(id)).toHaveLength(0);
+    },
+  );
+});
+
+describe('4.2 (d): rowCount = 0 y 23505 se traducen a 409 y revierten todo', () => {
+  // rowCount = 0: un trigger de prueba omite el UPDATE guardado de la decisión
+  // (RETURN NULL), de modo que la sentencia atómica ve 0 filas aunque las
+  // comprobaciones previas pasaron. Determinista: sin carreras ni mocks.
+  it('confirmar: el UPDATE de la decisión afecta 0 filas -> 409 y las hermanas siguen propuesta', async () => {
+    const m1 = await movimiento(A);
+    const c1 = await factura(A);
+    const id = await conciliacion(A, c1, m1);
+    const hermana = await conciliacion(A, await factura(A), m1);
+    const quitar = await omitirUpdatesDe('decisiones', id);
+    try {
+      await confirmar(id).expect(409);
+    } finally {
+      await quitar();
+    }
+
+    expect((await conciliacionEn(id)).estado).toBe('propuesta');
+    expect((await conciliacionEn(hermana)).estado).toBe('propuesta');
+    expect(await lineaDe(hermana)).toMatchObject({
+      estadoDecision: 'propuesta',
+    });
+    expect(await estadoDe('cfdi', c1)).toBe('abierta');
+    expect(await estadoDe('movimientos', m1)).toBe('abierto');
+    expect(await bitacoraDe(id)).toHaveLength(0);
+    expect(await bitacoraDe(hermana)).toHaveLength(0);
+  });
+
+  it('rechazar: el UPDATE de la decisión afecta 0 filas -> 409 y sin bitácora', async () => {
+    const { id } = await propuesta();
+    const quitar = await omitirUpdatesDe('decisiones', id);
+    try {
+      await rechazar(id).expect(409);
+    } finally {
+      await quitar();
+    }
+
+    expect((await conciliacionEn(id)).estado).toBe('propuesta');
+    expect(await bitacoraDe(id)).toHaveLength(0);
+  });
+
+  // 23505: otra confirmada ocupa ya el movimiento (índice vigente de
+  // decisiones) o el CFDI (índice vigente de decision_lineas, que salta al
+  // propagarse el estado por la FK en cascada).
+  it.each([
+    ['el movimiento', true],
+    ['el CFDI', false],
+  ] as const)(
+    'confirmar con otra confirmada sobre %s: 23505 -> 409 y todo revertido',
+    async (_cual, mismoMovimiento) => {
+      const cfdiId = await factura(A);
+      const movimientoId = await movimiento(A);
+      const id = await conciliacion(A, cfdiId, movimientoId);
+      const hermana = await conciliacion(A, await factura(A), movimientoId);
+      await conciliacion(
+        A,
+        mismoMovimiento ? await factura(A) : cfdiId,
+        mismoMovimiento ? movimientoId : await movimiento(A),
+        'confirmada',
+      );
+
+      await confirmar(id).expect(409);
+
+      expect((await conciliacionEn(id)).estado).toBe('propuesta');
+      expect((await conciliacionEn(hermana)).estado).toBe('propuesta');
+      expect(await lineaDe(id)).toMatchObject({ estadoDecision: 'propuesta' });
+      expect(await estadoDe('cfdi', cfdiId)).toBe('abierta');
+      expect(await estadoDe('movimientos', movimientoId)).toBe('abierto');
+      expect(await bitacoraDe(id)).toHaveLength(0);
+      expect(await bitacoraDe(hermana)).toHaveLength(0);
+    },
+  );
+});
+
+describe('4.2 (e): CFDI y movimiento cambian solo junto con la transición', () => {
+  it.each(['cfdi', 'movimientos'] as const)(
+    'si %s no se puede actualizar (0 filas), 409 y ni la decisión ni las hermanas cambian',
+    async (tabla) => {
+      const cfdiId = await factura(A);
+      const movimientoId = await movimiento(A);
+      const id = await conciliacion(A, cfdiId, movimientoId);
+      const hermana = await conciliacion(A, await factura(A), movimientoId);
+      const quitar = await omitirUpdatesDe(
+        tabla,
+        tabla === 'cfdi' ? cfdiId : movimientoId,
+      );
+      try {
+        await confirmar(id).expect(409);
+      } finally {
+        await quitar();
+      }
+
+      expect((await conciliacionEn(id)).estado).toBe('propuesta');
+      expect((await conciliacionEn(hermana)).estado).toBe('propuesta');
+      expect(await estadoDe('cfdi', cfdiId)).toBe('abierta');
+      expect(await estadoDe('movimientos', movimientoId)).toBe('abierto');
+      expect(await bitacoraDe(id)).toHaveLength(0);
+      expect(await bitacoraDe(hermana)).toHaveLength(0);
+    },
+  );
+
+  it('al confirmar de verdad, decisión, CFDI y movimiento cambian juntos', async () => {
+    const { id, cfdiId, movimientoId } = await propuesta();
+
+    await confirmar(id).expect(200);
+
+    expect((await conciliacionEn(id)).estado).toBe('confirmada');
+    expect(await estadoDe('cfdi', cfdiId)).toBe('conciliada');
+    expect(await estadoDe('movimientos', movimientoId)).toBe('conciliado');
+  });
+});
+
+describe('4.2 (f): una fila de bitácora que falta al confirmar da 409 y revierte todo', () => {
+  /**
+   * Hace que el INSERT en bitácora de una entidad_id concreta se omita en
+   * silencio (BEFORE INSERT que devuelve NULL): la sentencia atómica cuenta
+   * una fila de auditoría menos de las esperadas. Devuelve la función que lo quita.
+   */
+  async function omitirBitacoraDe(id: string): Promise<() => Promise<void>> {
+    const nombre = 'trg_omitir_bitacora';
+    await ds.query(
+      `CREATE OR REPLACE FUNCTION ${nombre}() RETURNS trigger
+         LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$`,
+    );
+    await ds.query(
+      `CREATE TRIGGER ${nombre} BEFORE INSERT ON bitacora
+         FOR EACH ROW WHEN (NEW.entidad_id = '${id}') EXECUTE FUNCTION ${nombre}()`,
+    );
+    return async () => {
+      await ds.query(`DROP TRIGGER IF EXISTS ${nombre} ON bitacora`);
+      await ds.query(`DROP FUNCTION IF EXISTS ${nombre}()`);
+    };
+  }
+
+  it.each(['el objetivo', 'una hermana'] as const)(
+    'si falta la fila de bitácora de %s: 409 y ni decisiones, ni CFDI, ni movimiento cambian',
+    async (cual) => {
+      const cfdiId = await factura(A);
+      const movimientoId = await movimiento(A);
+      const id = await conciliacion(A, cfdiId, movimientoId);
+      const hermana = await conciliacion(A, await factura(A), movimientoId);
+      const quitar = await omitirBitacoraDe(
+        cual === 'el objetivo' ? id : hermana,
+      );
+      try {
+        await confirmar(id).expect(409);
+      } finally {
+        await quitar();
+      }
+
+      expect((await conciliacionEn(id)).estado).toBe('propuesta');
+      expect((await conciliacionEn(hermana)).estado).toBe('propuesta');
+      expect(await lineaDe(hermana)).toMatchObject({
+        estadoDecision: 'propuesta',
+      });
+      expect(await estadoDe('cfdi', cfdiId)).toBe('abierta');
+      expect(await estadoDe('movimientos', movimientoId)).toBe('abierto');
+      expect(await bitacoraDe(id)).toHaveLength(0);
+      expect(await bitacoraDe(hermana)).toHaveLength(0);
+    },
+  );
+});
+
+describe('4.2: rechazar libera al motor solo cuando corresponde', () => {
+  it('una rechazada u obsoleta sobre el mismo movimiento no cuenta como viva: conciliar corre', async () => {
+    const m1 = await movimiento(A);
+    const c1 = await factura(A);
+    const id = await conciliacion(A, c1, m1);
+    await conciliacion(A, await factura(A), m1, 'rechazada');
+    await conciliacion(A, await factura(A), m1, 'obsoleta');
+    const conciliar = jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+
+    await rechazar(id).expect(200);
+
+    expect(conciliar).toHaveBeenCalledTimes(1);
+  });
+
+  it('otra confirmada sobre el CFDI y otra propuesta sobre el movimiento: conciliar no corre', async () => {
+    const c1 = await factura(A);
+    const m1 = await movimiento(A);
+    const id = await conciliacion(A, c1, m1);
+    await conciliacion(A, await factura(A), m1);
+    await conciliacion(A, c1, await movimiento(A), 'confirmada');
+    const conciliar = jest
+      .spyOn(entorno.app.get(ConciliacionService), 'conciliar')
+      .mockResolvedValue({ propuestas: 0 });
+
+    await rechazar(id).expect(200);
+
+    expect(conciliar).not.toHaveBeenCalled();
   });
 });

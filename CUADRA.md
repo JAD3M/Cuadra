@@ -605,6 +605,29 @@ sigue leyendo y escribiendo `conciliaciones` (eso es la 4.2):
 AD-4 no incluye `company_id`: solo el dueño del esquema podría cruzar empresas
 (RLS cubre al rol de la app); cerrarlo exige enmendar el spine.
 
+**Propuestas y confirmaciones sobre decisiones (v2, historia 4.2), terminada el
+4 nov 2026.** Paso 3 de AD-20: toda la aplicación lee y escribe `decisiones` y
+`decision_lineas`; `conciliaciones` queda solo como historial hasta la 4.3. La
+API y el frontend no cambian (`/conciliaciones/:id/*`, `conciliacionId` = id de
+la decisión):
+
+- Motor y sugerencias de la IA insertan decisión, línea y bitácora (entidad
+  `decisiones`) en una sola sentencia. «Vigente» es `propuesta` o `confirmada`;
+  una `rechazada` bloquea volver a proponer el par y una `obsoleta` no.
+- Confirmar es una sola sentencia atómica: confirma, pasa las hermanas (mismo
+  movimiento o mismo CFDI) a `obsoleta`, cierra factura y movimiento y escribe
+  la bitácora (`confirmar` y un `rechazar` por hermana). Bloqueo AD-19: candado
+  de empresa, decisiones por `id`, CFDI, movimiento. Se verifica `rowCount` y
+  la auditoría; un `rowCount` en 0, un choque de unicidad (`23505`) o una
+  transición fuera de la tabla de AD-4 dan 409, nunca 500.
+- Bandeja y detalle del caso leen `decisiones`; las `obsoleta` y `rechazada` no
+  aparecen. El historial de bitácora junta las filas históricas
+  (`conciliaciones`) y las nuevas (`decisiones`) por el mismo id.
+
+**Pendientes (4.2):** retirar la tabla `conciliaciones` y su entidad es la 4.3.
+Quedan nombres históricos (ruta `/conciliaciones`, permiso
+`conciliaciones.resolver`) que no se renombran.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

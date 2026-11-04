@@ -14,6 +14,7 @@ import {
 } from '../cargas/testing/app-de-cargas';
 import { una } from '../database/testing/base-de-pruebas';
 import { aTexto, dinero, sumar } from '../common/dinero';
+import { sembrarDecision } from '../conciliacion/siembra-decisiones';
 import type { RespuestaBandejaDto, ResumenBandejaDto } from './dto/bandeja.dto';
 
 /**
@@ -44,7 +45,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await ds.query('TRUNCATE cfdi, cargas, movimientos, conciliaciones CASCADE');
+  await ds.query('TRUNCATE cfdi, cargas, movimientos, decisiones CASCADE');
 });
 
 async function movimiento(
@@ -92,33 +93,26 @@ async function factura(empresa: string, total = '1160.00'): Promise<string> {
   return id;
 }
 
-async function conciliacion(
+/** Siembra una decisión (cabecera + línea): el modelo de la historia 4.2. */
+function conciliacion(
   empresa: string,
   cfdiId: string,
   movimientoId: string,
-  estado: 'propuesta' | 'rechazada' | 'confirmada',
+  estado: 'propuesta' | 'rechazada' | 'confirmada' | 'obsoleta',
   o: { score?: string; regla?: string; diferencia?: string } = {},
 ): Promise<string> {
-  const persona = estado === 'confirmada' ? entorno.persona(ANA) : null;
-  const { id } = await una<{ id: string }>(
-    ds,
-    `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen, regla, score,
-                                 diferencia_monto, motivo, confirmada_por_id, confirmada_at)
-     VALUES ($1,$2,$3,$4::text,'regla',$5,$6,$7,'Motivo de ' || $4::text,$8,
-             CASE WHEN $8::uuid IS NULL THEN NULL ELSE now() END)
-     RETURNING id`,
-    [
-      empresa,
-      cfdiId,
-      movimientoId,
-      estado,
-      o.regla ?? 'monto_unico',
-      o.score ?? '0.9000',
-      o.diferencia ?? '0.0000',
-      persona,
-    ],
-  );
-  return id;
+  return sembrarDecision(ds, {
+    companyId: empresa,
+    movimientoId,
+    cfdiId,
+    estado,
+    origen: 'regla',
+    regla: o.regla ?? 'monto_unico',
+    score: o.score ?? '0.9000',
+    diferenciaMonto: o.diferencia ?? '0.0000',
+    motivo: `Motivo de ${estado}`,
+    confirmadaPorId: estado === 'confirmada' ? entorno.persona(ANA) : null,
+  });
 }
 
 /** Movimiento abierto con una propuesta vigente: cae en 'sugerencia'. */
@@ -233,7 +227,7 @@ describe('RS-C5 tras confirmar de verdad (CU-15)', () => {
     const m = await sugerido(A);
     const { id } = await una<{ id: string }>(
       ds,
-      `SELECT id FROM conciliaciones WHERE movimiento_id = $1`,
+      `SELECT id FROM decisiones WHERE movimiento_id = $1`,
       [m],
     );
 
@@ -458,6 +452,41 @@ describe('BJ-7 mejor propuesta', () => {
     expect(fila.mejorPropuesta?.conciliacionId).toBe([c1, c2].sort()[0]);
   });
 
+  it('una obsoleta no es propuesta: con solo una obsoleta y motivo guardado es sin_match', async () => {
+    const m = await movimiento(A, { regla: 'monto_candidato_ocupado' });
+    await conciliacion(A, await factura(A), m, 'obsoleta', { score: '0.9900' });
+    const [fila] = (await listar()).datos;
+    expect(fila).toMatchObject({
+      estado: 'sin_match',
+      propuestasCount: 0,
+      mejorPropuesta: null,
+    });
+  });
+
+  it('una obsoleta y una rechazada de mayor score no le ganan a la propuesta viva', async () => {
+    const m = await movimiento(A);
+    const viva = await conciliacion(A, await factura(A), m, 'propuesta', {
+      score: '0.3000',
+    });
+    await conciliacion(A, await factura(A), m, 'obsoleta', { score: '0.9900' });
+    await conciliacion(A, await factura(A), m, 'rechazada', {
+      score: '0.9800',
+    });
+    const [fila] = (await listar()).datos;
+    expect(fila).toMatchObject({ estado: 'sugerencia', propuestasCount: 1 });
+    expect(fila.mejorPropuesta?.conciliacionId).toBe(viva);
+  });
+
+  it('un conciliado muestra su confirmada y no la obsoleta de mayor score', async () => {
+    const m = await movimiento(A, { estado: 'conciliado' });
+    const conf = await conciliacion(A, await factura(A), m, 'confirmada', {
+      score: '0.6000',
+    });
+    await conciliacion(A, await factura(A), m, 'obsoleta', { score: '0.9900' });
+    const [fila] = (await listar('?estado=conciliado')).datos;
+    expect(fila.mejorPropuesta?.conciliacionId).toBe(conf);
+  });
+
   it('S25: las rechazadas no cuentan ni se eligen', async () => {
     const m = await movimiento(A);
     const viva = await conciliacion(A, await factura(A), m, 'propuesta', {
@@ -488,14 +517,37 @@ describe('BJ-8 acceso y aislamiento', () => {
     // (company_id, cfdi_id) lo rechaza. Y la bandeja de A no lo trae.
     const ajeno = await factura(B);
     await expect(
-      ds.query(
-        `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen)
-         VALUES ($1,$2,$3,'propuesta','regla')`,
-        [A, ajeno, m],
-      ),
-    ).rejects.toThrow(/fk_conciliaciones_cfdi/);
+      sembrarDecision(ds, {
+        companyId: A,
+        movimientoId: m,
+        cfdiId: ajeno,
+        estado: 'propuesta',
+        origen: 'regla',
+      }),
+    ).rejects.toThrow(/fk_decision_lineas_cfdi/);
     const r = await listar('?estado=sugerencia&estado=sin_match');
     expect(JSON.stringify(r)).not.toContain(ajeno);
+    // La cabecera huérfana (sin línea) no es una propuesta con CFDI.
+    expect(r.datos.every((f) => f.mejorPropuesta === null)).toBe(true);
+  });
+
+  it('una decisión de otra empresa (propuesta y confirmada) no aparece ni cuenta', async () => {
+    const deA = await sinMatch(A);
+    const sugB = await sugerido(B);
+    const cerB = await cerrado(B);
+    const cfdiB = (
+      await ds.query<{ id: string }[]>(
+        `SELECT id FROM cfdi WHERE company_id = $1`,
+        [B],
+      )
+    ).map((f) => f.id);
+    const r = await listar(
+      '?estado=sugerencia&estado=sin_match&estado=conciliado',
+    );
+    expect(ids(r)).toEqual([deA]);
+    expect(r.total).toBe(1);
+    const texto = JSON.stringify(r);
+    for (const x of [sugB, cerB, ...cfdiB]) expect(texto).not.toContain(x);
   });
 
   it('S28: contador y revisor también leen', async () => {
@@ -520,7 +572,7 @@ describe('BJ-9 solo lectura', () => {
     const foto = () =>
       ds.query<unknown[]>(
         `SELECT (SELECT json_agg(m ORDER BY id) FROM movimientos m) AS m,
-                (SELECT json_agg(c ORDER BY id) FROM conciliaciones c) AS c`,
+                (SELECT json_agg(c ORDER BY id) FROM decisiones c) AS c`,
       );
     const antes = await foto();
     await listar('?estado=sugerencia&estado=sin_match&estado=conciliado');
@@ -762,7 +814,7 @@ describe('RS-5 solo lectura y compatibilidad', () => {
     const foto = () =>
       ds.query<unknown[]>(
         `SELECT (SELECT json_agg(m ORDER BY id) FROM movimientos m) AS m,
-                (SELECT json_agg(c ORDER BY id) FROM conciliaciones c) AS c`,
+                (SELECT json_agg(c ORDER BY id) FROM decisiones c) AS c`,
       );
     const antes = await foto();
     await resumen();

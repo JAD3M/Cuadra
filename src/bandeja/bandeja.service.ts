@@ -13,21 +13,25 @@ import {
 
 /**
  * Movimiento con su mejor propuesta. Para un conciliado la lateral toma la
- * fila 'confirmada'; para uno abierto, la propuesta vigente de mayor score
- * (empate: id menor). `n` cuenta las propuestas vigentes antes del LIMIT 1.
+ * decisión 'confirmada'; para uno abierto, la 'propuesta' de mayor score
+ * (empate: id menor). Rechazadas y obsoletas nunca casan. Hoy cada decisión
+ * de conciliación tiene una sola línea (el CFDI); `n` cuenta las propuestas
+ * antes del LIMIT 1.
  * Se comparte con el conteo para que `total` no dependa de la página.
  */
 const DESDE_FILTRO = `
   FROM movimientos m
   LEFT JOIN LATERAL (
-    SELECT c.id, c.cfdi_id, c.score, c.diferencia_monto, c.regla, c.motivo,
+    SELECT d.id, l.cfdi_id, d.score, d.diferencia_monto, d.regla, d.motivo,
            count(*) OVER() AS n
-      FROM conciliaciones c
-     WHERE c.company_id = $1
-       AND c.movimiento_id = m.id
-       AND c.estado = CASE WHEN m.estado = 'conciliado'
+      FROM decisiones d
+      JOIN decision_lineas l ON l.company_id = $1 AND l.decision_id = d.id
+     WHERE d.company_id = $1
+       AND d.movimiento_id = m.id
+       AND d.tipo = 'conciliacion'
+       AND d.estado = CASE WHEN m.estado = 'conciliado'
                            THEN 'confirmada' ELSE 'propuesta' END
-     ORDER BY c.score DESC NULLS LAST, c.id
+     ORDER BY d.score DESC NULLS LAST, d.id
      LIMIT 1
   ) p ON true
   WHERE m.company_id = $1

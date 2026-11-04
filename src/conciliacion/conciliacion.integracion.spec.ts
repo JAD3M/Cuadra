@@ -19,6 +19,8 @@ import {
 import { dinero } from '../common/dinero';
 import { filas, una } from '../database/testing/base-de-pruebas';
 import { ConciliacionService } from './conciliacion.service';
+import { huellaConjunto } from './huella-conjunto';
+import { sembrarDecision } from './siembra-decisiones';
 import { ProveedorTolerancia, ToleranciaPorEmpresa } from './tolerancia';
 
 /**
@@ -50,7 +52,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await ds.query(
-    'TRUNCATE cfdi, cargas, movimientos, conciliaciones, bitacora CASCADE',
+    'TRUNCATE cfdi, cargas, movimientos, decisiones, bitacora CASCADE',
   );
 });
 
@@ -120,15 +122,17 @@ async function conciliacionPrevia(
   empresa: string,
   cfdiId: string,
   movimientoId: string,
-  estado: 'propuesta' | 'rechazada' | 'confirmada',
+  estado: 'propuesta' | 'rechazada' | 'confirmada' | 'obsoleta',
 ) {
-  const persona = estado === 'confirmada' ? entorno.persona(ANA) : null;
-  await ds.query(
-    `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen, motivo,
-                                 confirmada_por_id, confirmada_at)
-     VALUES ($1,$2,$3,$4,'manual','previa',$5, CASE WHEN $5::uuid IS NULL THEN NULL ELSE now() END)`,
-    [empresa, cfdiId, movimientoId, estado, persona],
-  );
+  await sembrarDecision(ds, {
+    companyId: empresa,
+    movimientoId,
+    cfdiId,
+    estado,
+    origen: 'manual',
+    motivo: 'previa',
+    confirmadaPorId: estado === 'confirmada' ? entorno.persona(ANA) : null,
+  });
 }
 
 interface FilaConciliacion {
@@ -146,10 +150,13 @@ interface FilaConciliacion {
 const conciliaciones = (empresa?: string) =>
   filas<FilaConciliacion>(
     ds,
-    `SELECT company_id, cfdi_id, movimiento_id, estado, origen, regla,
-            score::text AS score, diferencia_monto::text AS diferencia_monto, motivo
-       FROM conciliaciones
-      WHERE $1::uuid IS NULL OR company_id = $1 ORDER BY created_at, id`,
+    `SELECT d.company_id, l.cfdi_id, d.movimiento_id, d.estado, d.origen, d.regla,
+            d.score::text AS score, d.diferencia_monto::text AS diferencia_monto,
+            d.motivo
+       FROM decisiones d
+       JOIN decision_lineas l
+         ON l.decision_id = d.id AND l.company_id = d.company_id
+      WHERE $1::uuid IS NULL OR d.company_id = $1 ORDER BY d.created_at, d.id`,
     [empresa ?? null],
   );
 
@@ -190,7 +197,7 @@ describe('conciliar (CU-11): elegibilidad y reglas', () => {
     await factura(A, { fecha: '2026-09-01T23:30:00' });
     expect(await servicio.conciliar(A)).toEqual({ propuestas: 1 });
 
-    await ds.query('TRUNCATE cfdi, movimientos, conciliaciones CASCADE');
+    await ds.query('TRUNCATE cfdi, movimientos, decisiones CASCADE');
     await movimiento(A, { referencia: 'A1001', fecha: '2026-03-09' });
     await factura(A, { fecha: '2026-03-10T08:00:00' });
     expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
@@ -235,13 +242,13 @@ describe('conciliar (CU-11): elegibilidad y reglas', () => {
       expect.objectContaining({ regla: 'monto_unico', score: '0.4000' }),
     ]);
 
-    await ds.query('TRUNCATE cfdi, movimientos, conciliaciones CASCADE');
+    await ds.query('TRUNCATE cfdi, movimientos, decisiones CASCADE');
     await movimiento(A, { monto: '500.00' });
     await factura(A, { folio: '7001', total: '500.00' });
     await factura(A, { folio: '7002', total: '500.00' });
     expect((await servicio.conciliar(A)).propuestas).toBe(0);
 
-    await ds.query('TRUNCATE cfdi, movimientos, conciliaciones CASCADE');
+    await ds.query('TRUNCATE cfdi, movimientos, decisiones CASCADE');
     await movimiento(A, { monto: '500.00' });
     await movimiento(A, { monto: '500.00' });
     await factura(A, { folio: '7001', total: '500.00' });
@@ -271,7 +278,7 @@ describe('conciliar (CU-11): elegibilidad y reglas', () => {
       }),
     ]);
 
-    await ds.query('TRUNCATE conciliaciones');
+    await ds.query('TRUNCATE decisiones CASCADE');
     jest
       .spyOn(entorno.app.get(ProveedorTolerancia), 'obtener')
       .mockResolvedValue(dinero('200'));
@@ -307,7 +314,7 @@ describe('conciliar (CU-11): existentes, rechazo e idempotencia', () => {
     await factura(A); // Y: coincide con la referencia de M, pero M ya está ocupado
     expect((await servicio.conciliar(A)).propuestas).toBe(0);
 
-    await ds.query('TRUNCATE cfdi, movimientos, conciliaciones CASCADE');
+    await ds.query('TRUNCATE cfdi, movimientos, decisiones CASCADE');
     const m2 = await movimiento(A, { referencia: 'Z9999' });
     const x2 = await factura(A, { folio: '9001', total: '99.00' });
     await conciliacionPrevia(A, x2, m2, 'confirmada');
@@ -344,6 +351,75 @@ describe('conciliar (CU-11): existentes, rechazo e idempotencia', () => {
     expect(await servicio.conciliar(A)).toEqual({ propuestas: 1 });
     expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
     expect(await conciliaciones()).toHaveLength(1);
+  });
+
+  it('una decisión obsoleta no ocupa el movimiento ni el CFDI: se propone de nuevo', async () => {
+    const m = await movimiento(A, { referencia: 'A1001' });
+    const x = await factura(A);
+    await conciliacionPrevia(A, x, m, 'obsoleta');
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 1 });
+    expect(await propuestasNuevas(A)).toEqual([
+      expect.objectContaining({
+        cfdi_id: x,
+        movimiento_id: m,
+        estado: 'propuesta',
+      }),
+    ]);
+    // La obsoleta se conserva tal cual junto a la nueva.
+    const todas = await conciliaciones(A);
+    expect(todas.map((f) => f.estado).sort()).toEqual([
+      'obsoleta',
+      'propuesta',
+    ]);
+  });
+
+  it('una rechazada del par sigue bloqueando aunque exista una obsoleta', async () => {
+    const m = await movimiento(A, { referencia: 'A1001' });
+    const x = await factura(A);
+    await conciliacionPrevia(A, x, m, 'obsoleta');
+    await conciliacionPrevia(A, x, m, 'rechazada');
+
+    expect((await servicio.conciliar(A)).propuestas).toBe(0);
+    expect((await conciliaciones(A)).map((f) => f.estado).sort()).toEqual([
+      'obsoleta',
+      'rechazada',
+    ]);
+  });
+
+  it('cada propuesta nueva es una decisión de conciliación con una sola línea y su huella', async () => {
+    await movimiento(A, { referencia: 'A1001' });
+    const x = await factura(A);
+    await servicio.conciliar(A);
+    await servicio.conciliar(A);
+
+    const cabeceras = await filas<{
+      tipo: string;
+      requiere_revision: boolean;
+      huella_conjunto: string;
+      lineas: string;
+      estado_linea: string;
+      cfdi_id: string;
+    }>(
+      ds,
+      `SELECT d.tipo, d.requiere_revision, d.huella_conjunto,
+              count(*) OVER ()::text AS lineas, l.estado_decision AS estado_linea,
+              l.cfdi_id
+         FROM decisiones d
+         JOIN decision_lineas l ON l.decision_id = d.id
+        WHERE d.company_id = $1`,
+      [A],
+    );
+    expect(cabeceras).toEqual([
+      {
+        tipo: 'conciliacion',
+        requiere_revision: false,
+        huella_conjunto: huellaConjunto([x]),
+        lineas: '1',
+        estado_linea: 'propuesta',
+        cfdi_id: x,
+      },
+    ]);
   });
 
   it('dos corridas en paralelo: una sola fila por par y ambas terminan', async () => {
@@ -508,7 +584,7 @@ describe('conciliar (CU-13): resultado explicado', () => {
       ],
     ];
     for (const [regla, preparar, contenido] of casos) {
-      await ds.query('TRUNCATE cfdi, movimientos, conciliaciones CASCADE');
+      await ds.query('TRUNCATE cfdi, movimientos, decisiones CASCADE');
       const id = await preparar();
       await servicio.conciliar(A);
       const fila = de(await estadoDe(A), id);
@@ -962,9 +1038,12 @@ describe('CU-16 crear: auditoría de propuestas del motor', () => {
 
     const propuestas = await filas<FilaConciliacion & { id: string }>(
       ds,
-      `SELECT id, company_id, cfdi_id, movimiento_id, regla,
-              score::text AS score, diferencia_monto::text AS diferencia_monto
-         FROM conciliaciones WHERE company_id = $1`,
+      `SELECT d.id, d.company_id, l.cfdi_id, d.movimiento_id, d.regla,
+              d.score::text AS score, d.diferencia_monto::text AS diferencia_monto
+         FROM decisiones d
+         JOIN decision_lineas l
+           ON l.decision_id = d.id AND l.company_id = d.company_id
+        WHERE d.company_id = $1`,
       [A],
     );
     const auditoria = await bitacoraCrear(A);
@@ -976,7 +1055,7 @@ describe('CU-16 crear: auditoría de propuestas del motor', () => {
         expect.objectContaining({
           company_id: A,
           user_id: null,
-          entidad: 'conciliaciones',
+          entidad: 'decisiones',
           ip: null,
           user_agent: null,
           datos: {
@@ -1037,17 +1116,16 @@ describe('CU-16 crear: auditoría de propuestas del motor', () => {
     await factura(A);
     await servicio.conciliar(A);
     const [vieja] = await bitacoraCrear(A);
-    await ds.query(
-      `UPDATE conciliaciones SET estado = 'rechazada' WHERE id = $1`,
-      [vieja.entidad_id],
-    );
+    await ds.query(`UPDATE decisiones SET estado = 'rechazada' WHERE id = $1`, [
+      vieja.entidad_id,
+    ]);
 
     await servicio.conciliar(A);
 
     const auditoria = await bitacoraCrear(A);
     const vigentes = await filas<{ id: string }>(
       ds,
-      `SELECT id FROM conciliaciones WHERE company_id = $1 AND estado = 'propuesta'`,
+      `SELECT id FROM decisiones WHERE company_id = $1 AND estado = 'propuesta'`,
       [A],
     );
     // Si el par rechazado no se vuelve a proponer, no hay fila nueva; si se

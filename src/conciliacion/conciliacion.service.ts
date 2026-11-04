@@ -15,10 +15,13 @@ const TAMANO_LOTE = 500;
 
 type Manager = Parameters<Parameters<TransaccionEmpresa['ejecutar']>[1]>[0];
 
-/** Vigente = propuesta o confirmada; la rechazada ya no cuenta. */
-const CONCILIACION_VIGENTE = `EXISTS (SELECT 1 FROM conciliaciones c
+/**
+ * Ocupado = decisión propuesta o confirmada; la rechazada y la obsoleta ya no
+ * ocupan el movimiento (AD-4).
+ */
+const CONCILIACION_VIGENTE = `EXISTS (SELECT 1 FROM decisiones c
                   WHERE c.company_id = $1 AND c.movimiento_id = m.id
-                    AND c.estado <> 'rechazada')`;
+                    AND c.estado IN ('propuesta', 'confirmada'))`;
 
 /**
  * Corre el motor de reglas (CU-11) sobre lo que una empresa tiene abierto,
@@ -71,9 +74,13 @@ export class ConciliacionService {
           [companyId, rfc],
         );
         const existentes = await manager.query<ParExistente[]>(
-          `SELECT cfdi_id AS "cfdiId", movimiento_id AS "movimientoId",
-                  (estado = 'rechazada') AS rechazada
-             FROM conciliaciones WHERE company_id = $1`,
+          `SELECT l.cfdi_id AS "cfdiId", d.movimiento_id AS "movimientoId",
+                  (d.estado = 'rechazada') AS rechazada
+             FROM decisiones d
+             JOIN decision_lineas l
+               ON l.decision_id = d.id AND l.company_id = d.company_id
+            WHERE d.company_id = $1
+              AND d.estado IN ('propuesta', 'confirmada', 'rechazada')`,
           [companyId],
         );
 
@@ -187,29 +194,45 @@ export class ConciliacionService {
       motivo: p.motivo,
     }));
     const auditadas = await manager.query<{ id: string }[]>(
-      `WITH creadas AS (
-         INSERT INTO conciliaciones
-                (company_id, cfdi_id, movimiento_id, estado, origen, regla,
-                 score, diferencia_monto, motivo)
-         SELECT $1, x.cfdi_id, x.movimiento_id, 'propuesta', 'regla', x.regla,
+      `WITH fuente AS (
+         SELECT uuidv7() AS id, x.cfdi_id, x.movimiento_id, x.regla,
                 x.score, x.diferencia_monto, x.motivo
            FROM jsonb_to_recordset($2::jsonb)
              AS x(cfdi_id uuid, movimiento_id uuid, regla text, score numeric,
                   diferencia_monto numeric, motivo text)
-         ON CONFLICT (company_id, cfdi_id, movimiento_id) DO NOTHING
-         RETURNING id, cfdi_id, movimiento_id, regla, score, diferencia_monto
+       ),
+       cabeceras AS (
+         INSERT INTO decisiones
+                (id, company_id, movimiento_id, tipo, estado, origen, regla,
+                 score, diferencia_monto, motivo, requiere_revision,
+                 huella_conjunto)
+         SELECT f.id, $1, f.movimiento_id, 'conciliacion', 'propuesta', 'regla',
+                f.regla, f.score, f.diferencia_monto, f.motivo, false,
+                huella_conjunto(ARRAY[f.cfdi_id])
+           FROM fuente f
+         ON CONFLICT DO NOTHING
+         RETURNING id, movimiento_id, regla, score, diferencia_monto
+       ),
+       lineas AS (
+         INSERT INTO decision_lineas
+                (company_id, decision_id, estado_decision, cfdi_id)
+         SELECT $1, f.id, 'propuesta', f.cfdi_id
+           FROM fuente f
+           JOIN cabeceras c ON c.id = f.id
+         RETURNING decision_id
        )
        INSERT INTO bitacora (company_id, user_id, entidad, entidad_id, accion, datos)
-       SELECT $1, NULL, 'conciliaciones', c.id, 'crear',
+       SELECT $1, NULL, 'decisiones', c.id, 'crear',
               jsonb_build_object(
                 'despues', jsonb_build_object('estado', 'propuesta'),
                 'origen', 'regla',
                 'regla', c.regla,
                 'score', c.score::text,
                 'diferenciaMonto', c.diferencia_monto::text,
-                'cfdiId', c.cfdi_id,
+                'cfdiId', f.cfdi_id,
                 'movimientoId', c.movimiento_id)
-         FROM creadas c
+         FROM cabeceras c
+         JOIN fuente f ON f.id = c.id
        RETURNING id`,
       [companyId, JSON.stringify(filas)],
     );

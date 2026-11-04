@@ -31,11 +31,13 @@ const CONSULTA = `
          f.total::text AS total, f.moneda AS cfdi_moneda, f.metodo_pago
     FROM movimientos m
     JOIN companies co ON co.id = m.company_id AND co.id = $2
-    LEFT JOIN conciliaciones c
+    LEFT JOIN decisiones c
            ON c.company_id = $2 AND c.movimiento_id = m.id
+          AND c.tipo = 'conciliacion'
           AND c.estado = CASE m.estado WHEN 'conciliado' THEN 'confirmada'
                                        WHEN 'abierto'    THEN 'propuesta' END
-    LEFT JOIN cfdi f ON f.company_id = $2 AND f.id = c.cfdi_id
+    LEFT JOIN decision_lineas l ON l.company_id = $2 AND l.decision_id = c.id
+    LEFT JOIN cfdi f ON f.company_id = $2 AND f.id = l.cfdi_id
     LEFT JOIN users u ON u.id = c.confirmada_por_id
    WHERE m.id = $1 AND m.company_id = $2
      AND m.estado <> 'pendiente_revision' -- estacionado (3.5): no es un caso

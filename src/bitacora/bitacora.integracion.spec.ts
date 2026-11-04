@@ -13,6 +13,7 @@ import {
 } from '../cargas/testing/app-de-cargas';
 import { ENTIDADES_BITACORA } from '../common/entities/tipos';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
+import { sembrarDecision } from '../conciliacion/siembra-decisiones';
 import { una } from '../database/testing/base-de-pruebas';
 
 /**
@@ -45,7 +46,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await ds.query(
-    'TRUNCATE cfdi, cargas, movimientos, conciliaciones, bitacora CASCADE',
+    'TRUNCATE cfdi, cargas, movimientos, decisiones, decision_lineas, bitacora CASCADE',
   );
   // confirmar y rechazar vuelven a evaluar al liberar un lado; aquí no
   // interesa el motor.
@@ -83,21 +84,28 @@ async function factura(empresa: string): Promise<string> {
   return id;
 }
 
-/** Propuesta lista para resolver. Con `crear` deja la fila del motor. */
+/**
+ * Propuesta (decisión + línea) lista para resolver. Con `crear` deja la fila
+ * histórica del motor v1 (entidad 'conciliaciones'): así el historial mezcla
+ * filas históricas con las nuevas que escriben confirmar y rechazar.
+ */
 async function propuesta(
   empresa = A,
   o: { movimientoId?: string; crear?: boolean } = {},
 ) {
   const cfdiId = await factura(empresa);
   const movimientoId = o.movimientoId ?? (await movimiento(empresa));
-  const { id } = await una<{ id: string }>(
-    ds,
-    `INSERT INTO conciliaciones (company_id, cfdi_id, movimiento_id, estado, origen, regla, score,
-                                 diferencia_monto, motivo)
-     VALUES ($1,$2,$3,'propuesta','regla','monto_unico','0.9000','0.0000','Motivo de propuesta')
-     RETURNING id`,
-    [empresa, cfdiId, movimientoId],
-  );
+  const id = await sembrarDecision(ds, {
+    companyId: empresa,
+    movimientoId,
+    cfdiId,
+    estado: 'propuesta',
+    origen: 'regla',
+    regla: 'monto_unico',
+    score: '0.9000',
+    diferenciaMonto: '0.0000',
+    motivo: 'Motivo de propuesta',
+  });
   if (o.crear !== false) await crearDelMotor(empresa, id, cfdiId, movimientoId);
   return { id, cfdiId, movimientoId };
 }
@@ -262,6 +270,47 @@ describe('GET /conciliaciones/:id/historial (AU-10 a AU-14)', () => {
     const res = await historial(hermana.id).expect(200);
     expect(accionesDe(res)).toEqual(['crear', 'rechazar']);
     expect(eventosDe(res)[1].entidadId).toBe(hermana.id);
+    expect(eventosDe(res)[1].entidad).toBe('decisiones');
+  });
+
+  it('HD-1: mezcla las filas históricas (conciliaciones) y las nuevas (decisiones) en orden', async () => {
+    const { id } = await propuesta(A, { crear: false });
+    const e1 = await evento({
+      entidad: 'conciliaciones',
+      entidadId: id,
+      accion: 'crear',
+      creadoEn: '2026-09-10T10:00:00Z',
+    });
+    const e2 = await evento({
+      entidad: 'decisiones',
+      entidadId: id,
+      accion: 'confirmar',
+      creadoEn: '2026-09-10T11:00:00Z',
+    });
+    const e3 = await evento({
+      entidad: 'conciliaciones',
+      entidadId: id,
+      accion: 'rechazar',
+      creadoEn: '2026-09-10T12:00:00Z',
+    });
+    // Mismo id en otra entidad, y de otra empresa: no entran.
+    await evento({ entidad: 'cfdi', entidadId: id });
+    await evento({ empresa: B, entidad: 'decisiones', entidadId: id });
+
+    const res = await historial(id).expect(200);
+    expect(eventosDe(res).map((e) => e.id)).toEqual([e1, e2, e3]);
+    expect(eventosDe(res).map((e) => e.entidad)).toEqual([
+      'conciliaciones',
+      'decisiones',
+      'conciliaciones',
+    ]);
+  });
+
+  it('HD-2: el historial de una decisión de otra empresa es 404 aunque tenga eventos', async () => {
+    const ajena = await propuesta(B);
+    await evento({ empresa: B, entidad: 'decisiones', entidadId: ajena.id });
+    const res = await historial(ajena.id).expect(404);
+    expect(res.body).toEqual((await historial(randomUUID()).expect(404)).body);
   });
 
   it('AU-10: contador y revisor leen; sin token es 401', async () => {
@@ -461,9 +510,10 @@ describe('GET /bitacora (AU-20 a AU-26)', () => {
     expect(paginaDe(res)).toMatchObject({ datos: [], total: 0 });
   });
 
-  it('ENT-1: la lista canónica de entidades es conciliaciones, companies y cargas', () => {
+  it('ENT-1: la lista canónica de entidades es conciliaciones, decisiones, companies y cargas', () => {
     expect([...ENTIDADES_BITACORA]).toEqual([
       'conciliaciones',
+      'decisiones',
       'companies',
       'cargas',
     ]);
@@ -522,7 +572,7 @@ describe('GET /bitacora (AU-20 a AU-26)', () => {
     }
   });
 
-  it('AU-26: la historia de un CFDI y de un movimiento pasa por conciliaciones', async () => {
+  it('AU-26: la historia de un CFDI y de un movimiento pasa por decisiones', async () => {
     const confirmada = await propuesta();
     const rechazada = await propuesta();
     await confirmar(confirmada.id).expect(200);
@@ -541,27 +591,64 @@ describe('GET /bitacora (AU-20 a AU-26)', () => {
       await acciones(`?entidad=cfdi&entidadId=${confirmada.cfdiId}`),
     ).toEqual([
       'cfdi:actualizar',
-      'conciliaciones:confirmar',
       'conciliaciones:crear',
+      'decisiones:confirmar',
     ]);
     expect(
       await acciones(
         `?entidad=movimientos&entidadId=${confirmada.movimientoId}`,
       ),
-    ).toEqual(['conciliaciones:confirmar', 'conciliaciones:crear']);
+    ).toEqual(['conciliaciones:crear', 'decisiones:confirmar']);
     // Forma del rechazo (cfdiId/movimientoId planos).
     expect(
       await acciones(`?entidad=cfdi&entidadId=${rechazada.cfdiId}`),
-    ).toEqual(['conciliaciones:crear', 'conciliaciones:rechazar']);
+    ).toEqual(['conciliaciones:crear', 'decisiones:rechazar']);
     expect(
       await acciones(
         `?entidad=movimientos&entidadId=${rechazada.movimientoId}`,
       ),
-    ).toEqual(['conciliaciones:crear', 'conciliaciones:rechazar']);
+    ).toEqual(['conciliaciones:crear', 'decisiones:rechazar']);
     // El id de un CFDI no arrastra la historia de un movimiento y viceversa.
     expect(
       await acciones(`?entidad=movimientos&entidadId=${confirmada.cfdiId}`),
     ).toEqual([]);
+  });
+
+  it('HD-3: filtrar por entidad acepta decisiones y conciliaciones por separado', async () => {
+    const { id } = await propuesta();
+    await confirmar(id).expect(200);
+    const nuevas = eventosDe(await bitacora('?entidad=decisiones').expect(200));
+    expect(nuevas.map((e) => `${e.entidad}:${e.accion}`)).toEqual([
+      'decisiones:confirmar',
+    ]);
+    const historicas = eventosDe(
+      await bitacora('?entidad=conciliaciones').expect(200),
+    );
+    expect(historicas.map((e) => `${e.entidad}:${e.accion}`)).toEqual([
+      'conciliaciones:crear',
+    ]);
+    // Por id de la decisión: las dos entidades, sin duplicar filas.
+    const ambas = await bitacora(`?entidadId=${id}`).expect(200);
+    expect(paginaDe(ambas).total).toBe(2);
+  });
+
+  it('HD-4: la historia de un CFDI no arrastra decisiones de otra empresa', async () => {
+    const propia = await propuesta();
+    const ajena = await propuesta(B);
+    await evento({
+      empresa: B,
+      entidad: 'decisiones',
+      entidadId: ajena.id,
+      accion: 'confirmar',
+    });
+    const res = await bitacora(
+      `?entidad=cfdi&entidadId=${propia.cfdiId}`,
+    ).expect(200);
+    expect(eventosDe(res).map((e) => e.entidadId)).toEqual([propia.id]);
+    const deB = await bitacora(
+      `?entidad=cfdi&entidadId=${ajena.cfdiId}`,
+    ).expect(200);
+    expect(paginaDe(deB).total).toBe(0);
   });
 
   it('AU-25: admin, contador y revisor leen; sin token 401; otra empresa 403', async () => {

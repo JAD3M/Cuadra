@@ -200,9 +200,9 @@ export class SugerenciasService {
            FROM movimientos m
           WHERE m.company_id = $1 AND m.estado = 'abierto' AND m.monto > 0
             AND m.regla_sin_match = ANY($2::text[])
-            AND NOT EXISTS (SELECT 1 FROM conciliaciones c
-                             WHERE c.company_id = $1 AND c.movimiento_id = m.id
-                               AND c.estado <> 'rechazada')
+            AND NOT EXISTS (SELECT 1 FROM decisiones d
+                             WHERE d.company_id = $1 AND d.movimiento_id = m.id
+                               AND d.estado IN ('propuesta', 'confirmada'))
           ORDER BY m.fecha, m.id`,
         [companyId, REGLAS_ELEGIBLES],
       );
@@ -218,9 +218,13 @@ export class SugerenciasService {
         [companyId, empresas[0].rfc],
       );
       const existentes = await manager.query<ParExistente[]>(
-        `SELECT cfdi_id AS "cfdiId", movimiento_id AS "movimientoId",
-                (estado = 'rechazada') AS rechazada
-           FROM conciliaciones WHERE company_id = $1`,
+        `SELECT l.cfdi_id AS "cfdiId", d.movimiento_id AS "movimientoId",
+                (d.estado = 'rechazada') AS rechazada
+           FROM decisiones d
+           JOIN decision_lineas l
+             ON l.decision_id = d.id AND l.company_id = d.company_id
+          WHERE d.company_id = $1
+            AND d.estado IN ('propuesta', 'confirmada', 'rechazada')`,
         [companyId],
       );
       const vistos = await manager.query<
