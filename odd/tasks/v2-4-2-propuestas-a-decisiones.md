@@ -68,7 +68,7 @@ necesita una forma determinista de forzar `rowCount = 0` y `23505`.
 - [x] **T1** Helper de siembra de decisiones + `tipos.ts` (`ENTIDADES_BITACORA`
   con `decisiones`) y espejo del frontend. El motor (`conciliar()`) inserta
   cabecera + línea + bitácora en una sentencia y lee "vigente" de `decisiones`.
-- [ ] **T2** Bandeja y detalle del caso leen de `decisiones`/`decision_lineas`
+- [x] **T2** Bandeja y detalle del caso leen de `decisiones`/`decision_lineas`
   y muestran lo mismo que en la v1.
 - [ ] **T3** Resolución: `confirmar` y `rechazar` sobre `decisiones` con
   `rowCount` verificado, hermanas a `obsoleta`, bitácora en la misma sentencia,
@@ -110,6 +110,33 @@ necesita una forma determinista de forzar `rowCount = 0` y `23505`.
   `src/demo/demo.integracion.spec.ts` (se migran con T5; cuentan como specs
   restantes). 79 suites en verde (1661 pruebas).
 
+### T2
+
+- Ruta: escritor delegado (lectura de preparación hecha por el escritor).
+- RED: `npm test -- src/bandeja/bandeja.integracion.spec.ts
+  src/casos/casos.integracion.spec.ts` con los dos specs ya sembrando por
+  `sembrarDecision` y los servicios aún leyendo `conciliaciones`: 27 fallidas,
+  59 pasan (86).
+- GREEN: `bandeja.service.ts` (LATERAL sobre `decisiones` + `decision_lineas`,
+  `tipo = 'conciliacion'`) y `casos.service.ts` (`CONSULTA` con `decisiones`,
+  `decision_lineas` y `cfdi` por la línea). `npm test -- src/bandeja src/casos
+  src/conciliacion`: 9 suites, 278 de 279 pasan; la única roja es
+  `RS-C5 tras confirmar de verdad (CU-15)` (la confirmación real pasa por
+  `src/resolucion`, que sigue sobre `conciliaciones` hasta T3: 404). `npx tsc
+  --noEmit`, `npx eslint "src/**/*.ts"` y `npx prettier --check` limpios.
+- Pruebas nuevas: obsoleta/rechazada no salen como propuesta ni en bandeja ni
+  en el caso (también con score mayor que la viva), conciliado ignora la
+  obsoleta, la confirmada trae persona y fecha ISO, empate de score por id
+  menor, aislamiento de decisiones de otra empresa, cabecera huérfana sin
+  línea no es propuesta, FK `fk_decision_lineas_cfdi` contra CFDI ajeno.
+- Suite completa tras T2: 5 suites rojas (9 pruebas), todas esperadas:
+  `src/bandeja/bandeja.integracion.spec.ts` (solo RS-C5, vuelve en T3),
+  `src/bitacora/bitacora.integracion.spec.ts` (T5),
+  `src/companies/tolerancia.integracion.spec.ts` (T5),
+  `src/demo/demo.integracion.spec.ts` (T5),
+  `src/sugerencias/sugerencias.integracion.spec.ts` (T4, IA-26). 77 suites en
+  verde (1667 pruebas).
+
 ## Siguiente paso
 
-T2.
+T3.
