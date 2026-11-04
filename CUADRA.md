@@ -646,6 +646,21 @@ de AD-20: la tabla vieja ya no existe; `decisiones` y `decision_lineas` son la
 restaurar (hoy lo hace en silencio, documentado). La reversión no se probó en
 producción.
 
+**Pareja de factura y pago (v2, historia 4.4), terminada el 4 nov 2026.** El
+motor propone, con su regla y su confianza, y nunca cierra un caso (AD-3):
+
+- Un CFDI que no está en MXN no se empata. Si la referencia del movimiento lo
+  señala, el caso queda con el motivo `moneda_no_soportada` (migración
+  `1790712000000-MonedaNoSoportada`).
+- Cada propuesta de una regla lleva su `confianza` (`alta`, `media`, `baja`),
+  derivada de la puntuación: regla 1 `alta`, regla 2 `media`, regla 3 `baja`. Las
+  propuestas de la IA no llevan nivel de regla.
+- Una prueba de arquitectura impide que `conciliacion/` y `sugerencias/`
+  escriban una decisión `confirmada` o las columnas de la persona.
+
+**Pendientes (4.4):** mostrar el nivel en la pantalla del caso (antes hay que
+actualizar el mockup); probar directamente el `down` de la migración nueva.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**
