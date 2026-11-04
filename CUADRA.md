@@ -624,9 +624,27 @@ la decisión):
   aparecen. El historial de bitácora junta las filas históricas
   (`conciliaciones`) y las nuevas (`decisiones`) por el mismo id.
 
-**Pendientes (4.2):** retirar la tabla `conciliaciones` y su entidad es la 4.3.
-Quedan nombres históricos (ruta `/conciliaciones`, permiso
-`conciliaciones.resolver`) que no se renombran.
+**Retiro de `conciliaciones` (v2, historia 4.3), terminada el 4 nov 2026.** Paso 4
+de AD-20: la tabla vieja ya no existe; `decisiones` y `decision_lineas` son la
+única fuente de verdad de una confirmación:
+
+- Migración `1790711000000-RetirarConciliaciones`. `up` verifica por empresa que
+  cada fila tenga su decisión (mismo id y movimiento) y su línea (mismo CFDI) y
+  falla sin cambiar nada si no; luego borra la tabla. La bitácora conserva sus
+  filas históricas de la entidad `conciliaciones`.
+- `down` recrea la tabla idéntica (RLS con FORCE, política y GRANTs) y la
+  repuebla desde `decisiones`, de mejor esfuerzo: no devuelve decisiones con
+  varias líneas ni en estados que la tabla vieja no tenía. Corre con el rol
+  dueño (`cuadra_app` no tiene `DELETE`); el procedimiento y el respaldo previo
+  están en `docs/despliegue.md`.
+- Una prueba de arquitectura impide que el código de producción vuelva a nombrar
+  la tabla (SQL, `@Entity` o la entidad `Conciliacion`). Quedan nombres
+  históricos que no cuentan: la entidad en la bitácora, la ruta `/conciliaciones`
+  y el permiso `conciliaciones.resolver`.
+
+**Pendientes (4.3):** que el `down` registre cuántas decisiones omite al
+restaurar (hoy lo hace en silencio, documentado). La reversión no se probó en
+producción.
 
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 

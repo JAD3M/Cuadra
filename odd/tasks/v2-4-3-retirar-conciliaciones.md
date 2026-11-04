@@ -58,13 +58,23 @@ no tiene `DELETE` y la reversión corre con el rol dueño.
 
 ## Tareas
 
-- [ ] **T1** Corte de retiro: prueba de arquitectura (ningún código de
+- [x] **T1** Corte de retiro: prueba de arquitectura (ningún código de
   producción nombra la tabla), migración de retiro con su verificación y su
   `down`, entidad y registros fuera, specs adaptados, prueba de migraciones desde
   cero y sobre una base con datos v1 (el número de decisiones coincide con el de
   conciliaciones originales).
-- [ ] **T2** Documentación de la reversión en `docs/despliegue.md`, bitácora del
-  proyecto, `CUADRA.md`, Jira KAN-139, PR y repaso de la historia.
+- [x] **T2** Documentación de la reversión en `docs/despliegue.md` (la escribió
+  T1), bitácora del proyecto, `CUADRA.md`, Jira KAN-139, PR y repaso de la
+  historia.
+
+Commits: T1 `77e9320`. Suite del backend: 84 suites, 1722 pruebas (repetida por
+el padre tras corregir tres specs fuera de la superficie del escritor que aún
+borraban de `conciliaciones`: `vista-previa` x2 y `permisos`).
+Revisión nativa de alto riesgo (4 lentes) aprobada. Seguimientos opcionales, no
+bloqueantes: que el `down` registre cuántas decisiones omite (hoy lo hace en
+silencio, aunque está documentado); la sugerencia sobre el `CHECK` de confirmada
+no aplica porque `decisiones` ya lo tiene; el riesgo de concurrencia del spec no
+aplica porque `npm test` corre con `--runInBand`.
 
 ## Evidencia
 
@@ -108,4 +118,4 @@ no tiene `DELETE` y la reversión corre con el rol dueño.
 
 ## Siguiente paso
 
-T1.
+PR, repaso de la historia y la 4.4 (proponer una pareja de factura y pago).
