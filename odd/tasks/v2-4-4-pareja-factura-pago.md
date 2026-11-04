@@ -1,0 +1,74 @@
+# Historia 4.4: Proponer una pareja de factura y pago, con su regla y confianza
+
+Rama: `feat/v2-4-4-pareja-factura-pago`
+Jira: KAN-140 (En curso)
+Fuente: `_bmad-output/planning-artifacts/epics.md` (Story 4.4, líneas 1125-1157)
+Spine: AD-3, AD-4
+Mirror Engram: `odd/v2-4-4-pareja-factura-pago/tasks`
+
+## Objetivo
+
+Que el contador revise parejas de factura y pago ya propuestas, sabiendo por qué
+(regla) y con cuánta confianza, en vez de buscarlas a mano.
+
+## Problema
+
+La 4.2 dejó el motor sobre `decisiones`: las reglas 1-3, sus puntuaciones
+(1.0 / 0.5 / 0.4), la tolerancia de la empresa y el bloqueo de pares rechazados
+ya existen. Mapeo del 2026-11-04 contra los 6 criterios:
+
+| AC | Estado | Evidencia |
+| --- | --- | --- |
+| 1 regla 1 con la puntuación más alta | hecho | `evaluar-par.ts:12-18`, specs de `evaluar-par` e integración |
+| 2 reglas 2 y 3 menores, tolerancia | hecho; orden sin spec | `casos.service.ts:44` ordena por score |
+| 3 CFDI no-MXN no se empata, motivo «moneda no soportada» | **falta** | hoy USD con USD empata; el texto solo existe en la carga |
+| 4 par rechazado no se re-propone | hecho | `ux_decisiones_movimiento_huella_abierta`, specs |
+| 5 motor e IA nunca crean `confirmada`, prueba de arquitectura | **falta la prueba** | solo el CHECK de BD |
+| 6 regla y nivel de confianza visibles | **falta el nivel** | solo se expone `score` y `regla` |
+
+## Decisiones
+
+- 2026-11-04: los movimientos son siempre MXN (el estado de cuenta se rechaza si
+  no lo es), así que el AC3 trata solo de CFDI no-MXN. Un CFDI no-MXN se excluye
+  de los candidatos y su caso queda con el motivo nuevo `moneda_no_soportada`.
+  Los specs que hoy esperan empate USD-USD se corrigen: eran sintéticos.
+- El nivel de confianza (`alta` / `media` / `baja`) se deriva de la puntuación de
+  la regla en un solo lugar; nunca se inventa en el frontend.
+
+## Alcance autorizado
+
+- Backend: `src/conciliacion/evaluar-par.ts` (+ spec), `src/common/entities/tipos.ts`,
+  `src/casos/**`, una migración nueva para el CHECK de `regla_sin_match`,
+  la prueba de arquitectura nueva en `src/conciliacion/`.
+- Frontend: solo espejar los valores nuevos del backend si la pantalla del caso
+  los muestra (sin cambiar distribución; el mockup manda).
+- Fuera: reglas multi-factura (4.5), endurecer la clave de rechazo por huella.
+
+## Reglas no negociables que aplican
+
+- Toda query del dominio con `company_id`; montos `NUMERIC`, nunca flotante.
+- El motor decide; la IA solo sugiere y nunca cierra un caso.
+- Un falso positivo es peor que no conciliar.
+- Estados, reglas y motivos salen de `tipos.ts`.
+
+## Tareas
+
+- [ ] **T1** Moneda no soportada (AC3): motivo `moneda_no_soportada` en `tipos.ts`
+  y migración del CHECK, el motor excluye CFDI no-MXN, el caso lo muestra; specs
+  USD corregidos.
+- [ ] **T2** Nivel de confianza (AC6) y orden (AC2): `nivelDeConfianza(score)`,
+  expuesto en el caso, spec de coincidencia con la puntuación y del orden.
+- [ ] **T3** Prueba de arquitectura (AC5): el motor y la IA no escriben `confirmada`.
+- [ ] **T4** Cierre: bitácora, `CUADRA.md`, Jira KAN-140, PR y repaso.
+
+## Rutas
+
+Se declara por tarea al ejecutarla (inline o delegada, con su disparador).
+
+## Verificación
+
+Backend: `npm test` (con Postgres en 5432), `npm run lint`, `npm run format:check`.
+
+## Progreso
+
+Mapeo hecho; sin código escrito. Siguiente: T1.
