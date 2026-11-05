@@ -94,13 +94,14 @@ async function factura(
     estado?: string;
     moneda?: string;
     emisor?: string;
+    rfc?: string;
   } = {},
 ): Promise<string> {
   const { id } = await una<{ id: string }>(
     ds,
     `INSERT INTO cfdi (company_id, uuid_fiscal, rfc_emisor, rfc_receptor, serie, folio,
                        fecha_emision, tipo_comprobante, moneda, subtotal, total, estado, xml_raw)
-     VALUES ($1,$2,$3,'XAXX010101000',$4,$5,$6,$7,$8,$9,$9,$10,'{"_xml":"<x/>"}'::jsonb)
+     VALUES ($1,$2,$3,$11,$4,$5,$6,$7,$8,$9,$9,$10,'{"_xml":"<x/>"}'::jsonb)
      RETURNING id`,
     [
       empresa,
@@ -113,6 +114,7 @@ async function factura(
       o.moneda ?? 'MXN',
       o.total ?? '1160.00',
       o.estado ?? 'abierta',
+      o.rfc ?? 'XAXX010101000',
     ],
   );
   return id;
@@ -1015,7 +1017,8 @@ interface FilaCrear {
     regla: string;
     score: string;
     diferenciaMonto: string;
-    cfdiId: string;
+    cfdiId?: string;
+    cfdiIds?: string[];
     movimientoId: string;
   };
 }
@@ -1158,5 +1161,247 @@ describe('CU-16 crear: auditoría de propuestas del motor', () => {
     }
     expect(await conciliaciones(A)).toEqual([]);
     expect(await bitacoraCrear(A)).toEqual([]);
+  });
+});
+
+interface FilaGrupo {
+  id: string;
+  movimiento_id: string;
+  estado: string;
+  origen: string;
+  regla: string;
+  score: string;
+  diferencia_monto: string;
+  requiere_revision: boolean;
+  lote_id: string | null;
+  huella_conjunto: string;
+  cfdis: string[];
+}
+
+const decisionesDeGrupo = (empresa: string) =>
+  filas<FilaGrupo>(
+    ds,
+    `SELECT d.id, d.movimiento_id, d.estado, d.origen, d.regla,
+            d.score::text AS score, d.diferencia_monto::text AS diferencia_monto,
+            d.requiere_revision, d.lote_id, d.huella_conjunto,
+            array_agg(l.cfdi_id::text ORDER BY l.cfdi_id) AS cfdis
+       FROM decisiones d
+       JOIN decision_lineas l
+         ON l.decision_id = d.id AND l.company_id = d.company_id
+      WHERE d.company_id = $1 AND d.regla = 'suma_grupo'
+      GROUP BY d.id ORDER BY d.created_at, d.id`,
+    [empresa],
+  );
+
+const motivoDeMovimiento = (id: string) =>
+  una<{ regla: string | null; motivo: string | null }>(
+    ds,
+    `SELECT regla_sin_match AS regla, motivo_sin_match AS motivo
+       FROM movimientos WHERE id = $1`,
+    [id],
+  );
+
+const ordenados = (...ids: string[]) => [...ids].sort();
+
+describe('conciliar (4.5): un depósito que cubre varias facturas', () => {
+  const RFC_X = 'AAA010101AAA';
+  const RFC_Y = 'BBB020202BBB';
+
+  it('(a) subconjunto único de 2 facturas: una decisión con 2 líneas', async () => {
+    const m = await movimiento(A, { monto: '300.00' });
+    const x = await factura(A, { folio: '1', total: '100.00', rfc: RFC_X });
+    const y = await factura(A, { folio: '2', total: '200.00', rfc: RFC_X });
+    await factura(A, { folio: '3', total: '777.00', rfc: RFC_X });
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 1 });
+
+    expect(await decisionesDeGrupo(A)).toEqual([
+      expect.objectContaining({
+        movimiento_id: m,
+        estado: 'propuesta',
+        origen: 'regla',
+        regla: 'suma_grupo',
+        score: '0.6000',
+        diferencia_monto: '0.0000',
+        requiere_revision: false,
+        lote_id: null,
+        huella_conjunto: huellaConjunto([x, y]),
+        cfdis: ordenados(x, y),
+      }),
+    ]);
+    const lineas = await filas<{ estado_decision: string }>(
+      ds,
+      `SELECT estado_decision FROM decision_lineas WHERE company_id = $1`,
+      [A],
+    );
+    expect(lineas).toEqual([
+      { estado_decision: 'propuesta' },
+      { estado_decision: 'propuesta' },
+    ]);
+    expect(await motivoDeMovimiento(m)).toEqual({ regla: null, motivo: null });
+    // La bitácora audita la propuesta con todas sus facturas.
+    const [crear] = await bitacoraCrear(A);
+    expect(crear.datos.cfdiIds).toEqual(ordenados(x, y));
+    expect(await bitacoraCrear(A)).toHaveLength(1);
+  });
+
+  it('(b) 3 facturas con diferencia dentro de la tolerancia, con signo', async () => {
+    jest
+      .spyOn(entorno.app.get(ProveedorTolerancia), 'obtener')
+      .mockResolvedValue(dinero('1.00'));
+    await movimiento(A, { monto: '600.50' });
+    const x = await factura(A, { folio: '1', total: '100.00', rfc: RFC_X });
+    const y = await factura(A, { folio: '2', total: '200.00', rfc: RFC_X });
+    const z = await factura(A, { folio: '3', total: '300.00', rfc: RFC_X });
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 1 });
+
+    const [d] = await decisionesDeGrupo(A);
+    expect(d.cfdis).toEqual(ordenados(x, y, z));
+    expect(d.diferencia_monto).toBe('0.5000');
+    expect(d.huella_conjunto).toBe(huellaConjunto([x, y, z]));
+  });
+
+  it('(c) dos subconjuntos con la misma suma: nada y el caso lo explica', async () => {
+    const m = await movimiento(A, { monto: '300.00' });
+    await factura(A, { folio: '1', total: '100.00', rfc: RFC_X });
+    await factura(A, { folio: '2', total: '200.00', rfc: RFC_X });
+    await factura(A, { folio: '3', total: '120.00', rfc: RFC_X });
+    await factura(A, { folio: '4', total: '180.00', rfc: RFC_X });
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+
+    expect(await decisionesDeGrupo(A)).toEqual([]);
+    const motivo = await motivoDeMovimiento(m);
+    expect(motivo.regla).toBe('combinaciones_multiples');
+    // Las facturas en juego quedan nombradas para quien lea el caso.
+    for (const folio of ['1', '2', '3', '4']) {
+      expect(motivo.motivo).toContain(`A-${folio}`);
+    }
+  });
+
+  it('(d) suma fuera de tolerancia: nada y sin motivo de grupo inventado', async () => {
+    const m = await movimiento(A, { monto: '305.00' });
+    await factura(A, { folio: '1', total: '100.00', rfc: RFC_X });
+    await factura(A, { folio: '2', total: '200.00', rfc: RFC_X });
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+
+    expect(await decisionesDeGrupo(A)).toEqual([]);
+    expect((await motivoDeMovimiento(m)).regla).toBe('sin_candidato_monto');
+  });
+
+  it('(e) facturas de RFC distintos que solo suman entre ellas: nada', async () => {
+    const m = await movimiento(A, { monto: '300.00' });
+    await factura(A, { folio: '1', total: '100.00', rfc: RFC_X });
+    await factura(A, { folio: '2', total: '200.00', rfc: RFC_Y });
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+
+    expect(await decisionesDeGrupo(A)).toEqual([]);
+    expect((await motivoDeMovimiento(m)).regla).toBe('sin_candidato_monto');
+  });
+
+  it('(f) una factura confirmada o ya propuesta no entra a otro grupo', async () => {
+    const m = await movimiento(A, { monto: '300.00' });
+    const otro = await movimiento(A, { monto: '9999.00' });
+    const x = await factura(A, { folio: '1', total: '100.00', rfc: RFC_X });
+    await factura(A, { folio: '2', total: '200.00', rfc: RFC_X });
+    await conciliacionPrevia(A, x, otro, 'confirmada');
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+    expect(await decisionesDeGrupo(A)).toEqual([]);
+
+    await ds.query('TRUNCATE decisiones CASCADE');
+    await conciliacionPrevia(A, x, otro, 'propuesta');
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+    expect(await decisionesDeGrupo(A)).toEqual([]);
+    expect((await motivoDeMovimiento(m)).regla).toBe('sin_candidato_monto');
+  });
+
+  it('(g) un grupo rechazado no se re-propone y re-correr no duplica', async () => {
+    const m = await movimiento(A, { monto: '300.00' });
+    const x = await factura(A, { folio: '1', total: '100.00', rfc: RFC_X });
+    const y = await factura(A, { folio: '2', total: '200.00', rfc: RFC_X });
+    await ds.query(
+      `WITH d AS (
+         INSERT INTO decisiones (company_id, movimiento_id, tipo, estado, origen,
+                                 huella_conjunto)
+         VALUES ($1, $2, 'conciliacion', 'rechazada', 'manual',
+                 huella_conjunto(ARRAY[$3::uuid, $4::uuid]))
+         RETURNING id)
+       INSERT INTO decision_lineas (company_id, decision_id, estado_decision, cfdi_id)
+       SELECT $1, d.id, 'rechazada', c FROM d, unnest(ARRAY[$3::uuid, $4::uuid]) c`,
+      [A, m, x, y],
+    );
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+    expect(await decisionesDeGrupo(A)).toEqual([]);
+  });
+
+  it('(g) re-correr conciliar no crea duplicados', async () => {
+    await movimiento(A, { monto: '300.00' });
+    await factura(A, { folio: '1', total: '100.00', rfc: RFC_X });
+    await factura(A, { folio: '2', total: '200.00', rfc: RFC_X });
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 1 });
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+    expect(await decisionesDeGrupo(A)).toHaveLength(1);
+    expect(await bitacoraCrear(A)).toHaveLength(1);
+  });
+
+  it('(h) si una sola factura calza por monto o la referencia apunta a una, no hay grupo', async () => {
+    // Regla 3: una factura de 300 calza; el grupo 100+200 no se busca.
+    await movimiento(A, { monto: '300.00' });
+    await factura(A, { folio: '1', total: '100.00', rfc: RFC_X });
+    await factura(A, { folio: '2', total: '200.00', rfc: RFC_X });
+    const unica = await factura(A, { folio: '3', total: '300.00', rfc: RFC_X });
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 1 });
+    expect(await decisionesDeGrupo(A)).toEqual([]);
+    expect((await conciliaciones(A)).map((f) => f.cfdi_id)).toEqual([unica]);
+
+    // Referencia a una factura con otro monto: sin grupo.
+    await ds.query('TRUNCATE cfdi, movimientos, decisiones CASCADE');
+    const m = await movimiento(A, { monto: '300.00', referencia: 'A1001' });
+    await factura(A, { folio: '1001', total: '150.00', rfc: RFC_X });
+    await factura(A, { folio: '2', total: '150.00', serie: 'B', rfc: RFC_X });
+    expect((await servicio.conciliar(A)).propuestas).toBe(1);
+    expect(await decisionesDeGrupo(A)).toEqual([]);
+    expect((await motivoDeMovimiento(m)).regla).toBeNull();
+  });
+
+  it('(i) más de 20 candidatos de un RFC: candidatos_excedidos, sin propuesta', async () => {
+    const m = await movimiento(A, { monto: '3.00' });
+    for (let i = 1; i <= 21; i++) {
+      await factura(A, { folio: String(i), total: '1.00', rfc: RFC_X });
+    }
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+
+    expect(await decisionesDeGrupo(A)).toEqual([]);
+    expect((await motivoDeMovimiento(m)).regla).toBe('candidatos_excedidos');
+  });
+
+  it('(j) las facturas de otra empresa nunca entran al grupo', async () => {
+    const m = await movimiento(A, { monto: '300.00' });
+    await factura(A, { folio: '1', total: '100.00', rfc: RFC_X });
+    await factura(B, { folio: '2', total: '200.00', rfc: RFC_X });
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+    expect(await decisionesDeGrupo(A)).toEqual([]);
+    expect(await decisionesDeGrupo(B)).toEqual([]);
+    expect((await motivoDeMovimiento(m)).regla).toBe('sin_candidato_monto');
+  });
+
+  it('dos depósitos que disputan una misma factura: ninguno se propone', async () => {
+    await movimiento(A, { monto: '300.00' });
+    await movimiento(A, { monto: '250.00' });
+    await factura(A, { folio: '1', total: '100.00', rfc: RFC_X });
+    await factura(A, { folio: '2', total: '200.00', rfc: RFC_X });
+    await factura(A, { folio: '3', total: '150.00', rfc: RFC_X });
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+    expect(await decisionesDeGrupo(A)).toEqual([]);
   });
 });

@@ -4,7 +4,9 @@ import {
   evaluarGrupo,
   MAX_CANDIDATOS_POR_RFC,
   MAX_FACTURAS_POR_SUBCONJUNTO,
+  proponerGrupos,
 } from './evaluar-grupo';
+import { huellaConjunto } from './huella-conjunto';
 import type { CfdiAbierto, MovimientoAbierto } from './evaluar-par';
 
 function mov(monto: string): MovimientoAbierto {
@@ -280,5 +282,90 @@ describe('evaluarGrupo', () => {
       CERO,
     );
     expect(r).toMatchObject({ tipo: 'propuesta', diferenciaMonto: '0.0000' });
+  });
+});
+
+describe('proponerGrupos', () => {
+  const m2 = (id: string, monto: string): MovimientoAbierto => ({
+    ...mov(monto),
+    id,
+  });
+
+  it('un grupo rechazado para ese movimiento no se propone', () => {
+    const cfdis = [cfdi('c1', '100.00'), cfdi('c2', '200.00')];
+    const rechazadas = new Map([
+      ['m1', new Set([huellaConjunto(['c1', 'c2'])])],
+    ]);
+    const r = proponerGrupos([mov('300.00')], cfdis, CERO, [], rechazadas);
+    expect(r).toEqual({ propuestas: [], sinMatch: [] });
+  });
+
+  it('un subconjunto rechazado sigue contando para la ambigüedad', () => {
+    const cfdis = [
+      cfdi('c1', '100.00'),
+      cfdi('c2', '200.00'),
+      cfdi('c3', '120.00'),
+      cfdi('c4', '180.00'),
+    ];
+    const rechazadas = new Map([
+      ['m1', new Set([huellaConjunto(['c1', 'c2'])])],
+    ]);
+    const r = proponerGrupos([mov('300.00')], cfdis, CERO, [], rechazadas);
+    expect(r.propuestas).toEqual([]);
+    expect(r.sinMatch.map((s) => s.regla)).toEqual(['combinaciones_multiples']);
+  });
+
+  it('excluye lo ocupado por decisiones vigentes y por propuestas de la corrida', () => {
+    const cfdis = [cfdi('c1', '100.00'), cfdi('c2', '200.00')];
+    const vigente = [{ cfdiId: 'c1', movimientoId: 'x', rechazada: false }];
+    expect(
+      proponerGrupos([mov('300.00')], cfdis, CERO, vigente, new Map()),
+    ).toEqual({ propuestas: [], sinMatch: [] });
+    expect(
+      proponerGrupos(
+        [mov('300.00')],
+        cfdis,
+        CERO,
+        [],
+        new Map(),
+        new Set(['c2']),
+      ),
+    ).toEqual({ propuestas: [], sinMatch: [] });
+  });
+
+  it('dos movimientos que disputan una factura: ninguno recibe propuesta', () => {
+    const cfdis = [
+      cfdi('c1', '100.00'),
+      cfdi('c2', '200.00'),
+      cfdi('c3', '150.00'),
+    ];
+    const r = proponerGrupos(
+      [m2('m1', '300.00'), m2('m2', '250.00')],
+      cfdis,
+      CERO,
+      [],
+      new Map(),
+    );
+    expect(r.propuestas).toEqual([]);
+  });
+
+  it('sin disputa, cada movimiento recibe la suya', () => {
+    const cfdis = [
+      cfdi('c1', '100.00'),
+      cfdi('c2', '200.00'),
+      cfdi('c3', '50.00'),
+      cfdi('c4', '60.00'),
+    ];
+    const r = proponerGrupos(
+      [m2('m1', '300.00'), m2('m2', '110.00')],
+      cfdis,
+      CERO,
+      [],
+      new Map(),
+    );
+    expect(r.propuestas.map((p) => [p.movimientoId, p.cfdiIds])).toEqual([
+      ['m1', ['c1', 'c2']],
+      ['m2', ['c3', 'c4']],
+    ]);
   });
 });
