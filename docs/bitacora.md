@@ -30,6 +30,17 @@
     marcada aparece en la bandeja (con el filtro `sugerencia`, que incluye el default,
     o con `conciliado`), sin cambiar el orden. Ningún endpoint limpia la marca: reabrir
     es de la 5.7.
+  - **T7 (eda12c4), frontend:** mockups de Bandeja y Detalle (oscuro y claro)
+    actualizados y acordados con el usuario. Chip ámbar «⚠ Requiere revisión» en la
+    bandeja y tarjeta ámbar de solo lectura en el detalle; `requiereRevision` entra
+    como booleano en los contratos. PR #93.
+  - **T8 (e72ef59, 9e55f2c), estado de cada CFDI:** la revisión nativa de T7 avisó
+    que la tarjeta nombraba `cfdi`, la primera factura de un grupo, y el resumen no
+    traía el estado: en una confirmada de grupo podía señalar una factura equivocada.
+    `CfdiResumenDto` suma `estado` (bandeja y casos) y la tarjeta nombra solo las
+    `cancelada` (una, varias o, si ninguna, un texto genérico). PR #94. Backend 90
+    suites / 1837 pruebas; frontend 293 archivos / 4747 pruebas.
+  - **PR de la historia:** #90 a #94, todos con CI verde e integrados.
   - **Suite:** backend 90 suites, 1834 pruebas; un fallo intermitente en
     `esquema.spec.ts` («usa el índice parcial») que pasa al correrlo solo, atribuido
     al planificador.
@@ -37,8 +48,9 @@
     no bloqueante (pendiente d).
   - **Pendientes:** (a) consultar al SAT: un XML real no marca la cancelación; sería
     una historia aparte con enmienda del PRD, FR-66 y el spine, y con decisión de qué
-    estado queda si el SAT no responde. (b) El frontend no muestra `requiereRevision`
-    en bandeja ni en el caso (antes, el mockup). (c) El resumen de la bandeja cuenta
+    estado queda si el SAT no responde. (b) El historial del caso no muestra el evento
+    «se marcó cancelada» del mockup: su consulta no trae la bitácora de `cfdi` y hace
+    falta un cambio de backend. (c) El resumen de la bandeja cuenta
     la `confirmada` marcada como `conciliado` y no como «por revisar». (d) Si
     `cancelarCfdi` falla al resubir un archivo, la excepción aborta todo el lote en
     vez de reportar solo ese archivo (`src/cargas/guardar-cfdi.ts:89-91`); esa ruta no

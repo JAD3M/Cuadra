@@ -705,6 +705,11 @@ decisión confirmada (AD-4, AD-7, AD-19):
   la bandeja (con el filtro `sugerencia`, que incluye el default, o con
   `conciliado`), sin cambiar el orden. Ningún endpoint limpia la marca: reabrir es
   de la 5.7.
+- El frontend la muestra (mockups de Bandeja y Detalle acordados el 5 nov 2026): chip
+  ámbar «⚠ Requiere revisión» en la bandeja y tarjeta ámbar de solo lectura en el
+  detalle. `CfdiResumenDto` trae el `estado` de cada CFDI y la tarjeta nombra solo
+  las facturas `cancelada`, para no señalar una equivocada en una confirmada de grupo
+  (hallazgo de la revisión nativa).
 - Sin migración: la acción de bitácora es la existente `actualizar`.
 
 **Pendientes (4.6):** (a) consultar al SAT: un XML real no marca la cancelación;
@@ -712,8 +717,10 @@ detectar las reales exigiría consultar el servicio de estatus del SAT (RFC emis
 RFC receptor, total y UUID; devuelve Vigente, Cancelado o No Encontrado, con
 cancelación «en proceso» posible). Es un no objetivo del PRD (§6, FR-66); sería una
 historia aparte con enmienda del PRD, FR-66 y el spine, y con decisión de qué estado
-queda si el SAT no responde. (b) El frontend no muestra `requiereRevision` en
-bandeja ni en el caso: antes hay que actualizar el mockup y acordarlo. (c) Resumen
+queda si el SAT no responde. (b) El historial del caso no muestra el evento «se
+marcó cancelada» que dibuja el mockup: su consulta solo trae la bitácora de
+`conciliaciones` y `decisiones`, y la cancelación se escribe bajo `cfdi`; hace falta
+un cambio de backend. (c) Resumen
 de la bandeja: la `confirmada` marcada cuenta como `conciliado` y no entra en «por
 revisar»; cambiarlo exige mockup. (d) Si `cancelarCfdi` falla al resubir un archivo
 (409 o error de SQL), la excepción aborta todo el lote en vez de reportar solo ese
