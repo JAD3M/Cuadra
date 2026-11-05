@@ -5,6 +5,19 @@
 
 ### 5 nov 2026
 
+- **Historia 4.7 de la v2: sugerencias de la IA en los casos ambiguos.** Rama
+  `feat/v2-4-7-sugerencias-ia` (KAN-143). El módulo `sugerencias` ya cumplía casi todo
+  desde CU-17; se verificó criterio por criterio.
+  - **Decisión:** el criterio 1 decía que los candidatos y la explicación se guardan en
+    `sugerencias_ia`, pero esa tabla solo registra la consulta (`input_hash`); la
+    sugerencia vive en `decisiones`. Se corrigió el criterio, no el código.
+  - **Pruebas nuevas:** backend, el módulo solo escribe `propuesta` sin persona (aun con
+    confianza alta); frontend, la sugerencia se muestra pendiente y ver el caso no
+    envía escrituras.
+  - **Descartado:** probar que el LLM real es inalcanzable y blindar el cuerpo de la
+    petición del adaptador de Anthropic. La API no se paga ni se usará hasta tener una
+    alternativa gratuita.
+
 - **Historia 4.6 de la v2: sacar de las propuestas las facturas canceladas.** Rama
   `feat/v2-4-6-facturas-canceladas` con ODD, documento
   `odd/tasks/v2-4-6-facturas-canceladas.md` (KAN-142). Cuadra no consulta al SAT y

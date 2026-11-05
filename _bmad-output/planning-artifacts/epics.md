@@ -1232,7 +1232,7 @@ So that decida con más contexto sin que la IA decida por mí.
 
 **Given** un caso ambiguo sin propuesta del motor
 **When** corre el trabajo de sugerencias
-**Then** la IA devuelve candidatos y una explicación que se guardan en `sugerencias_ia`
+**Then** la IA devuelve candidatos y una explicación; la sugerencia vive en `decisiones` como propuesta (`origen = 'llm'`, explicación en `motivo`) y `sugerencias_ia` solo registra qué se consultó (`input_hash`) para no repetir la consulta
 
 **Given** una sugerencia de la IA
 **When** se muestra

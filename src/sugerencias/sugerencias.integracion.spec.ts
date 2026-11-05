@@ -964,6 +964,42 @@ describe('el modelo nunca cierra un caso (IA-23)', () => {
     expect(persona).toBeNull();
   });
 
+  it('todo lo que el módulo escribe es propuesta sin persona: ninguna fila queda confirmada ni descartada, ni con confianza alta', async () => {
+    await ambiguo(A, { monto: '1160.00', folios: ['1001', '1002'] });
+    await ambiguo(A, { monto: '2320.00', folios: ['2001', '2002'] });
+
+    await servicio(
+      new ProveedorFalso(sugiere('C1', 'alta')),
+    ).sugerirParaEmpresa(A);
+
+    const escritas = await filas<{
+      estado: string;
+      confirmada_por_id: string | null;
+      confirmada_at: Date | null;
+    }>(
+      ds,
+      `SELECT estado, confirmada_por_id, confirmada_at
+         FROM decisiones
+        WHERE company_id = $1 AND origen = 'llm'`,
+      [A],
+    );
+    expect(escritas).toHaveLength(2);
+    for (const fila of escritas) {
+      expect(fila).toEqual({
+        estado: 'propuesta',
+        confirmada_por_id: null,
+        confirmada_at: null,
+      });
+    }
+    // Y nada quedó confirmado en la empresa por la corrida.
+    const confirmadas = await filas(
+      ds,
+      `SELECT 1 FROM decisiones WHERE company_id = $1 AND estado = 'confirmada'`,
+      [A],
+    );
+    expect(confirmadas).toEqual([]);
+  });
+
   it('el esquema existente rechaza una fila llm confirmada sin persona; no hay CHECK nuevo sobre origen', async () => {
     const { m, cfdis } = await ambiguo();
 
