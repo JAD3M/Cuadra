@@ -46,9 +46,13 @@ Supuestos (míos, a confirmar con el usuario si algo no cuadra):
 
 ## Tasks
 
-- [ ] T1 (S4): predicado de separación de funciones que no lanza ni escribe `acceso_denegado`,
-  reutilizado por la confirmación individual; la bandeja expone `puedeConfirmar` y
-  `motivoBloqueo` por fila. Ruta: inline. PR 1. Commit: —
+- [x] T1 (S4): regla de separación de funciones en un solo lugar
+  (`src/common/separacion-funciones.ts`: fragmento SQL + `subioAlgunaCarga`, que no lanza ni
+  escribe `acceso_denegado`), usada por la confirmación individual y por la bandeja; la
+  bandeja expone `motivoBloqueo` (`separacion_de_funciones` o `null`, depende de quien
+  consulta) por fila, con espejo y contrato en el frontend. Sin `puedeConfirmar`: `null`
+  significa que puede. Ruta: inline. PR 1. RED: 6 pruebas BJ-2e fallaron por el campo
+  ausente. Commit: ver PR de T1.
 - [ ] T2 (S2, S3, S5, S6): `POST /conciliaciones/lote/confirmar` con `{ ids }`: candado de
   empresa, `lote_id` único, omitidas con razón, una bitácora `confirmar` por decisión con
   `loteId`. Alto riesgo (item 4, bloqueos): verificador independiente. Ruta: inline. PR 2.

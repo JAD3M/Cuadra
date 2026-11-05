@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ContextoEmpresa } from '../database/contexto-empresa';
+import { sqlSubioAlgunaCarga } from '../common/separacion-funciones';
 import {
   REGLA_MONTO_UNICO,
   REGLA_REFERENCIA_MONTO_DIFERENTE,
@@ -9,6 +10,7 @@ import {
 import {
   REGLA_LLM_SUGERENCIA,
   type EstadoCfdi,
+  type MotivoBloqueo,
   type MotivoRevision,
 } from '../common/entities/tipos';
 import {
@@ -103,6 +105,18 @@ const CFDIS_DE_LA_PROPUESTA = `
     JOIN cfdi g ON g.company_id = $1 AND g.id = gl.cfdi_id
    WHERE gl.company_id = $1 AND gl.decision_id = p.id`;
 
+/**
+ * Cargas que intervienen en la mejor propuesta de la fila (la del movimiento y
+ * las de cada factura de la decisión); `p` es la lateral. Sirve a la regla de
+ * separación de funciones.
+ */
+const CARGAS_DE_LA_PROPUESTA = `
+  (ARRAY[m.carga_id] || COALESCE(
+     (SELECT array_agg(g.carga_id)
+        FROM decision_lineas gl
+        JOIN cfdi g ON g.company_id = $1 AND g.id = gl.cfdi_id
+       WHERE gl.company_id = $1 AND gl.decision_id = p.id), '{}'::uuid[]))`;
+
 /** Estado derivado de una fila de DESDE_FILTRO; espeja `aFila`. */
 const ESTADO_DERIVADO = `
   CASE WHEN m.estado = 'conciliado' THEN 'conciliado'
@@ -126,6 +140,7 @@ interface FilaSql {
   motivo: string | null;
   n: string | null;
   requiere_revision: boolean | null;
+  bloqueada: boolean;
   cfdi_id: string | null;
   uuid_fiscal: string | null;
   serie: string | null;
@@ -153,6 +168,7 @@ export class BandejaService {
 
   async listar(
     companyId: string,
+    userId: string,
     consulta: ConsultaBandejaDto,
   ): Promise<RespuestaBandejaDto> {
     const estados = consulta.estado ?? ESTADOS_POR_DEFECTO;
@@ -173,6 +189,9 @@ export class BandejaService {
               p.id AS conciliacion_id, p.score::text AS score,
               p.diferencia_monto::text AS diferencia_monto,
               p.regla, p.motivo, p.n, p.requiere_revision,
+              (m.estado = 'abierto' AND p.id IS NOT NULL
+               AND ${sqlSubioAlgunaCarga('$1', '$6::uuid', CARGAS_DE_LA_PROPUESTA)})
+                AS bloqueada,
               f.id AS cfdi_id, f.uuid_fiscal, f.serie, f.folio,
               f.nombre_emisor, f.rfc_receptor, f.nombre_receptor,
               to_char(f.fecha_emision, 'YYYY-MM-DD') AS fecha_emision,
@@ -182,7 +201,14 @@ export class BandejaService {
        ${DESDE_FILTRO.replace('WHERE m.company_id', `LEFT JOIN cfdi f ON f.company_id = $1 AND f.id = p.cfdi_id\n  LEFT JOIN LATERAL (${CFDIS_DE_LA_PROPUESTA}) lc ON true\n  WHERE m.company_id`)}
        ORDER BY ${RANGO_DE_CONFIANZA}, m.monto DESC, m.id
        LIMIT $3 OFFSET $4`,
-      [companyId, estados, limite, (pagina - 1) * limite, REGLAS_POR_CONFIANZA],
+      [
+        companyId,
+        estados,
+        limite,
+        (pagina - 1) * limite,
+        REGLAS_POR_CONFIANZA,
+        userId,
+      ],
     );
 
     return { datos: filas.map(aFila), pagina, limite, total };
@@ -253,6 +279,11 @@ function motivoDeRevision(f: FilaSql): MotivoRevision | null {
     : null;
 }
 
+/** Solo la separación de funciones bloquea hoy; `null` si la persona puede. */
+function motivoDeBloqueo(f: FilaSql): MotivoBloqueo | null {
+  return f.bloqueada === true ? 'separacion_de_funciones' : null;
+}
+
 function aFila(f: FilaSql): FilaBandejaDto {
   const conciliado = f.estado_movimiento === 'conciliado';
   const estado: EstadoBandeja = conciliado
@@ -274,6 +305,7 @@ function aFila(f: FilaSql): FilaBandejaDto {
     regla: sinMatch ? f.regla_sin_match : f.regla,
     requiereRevision: f.requiere_revision === true,
     motivoRevision: motivoDeRevision(f),
+    motivoBloqueo: motivoDeBloqueo(f),
     mejorPropuesta:
       f.conciliacion_id === null || f.cfdi_id === null
         ? null

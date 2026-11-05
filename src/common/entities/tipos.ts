@@ -110,6 +110,14 @@ export const MOTIVOS_REVISION = ['cfdi_cancelado'] as const;
 export type MotivoRevision = (typeof MOTIVOS_REVISION)[number];
 
 /**
+ * Por qué la persona que consulta no puede confirmar una propuesta de la
+ * bandeja (5.3). Códigos estables. Hoy solo la separación de funciones (D-08):
+ * quien subió el CFDI o el estado de cuenta no confirma su propio trabajo.
+ */
+export const MOTIVOS_BLOQUEO = ['separacion_de_funciones'] as const;
+export type MotivoBloqueo = (typeof MOTIVOS_BLOQUEO)[number];
+
+/**
  * Nivel de confianza de una propuesta del motor de reglas (CU-11, AC6).
  * Se deriva de la puntuación de su regla con `nivelDeConfianza`; nunca se
  * guarda ni se inventa fuera de ahí.

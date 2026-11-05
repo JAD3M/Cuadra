@@ -13,6 +13,7 @@ import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import type { ContextoDeCambio } from '../companies/tolerancia.service';
 import { ContextoEmpresa } from '../database/contexto-empresa';
 import type { Rol } from '../common/entities/tipos';
+import { subioAlgunaCarga } from '../common/separacion-funciones';
 import type { ResolucionRespuestaDto } from './dto/resolucion.dto';
 
 interface DecisionBloqueada {
@@ -253,18 +254,13 @@ export class ResolucionService {
     cfdis: LadoBloqueado[],
     movimiento: LadoBloqueado,
   ): Promise<void> {
-    const cargas = [
-      ...cfdis.map((cfdi) => cfdi.cargaId),
-      movimiento.cargaId,
-    ].filter((carga): carga is string => carga !== null);
-    if (cargas.length === 0) return;
-    const subio = await this.contexto.manager().query<unknown[]>(
-      `SELECT 1 FROM cargas
-        WHERE company_id = $1 AND id = ANY($2::uuid[]) AND subido_por_id = $3
-        LIMIT 1`,
-      [companyId, cargas, quien.userId],
+    const subio = await subioAlgunaCarga(
+      this.contexto.manager(),
+      companyId,
+      quien.userId,
+      [...cfdis.map((cfdi) => cfdi.cargaId), movimiento.cargaId],
     );
-    if (subio.length === 0) return;
+    if (!subio) return;
 
     const roles = await this.contexto
       .manager()

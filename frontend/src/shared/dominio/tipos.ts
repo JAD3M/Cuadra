@@ -82,6 +82,10 @@ export type ReglaSinMatch = (typeof REGLAS_SIN_MATCH)[number];
 export const MOTIVOS_REVISION = ['cfdi_cancelado'] as const;
 export type MotivoRevision = (typeof MOTIVOS_REVISION)[number];
 
+/** Por qué quien consulta no puede confirmar una propuesta (5.3); espejo del backend. */
+export const MOTIVOS_BLOQUEO = ['separacion_de_funciones'] as const;
+export type MotivoBloqueo = (typeof MOTIVOS_BLOQUEO)[number];
+
 /** Nivel de confianza de una propuesta del motor de reglas (AC6). */
 export const NIVELES_CONFIANZA = ['alta', 'media', 'baja'] as const;
 export type NivelConfianza = (typeof NIVELES_CONFIANZA)[number];

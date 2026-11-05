@@ -33,7 +33,7 @@ export class BandejaController {
     @UsuarioActual() usuario: Sesion,
     @Query() consulta: ConsultaBandejaDto,
   ): Promise<RespuestaBandejaDto> {
-    return this.bandeja.listar(usuario.companyId, consulta);
+    return this.bandeja.listar(usuario.companyId, usuario.userId, consulta);
   }
 
   /** CU-22. Conteos por estado y monto por revisar; mismos roles que el listado. */

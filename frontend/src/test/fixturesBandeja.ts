@@ -32,6 +32,7 @@ export function filaBandeja(overrides: Partial<FilaBandeja> = {}): FilaBandeja {
     propuestasCount: 0,
     requiereRevision: false,
     motivoRevision: null,
+    motivoBloqueo: null,
     motivo: 'No hay un CFDI con ese monto.',
     regla: 'sin_candidato_monto',
     mejorPropuesta: null,
