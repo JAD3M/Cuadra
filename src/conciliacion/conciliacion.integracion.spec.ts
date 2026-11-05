@@ -17,6 +17,8 @@ import {
   TRANSPORTES,
 } from '../cargas/testing/app-de-cargas';
 import { dinero } from '../common/dinero';
+import { cancelarCfdi } from '../cfdi/cancelar-cfdi';
+import { TransaccionEmpresa } from '../database/transaccion-empresa';
 import { filas, una } from '../database/testing/base-de-pruebas';
 import { ConciliacionService } from './conciliacion.service';
 import { huellaConjunto } from './huella-conjunto';
@@ -1403,5 +1405,84 @@ describe('conciliar (4.5): un depósito que cubre varias facturas', () => {
 
     expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
     expect(await decisionesDeGrupo(A)).toEqual([]);
+  });
+});
+
+describe('conciliar (4.6): una factura cancelada no se propone', () => {
+  const RFC_X = 'AAA010101AAA';
+
+  const cancelar = (empresa: string, cfdiId: string) =>
+    entorno.app
+      .get(TransaccionEmpresa)
+      .ejecutar(empresa, (manager) =>
+        cancelarCfdi(manager, empresa, cfdiId, null),
+      );
+
+  it('par: la propuesta existente se vuelve obsoleta y conciliar no vuelve a proponer la cancelada', async () => {
+    await movimiento(A, { referencia: 'A-0001001' });
+    const c = await factura(A);
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 1 });
+
+    await cancelar(A, c);
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+    expect(await conciliaciones(A)).toEqual([
+      expect.objectContaining({ cfdi_id: c, estado: 'obsoleta' }),
+    ]);
+  });
+
+  it('par: de dos facturas del mismo total, la cancelada no cuenta ni como ambigüedad', async () => {
+    const m = await movimiento(A);
+    const viva = await factura(A, { folio: '1' });
+    const cancelada = await factura(A, { folio: '2' });
+    await cancelar(A, cancelada);
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 1 });
+
+    expect(await conciliaciones(A)).toEqual([
+      expect.objectContaining({
+        cfdi_id: viva,
+        movimiento_id: m,
+        estado: 'propuesta',
+      }),
+    ]);
+  });
+
+  it('grupo: si la suma solo cuadra con una cancelada, no hay propuesta', async () => {
+    await movimiento(A, { monto: '300.00' });
+    await factura(A, { folio: '1', total: '100.00', rfc: RFC_X });
+    await factura(A, {
+      folio: '2',
+      total: '200.00',
+      rfc: RFC_X,
+      estado: 'cancelada',
+    });
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 0 });
+    expect(await decisionesDeGrupo(A)).toEqual([]);
+  });
+
+  it('grupo: una cancelada no desempata ni entra en la propuesta de las vivas', async () => {
+    await movimiento(A, { monto: '300.00' });
+    const x = await factura(A, { folio: '1', total: '100.00', rfc: RFC_X });
+    const y = await factura(A, { folio: '2', total: '200.00', rfc: RFC_X });
+    // Sin ser cancelada, 150 + 150 haría ambiguo el subconjunto.
+    await factura(A, {
+      folio: '3',
+      total: '150.00',
+      rfc: RFC_X,
+      estado: 'cancelada',
+    });
+    await factura(A, {
+      folio: '4',
+      total: '150.00',
+      rfc: RFC_X,
+      estado: 'cancelada',
+    });
+
+    expect(await servicio.conciliar(A)).toEqual({ propuestas: 1 });
+
+    const [d] = await decisionesDeGrupo(A);
+    expect(d.cfdis).toEqual([x, y].sort());
   });
 });

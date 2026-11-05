@@ -6,6 +6,7 @@ import { request as peticionHttp } from 'http';
 import { join } from 'path';
 import request from '../testing/supertest-con-origen';
 import type { DataSource } from 'typeorm';
+import { sembrarDecision } from '../conciliacion/siembra-decisiones';
 import { filas, una } from '../database/testing/base-de-pruebas';
 import { TransaccionEmpresa } from '../database/transaccion-empresa';
 import {
@@ -565,6 +566,157 @@ describe('POST /cargas/cfdi, CFDI cancelado (4.6)', () => {
     expect(await enCfdi([pue.uuid])).toEqual([
       expect.objectContaining({ estado: 'cancelada' }),
     ]);
+  });
+});
+
+describe('POST /cargas/cfdi, volver a subir un CFDI cancelado (4.6)', () => {
+  const marcarCancelado = (xml: string) =>
+    xml.replace('Version="4.0"', 'Version="4.0" Estatus="Cancelado"');
+
+  const bitacoraDeCfdi = (cfdiId: string) =>
+    filas(
+      ds,
+      `SELECT 1 FROM bitacora
+        WHERE entidad = 'cfdi' AND entidad_id = $1 AND accion = 'actualizar'`,
+      [cfdiId],
+    );
+
+  /** El CFDI ya cargado, con una propuesta viva sobre un movimiento. */
+  async function conPropuesta(token: string) {
+    const previo = cfdi('pue-valido.xml');
+    await cargarYEsperar(token, [
+      { nombre: 'previo.xml', contenido: previo.xml },
+    ]);
+    const { id: cfdiId, company_id: companyId } = await una<{
+      id: string;
+      company_id: string;
+    }>(ds, 'SELECT id, company_id FROM cfdi WHERE uuid_fiscal = $1', [
+      previo.uuid,
+    ]);
+    const { id: movimientoId } = await una<{ id: string }>(
+      ds,
+      `INSERT INTO movimientos (company_id, linea_numero, fecha, descripcion, monto, estado)
+       VALUES ($1, 1, '2026-09-02', 'SPEI RECIBIDO', '4466.58', 'abierto') RETURNING id`,
+      [companyId],
+    );
+    const decisionId = await sembrarDecision(ds, {
+      companyId,
+      movimientoId,
+      cfdiId,
+      estado: 'propuesta',
+      origen: 'regla',
+      regla: 'monto_unico',
+      score: '0.9000',
+    });
+    return { previo, cfdiId, decisionId };
+  }
+
+  it('el mismo UUID con la marca cancela el CFDI existente y deja obsoleta su propuesta', async () => {
+    const token = await tokenSesion(ANA, FERRETERIA);
+    const { previo, cfdiId, decisionId } = await conPropuesta(token);
+
+    const carga = await cargarYEsperar(token, [
+      { nombre: 'cancelado.xml', contenido: marcarCancelado(previo.xml) },
+    ]);
+
+    expect(carga).toMatchObject({
+      estado: 'procesada',
+      registrosOk: 0,
+      registrosExistentes: 1,
+    });
+    expect(carga.resultados).toEqual([
+      { archivo: 'cancelado.xml', resultado: 'ya_existia', cancelada: true },
+    ]);
+    expect((await enCfdi([previo.uuid]))[0].estado).toBe('cancelada');
+    expect(
+      await una(ds, 'SELECT estado FROM decisiones WHERE id = $1', [
+        decisionId,
+      ]),
+    ).toEqual({ estado: 'obsoleta' });
+    const [entrada] = await filas<{ user_id: string; datos: unknown }>(
+      ds,
+      `SELECT user_id, datos FROM bitacora
+        WHERE entidad = 'cfdi' AND entidad_id = $1 AND accion = 'actualizar'`,
+      [cfdiId],
+    );
+    expect(entrada.user_id).toBe(entorno.persona(ANA));
+    expect(entrada.datos).toMatchObject({
+      antes: { estado: 'abierta' },
+      despues: { estado: 'cancelada' },
+      decisionesObsoletas: [decisionId],
+    });
+  });
+
+  it('sin la marca no cambia nada: el CFDI sigue abierta y la propuesta viva', async () => {
+    const token = await tokenSesion(ANA, FERRETERIA);
+    const { previo, cfdiId, decisionId } = await conPropuesta(token);
+
+    const carga = await cargarYEsperar(token, [
+      {
+        nombre: 'otra-vez.xml',
+        contenido: previo.xml.replace('Folio="1001"', 'Folio="2001"'),
+      },
+    ]);
+
+    expect(carga.resultados).toEqual([
+      { archivo: 'otra-vez.xml', resultado: 'ya_existia' },
+    ]);
+    expect((await enCfdi([previo.uuid]))[0].estado).toBe('abierta');
+    expect(
+      await una(ds, 'SELECT estado FROM decisiones WHERE id = $1', [
+        decisionId,
+      ]),
+    ).toEqual({ estado: 'propuesta' });
+    expect(await bitacoraDeCfdi(cfdiId)).toEqual([]);
+  });
+
+  it('volver a subir la marca sobre uno ya cancelado es ya_existia sin cambios', async () => {
+    const token = await tokenSesion(ANA, FERRETERIA);
+    const { previo, cfdiId } = await conPropuesta(token);
+    await cargarYEsperar(token, [
+      { nombre: 'c1.xml', contenido: marcarCancelado(previo.xml) },
+    ]);
+
+    const carga = await cargarYEsperar(token, [
+      {
+        nombre: 'c2.xml',
+        contenido: marcarCancelado(previo.xml).replace(
+          'Folio="1001"',
+          'Folio="2001"',
+        ),
+      },
+    ]);
+
+    expect(carga.resultados).toEqual([
+      { archivo: 'c2.xml', resultado: 'ya_existia' },
+    ]);
+    expect(await bitacoraDeCfdi(cfdiId)).toHaveLength(1);
+  });
+
+  it('una decisión confirmada queda confirmada con requiere_revision', async () => {
+    const token = await tokenSesion(ANA, FERRETERIA);
+    const { previo, cfdiId, decisionId } = await conPropuesta(token);
+    await ds.query(
+      `UPDATE decisiones SET estado = 'confirmada', confirmada_por_id = $2,
+              confirmada_at = now() WHERE id = $1`,
+      [decisionId, entorno.persona(ANA)],
+    );
+    await ds.query(`UPDATE cfdi SET estado = 'conciliada' WHERE id = $1`, [
+      cfdiId,
+    ]);
+
+    await cargarYEsperar(token, [
+      { nombre: 'cancelado.xml', contenido: marcarCancelado(previo.xml) },
+    ]);
+
+    expect(
+      await una(
+        ds,
+        'SELECT estado, requiere_revision FROM decisiones WHERE id = $1',
+        [decisionId],
+      ),
+    ).toEqual({ estado: 'confirmada', requiere_revision: true });
+    expect((await enCfdi([previo.uuid]))[0].estado).toBe('cancelada');
   });
 });
 
