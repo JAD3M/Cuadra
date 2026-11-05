@@ -220,6 +220,12 @@ export function leerCfdi(xml: string): CfdiLeido {
     impuestos,
   });
 
+  // Historia 4.6. Convención de Cuadra, NO del SAT: un CFDI 4.0 real no trae
+  // marca de cancelación (esa vive en el servicio de estatus del SAT, que
+  // Cuadra no consulta: PRD §6, FR-66). Un atributo `Estatus="Cancelado"` en
+  // el nodo Comprobante, tal cual y con esa capitalización, es la señal.
+  const cancelado = atributo(comprobante, 'Estatus') === 'Cancelado';
+
   return {
     uuidFiscal: uuid.toUpperCase(),
     rfcEmisor,
@@ -236,7 +242,12 @@ export function leerCfdi(xml: string): CfdiLeido {
     serie,
     folio,
     impuestos,
-    estadoInicial: metodoPago === 'PPD' ? 'parcialidades' : 'abierta',
+    cancelado,
+    estadoInicial: cancelado
+      ? 'cancelada'
+      : metodoPago === 'PPD'
+        ? 'parcialidades'
+        : 'abierta',
     xmlRaw: { ...arbol, _xml: xml },
   };
 }

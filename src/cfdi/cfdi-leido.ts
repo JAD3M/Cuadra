@@ -8,7 +8,7 @@ import type { EstadoCfdi, TipoComprobante } from '../common/entities/tipos';
  */
 export type EstadoInicialCfdi = Extract<
   EstadoCfdi,
-  'abierta' | 'parcialidades'
+  'abierta' | 'parcialidades' | 'cancelada'
 >;
 
 /** Totales de impuestos tal como los declara el CFDI; '0' si no hay nodo. */
@@ -43,6 +43,12 @@ export interface CfdiLeido {
   serie: string | null;
   folio: string | null;
   impuestos: ImpuestosCfdi;
+  /**
+   * Historia 4.6: el XML trae `Estatus="Cancelado"` en el Comprobante. Es una
+   * convención de Cuadra, no del SAT.
+   */
+  cancelado: boolean;
+  /** `cancelada` si el XML la marca; si no, abierta o parcialidades (CU-05). */
   estadoInicial: EstadoInicialCfdi;
   /** Árbol parseado más `_xml`, el original íntegro (ck_cfdi_xml_raw_integro). */
   xmlRaw: Record<string, unknown> & { _xml: string };

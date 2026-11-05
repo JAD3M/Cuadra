@@ -175,6 +175,37 @@ describe('lector de CFDI 4.0 (CU-05)', () => {
     });
   });
 
+  describe('señal de cancelación (4.6, convención de Cuadra)', () => {
+    const cancelar = (xml: string, estatus = 'Cancelado') =>
+      xml.replace('Version="4.0"', `Version="4.0" Estatus="${estatus}"`);
+
+    it('Estatus="Cancelado" en el Comprobante: nace cancelada', () => {
+      const cfdi = leerCfdi(cancelar(fixture('pue-valido.xml')));
+
+      expect(cfdi.cancelado).toBe(true);
+      expect(cfdi.estadoInicial).toBe('cancelada');
+    });
+
+    it('también un PPD cancelado nace cancelada, no en parcialidades', () => {
+      const cfdi = leerCfdi(cancelar(fixture('ppd-valido.xml')));
+
+      expect(cfdi.cancelado).toBe(true);
+      expect(cfdi.estadoInicial).toBe('cancelada');
+    });
+
+    it('sin el atributo o con otro valor: no está cancelado', () => {
+      for (const xml of [
+        fixture('pue-valido.xml'),
+        cancelar(fixture('pue-valido.xml'), 'Vigente'),
+        cancelar(fixture('pue-valido.xml'), 'cancelado'),
+      ]) {
+        const cfdi = leerCfdi(xml);
+        expect(cfdi.cancelado).toBe(false);
+        expect(cfdi.estadoInicial).toBe('abierta');
+      }
+    });
+  });
+
   describe('rechaza con el motivo', () => {
     const casos: Array<[string, MotivoRechazoCfdi, RegExp]> = [
       ['rechazo-version-33.xml', 'version', /3\.3.*4\.0/],
