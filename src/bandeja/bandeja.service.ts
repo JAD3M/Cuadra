@@ -189,7 +189,8 @@ export class BandejaService {
   }
 
   /**
-   * Conteos por estado y monto por revisar por moneda, con el mismo
+   * Conteos por estado, cuántas conciliadas piden revisión (5.1: siguen
+   * contando como conciliado) y monto por revisar por moneda, con el mismo
    * predicado que `listar` para que cuadren con `total`. Los montos se suman
    * en SQL (NUMERIC) y viajan como texto; en TypeScript solo se suman
    * conteos enteros.
@@ -201,17 +202,22 @@ export class BandejaService {
         conciliado: number;
         sugerencia: number;
         sin_match: number;
+        requiere_revision: number;
         por_revisar: string;
       }[]
     >(
       `WITH f AS (
-         SELECT m.moneda, m.monto, ${ESTADO_DERIVADO} AS estado
+         SELECT m.moneda, m.monto, ${ESTADO_DERIVADO} AS estado,
+                COALESCE(p.requiere_revision, false) AS requiere_revision
          ${DESDE_FILTRO}
        )
        SELECT moneda,
               (count(*) FILTER (WHERE estado = 'conciliado'))::int AS conciliado,
               (count(*) FILTER (WHERE estado = 'sugerencia'))::int AS sugerencia,
               (count(*) FILTER (WHERE estado = 'sin_match'))::int AS sin_match,
+              (count(*) FILTER (WHERE estado = 'conciliado'
+                                  AND requiere_revision))::int
+                AS requiere_revision,
               COALESCE(sum(monto) FILTER (WHERE estado <> 'conciliado'), 0)::text
                 AS por_revisar
          FROM f
@@ -222,7 +228,9 @@ export class BandejaService {
 
     const conteos = { conciliado: 0, sugerencia: 0, sin_match: 0 };
     const montoPorRevisar: { moneda: string; monto: string }[] = [];
+    let requiereRevision = 0;
     for (const f of filas) {
+      requiereRevision += f.requiere_revision;
       conteos.conciliado += f.conciliado;
       conteos.sugerencia += f.sugerencia;
       conteos.sin_match += f.sin_match;
@@ -230,7 +238,7 @@ export class BandejaService {
         montoPorRevisar.push({ moneda: f.moneda, monto: f.por_revisar });
       }
     }
-    return { conteos, montoPorRevisar };
+    return { conteos, montoPorRevisar, requiereRevision };
   }
 }
 

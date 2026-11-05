@@ -334,6 +334,7 @@ describe('ShellLayout con la sesión real: cambio de empresa', () => {
             sin_match: empresaDeLaSesion() === EMPRESA_B ? 1 : 4,
           },
           montoPorRevisar: [],
+          requiereRevision: 0,
         }),
       ),
     );

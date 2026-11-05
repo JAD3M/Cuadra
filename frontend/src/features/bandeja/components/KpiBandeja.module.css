@@ -37,6 +37,13 @@
   --_acento: var(--estado-conciliado-accent);
 }
 
+/* «Requiere revisión» en Conciliados: el ámbar de las conciliadas marcadas. */
+.aviso {
+  color: var(--estado-sin-match-text);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
 .tileMonto {
   padding: var(--space-20) var(--space-28);
   border-color: var(--color-border);

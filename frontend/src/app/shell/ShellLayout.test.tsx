@@ -634,6 +634,7 @@ describe('ShellLayout: contador real de pendientes', () => {
         HttpResponse.json({
           conteos: { conciliado: 120, sugerencia: 4, sin_match: 3 },
           montoPorRevisar: [{ moneda: 'MXN', monto: '10.0000' }],
+          requiereRevision: 0,
         }),
       ),
     );
@@ -680,6 +681,7 @@ describe('ShellLayout: contador real de pendientes', () => {
         HttpResponse.json({
           conteos: { conciliado: 5, sugerencia: 0, sin_match: 0 },
           montoPorRevisar: [],
+          requiereRevision: 0,
         }),
       ),
     );
