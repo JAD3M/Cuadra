@@ -39,12 +39,12 @@ con su motivo las decisiones que requieren revisión.
 
 ## Tasks
 
-- [ ] T1 (S1) backend: ordenar `listar` por confianza — inline
-- [ ] T2 (S2) backend: `motivoRevision` en la fila de la bandeja — inline
-- [ ] T3 (S1, S2) frontend: contrato, textos, fila y orden — inline
-- [ ] T4 (S3) prueba de bandeja: carga en `pendiente_vista_previa` — inline
-- [ ] T5 (S4) verificar candidatos del sin match en el detalle del caso — inline
-- [ ] T6 bitácora y `CUADRA.md`
+- [x] T1 (S1) backend: ordenar `listar` por confianza — inline (bb56ef4)
+- [x] T2 (S2) backend: `motivoRevision` en la fila de la bandeja — inline (bb56ef4)
+- [x] T3 (S1, S2) frontend: contrato, textos, fila y orden — inline (d56d73f)
+- [x] T4 (S3) prueba de bandeja: carga en `pendiente_vista_previa` — inline (bb56ef4)
+- [x] T5 (S4) verificar candidatos del sin match en el detalle del caso — inline: no hay candidatos que mostrar (ver Log)
+- [x] T6 bitácora y `CUADRA.md`
 
 ## Log
 
@@ -55,3 +55,14 @@ con su motivo las decisiones que requieren revisión.
   los sin match al final)
 - Ruta: todo inline; ninguna tarea tiene un motivo de escritor delegado. Si T2 toca
   `bandeja.dto.ts` es adición de un campo, no cambio de contrato existente.
+- RED/GREEN: T1 (2 pruebas BJ-4b rojas, luego 73 verdes), T2 (3 pruebas BJ-2c rojas) y T3
+  (8 pruebas rojas del frontend) se vieron fallar antes de escribir el código. T4 fija
+  comportamiento existente: sin RED posible.
+- T5: ni la bandeja ni el detalle del caso (`TarjetaSinMatch`: «sin CFDI, sin lista») muestran
+  candidatos de un `sin_match`, y el motor no los guarda: solo guarda el motivo estable.
+  Mostrarlos exige que el motor persista sus candidatos descartados (decisión de diseño y
+  migración). Pendiente, no inventado; AC4 se cumple en su parte del motivo estable.
+- Verificación: backend 90 suites / 1844 pruebas, `tsc`, ESLint y Prettier limpios; frontend
+  293 archivos / 4752 pruebas, `tsc`, ESLint y `format:check` limpios.
+Risk: none (campo agregado a la respuesta y cambio de orden pedido por la historia; ningún
+consumidor externo del contrato más allá del frontend, que se actualizó en el mismo PR)
