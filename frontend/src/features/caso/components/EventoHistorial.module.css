@@ -24,6 +24,11 @@
   background: var(--color-danger);
 }
 
+/* Cancelación de una factura (4.6): el ámbar de «requiere revisión». */
+.revision {
+  background: var(--estado-sin-match-accent);
+}
+
 /* La maqueta usa un gris sin token propio: decorativo, se atenua con muted. */
 .neutro {
   background: var(--color-muted);

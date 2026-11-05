@@ -129,6 +129,9 @@ export const respuestaHistorial = z.object({
     z.object({
       id: texto,
       accion: z.string(),
+      /** Dónde se escribió el evento; `cfdi` es la cancelación de una factura (4.6). */
+      entidad: z.string().optional(),
+      entidadId: z.string().optional(),
       createdAt: z.iso.datetime(),
       usuario: z.object({ nombre: texto }).nullable(),
     }),
