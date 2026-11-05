@@ -112,6 +112,7 @@ export const ENTIDADES_BITACORA = [
   'decisiones',
   'companies',
   'cargas',
+  'cfdi',
 ] as const;
 export type EntidadBitacora = (typeof ENTIDADES_BITACORA)[number];
 

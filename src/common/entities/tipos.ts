@@ -162,7 +162,8 @@ export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
  * la historia 4.2: crear, confirmar y rechazar), 'conciliaciones' (solo
  * historial de la v1, ya no se escribe) y 'companies' (actualizar la tolerancia y
  * acceso_denegado) y 'cargas' (cargar, historia 3.1: una entrada por carga
- * terminada, con `entidad_id` = la carga). Es la lista para la interfaz y la documentación; GET
+ * terminada, con `entidad_id` = la carga) y 'cfdi' (actualizar, historia 4.6: la
+ * cancelación de una factura). Es la lista para la interfaz y la documentación; GET
  * /bitacora sigue aceptando cualquier `entidad` de hasta 64 caracteres.
  */
 export const ENTIDADES_BITACORA = [
@@ -170,6 +171,7 @@ export const ENTIDADES_BITACORA = [
   'decisiones',
   'companies',
   'cargas',
+  'cfdi',
 ] as const;
 export type EntidadBitacora = (typeof ENTIDADES_BITACORA)[number];
 

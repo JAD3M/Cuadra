@@ -118,8 +118,52 @@ function detalleRechazar(datos: Objeto): string {
   return motivo === undefined ? cambio : `${cambio} · motivo: ${motivo}`;
 }
 
-/** Solo el cambio de tolerancia tiene redacción (D21): otro campo da «—». */
+/** Cuántos elementos trae una lista; 0 si no es una lista. */
+function cuantos(valor: unknown): number {
+  return Array.isArray(valor) ? valor.length : 0;
+}
+
+function conteo(
+  n: number,
+  singular: string,
+  plural: string,
+): string | undefined {
+  if (n === 0) return undefined;
+  return n === 1 ? `1 ${singular}` : `${n} ${plural}`;
+}
+
+/**
+ * Cancelación de una factura (4.6): el cambio de estado y, si los hay, cuántas
+ * propuestas quedaron obsoletas y cuántas decisiones pasan a revisarse. Sin el
+ * estado de antes y de después no afirma nada.
+ */
+function detalleCancelacionCfdi(datos: Objeto): string {
+  const antes = esObjeto(datos.antes) ? texto(datos.antes.estado) : undefined;
+  const despues = esObjeto(datos.despues)
+    ? texto(datos.despues.estado)
+    : undefined;
+  if (antes === undefined || despues === undefined) return SIN_DETALLE;
+  return unir([
+    `estado: ${antes} → ${despues}`,
+    conteo(
+      cuantos(datos.decisionesObsoletas),
+      'propuesta obsoleta',
+      'propuestas obsoletas',
+    ),
+    conteo(
+      cuantos(datos.decisionesPorRevisar),
+      'decisión por revisar',
+      'decisiones por revisar',
+    ),
+  ]);
+}
+
+/**
+ * Redacción de `actualizar`: el cambio de tolerancia (D21) y la cancelación de
+ * una factura (4.6); cualquier otra forma da «—».
+ */
 function detalleActualizar(datos: Objeto): string {
+  if (datos.campo === undefined) return detalleCancelacionCfdi(datos);
   if (datos.campo !== CAMPO_TOLERANCIA) return SIN_DETALLE;
   const antes = conSimbolo(datos.antes);
   const despues = conSimbolo(datos.despues);

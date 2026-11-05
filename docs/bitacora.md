@@ -5,6 +5,16 @@
 
 ### 5 nov 2026
 
+- **Pendiente 4.6 (e): `cfdi` en el filtro de entidad de la bitácora.** Rama
+  `feat/v2-bitacora-entidad-cfdi`. Mockup 6 acordado antes del código: el filtro «Entidad»
+  lista las cinco entidades reales (el mockup solo tenía dos) y hay dos filas de ejemplo de
+  cancelación. Al revisar el frontend apareció un hueco: un `actualizar` de una factura se
+  habría visto con «—» porque solo el cambio de tolerancia tenía redacción; ahora el detalle
+  dice el cambio de estado y, si los hay, cuántas propuestas quedaron obsoletas y cuántas
+  decisiones pasan a revisarse. La forma se distingue por sus datos (la tolerancia trae
+  `campo`; la cancelación, no), sin cambiar la firma de `detalleEvento`. Pruebas: ENT-1 con
+  la lista de cinco y seis casos del detalle.
+
 - **Pendiente 4.6 (c): el resumen de la bandeja y las conciliadas que requieren revisión.**
   Rama `feat/v2-bandeja-resumen-requiere-revision`. Decisión del usuario entre tres
   opciones: una nota en la tarjeta «Conciliados» (no una tarjeta nueva ni contarlas como por
