@@ -12,8 +12,10 @@ import {
 
 import {
   ESTADOS_CFDI,
+  MOTIVOS_BLOQUEO,
   MOTIVOS_REVISION,
   type EstadoCfdi,
+  type MotivoBloqueo,
   type MotivoRevision,
 } from '../../common/entities/tipos';
 
@@ -136,6 +138,13 @@ export class FilaBandejaDto {
       'Por qué quedó por revisar. Solo viene si hay requiereRevision y una de sus facturas está cancelada; si no, null.',
   })
   motivoRevision: MotivoRevision | null;
+  @ApiProperty({
+    nullable: true,
+    enum: MOTIVOS_BLOQUEO,
+    description:
+      'Por qué QUIEN CONSULTA no puede confirmar la propuesta de la fila (separación de funciones). Depende de la persona; null si puede o si la fila no tiene propuesta abierta.',
+  })
+  motivoBloqueo: MotivoBloqueo | null;
   @ApiProperty({ nullable: true, type: MejorPropuestaDto })
   mejorPropuesta: MejorPropuestaDto | null;
 }

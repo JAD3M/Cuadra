@@ -23,6 +23,7 @@ const respuestaReal = () => ({
       propuestasCount: 2,
       requiereRevision: false,
       motivoRevision: null,
+      motivoBloqueo: null,
       motivo: 'Mismo monto y fecha cercana',
       regla: 'monto_exacto',
       mejorPropuesta: {
@@ -211,6 +212,24 @@ describe('respuestaBandeja', () => {
     );
     expect(ok.datos[0]?.motivoRevision).toBe('cfdi_cancelado');
     expect(respuestaBandeja.parse(conFila({})).datos[0]?.motivoRevision).toBe(
+      null,
+    );
+  });
+
+  it('exige motivoBloqueo: un código conocido o null (5.3)', () => {
+    const sinCampo = conFila({}) as { datos: Record<string, unknown>[] };
+    delete sinCampo.datos[0]?.motivoBloqueo;
+    expect(respuestaBandeja.safeParse(sinCampo).success).toBe(false);
+    for (const malo of ['subiste la carga', 'otro_motivo', 1, false]) {
+      expect(
+        respuestaBandeja.safeParse(conFila({ motivoBloqueo: malo })).success,
+      ).toBe(false);
+    }
+    const ok = respuestaBandeja.parse(
+      conFila({ motivoBloqueo: 'separacion_de_funciones' }),
+    );
+    expect(ok.datos[0]?.motivoBloqueo).toBe('separacion_de_funciones');
+    expect(respuestaBandeja.parse(conFila({})).datos[0]?.motivoBloqueo).toBe(
       null,
     );
   });

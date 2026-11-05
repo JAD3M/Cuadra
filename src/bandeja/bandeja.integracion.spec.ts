@@ -431,6 +431,102 @@ describe('BJ-3 paginación', () => {
   });
 });
 
+describe('BJ-2e separación de funciones por fila (5.3)', () => {
+  /** Una carga subida por `quien` (o por nadie), de la empresa A. */
+  async function carga(quien: string | null): Promise<string> {
+    const { id } = await una<{ id: string }>(
+      ds,
+      `INSERT INTO cargas (company_id, tipo, nombre_archivo, hash_archivo,
+                           estado, total_registros, registros_ok, subido_por_id)
+       VALUES ($1, 'cfdi', $2, $3, 'procesada', 1, 1, $4) RETURNING id`,
+      [
+        A,
+        `c-${randomUUID()}.xml`,
+        randomUUID().replace(/-/g, '').repeat(2),
+        quien,
+      ],
+    );
+    return id;
+  }
+
+  const motivoDe = (r: RespuestaBandejaDto, m: string) =>
+    r.datos.find((f) => f.movimientoId === m)?.motivoBloqueo;
+
+  it('la propuesta cuya factura subió la persona sale bloqueada con su motivo', async () => {
+    const m = await sugerido(A, '100.00');
+    await ds.query(`UPDATE cfdi SET carga_id = $1 WHERE company_id = $2`, [
+      await carga(entorno.persona(ANA)),
+      A,
+    ]);
+    expect(motivoDe(await listar(), m)).toBe('separacion_de_funciones');
+  });
+
+  it('también si la persona subió el estado de cuenta del movimiento', async () => {
+    const m = await sugerido(A, '100.00');
+    await ds.query(`UPDATE movimientos SET carga_id = $1 WHERE id = $2`, [
+      await carga(entorno.persona(ANA)),
+      m,
+    ]);
+    expect(motivoDe(await listar(), m)).toBe('separacion_de_funciones');
+  });
+
+  it('en un grupo basta una factura subida por la persona', async () => {
+    const m = await movimiento(A, { monto: '300.00' });
+    const f1 = await factura(A, '100.00');
+    const f2 = await factura(A, '200.00');
+    await ds.query(`UPDATE cfdi SET carga_id = $1 WHERE id = $2`, [
+      await carga(entorno.persona(ANA)),
+      f2,
+    ]);
+    await sembrarDecision(ds, {
+      companyId: A,
+      movimientoId: m,
+      cfdiIds: [f1, f2],
+      estado: 'propuesta',
+      origen: 'regla',
+      regla: 'suma_grupo',
+      score: '0.6000',
+    });
+    expect(motivoDe(await listar(), m)).toBe('separacion_de_funciones');
+  });
+
+  it('las cargas de otra persona o sin dueño no bloquean', async () => {
+    const m = await sugerido(A, '100.00');
+    await ds.query(`UPDATE cfdi SET carga_id = $1 WHERE company_id = $2`, [
+      await carga(entorno.persona(LUIS)),
+      A,
+    ]);
+    await ds.query(`UPDATE movimientos SET carga_id = $1 WHERE id = $2`, [
+      await carga(null),
+      m,
+    ]);
+    expect(motivoDe(await listar(), m)).toBeNull();
+  });
+
+  it('un sin match o un conciliado no traen motivo de bloqueo', async () => {
+    const sm = await sinMatch(A, '50.00');
+    const c = await cerrado(A, '60.00');
+    await ds.query(`UPDATE cfdi SET carga_id = $1 WHERE company_id = $2`, [
+      await carga(entorno.persona(ANA)),
+      A,
+    ]);
+    const r = await listar('?estado=sin_match&estado=conciliado');
+    expect(motivoDe(r, sm)).toBeNull();
+    expect(motivoDe(r, c)).toBeNull();
+  });
+
+  it('el motivo depende de quien consulta: el mismo caso no bloquea a otra persona', async () => {
+    const m = await sugerido(A, '100.00');
+    await ds.query(`UPDATE cfdi SET carga_id = $1 WHERE company_id = $2`, [
+      await carga(entorno.persona(ANA)),
+      A,
+    ]);
+    const deLuis = await listar('', await entorno.token(LUIS, FERRETERIA));
+    expect(motivoDe(deLuis, m)).toBeNull();
+    expect(motivoDe(await listar(), m)).toBe('separacion_de_funciones');
+  });
+});
+
 describe('BJ-2d carga en pendiente_vista_previa (5.1)', () => {
   it('lo que espera la vista previa no aparece como pendiente, ni en la lista ni en el resumen', async () => {
     const { id: carga } = await una<{ id: string }>(

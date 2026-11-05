@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { ESTADOS_BANDEJA, LIMITE_MAXIMO } from '@/shared/dominio/bandeja';
-import { MOTIVOS_REVISION } from '@/shared/dominio/tipos';
+import { MOTIVOS_BLOQUEO, MOTIVOS_REVISION } from '@/shared/dominio/tipos';
 import { ESTADOS_CFDI } from '@/shared/dominio/tipos';
 import { montoDecimal } from './montoDecimal';
 
@@ -54,6 +54,8 @@ export const filaBandeja = z.object({
   requiereRevision: z.boolean(),
   /** Código estable; solo viene con `requiereRevision` y una factura cancelada. */
   motivoRevision: z.enum(MOTIVOS_REVISION).nullable(),
+  /** Por qué ESTA persona no puede confirmar la propuesta (separación de funciones). */
+  motivoBloqueo: z.enum(MOTIVOS_BLOQUEO).nullable(),
   motivo: z.string().nullable(),
   regla: z.string().nullable(),
   mejorPropuesta: mejorPropuesta.nullable(),
