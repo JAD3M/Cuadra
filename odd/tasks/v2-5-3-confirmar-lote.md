@@ -53,7 +53,7 @@ Supuestos (míos, a confirmar con el usuario si algo no cuadra):
   consulta) por fila, con espejo y contrato en el frontend. Sin `puedeConfirmar`: `null`
   significa que puede. Ruta: inline. PR 1. RED: 6 pruebas BJ-2e fallaron por el campo
   ausente. Commit: ver PR de T1.
-- [ ] T2 (S2, S3, S5, S6): `POST /conciliaciones/lote/confirmar` con `{ ids }`: candado de
+- [ ] T2 (S2, S3, S5, S6): `POST /conciliaciones/lotes` con `{ ids }` (no `/lote/confirmar`: chocaría con `/:id/confirmar`): candado de
   empresa, `lote_id` único, omitidas con razón, una bitácora `confirmar` por decisión con
   `loteId`. Alto riesgo (item 4, bloqueos): verificador independiente. Ruta: inline. PR 2.
   Commit: —
@@ -73,3 +73,8 @@ Supuestos (míos, a confirmar con el usuario si algo no cuadra):
   individual (`ResolucionService.confirmar`, una sola sentencia que lanza 409/403) y
   `exigirSegregacion` (lanza 403, escribe `acceso_denegado`, ignora
   `companies.separacion_funciones`). Sin endpoint de lote, sin permiso de lote, sin UI.
+- L3 (2026-11-05): T1 hecha y commiteada en local (92855ad documento, 1e92876 código).
+  Backend 1856 y frontend 4771 pruebas verdes. El push se rechaza desde GitHub con
+  `fatal error in commit_refs_rules` (probado: rama completa, solo el primer commit, otro
+  nombre de rama; sin rulesets ni protección). No es contenido ni nombre. PR de T1 pendiente
+  de abrir cuando el push pase.
