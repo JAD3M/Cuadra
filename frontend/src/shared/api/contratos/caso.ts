@@ -51,6 +51,8 @@ export const propuestaCaso = z.object({
   diferenciaMonto: montoDecimal.nullable(),
   confirmadaAt: z.iso.datetime().nullable(),
   confirmadaPor: z.object({ nombre: texto }).nullable(),
+  /** Confirmada cuya factura se canceló después. */
+  requiereRevision: z.boolean(),
   /** Primera factura (id ascendente); en un grupo ver `cfdis`. */
   cfdi: cfdiCaso,
   /** Todas las facturas de la propuesta (un grupo tiene varias). */
@@ -74,6 +76,8 @@ export const respuestaCaso = z
     estado: estadoBandeja,
     sinMatch: z.object({ regla, motivo: z.string().nullable() }).nullable(),
     toleranciaMonto: montoDecimal,
+    /** Alguna decisión del caso quedó por revisar; el caso sigue conciliado. */
+    requiereRevision: z.boolean(),
     propuestas: z.array(propuestaCaso),
   })
   .superRefine((caso, ctx) => {

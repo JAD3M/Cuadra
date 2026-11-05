@@ -20,6 +20,7 @@ const propuesta = (n: number, o: Record<string, unknown> = {}) => ({
   diferenciaMonto: '0.0000',
   confirmadaAt: null,
   confirmadaPor: null,
+  requiereRevision: false,
   cfdi: {
     id: G(200 + n),
     uuidFiscal: `A1B2C3D4-0000-4000-8000-${String(n).padStart(12, '0')}`,
@@ -49,6 +50,7 @@ const caso = (o: Record<string, unknown> = {}) => ({
   estado: 'sugerencia',
   sinMatch: null,
   toleranciaMonto: '0.5000',
+  requiereRevision: false,
   propuestas: [propuesta(1)],
   ...o,
 });
@@ -224,6 +226,37 @@ describe('respuestaCaso: forma y dominio', () => {
         caso({ propuestas: [propuesta(1, { origen: 'humano' })] }),
       ).success,
     ).toBe(false);
+  });
+
+  it('exige requiereRevision booleano en el caso y en cada propuesta (4.6)', () => {
+    const sinCaso: Record<string, unknown> = { ...caso() };
+    delete sinCaso.requiereRevision;
+    expect(respuestaCaso.safeParse(sinCaso).success).toBe(false);
+    const sinPropuesta: Record<string, unknown> = { ...propuesta(1) };
+    delete sinPropuesta.requiereRevision;
+    expect(
+      respuestaCaso.safeParse(caso({ propuestas: [sinPropuesta] })).success,
+    ).toBe(false);
+    expect(
+      respuestaCaso.safeParse(caso({ requiereRevision: 'true' })).success,
+    ).toBe(false);
+    expect(
+      respuestaCaso.safeParse(
+        caso({ propuestas: [propuesta(1, { requiereRevision: 1 })] }),
+      ).success,
+    ).toBe(false);
+  });
+
+  it('acepta una confirmada que requiere revisión', () => {
+    const r = respuestaCaso.parse(
+      caso({
+        estado: 'conciliado',
+        requiereRevision: true,
+        propuestas: [confirmada({ requiereRevision: true })],
+      }),
+    ) as RespuestaCaso;
+    expect(r.requiereRevision).toBe(true);
+    expect(r.propuestas[0]?.requiereRevision).toBe(true);
   });
 
   it('rechaza una fecha de movimiento que no es AAAA-MM-DD', () => {

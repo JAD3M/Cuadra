@@ -46,6 +46,8 @@ export const filaBandeja = z.object({
   moneda,
   estado: estadoBandeja,
   propuestasCount: z.int().min(0),
+  /** Confirmada cuya factura se canceló después; el servidor la sigue contando conciliada. */
+  requiereRevision: z.boolean(),
   motivo: z.string().nullable(),
   regla: z.string().nullable(),
   mejorPropuesta: mejorPropuesta.nullable(),

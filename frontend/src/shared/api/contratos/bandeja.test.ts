@@ -21,6 +21,7 @@ const respuestaReal = () => ({
       moneda: 'MXN',
       estado: 'sugerencia',
       propuestasCount: 2,
+      requiereRevision: false,
       motivo: 'Mismo monto y fecha cercana',
       regla: 'monto_exacto',
       mejorPropuesta: {
@@ -158,6 +159,19 @@ describe('respuestaBandeja', () => {
       );
     },
   );
+
+  it('exige requiereRevision booleano en cada fila (4.6)', () => {
+    const sinCampo = conFila({}) as { datos: Record<string, unknown>[] };
+    delete sinCampo.datos[0]?.requiereRevision;
+    expect(respuestaBandeja.safeParse(sinCampo).success).toBe(false);
+    for (const malo of ['true', 1, null]) {
+      expect(
+        respuestaBandeja.safeParse(conFila({ requiereRevision: malo })).success,
+      ).toBe(false);
+    }
+    const ok = respuestaBandeja.parse(conFila({ requiereRevision: true }));
+    expect(ok.datos[0]?.requiereRevision).toBe(true);
+  });
 
   it('rechaza un movimientoId que no es guid', () => {
     expect(

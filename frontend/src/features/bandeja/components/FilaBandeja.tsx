@@ -1,6 +1,10 @@
 import { Link } from 'react-router';
 import type { EstadoBandeja } from '@/shared/dominio/bandeja';
 import { ETIQUETAS_ESTADO_BANDEJA } from '@/shared/dominio';
+import {
+  ETIQUETA_REQUIERE_REVISION,
+  GLIFO_REQUIERE_REVISION,
+} from '@/shared/dominio/etiquetas';
 import { Td } from '@/shared/ui/Tabla';
 import { EstadoChip } from '@/shared/ui/EstadoChip';
 import { Monto } from '@/shared/ui/Monto';
@@ -29,6 +33,8 @@ export interface FilaTabla {
   monto: string;
   moneda: string;
   estado: EstadoBandeja;
+  /** Confirmada con la factura cancelada: el chip pide revisión. */
+  requiereRevision?: boolean;
   regla: string | null;
   motivo: string | null;
   mejorPropuesta: {
@@ -76,10 +82,17 @@ export function FilaBandeja({ fila }: FilaBandejaProps) {
         </span>
       </Td>
       <Td>
-        <EstadoChip tono={fila.estado}>
-          <span aria-hidden="true">{GLIFOS[fila.estado]}</span>
-          {ETIQUETAS_ESTADO_BANDEJA[fila.estado]}
-        </EstadoChip>
+        {fila.requiereRevision === true ? (
+          <EstadoChip tono="sin_match">
+            <span aria-hidden="true">{GLIFO_REQUIERE_REVISION}</span>
+            {ETIQUETA_REQUIERE_REVISION}
+          </EstadoChip>
+        ) : (
+          <EstadoChip tono={fila.estado}>
+            <span aria-hidden="true">{GLIFOS[fila.estado]}</span>
+            {ETIQUETAS_ESTADO_BANDEJA[fila.estado]}
+          </EstadoChip>
+        )}
       </Td>
       <Td>
         <div className={estilos.reglaFila}>
