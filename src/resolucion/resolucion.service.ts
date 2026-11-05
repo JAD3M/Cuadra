@@ -114,7 +114,9 @@ export class ResolucionService {
   ): Promise<LoteRespuestaDto> {
     const manager = this.contexto.manager();
     await tomarCandadoDeConciliacion(manager, companyId);
-    const ordenados = [...new Set(ids)].sort();
+    // Defensa en profundidad: el DTO ya normaliza, pero aquí se compara contra los
+    // ids que devuelve la base (siempre en minúsculas).
+    const ordenados = [...new Set(ids.map((id) => id.toLowerCase()))].sort();
     const choques = await this.marcadasQueChocan(companyId, ordenados);
     const [{ id: loteId }] = await manager.query<{ id: string }[]>(
       'SELECT uuidv7() AS id',

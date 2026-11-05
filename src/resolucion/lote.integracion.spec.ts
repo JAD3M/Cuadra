@@ -508,6 +508,29 @@ describe('POST /conciliaciones/lotes: acceso y validación (S5)', () => {
     await lote(ids).expect(400);
   });
 
+  it('un uuid en mayúsculas es el mismo id: no se salta la regla de choques', async () => {
+    const a = await propuesta();
+    const b = await propuesta(A, {
+      movimientoId: a.movimientoId,
+      regla: 'monto_unico',
+    });
+
+    const r = cuerpo(await lote([a.id.toUpperCase(), b.id]).expect(200));
+
+    expect(r.confirmadas).toEqual([]);
+    expect(r.omitidas.map((o) => o.razon)).toEqual([
+      'choca_con_otra_del_lote',
+      'choca_con_otra_del_lote',
+    ]);
+    expect((await decision(a.id)).estado).toBe('propuesta');
+    expect((await decision(b.id)).estado).toBe('propuesta');
+  });
+
+  it('el mismo id en minúsculas y en mayúsculas cuenta como repetido (400)', async () => {
+    const a = await propuesta();
+    await lote([a.id, a.id.toUpperCase()]).expect(400);
+  });
+
   it('exactamente 500 ids se aceptan', async () => {
     const ids = Array.from({ length: 500 }, () => randomUUID());
     const r = cuerpo(await lote(ids).expect(200));

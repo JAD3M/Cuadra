@@ -56,7 +56,7 @@ Supuestos (míos, a confirmar con el usuario si algo no cuadra):
   consulta) por fila, con espejo y contrato en el frontend. Sin `puedeConfirmar`: `null`
   significa que puede. Ruta: inline. PR 1. RED: 6 pruebas BJ-2e fallaron por el campo
   ausente. Commit: ver PR de T1.
-- [x] T2 (S2, S3, S5, S6) [código y pruebas hechas; falta el veredicto del verificador]: `POST /conciliaciones/lotes` con `{ ids }` (no `/lote/confirmar`: chocaría con `/:id/confirmar`): candado de
+- [x] T2 (S2, S3, S5, S6) [verificada de forma independiente]: `POST /conciliaciones/lotes` con `{ ids }` (no `/lote/confirmar`: chocaría con `/:id/confirmar`): candado de
   empresa, `lote_id` único, omitidas con razón, una bitácora `confirmar` por decisión con
   `loteId`. Alto riesgo (item 4, bloqueos): verificador independiente. Ruta: inline. PR 2.
   Hecho: `ResolucionService.confirmarLote` + `confirmarUna` (la misma sentencia atómica que un
@@ -89,3 +89,11 @@ Supuestos (míos, a confirmar con el usuario si algo no cuadra):
   la empresa una vez y las decisiones por id ascendente. Pruebas: 22 del endpoint (incluye dos
   lotes simultáneos y un lote contra un caso suelto), 6 unitarias de choques. Backend 1886,
   frontend 4771 verdes.
+- L5 (2026-11-05): verificador independiente de T2 (alto riesgo, item 4). Veredicto: S3, S5 y
+  S6 cumplidas; savepoints, orden de candados, lote contra caso suelto y ids ajenos sin
+  hallazgo. UN BLOCKER: un uuid en mayúsculas se saltaba la regla de choques A7 (el servidor
+  comparaba los ids del request con los de la base, en minúsculas) y confirmaba una de dos
+  propuestas que chocaban. Corregido de una vez: el DTO normaliza a minúsculas antes de
+  validar (así `ArrayUnique` ve repetido el mismo id) y el servicio lo repite como defensa.
+  Sondas del verificador agregadas como pruebas. Backend verde. Sin segunda ronda: el
+  bloqueo se cerró con una sola corrección.

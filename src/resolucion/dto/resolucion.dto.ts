@@ -64,6 +64,15 @@ export class LoteDto {
     description:
       'Ids de las propuestas que la persona dejó marcadas (1 a 500, sin repetir). El lote no pide motivo.',
   })
+  // Un uuid en mayúsculas es el mismo id: se normaliza antes de validar para que
+  // `ArrayUnique` lo vea repetido y la regla de choques compare lo mismo que la base.
+  @Transform(({ value }: { value: unknown }) =>
+    Array.isArray(value)
+      ? value.map((id: unknown) =>
+          typeof id === 'string' ? id.toLowerCase() : id,
+        )
+      : value,
+  )
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(MAXIMO_LOTE)
