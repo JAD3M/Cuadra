@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ESTADOS_BANDEJA, LIMITE_MAXIMO } from '@/shared/dominio/bandeja';
+import { ESTADOS_CFDI } from '@/shared/dominio/tipos';
 import { montoDecimal } from './montoDecimal';
 
 // Contratos de `GET /bandeja` y `GET /bandeja/resumen` (CU-22). Se derivan de
@@ -25,6 +26,8 @@ export const cfdiResumen = z.object({
   folio: z.string().nullable(),
   total: montoDecimal,
   moneda,
+  /** De ESTA factura: en un grupo, la cancelada puede no ser la primera. */
+  estado: z.enum(ESTADOS_CFDI),
 });
 
 export const mejorPropuesta = z.object({

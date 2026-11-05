@@ -42,6 +42,7 @@ const respuestaReal = () => ({
           total: '1160.0000',
           moneda: 'MXN',
           metodoPago: 'PUE',
+          estado: 'abierta',
         },
       },
     },
@@ -60,6 +61,27 @@ const conFila = (cambios: Record<string, unknown>) => {
 };
 
 describe('respuestaBandeja', () => {
+  it('exige el estado de la factura y lo valida contra el espejo (4.6)', () => {
+    const conEstado = (estado?: string) => {
+      const base = respuestaReal();
+      const fila = base.datos[0]!;
+      const cfdi: Record<string, unknown> = { ...fila.mejorPropuesta.cfdi };
+      if (estado === undefined) delete cfdi.estado;
+      else cfdi.estado = estado;
+      return {
+        ...base,
+        datos: [{ ...fila, mejorPropuesta: { ...fila.mejorPropuesta, cfdi } }],
+      };
+    };
+    expect(respuestaBandeja.safeParse(conEstado()).success).toBe(false);
+    expect(respuestaBandeja.safeParse(conEstado('anulada')).success).toBe(
+      false,
+    );
+    expect(respuestaBandeja.safeParse(conEstado('cancelada')).success).toBe(
+      true,
+    );
+  });
+
   it('acepta la forma real y conserva los montos como cadena exacta', () => {
     const r: RespuestaBandeja = respuestaBandeja.parse(respuestaReal());
     expect(r.datos[0]?.monto).toBe('1160.0000');
@@ -119,6 +141,7 @@ describe('respuestaBandeja', () => {
               folio: null,
               total: '1.0000',
               moneda: 'MXN',
+              estado: 'abierta',
             },
           },
         },

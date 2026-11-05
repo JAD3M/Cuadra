@@ -33,6 +33,7 @@ const propuesta = (n: number, o: Record<string, unknown> = {}) => ({
     total: '1160.0000',
     moneda: 'MXN',
     metodoPago: 'PUE',
+    estado: 'abierta',
   },
   ...o,
 });
@@ -197,6 +198,19 @@ describe('respuestaCaso: dinero como cadena exacta', () => {
 });
 
 describe('respuestaCaso: forma y dominio', () => {
+  it('exige el estado de cada factura y lo valida contra el espejo (4.6)', () => {
+    const base = propuesta(1);
+    const probar = (cfdi: Record<string, unknown>) =>
+      respuestaCaso.safeParse(
+        caso({ propuestas: [{ ...base, cfdi, cfdis: [cfdi] }] }),
+      ).success;
+    const sin: Record<string, unknown> = { ...base.cfdi };
+    delete sin.estado;
+    expect(probar(sin)).toBe(false);
+    expect(probar({ ...base.cfdi, estado: 'anulada' })).toBe(false);
+    expect(probar({ ...base.cfdi, estado: 'cancelada' })).toBe(true);
+  });
+
   it('ignora claves desconocidas', () => {
     const r = respuestaCaso.safeParse({ ...caso(), extra: 1 });
     expect(r.success).toBe(true);

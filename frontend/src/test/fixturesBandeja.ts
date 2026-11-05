@@ -59,6 +59,7 @@ export function conPropuesta(
       folio: opciones.folio === undefined ? String(1000 + n) : opciones.folio,
       total: opciones.total ?? '1160.0000',
       moneda: opciones.moneda ?? 'MXN',
+      estado: 'abierta',
     },
   };
 }

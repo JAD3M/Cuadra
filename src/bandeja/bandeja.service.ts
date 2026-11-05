@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ContextoEmpresa } from '../database/contexto-empresa';
+import type { EstadoCfdi } from '../common/entities/tipos';
 import {
   type ConsultaBandejaDto,
   type EstadoBandeja,
@@ -61,7 +62,7 @@ const CFDIS_DE_LA_PROPUESTA = `
            'rfcReceptor', g.rfc_receptor, 'nombreReceptor', g.nombre_receptor,
            'fechaEmision', to_char(g.fecha_emision, 'YYYY-MM-DD'),
            'total', g.total::text, 'moneda', g.moneda,
-           'metodoPago', g.metodo_pago) ORDER BY g.id) AS cfdis
+           'metodoPago', g.metodo_pago, 'estado', g.estado) ORDER BY g.id) AS cfdis
     FROM decision_lineas gl
     JOIN cfdi g ON g.company_id = $1 AND g.id = gl.cfdi_id
    WHERE gl.company_id = $1 AND gl.decision_id = p.id`;
@@ -100,6 +101,7 @@ interface FilaSql {
   total: string | null;
   cfdi_moneda: string | null;
   metodo_pago: string | null;
+  cfdi_estado: EstadoCfdi | null;
   cfdis: CfdiResumenDto[] | null;
 }
 
@@ -139,6 +141,7 @@ export class BandejaService {
               f.nombre_emisor, f.rfc_receptor, f.nombre_receptor,
               to_char(f.fecha_emision, 'YYYY-MM-DD') AS fecha_emision,
               f.total::text AS total, f.moneda AS cfdi_moneda, f.metodo_pago,
+              f.estado AS cfdi_estado,
               lc.cfdis
        ${DESDE_FILTRO.replace('WHERE m.company_id', `LEFT JOIN cfdi f ON f.company_id = $1 AND f.id = p.cfdi_id\n  LEFT JOIN LATERAL (${CFDIS_DE_LA_PROPUESTA}) lc ON true\n  WHERE m.company_id`)}
        ORDER BY m.monto DESC, m.id
@@ -237,6 +240,7 @@ function aFila(f: FilaSql): FilaBandejaDto {
               total: f.total as string,
               moneda: f.cfdi_moneda as string,
               metodoPago: f.metodo_pago,
+              estado: f.cfdi_estado as EstadoCfdi,
             },
           },
   };

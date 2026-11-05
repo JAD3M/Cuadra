@@ -10,6 +10,8 @@ import {
   Min,
 } from 'class-validator';
 
+import { ESTADOS_CFDI, type EstadoCfdi } from '../../common/entities/tipos';
+
 export const ESTADOS_BANDEJA = [
   'conciliado',
   'sugerencia',
@@ -75,6 +77,12 @@ export class CfdiResumenDto {
   @ApiProperty({ example: '1160.0000' }) total: string;
   @ApiProperty() moneda: string;
   @ApiProperty({ nullable: true, type: String }) metodoPago: string | null;
+  @ApiProperty({
+    enum: ESTADOS_CFDI,
+    description:
+      'Estado de esta factura. En un grupo, la cancelada puede no ser la primera.',
+  })
+  estado: EstadoCfdi;
 }
 
 export class MejorPropuestaDto {
