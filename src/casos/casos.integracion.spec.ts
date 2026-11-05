@@ -508,6 +508,49 @@ describe('CAS-3 forma de la respuesta', () => {
   });
 });
 
+describe('CAS-3b requiere revisión (4.6)', () => {
+  it('una confirmada con requiere_revision se abre y sale marcada; la normal, sin marca', async () => {
+    const marcado = await movimiento(A, { estado: 'conciliado' });
+    await conciliacion(A, await factura(A), marcado, 'confirmada');
+    await ds.query(
+      `UPDATE decisiones SET requiere_revision = true
+        WHERE company_id = $1 AND movimiento_id = $2`,
+      [A, marcado],
+    );
+    const normal = await movimiento(A, { estado: 'conciliado' });
+    await conciliacion(A, await factura(A), normal, 'confirmada');
+    const abierto = await movimiento(A);
+    await conciliacion(A, await factura(A), abierto, 'propuesta');
+
+    const r = await obtener(marcado);
+    expect(r.estado).toBe('conciliado');
+    expect(r.requiereRevision).toBe(true);
+    expect(r.propuestas).toHaveLength(1);
+    expect(r.propuestas[0]).toMatchObject({
+      estado: 'confirmada',
+      requiereRevision: true,
+    });
+    const n = await obtener(normal);
+    expect(n.requiereRevision).toBe(false);
+    expect(n.propuestas[0].requiereRevision).toBe(false);
+    const a = await obtener(abierto);
+    expect(a.requiereRevision).toBe(false);
+    expect(a.propuestas[0].requiereRevision).toBe(false);
+  });
+
+  it('un movimiento sin decisiones trae requiereRevision false', async () => {
+    const m = await movimiento(A, { regla: 'sin_candidato_monto' });
+    expect((await obtener(m)).requiereRevision).toBe(false);
+  });
+
+  it('la marca de otra empresa es 404', async () => {
+    const m = await movimiento(B, { estado: 'conciliado' });
+    await conciliacion(B, await factura(B), m, 'confirmada');
+    await ds.query(`UPDATE decisiones SET requiere_revision = true`);
+    await caso(tokenA, m).expect(404);
+  });
+});
+
 describe('CAS-4 montos como cadenas decimales exactas', () => {
   it('conserva el máximo de numeric(18,4) y una diferencia negativa pequeña como texto (B1)', async () => {
     const m = await movimiento(A, { monto: '99999999999999.9999' });

@@ -111,6 +111,11 @@ export class FilaBandejaDto {
   propuestasCount: number;
   @ApiProperty({ nullable: true, type: String }) motivo: string | null;
   @ApiProperty({ nullable: true, type: String }) regla: string | null;
+  @ApiProperty({
+    description:
+      'true si la decisión confirmada quedó por revisar porque una de sus facturas se canceló. Sigue conciliada; Cuadra nunca la reabre sola.',
+  })
+  requiereRevision: boolean;
   @ApiProperty({ nullable: true, type: MejorPropuestaDto })
   mejorPropuesta: MejorPropuestaDto | null;
 }

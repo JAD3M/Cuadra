@@ -66,7 +66,7 @@ atómica con su bitácora (AD-7), con `rowCount` verificado y `23505` → 409.
   existente; sin cancelación no cambia nada.
 - [x] **T4 Motor y sugerencias.** Pruebas explícitas: una `cancelada` no se propone
   ni sugiere, ni en pares ni en grupos.
-- [ ] **T5 Bandeja y casos.** Exponer `requiereRevision` en la API y contratos.
+- [x] **T5 Bandeja y casos.** Exponer `requiereRevision` en la API y contratos.
 - [ ] **T6 Cierre.** `CUADRA.md` (estado, pendientes y el límite del SAT), bitácora,
   repaso en Engram, PR (en cadena si pasa de 400 líneas).
 - [ ] **T7 Frontend (condicionada).** Solo tras actualizar y acordar el mockup.
@@ -97,3 +97,4 @@ Los escritores pegan la salida RED.
 - 2026-11-05: T2 hecha. `src/cfdi/cancelar-cfdi.ts`: candado de empresa, decisiones por id, CFDI, y una sentencia CTE (cfdi, obsoletas, por_revisar, bitácora `actualizar`/`cfdi`) con `rowCount` verificado y 23505 -> 409. RED: módulo inexistente; GREEN: 10/10. No se agregó `cfdi` a `ENTIDADES_BITACORA` (la prueba ENT-1 y el espejo del frontend fijan la lista): pendiente de decisión.
 - 2026-11-05: T3 hecha. `guardarCfdi`: en `ya_existia`, si el XML trae la señal, aplica `cancelarCfdi` al existente (usuario = quien subió la carga) y agrega `cancelada: true` al resultado (`ResultadoDeArchivoCfdi`, local a guardar-cfdi.ts; `carga.entity.ts` y el espejo del frontend no se tocaron: el zod del frontend descarta claves desconocidas). RED: 3 de 4 pruebas nuevas fallando; GREEN: cargas y cfdi 210/210.
 - 2026-11-05: T4 hecha. Pruebas de caracterización (el motor ya filtraba `abierta`, no hay RED posible): par y grupo en `conciliacion.integracion.spec.ts`, candidatos, un solo candidato y carrera de cancelación en `sugerencias.integracion.spec.ts`. GREEN: 8 nuevas; suite completa 90 suites / 1828 pruebas en verde.
+- 2026-11-05: T5 hecha (ruta en línea, 2 archivos de servicio con cambio mecánico + pruebas). `requiereRevision` en bandeja (fila) y casos (caso y propuesta); una confirmada con la marca entra en la lista por defecto sin cambiar orden. RED: 4 pruebas fallando; GREEN: bandeja y casos 95/95. Commit: ver `git log` (T5).

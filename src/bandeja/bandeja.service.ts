@@ -20,12 +20,16 @@ import {
  * líneas, para que un grupo cuente como UNA propuesta y un solo caso; `n`
  * cuenta las propuestas antes del LIMIT 1. `cfdi_id` es la primera factura
  * (id ascendente); todas salen en `cfdis`.
+ * Una confirmada con `requiere_revision` (4.6: su factura se canceló) se lista
+ * junto a las sugerencias, aunque no se pida `conciliado`: sigue conciliada y
+ * nunca se reabre sola, pero espera ojos humanos. Una normal no cambia.
  * Se comparte con el conteo para que `total` no dependa de la página.
  */
 const DESDE_FILTRO = `
   FROM movimientos m
   LEFT JOIN LATERAL (
     SELECT d.id, d.score, d.diferencia_monto, d.regla, d.motivo,
+           d.requiere_revision,
            (SELECT l.cfdi_id FROM decision_lineas l
              WHERE l.company_id = $1 AND l.decision_id = d.id
              ORDER BY l.cfdi_id LIMIT 1) AS cfdi_id,
@@ -42,7 +46,8 @@ const DESDE_FILTRO = `
   WHERE m.company_id = $1
     AND m.monto > 0
     AND (
-      (m.estado = 'conciliado' AND 'conciliado' = ANY($2))
+      (m.estado = 'conciliado' AND ('conciliado' = ANY($2)
+          OR (p.requiere_revision AND 'sugerencia' = ANY($2))))
       OR (m.estado = 'abierto' AND p.id IS NOT NULL AND 'sugerencia' = ANY($2))
       OR (m.estado = 'abierto' AND p.id IS NULL
           AND m.regla_sin_match IS NOT NULL AND 'sin_match' = ANY($2))
@@ -83,6 +88,7 @@ interface FilaSql {
   regla: string | null;
   motivo: string | null;
   n: string | null;
+  requiere_revision: boolean | null;
   cfdi_id: string | null;
   uuid_fiscal: string | null;
   serie: string | null;
@@ -128,7 +134,7 @@ export class BandejaService {
               m.motivo_sin_match, m.regla_sin_match,
               p.id AS conciliacion_id, p.score::text AS score,
               p.diferencia_monto::text AS diferencia_monto,
-              p.regla, p.motivo, p.n,
+              p.regla, p.motivo, p.n, p.requiere_revision,
               f.id AS cfdi_id, f.uuid_fiscal, f.serie, f.folio,
               f.nombre_emisor, f.rfc_receptor, f.nombre_receptor,
               to_char(f.fecha_emision, 'YYYY-MM-DD') AS fecha_emision,
@@ -208,6 +214,7 @@ function aFila(f: FilaSql): FilaBandejaDto {
     propuestasCount: estado === 'sugerencia' ? Number(f.n) : 0,
     motivo: sinMatch ? f.motivo_sin_match : f.motivo,
     regla: sinMatch ? f.regla_sin_match : f.regla,
+    requiereRevision: f.requiere_revision === true,
     mejorPropuesta:
       f.conciliacion_id === null || f.cfdi_id === null
         ? null

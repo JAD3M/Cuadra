@@ -29,7 +29,7 @@ const CONSULTA = `
          c.id AS conciliacion_id, c.estado AS estado_conciliacion, c.origen,
          c.score::text AS score, c.regla, c.motivo,
          c.diferencia_monto::text AS diferencia_monto,
-         c.confirmada_at, u.nombre AS confirmada_por,
+         c.confirmada_at, u.nombre AS confirmada_por, c.requiere_revision,
          lc.cfdis
     FROM movimientos m
     JOIN companies co ON co.id = m.company_id AND co.id = $2
@@ -76,6 +76,7 @@ interface FilaSql {
   diferencia_monto: string | null;
   confirmada_at: Date | null;
   confirmada_por: string | null;
+  requiere_revision: boolean | null;
   cfdis: CfdiResumenDto[] | null;
 }
 
@@ -124,6 +125,7 @@ export class CasosService {
         estado: m.estado_movimiento,
       },
       estado,
+      requiereRevision: propuestas.some((p) => p.requiereRevision),
       sinMatch: esSinMatch
         ? {
             regla: conRegistro ? m.regla_sin_match : null,
@@ -150,6 +152,7 @@ function aPropuesta(f: FilaSql): PropuestaCasoDto {
     diferenciaMonto: f.diferencia_monto,
     confirmadaAt: f.confirmada_at ? f.confirmada_at.toISOString() : null,
     confirmadaPor: f.confirmada_por ? { nombre: f.confirmada_por } : null,
+    requiereRevision: f.requiere_revision === true,
     // La primera factura (id ascendente) para clientes de una sola factura.
     cfdi: cfdis[0],
     cfdis,

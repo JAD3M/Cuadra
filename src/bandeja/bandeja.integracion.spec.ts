@@ -280,6 +280,67 @@ describe('BJ-2 filtro estado', () => {
   );
 });
 
+/** Marca la confirmada de un movimiento como «requiere revisión» (4.6). */
+async function marcarRevision(
+  movimientoId: string,
+  empresa = A,
+): Promise<void> {
+  await ds.query(
+    `UPDATE decisiones SET requiere_revision = true
+      WHERE company_id = $1 AND movimiento_id = $2 AND estado = 'confirmada'`,
+    [empresa, movimientoId],
+  );
+}
+
+describe('BJ-2b requiere revisión (4.6)', () => {
+  it('una confirmada con requiere_revision se lista sin pedir conciliado y sale marcada', async () => {
+    const m = await cerrado(A, '100.00');
+    await marcarRevision(m);
+    const r = await listar();
+    expect(ids(r)).toEqual([m]);
+    expect(r.total).toBe(1);
+    expect(r.datos[0]).toMatchObject({
+      estado: 'conciliado',
+      requiereRevision: true,
+    });
+    expect(r.datos[0].mejorPropuesta?.cfdis).toHaveLength(1);
+  });
+
+  it('una confirmada normal sigue fuera de la lista por defecto y sale sin marca', async () => {
+    const s = await sugerido(A, '300.00');
+    const c = await cerrado(A, '100.00');
+    const marcada = await cerrado(A, '200.00');
+    await marcarRevision(marcada);
+    // Orden existente: monto descendente; la marcada se incluye sin priorizarla.
+    const r = await listar();
+    expect(ids(r)).toEqual([s, marcada]);
+    expect(r.datos.map((f) => f.requiereRevision)).toEqual([false, true]);
+    const conc = await listar('?estado=conciliado');
+    expect(ids(conc)).toEqual([marcada, c]);
+    expect(conc.datos.map((f) => f.requiereRevision)).toEqual([true, false]);
+  });
+
+  it('con solo sin_match no entra, y el resumen cuenta la marcada una sola vez como conciliado', async () => {
+    const m = await cerrado(A, '100.00');
+    await marcarRevision(m);
+    await sinMatch(A, '50.00');
+    expect(await listar('?estado=sin_match').then((r) => r.total)).toBe(1);
+    expect((await resumen()).conteos).toEqual({
+      conciliado: 1,
+      sugerencia: 0,
+      sin_match: 1,
+    });
+  });
+
+  it('la marca de otra empresa no se ve ni cuenta', async () => {
+    const m = await cerrado(B, '100.00');
+    await marcarRevision(m, B);
+    const r = await listar();
+    expect(r.total).toBe(0);
+    expect(JSON.stringify(r)).not.toContain(m);
+  });
+});
+
 describe('BJ-3 paginación', () => {
   beforeEach(async () => {
     await ds.query(
