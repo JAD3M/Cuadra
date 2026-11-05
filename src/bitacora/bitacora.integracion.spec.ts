@@ -542,12 +542,13 @@ describe('GET /bitacora (AU-20 a AU-26)', () => {
     expect(paginaDe(res)).toMatchObject({ datos: [], total: 0 });
   });
 
-  it('ENT-1: la lista canónica de entidades es conciliaciones, decisiones, companies y cargas', () => {
+  it('ENT-1: la lista canónica de entidades es conciliaciones, decisiones, companies, cargas y cfdi', () => {
     expect([...ENTIDADES_BITACORA]).toEqual([
       'conciliaciones',
       'decisiones',
       'companies',
       'cargas',
+      'cfdi',
     ]);
   });
 

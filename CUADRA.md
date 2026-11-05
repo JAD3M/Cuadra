@@ -727,9 +727,10 @@ revisar»; cambiarlo exige mockup. (d) Si `cancelarCfdi` falla al resubir un arc
 infraestructura, el lote se revierte y el job se reintenta desde cero; el 409 de
 `cancelarCfdi` es transitorio y dice «reintenta»). Quedó fijado con pruebas en
 `cargas.integracion.spec.ts` (falla pasajera: el reintento completa el lote sin duplicar
-la bitácora; falla siempre: carga `fallida` y nada a medias). (e) `cfdi` no está en `ENTIDADES_BITACORA` (la prueba
-ENT-1 fija la lista y el frontend la espeja); `GET /bitacora` acepta cualquier
-entidad, así que las entradas se ven; decidir al tocar el frontend. (f) La
+la bitácora; falla siempre: carga `fallida` y nada a medias). (e) Resuelto: `cfdi` entra a `ENTIDADES_BITACORA` (backend y espejo del frontend) y la
+bitácora redacta la cancelación: «estado: conciliada → cancelada · 1 decisión por revisar»
+o «estado: abierta → cancelada · 1 propuesta obsoleta»; sin estado utilizable muestra «—».
+Mockup 6 (Bitácora) acordado el 5 nov 2026. (f) La
 `confirmada` marcada no tiene orden prioritario en la bandeja.
 
 **Sugerencias de la IA (v2, historia 4.7), terminada el 5 nov 2026.** El módulo

@@ -159,6 +159,66 @@ describe('detalleEvento: decisiones D17 a D21', () => {
     ).toBe('—');
   });
 
+  describe('cancelación de una factura (4.6, entidad cfdi)', () => {
+    // actualizar cfdi  src/cfdi/cancelar-cfdi.ts:103-111
+    const cancelacion = (
+      antes: unknown,
+      extra: Record<string, unknown> = {},
+    ) => ({
+      antes: { estado: antes },
+      despues: { estado: 'cancelada' },
+      decisionesObsoletas: [],
+      decisionesPorRevisar: [],
+      ...extra,
+    });
+    const detalle = (datos: unknown) =>
+      detalleEvento({ accion: 'actualizar', datos });
+
+    it('conciliada: dice el cambio de estado y cuántas decisiones quedan por revisar', () => {
+      expect(
+        detalle(cancelacion('conciliada', { decisionesPorRevisar: [CFDI] })),
+      ).toBe('estado: conciliada → cancelada · 1 decisión por revisar');
+    });
+
+    it('abierta: dice cuántas propuestas quedaron obsoletas', () => {
+      expect(
+        detalle(cancelacion('abierta', { decisionesObsoletas: [CFDI] })),
+      ).toBe('estado: abierta → cancelada · 1 propuesta obsoleta');
+    });
+
+    it('usa el plural a partir de dos y junta ambos conteos', () => {
+      expect(
+        detalle(
+          cancelacion('conciliada', {
+            decisionesObsoletas: [CFDI, MOV],
+            decisionesPorRevisar: [CFDI, MOV],
+          }),
+        ),
+      ).toBe(
+        'estado: conciliada → cancelada · 2 propuestas obsoletas · 2 decisiones por revisar',
+      );
+    });
+
+    it('sin decisiones afectadas solo dice el cambio de estado', () => {
+      expect(detalle(cancelacion('abierta'))).toBe(
+        'estado: abierta → cancelada',
+      );
+    });
+
+    it('sin estado utilizable muestra — y no inventa nada', () => {
+      expect(detalle({})).toBe('—');
+      expect(detalle(cancelacion(undefined))).toBe('—');
+      expect(detalle({ antes: { estado: 'abierta' } })).toBe('—');
+      expect(detalle({ antes: 'abierta', despues: 'cancelada' })).toBe('—');
+    });
+
+    it('listas mal formadas no cuentan como decisiones', () => {
+      expect(
+        detalle(cancelacion('conciliada', { decisionesPorRevisar: 'x' })),
+      ).toBe('estado: conciliada → cancelada');
+    });
+  });
+
   it('D17: sin membresía muestra método, ruta y el motivo', () => {
     expect(
       detalleEvento({
