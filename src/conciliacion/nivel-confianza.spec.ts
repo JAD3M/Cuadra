@@ -2,6 +2,7 @@ import {
   SCORE_MONTO_UNICO,
   SCORE_REFERENCIA_MONTO_DIFERENTE,
   SCORE_REFERENCIA_MONTO_EXACTO,
+  SCORE_SUMA_GRUPO,
   nivelDeConfianza,
 } from './evaluar-par';
 
@@ -43,5 +44,12 @@ describe('nivelDeConfianza (AC6)', () => {
       SCORE_MONTO_UNICO,
     ].map((s) => orden.indexOf(nivelDeConfianza(s) as string));
     expect(niveles).toEqual([0, 1, 2]);
+  });
+
+  it('la regla de grupo (4.5) es media y va entre la regla 1 y la 2', () => {
+    expect(nivelDeConfianza(SCORE_SUMA_GRUPO)).toBe('media');
+    expect(SCORE_REFERENCIA_MONTO_EXACTO).toBeGreaterThan(SCORE_SUMA_GRUPO);
+    expect(SCORE_SUMA_GRUPO).toBeGreaterThan(SCORE_REFERENCIA_MONTO_DIFERENTE);
+    expect(SCORE_REFERENCIA_MONTO_DIFERENTE).toBeGreaterThan(SCORE_MONTO_UNICO);
   });
 });
