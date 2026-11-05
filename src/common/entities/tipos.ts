@@ -96,6 +96,8 @@ export const REGLAS_SIN_MATCH = [
   'monto_candidato_ocupado',
   'cfdi_multiples_movimientos',
   'moneda_no_soportada',
+  'combinaciones_multiples',
+  'candidatos_excedidos',
 ] as const;
 export type ReglaSinMatch = (typeof REGLAS_SIN_MATCH)[number];
 

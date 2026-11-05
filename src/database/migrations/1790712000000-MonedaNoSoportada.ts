@@ -1,5 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
-import { listaSql, REGLAS_SIN_MATCH } from '../../common/entities/tipos';
+import { listaSql } from '../../common/entities/tipos';
 
 /**
  * Historia 4.4 (AC3). Un CFDI que no está en MXN no se concilia: el movimiento
@@ -8,7 +8,20 @@ import { listaSql, REGLAS_SIN_MATCH } from '../../common/entities/tipos';
  * filas que ya usaban el valor nuevo (el CHECK de par obliga a limpiar también
  * `motivo_sin_match`; la siguiente corrida de `conciliar` las vuelve a llenar).
  */
-const ANTERIORES = REGLAS_SIN_MATCH.filter((r) => r !== 'moneda_no_soportada');
+/**
+ * Lista congelada de antes de esta migración. No se deriva de
+ * `REGLAS_SIN_MATCH`: esa constante crece con cada historia y el `down` dejaría
+ * en el CHECK valores que esta migración no conoce.
+ */
+const ANTERIORES = [
+  'referencia_ambigua',
+  'referencia_cfdi_ocupado',
+  'referencia_cfdi_no_compatible',
+  'sin_candidato_monto',
+  'monto_multiples_candidatos',
+  'monto_candidato_ocupado',
+  'cfdi_multiples_movimientos',
+] as const;
 
 export class MonedaNoSoportada1790712000000 implements MigrationInterface {
   name = 'MonedaNoSoportada1790712000000';
@@ -18,7 +31,7 @@ export class MonedaNoSoportada1790712000000 implements MigrationInterface {
       `ALTER TABLE "movimientos" DROP CONSTRAINT "ck_movimientos_regla_sin_match"`,
     );
     await queryRunner.query(
-      `ALTER TABLE "movimientos" ADD CONSTRAINT "ck_movimientos_regla_sin_match" CHECK (regla_sin_match IS NULL OR regla_sin_match IN (${listaSql(REGLAS_SIN_MATCH)}))`,
+      `ALTER TABLE "movimientos" ADD CONSTRAINT "ck_movimientos_regla_sin_match" CHECK (regla_sin_match IS NULL OR regla_sin_match IN (${listaSql([...ANTERIORES, 'moneda_no_soportada'])}))`,
     );
   }
 

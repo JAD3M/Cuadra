@@ -67,7 +67,8 @@ export class ConciliacionService {
         const cfdis = await manager.query<CfdiAbierto[]>(
           `SELECT id, serie, folio,
                   to_char(fecha_emision, 'YYYY-MM-DD') AS "fechaEmision",
-                  total::text AS total, moneda
+                  total::text AS total, moneda,
+                  rfc_receptor AS "rfcReceptor"
              FROM cfdi
             WHERE company_id = $1 AND estado = 'abierta'
               AND tipo_comprobante = 'I' AND rfc_emisor = $2`,

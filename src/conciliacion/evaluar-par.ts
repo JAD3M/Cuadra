@@ -11,10 +11,14 @@ import { clavesDeCfdi, esReferenciaUsable } from './referencia-normalizer';
 export const REGLA_REFERENCIA_MONTO_EXACTO = 'referencia_monto_exacto';
 export const REGLA_REFERENCIA_MONTO_DIFERENTE = 'referencia_monto_diferente';
 export const REGLA_MONTO_UNICO = 'monto_unico';
+/** Historia 4.5: un depósito que cubre varias facturas de la misma contraparte. */
+export const REGLA_SUMA_GRUPO = 'suma_grupo';
 
 export const SCORE_REFERENCIA_MONTO_EXACTO = 1.0;
 export const SCORE_REFERENCIA_MONTO_DIFERENTE = 0.5;
 export const SCORE_MONTO_UNICO = 0.4;
+/** Entre la regla 1 y la 2: va después de la referencia exacta y se muestra como 'media'. */
+export const SCORE_SUMA_GRUPO = 0.6;
 
 /**
  * Nivel de confianza de la propuesta de una regla, derivado de su puntuación:
@@ -37,7 +41,8 @@ export function nivelDeConfianza(
 export type ReglaConciliacion =
   | typeof REGLA_REFERENCIA_MONTO_EXACTO
   | typeof REGLA_REFERENCIA_MONTO_DIFERENTE
-  | typeof REGLA_MONTO_UNICO;
+  | typeof REGLA_MONTO_UNICO
+  | typeof REGLA_SUMA_GRUPO;
 
 /** Fechas 'YYYY-MM-DD' y montos como texto: nunca `number`. */
 export interface MovimientoAbierto {
@@ -57,6 +62,12 @@ export interface CfdiAbierto {
   fechaEmision: string;
   total: string;
   moneda: string;
+  /**
+   * Contraparte de la factura; define qué facturas pueden agruparse (4.5).
+   * Opcional solo para no tocar a quienes arman un CfdiAbierto sin agrupar
+   * (sugerencias); ausente o vacío nunca forma grupo.
+   */
+  rfcReceptor?: string | null;
 }
 
 /** Una conciliación que ya existe; las rechazadas no se vuelven a proponer. */
@@ -102,7 +113,7 @@ export function compatibles(
  * La tolerancia configurada es en MXN absolutos (CU-12): en otra moneda no
  * significa nada, y ahí el monto sigue siendo exacto.
  */
-function toleranciaEn(moneda: string, tolerancia: Dinero): Dinero {
+export function toleranciaEn(moneda: string, tolerancia: Dinero): Dinero {
   return moneda === 'MXN' ? tolerancia : CERO;
 }
 
@@ -150,7 +161,10 @@ interface ContextoSinMatch {
 }
 
 /** Texto en español de un movimiento sin propuesta; nunca dice que un cruce sea correcto o erróneo. */
-function motivoSinMatch(regla: ReglaSinMatch, ctx: ContextoSinMatch): string {
+export function motivoSinMatch(
+  regla: ReglaSinMatch,
+  ctx: ContextoSinMatch,
+): string {
   const { mov, cfdi, cantidad } = ctx;
   const ref = `La referencia "${mov.referencia ?? ''}"`;
   const factura = cfdi ? etiquetaCfdi(cfdi) : '';
@@ -188,6 +202,16 @@ function motivoSinMatch(regla: ReglaSinMatch, ctx: ContextoSinMatch): string {
       return (
         `${ref} coincide con el CFDI ${factura}, pero su moneda (${cfdi!.moneda}) ` +
         `es moneda no soportada: solo se concilia contra CFDI en ${MONEDA_SOPORTADA}.`
+      );
+    case 'combinaciones_multiples':
+      return (
+        `Varias combinaciones de facturas (${cantidad}) suman el monto ${mov.monto} ` +
+        `dentro de la tolerancia; no se propone ninguna para evitar un cruce equivocado.`
+      );
+    case 'candidatos_excedidos':
+      return (
+        `Hay demasiados CFDI abiertos de la misma contraparte para buscar ` +
+        `combinaciones que sumen el monto ${mov.monto}; no se propone ninguna.`
       );
     case 'cfdi_multiples_movimientos':
       return (
