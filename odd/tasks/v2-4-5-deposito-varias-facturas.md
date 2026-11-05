@@ -80,7 +80,7 @@ facturas. Falta el motor: hoy solo evalúa pares. Mapeo del 2026-11-04:
   persistir propuestas de n líneas con la diferencia del grupo, `requiere_revision`
   y `lote_id` fijos, integración con base real (incl. factura confirmada que no
   entra y rechazo por huella).
-- [ ] **T3** Resolución y lectura: confirmar/rechazar con n facturas (prueba de
+- [x] **T3** Resolución y lectura: confirmar/rechazar con n facturas (prueba de
   atomicidad con rollback), bitácora y respuesta con todos los CFDI, casos/bandeja/
   sugerencias que asuman una factura por propuesta, prueba de que nunca va a lote.
 - [ ] **T4** Cierre: bitácora, `CUADRA.md`, Jira KAN-141, PR (en cadena si pasa de
@@ -149,4 +149,27 @@ como etiquetas en `motivo_sin_match`, no como ids. Riesgos anotados: rendimiento
 la búsqueda (~21 mil subconjuntos por RFC y por movimiento, sin poda); un grupo
 omitido por rechazo o competencia deja `sin_candidato_monto` (mensaje algo engañoso).
 
-Siguiente: T3.
+T3 hecha en `ea5a6b0`. Ruta: delegada, un escritor (disparador: 2+ archivos no
+triviales, SQL y frontend). RED observado: 5 de 14 pruebas del grupo y 1 de
+sugerencias fallaban antes de implementar. Confirmar y rechazar ya eran atómicos
+(un CTE, 409 con rollback); se probó, y solo se corrigió la auditoría: la respuesta
+y la bitácora llevan `cfdiIds` (se conservan `cfdiId` y `cfdi.id`). Casos y bandeja
+muestran el grupo una vez con `cfdis`; la bandeja inflaba el conteo por línea y se
+arregló. Sugerencias leía un grupo rechazado como un par rechazado por factura y
+descartaba candidatos de una factura sin motivo; ahora solo cuentan las decisiones
+de una línea. Frontend: solo campos opcionales en los contratos zod, sin tocar
+pantallas. «Nunca en lote»: no existe función de lote en `src`; se prueba sobre la
+fila (`lote_id` nulo antes y después, 401 sin sesión, la BD rechaza `confirmada` sin
+persona). Backend 89 suites / 1802 pruebas; frontend 291 archivos / 4725 pruebas;
+lint y prettier verdes (verificado por el padre, incluido el frontend).
+Revisión nativa de T3 (riesgo medio, 824 líneas): aprobada y acusada. Sugerencia
+R3-001 (no bloqueante): `cfdi: cfdis[0]` queda indefinido si una decisión de
+conciliación no tuviera líneas (el diseño no lo produce; los descartes se excluyen
+en la consulta). Seguimiento opcional.
+
+Nota sobre el rastro de revisión: T1, T2 y T3 se aprobaron por separado y, además,
+la rama completa se aprobó dos veces contra `master` (el hook ofrece ese candidato
+cada vez); la segunda cubrió T1+T2.
+
+Siguiente: T4 (PR en cadena de 3: T1, T2 con la corrección de la migración, T3 y
+cierre).

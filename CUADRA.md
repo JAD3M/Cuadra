@@ -659,7 +659,29 @@ motor propone, con su regla y su confianza, y nunca cierra un caso (AD-3):
   escriban una decisión `confirmada` o las columnas de la persona.
 
 **Pendientes (4.4):** mostrar el nivel en la pantalla del caso (antes hay que
-actualizar el mockup); probar directamente el `down` de la migración nueva.
+actualizar el mockup); probar directamente el `down` de la migración nueva
+(resuelto en la 4.5).
+
+**Depósito que cubre varias facturas (v2, historia 4.5), terminada el 4 nov 2026.**
+El motor propone un depósito que paga varias facturas a la vez, sin cerrar nunca
+el caso (AD-3, AD-4):
+
+- Una propuesta de grupo es una decisión con una línea por factura y la diferencia
+  del grupo (`regla = suma_grupo`, puntuación 0.6, nivel `media`). Solo se busca
+  cuando las reglas de una factura no encontraron candidato por referencia ni por
+  monto.
+- «Misma contraparte» es el mismo `rfc_receptor`. La búsqueda prueba subconjuntos
+  de 2 a 5 facturas y se detiene en 20 candidatos por RFC (`candidatos_excedidos`);
+  si dos o más subconjuntos suman el monto dentro de la tolerancia no propone nada
+  (`combinaciones_multiples`). Son constantes con nombre, fáciles de cambiar.
+- Confirmar y rechazar un grupo es todo o nada en una sentencia; la respuesta y la
+  bitácora llevan `cfdiIds`. Casos y bandeja muestran el grupo una vez.
+- Migración `1790713000000-CombinacionesMultiples`: dos motivos nuevos de
+  `regla_sin_match`.
+
+**Pendientes (4.5):** mostrar un grupo en la pantalla del caso (antes, el
+mockup); la búsqueda no tiene poda (~21 mil subconjuntos por RFC y movimiento en el
+peor caso).
 
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
