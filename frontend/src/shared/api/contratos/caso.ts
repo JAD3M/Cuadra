@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  NIVELES_CONFIANZA,
   ORIGENES_CONCILIACION,
   type EstadoConciliacion,
 } from '@/shared/dominio/tipos';
@@ -44,11 +45,16 @@ export const propuestaCaso = z.object({
   origen: z.enum(ORIGENES_CONCILIACION),
   score: z.string().nullable(),
   regla,
+  /** Nivel derivado del score; solo lo trae el motor de reglas. */
+  confianza: z.enum(NIVELES_CONFIANZA).nullable().optional(),
   motivo: z.string().nullable(),
   diferenciaMonto: montoDecimal.nullable(),
   confirmadaAt: z.iso.datetime().nullable(),
   confirmadaPor: z.object({ nombre: texto }).nullable(),
+  /** Primera factura (id ascendente); en un grupo ver `cfdis`. */
   cfdi: cfdiCaso,
+  /** Todas las facturas de la propuesta (un grupo tiene varias). */
+  cfdis: z.array(cfdiCaso).optional(),
 });
 
 /**
@@ -98,6 +104,8 @@ export const respuestaResolucion = z.object({
     'rechazada',
   ] as const satisfies readonly EstadoConciliacion[]),
   cfdiId: z.guid(),
+  /** Todas las facturas de la decisión (un grupo tiene varias). */
+  cfdiIds: z.array(z.guid()).optional(),
   movimientoId: z.guid(),
   motivo: z.string().nullable(),
   confirmadaAt: z.iso.datetime().nullable(),

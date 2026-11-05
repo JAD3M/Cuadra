@@ -207,6 +207,7 @@ describe('POST /conciliaciones/:id/rechazar (RS-R1, RS-R2)', () => {
       id,
       estado: 'rechazada',
       cfdiId,
+      cfdiIds: [cfdiId],
       movimientoId,
       motivo: 'El pago es de otro cliente',
       confirmadaAt: null,
@@ -366,6 +367,7 @@ describe('RS-X6: bitácora', () => {
       antes: { estado: 'propuesta', motivo: 'Motivo de propuesta' },
       despues: { estado: 'rechazada', motivo: 'No corresponde' },
       cfdiId,
+      cfdiIds: [cfdiId],
       movimientoId,
       diferenciaMonto: '0.5000',
     });

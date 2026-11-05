@@ -67,6 +67,31 @@ describe('respuestaBandeja', () => {
     expect(r.total).toBe(1);
   });
 
+  it('acepta las facturas de una propuesta de grupo como cadenas exactas', () => {
+    const real = respuestaReal();
+    const cfdi = real.datos[0]!.mejorPropuesta!.cfdi;
+    const conGrupo = {
+      ...real,
+      datos: [
+        {
+          ...real.datos[0]!,
+          mejorPropuesta: {
+            ...real.datos[0]!.mejorPropuesta!,
+            cfdis: [cfdi, { ...cfdi, id: GUID_A, total: '100.0000' }],
+          },
+        },
+      ],
+    };
+    const r = respuestaBandeja.parse(conGrupo);
+    expect(r.datos[0]?.mejorPropuesta?.cfdis?.map((c) => c.total)).toEqual([
+      '1160.0000',
+      '100.0000',
+    ]);
+    const numerico = JSON.parse(JSON.stringify(conGrupo));
+    numerico.datos[0].mejorPropuesta.cfdis[1].total = 100;
+    expect(respuestaBandeja.safeParse(numerico).success).toBe(false);
+  });
+
   it('ignora los campos que la pantalla no usa', () => {
     const r = respuestaBandeja.parse(respuestaReal());
     expect(r.datos[0]?.mejorPropuesta).not.toHaveProperty('score');

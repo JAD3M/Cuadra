@@ -79,6 +79,30 @@ describe('respuestaCaso: fixtures con la forma de CAS-3', () => {
     expect(r.success).toBe(true);
   });
 
+  it('acepta una propuesta de grupo con varias facturas y su confianza', () => {
+    const p = propuesta(1, {
+      regla: 'suma_grupo',
+      score: '0.6000',
+      confianza: 'media',
+      cfdis: [propuesta(1).cfdi, propuesta(2).cfdi, propuesta(3).cfdi],
+    });
+    const r = respuestaCaso.parse(caso({ propuestas: [p] }));
+    expect(r.propuestas[0]?.cfdis).toHaveLength(3);
+    expect(r.propuestas[0]?.confianza).toBe('media');
+  });
+
+  it('rechaza una confianza que el backend no define y un total numérico en cfdis', () => {
+    const mala = propuesta(1, { confianza: 'altisima' });
+    expect(respuestaCaso.safeParse(caso({ propuestas: [mala] })).success).toBe(
+      false,
+    );
+    const p = propuesta(1);
+    const numerico = propuesta(1, { cfdis: [{ ...p.cfdi, total: 1160 }] });
+    expect(
+      respuestaCaso.safeParse(caso({ propuestas: [numerico] })).success,
+    ).toBe(false);
+  });
+
   it('acepta un sin_match con y sin registro', () => {
     for (const sinMatch of [
       { regla: 'sin_candidato_monto', motivo: 'Sin CFDI' },
@@ -283,6 +307,17 @@ describe('respuestaResolucion', () => {
   it('acepta una confirmación con dos hermanas rechazadas', () => {
     const r = respuestaResolucion.parse(resolucion());
     expect(r.rechazadasAutomaticamente).toHaveLength(2);
+  });
+
+  it('acepta cfdiIds de un grupo y sigue aceptando la respuesta sin él', () => {
+    const r = respuestaResolucion.parse(
+      resolucion({ cfdiIds: [G(201), G(202), G(203)] }),
+    );
+    expect(r.cfdiIds).toHaveLength(3);
+    expect(respuestaResolucion.parse(resolucion()).cfdiIds).toBeUndefined();
+    expect(
+      respuestaResolucion.safeParse(resolucion({ cfdiIds: ['x'] })).success,
+    ).toBe(false);
   });
 
   it('acepta un rechazo con arreglo vacío y sin confirmadaAt', () => {

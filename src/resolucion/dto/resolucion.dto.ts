@@ -24,7 +24,17 @@ export class RechazarDto {
 export class ResolucionRespuestaDto {
   @ApiProperty() id: string;
   @ApiProperty({ example: 'rechazada' }) estado: string;
-  @ApiProperty() cfdiId: string;
+  @ApiProperty({
+    description:
+      'Primera factura de la decisión (id ascendente); se conserva para clientes de una sola factura.',
+  })
+  cfdiId: string;
+  @ApiProperty({
+    type: [String],
+    description:
+      'Todas las facturas de la decisión, en id ascendente (un grupo tiene varias).',
+  })
+  cfdiIds: string[];
   @ApiProperty() movimientoId: string;
   @ApiProperty({ nullable: true, type: String }) motivo: string | null;
   @ApiProperty({ nullable: true, type: String }) confirmadaAt: string | null;

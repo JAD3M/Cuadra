@@ -3,6 +3,7 @@ import { ContextoEmpresa } from '../database/contexto-empresa';
 import type { EstadoMovimiento } from '../common/entities/tipos';
 import type { EstadoBandeja } from '../bandeja/dto/bandeja.dto';
 import { nivelDeConfianza } from '../conciliacion/evaluar-par';
+import type { CfdiResumenDto } from '../bandeja/dto/bandeja.dto';
 import type { PropuestaCasoDto, RespuestaCasoDto } from './dto/caso.dto';
 
 /**
@@ -16,6 +17,9 @@ import type { PropuestaCasoDto, RespuestaCasoDto } from './dto/caso.dto';
  * company_id: el nombre se alcanza solo desde una conciliación filtrada por
  * empresa (mismo patrón que BitacoraService.historial).
  * Orden de propuestas: el mismo de la bandeja para su mejor propuesta.
+ *
+ * Una propuesta de grupo (4.5) tiene varias líneas: se agregan en `lc.cfdis`
+ * (por id ascendente) para que salga UNA fila por decisión, no una por factura.
  */
 const CONSULTA = `
   SELECT m.id AS movimiento_id, to_char(m.fecha,'YYYY-MM-DD') AS fecha,
@@ -26,10 +30,7 @@ const CONSULTA = `
          c.score::text AS score, c.regla, c.motivo,
          c.diferencia_monto::text AS diferencia_monto,
          c.confirmada_at, u.nombre AS confirmada_por,
-         f.id AS cfdi_id, f.uuid_fiscal, f.serie, f.folio, f.nombre_emisor,
-         f.rfc_receptor, f.nombre_receptor,
-         to_char(f.fecha_emision,'YYYY-MM-DD') AS fecha_emision,
-         f.total::text AS total, f.moneda AS cfdi_moneda, f.metodo_pago
+         lc.cfdis
     FROM movimientos m
     JOIN companies co ON co.id = m.company_id AND co.id = $2
     LEFT JOIN decisiones c
@@ -37,8 +38,19 @@ const CONSULTA = `
           AND c.tipo = 'conciliacion'
           AND c.estado = CASE m.estado WHEN 'conciliado' THEN 'confirmada'
                                        WHEN 'abierto'    THEN 'propuesta' END
-    LEFT JOIN decision_lineas l ON l.company_id = $2 AND l.decision_id = c.id
-    LEFT JOIN cfdi f ON f.company_id = $2 AND f.id = l.cfdi_id
+    LEFT JOIN LATERAL (
+      SELECT jsonb_agg(jsonb_build_object(
+               'id', f.id, 'uuidFiscal', f.uuid_fiscal, 'serie', f.serie,
+               'folio', f.folio, 'nombreEmisor', f.nombre_emisor,
+               'rfcReceptor', f.rfc_receptor,
+               'nombreReceptor', f.nombre_receptor,
+               'fechaEmision', to_char(f.fecha_emision,'YYYY-MM-DD'),
+               'total', f.total::text, 'moneda', f.moneda,
+               'metodoPago', f.metodo_pago) ORDER BY f.id) AS cfdis
+        FROM decision_lineas l
+        JOIN cfdi f ON f.company_id = $2 AND f.id = l.cfdi_id
+       WHERE l.company_id = $2 AND l.decision_id = c.id
+    ) lc ON true
     LEFT JOIN users u ON u.id = c.confirmada_por_id
    WHERE m.id = $1 AND m.company_id = $2
      AND m.estado <> 'pendiente_revision' -- estacionado (3.5): no es un caso
@@ -64,17 +76,7 @@ interface FilaSql {
   diferencia_monto: string | null;
   confirmada_at: Date | null;
   confirmada_por: string | null;
-  cfdi_id: string | null;
-  uuid_fiscal: string | null;
-  serie: string | null;
-  folio: string | null;
-  nombre_emisor: string | null;
-  rfc_receptor: string | null;
-  nombre_receptor: string | null;
-  fecha_emision: string | null;
-  total: string | null;
-  cfdi_moneda: string | null;
-  metodo_pago: string | null;
+  cfdis: CfdiResumenDto[] | null;
 }
 
 /**
@@ -135,6 +137,7 @@ export class CasosService {
 }
 
 function aPropuesta(f: FilaSql): PropuestaCasoDto {
+  const cfdis = f.cfdis ?? [];
   return {
     conciliacionId: f.conciliacion_id as string,
     estado: f.estado_conciliacion as 'propuesta' | 'confirmada',
@@ -147,18 +150,8 @@ function aPropuesta(f: FilaSql): PropuestaCasoDto {
     diferenciaMonto: f.diferencia_monto,
     confirmadaAt: f.confirmada_at ? f.confirmada_at.toISOString() : null,
     confirmadaPor: f.confirmada_por ? { nombre: f.confirmada_por } : null,
-    cfdi: {
-      id: f.cfdi_id as string,
-      uuidFiscal: f.uuid_fiscal as string,
-      serie: f.serie,
-      folio: f.folio,
-      nombreEmisor: f.nombre_emisor,
-      rfcReceptor: f.rfc_receptor as string,
-      nombreReceptor: f.nombre_receptor,
-      fechaEmision: f.fecha_emision as string,
-      total: f.total as string,
-      moneda: f.cfdi_moneda as string,
-      metodoPago: f.metodo_pago,
-    },
+    // La primera factura (id ascendente) para clientes de una sola factura.
+    cfdi: cfdis[0],
+    cfdis,
   };
 }

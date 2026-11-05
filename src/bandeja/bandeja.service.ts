@@ -4,6 +4,7 @@ import {
   type ConsultaBandejaDto,
   type EstadoBandeja,
   ESTADOS_POR_DEFECTO,
+  type CfdiResumenDto,
   type FilaBandejaDto,
   LIMITE_POR_DEFECTO,
   type RespuestaBandejaDto,
@@ -14,18 +15,22 @@ import {
 /**
  * Movimiento con su mejor propuesta. Para un conciliado la lateral toma la
  * decisión 'confirmada'; para uno abierto, la 'propuesta' de mayor score
- * (empate: id menor). Rechazadas y obsoletas nunca casan. Hoy cada decisión
- * de conciliación tiene una sola línea (el CFDI); `n` cuenta las propuestas
- * antes del LIMIT 1.
+ * (empate: id menor). Rechazadas y obsoletas nunca casan. Una decisión puede
+ * tener varias líneas (grupo, 4.5): la lateral va sobre la cabecera, sin unir
+ * líneas, para que un grupo cuente como UNA propuesta y un solo caso; `n`
+ * cuenta las propuestas antes del LIMIT 1. `cfdi_id` es la primera factura
+ * (id ascendente); todas salen en `cfdis`.
  * Se comparte con el conteo para que `total` no dependa de la página.
  */
 const DESDE_FILTRO = `
   FROM movimientos m
   LEFT JOIN LATERAL (
-    SELECT d.id, l.cfdi_id, d.score, d.diferencia_monto, d.regla, d.motivo,
+    SELECT d.id, d.score, d.diferencia_monto, d.regla, d.motivo,
+           (SELECT l.cfdi_id FROM decision_lineas l
+             WHERE l.company_id = $1 AND l.decision_id = d.id
+             ORDER BY l.cfdi_id LIMIT 1) AS cfdi_id,
            count(*) OVER() AS n
       FROM decisiones d
-      JOIN decision_lineas l ON l.company_id = $1 AND l.decision_id = d.id
      WHERE d.company_id = $1
        AND d.movimiento_id = m.id
        AND d.tipo = 'conciliacion'
@@ -42,6 +47,19 @@ const DESDE_FILTRO = `
       OR (m.estado = 'abierto' AND p.id IS NULL
           AND m.regla_sin_match IS NOT NULL AND 'sin_match' = ANY($2))
     )`;
+
+/** Todas las facturas de la mejor propuesta (id ascendente); `p` es la lateral. */
+const CFDIS_DE_LA_PROPUESTA = `
+  SELECT jsonb_agg(jsonb_build_object(
+           'id', g.id, 'uuidFiscal', g.uuid_fiscal, 'serie', g.serie,
+           'folio', g.folio, 'nombreEmisor', g.nombre_emisor,
+           'rfcReceptor', g.rfc_receptor, 'nombreReceptor', g.nombre_receptor,
+           'fechaEmision', to_char(g.fecha_emision, 'YYYY-MM-DD'),
+           'total', g.total::text, 'moneda', g.moneda,
+           'metodoPago', g.metodo_pago) ORDER BY g.id) AS cfdis
+    FROM decision_lineas gl
+    JOIN cfdi g ON g.company_id = $1 AND g.id = gl.cfdi_id
+   WHERE gl.company_id = $1 AND gl.decision_id = p.id`;
 
 /** Estado derivado de una fila de DESDE_FILTRO; espeja `aFila`. */
 const ESTADO_DERIVADO = `
@@ -76,6 +94,7 @@ interface FilaSql {
   total: string | null;
   cfdi_moneda: string | null;
   metodo_pago: string | null;
+  cfdis: CfdiResumenDto[] | null;
 }
 
 /**
@@ -113,8 +132,9 @@ export class BandejaService {
               f.id AS cfdi_id, f.uuid_fiscal, f.serie, f.folio,
               f.nombre_emisor, f.rfc_receptor, f.nombre_receptor,
               to_char(f.fecha_emision, 'YYYY-MM-DD') AS fecha_emision,
-              f.total::text AS total, f.moneda AS cfdi_moneda, f.metodo_pago
-       ${DESDE_FILTRO.replace('WHERE m.company_id', `LEFT JOIN cfdi f ON f.company_id = $1 AND f.id = p.cfdi_id\n  WHERE m.company_id`)}
+              f.total::text AS total, f.moneda AS cfdi_moneda, f.metodo_pago,
+              lc.cfdis
+       ${DESDE_FILTRO.replace('WHERE m.company_id', `LEFT JOIN cfdi f ON f.company_id = $1 AND f.id = p.cfdi_id\n  LEFT JOIN LATERAL (${CFDIS_DE_LA_PROPUESTA}) lc ON true\n  WHERE m.company_id`)}
        ORDER BY m.monto DESC, m.id
        LIMIT $3 OFFSET $4`,
       [companyId, estados, limite, (pagina - 1) * limite],
@@ -197,6 +217,7 @@ function aFila(f: FilaSql): FilaBandejaDto {
             regla: f.regla,
             motivo: f.motivo,
             diferenciaMonto: f.diferencia_monto,
+            cfdis: f.cfdis ?? [],
             cfdi: {
               id: f.cfdi_id,
               uuidFiscal: f.uuid_fiscal as string,

@@ -30,7 +30,10 @@ export const cfdiResumen = z.object({
 export const mejorPropuesta = z.object({
   conciliacionId: z.guid(),
   diferenciaMonto: montoDecimal.nullable(),
+  /** Primera factura (id ascendente); en un grupo ver `cfdis`. */
   cfdi: cfdiResumen,
+  /** Todas las facturas de la propuesta (un grupo tiene varias). */
+  cfdis: z.array(cfdiResumen).optional(),
 });
 
 /** `movimientoId` como guid también hace seguro armar `/casos/${id}`. */

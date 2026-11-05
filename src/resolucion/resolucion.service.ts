@@ -141,7 +141,10 @@ export class ResolucionService {
            RETURNING d.id, d.movimiento_id,
                      (SELECT l.cfdi_id FROM decision_lineas l
                        WHERE l.decision_id = d.id AND l.company_id = $1
-                       ORDER BY l.cfdi_id LIMIT 1) AS cfdi_id
+                       ORDER BY l.cfdi_id LIMIT 1) AS cfdi_id,
+                     (SELECT array_agg(l.cfdi_id ORDER BY l.cfdi_id)
+                        FROM decision_lineas l
+                       WHERE l.decision_id = d.id AND l.company_id = $1) AS cfdi_ids
          ),
          cfdis AS (
            UPDATE cfdi SET estado = 'conciliada', updated_at = now()
@@ -170,6 +173,7 @@ export class ResolucionService {
                                               'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
                     'cfdi', jsonb_build_object('id', $7::uuid,
                                                'antes', 'abierta', 'despues', 'conciliada'),
+                    'cfdiIds', to_jsonb($5::uuid[]),
                     'movimiento', jsonb_build_object('id', $4::uuid,
                                                      'antes', 'abierto', 'despues', 'conciliado'),
                     'diferenciaMonto', o.diferencia_monto::text)
@@ -183,6 +187,7 @@ export class ResolucionService {
                     'antes', jsonb_build_object('estado', 'propuesta'),
                     'despues', jsonb_build_object('estado', 'obsoleta', 'motivo', $6::text),
                     'cfdiId', h.cfdi_id,
+                    'cfdiIds', to_jsonb(h.cfdi_ids),
                     'movimientoId', h.movimiento_id,
                     'causa', jsonb_build_object('conciliacionId', $2::uuid)),
                   $8::inet, $9
@@ -229,6 +234,7 @@ export class ResolucionService {
       id,
       estado: 'confirmada',
       cfdiId,
+      cfdiIds: decision.cfdiIds,
       movimientoId: decision.movimientoId,
       motivo: decision.motivo,
       confirmadaAt: resultado.confirmadaAt,
@@ -328,6 +334,7 @@ export class ResolucionService {
                     'despues', jsonb_build_object('estado', 'rechazada',
                                                   'motivo', r.motivo),
                     'cfdiId', $6::uuid,
+                    'cfdiIds', to_jsonb($10::uuid[]),
                     'movimientoId', $7::uuid,
                     'diferenciaMonto', r.diferencia_monto::text),
                   $8::inet, $9
@@ -346,6 +353,7 @@ export class ResolucionService {
           decision.movimientoId,
           quien.ip ?? null,
           quien.userAgent ?? null,
+          decision.cfdiIds,
         ],
       );
     } catch (error) {
@@ -375,6 +383,7 @@ export class ResolucionService {
       id,
       estado: 'rechazada',
       cfdiId,
+      cfdiIds: decision.cfdiIds,
       movimientoId: decision.movimientoId,
       motivo: motivoFinal,
       confirmadaAt: null,
