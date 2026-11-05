@@ -71,7 +71,7 @@ facturas. Falta el motor: hoy solo evalúa pares. Mapeo del 2026-11-04:
 
 ## Tareas
 
-- [ ] **T1** Motor puro: `rfcReceptor` en `CfdiAbierto`, búsqueda determinista de
+- [x] **T1** Motor puro: `rfcReceptor` en `CfdiAbierto`, búsqueda determinista de
   subconjuntos por RFC con las cotas, regla de grupo y motivos nuevos
   (`combinaciones_multiples`, candidatos excedidos), migración de CHECKs, specs
   unitarios (único, ambiguo, fuera de tolerancia, RFC distintos, cotas,
@@ -98,4 +98,26 @@ Backend: `npm test` (siempre `--runInBand`, Postgres en 5432), `npm run lint`,
 
 ## Progreso
 
-Mapeo hecho; sin código escrito. Siguiente: T1.
+T1 hecha en `7147d6c`. Ruta: delegada, un escritor (disparador: 2+ archivos no
+triviales y una migración). RED observado: `evaluar-grupo.spec.ts` no encontraba el
+módulo. Nuevo: `evaluar-grupo.ts` (puro, determinista, cotas 2-5 facturas y 20
+candidatos por RFC), `REGLA_SUMA_GRUPO` con puntuación 0.6 (nivel `media`, después
+de la regla 1 y antes de la 2), motivos `combinaciones_multiples` y
+`candidatos_excedidos`, migración `1790713000000`. Backend 88 suites / 1769 pruebas,
+lint, prettier y frontend verdes.
+
+Correcciones del padre sobre lo que devolvió el escritor: el `down` de
+`1790712000000-MonedaNoSoportada` derivaba su lista de la constante viva y dejaba en
+el CHECK los dos valores nuevos; ahora usa una lista congelada (también el `up`).
+La sugerencia R3-001 de la 4.4 (probar el `down` directamente) queda cubierta por
+`combinaciones-multiples.migracion.spec.ts`.
+
+Desvío aceptado: `CfdiAbierto.rfcReceptor` es opcional (hacerlo obligatorio tocaba
+archivos de sugerencias y demo fuera de la superficie). Un valor ausente o vacío
+nunca forma grupo. Riesgo anotado para T2: si un RFC excede los 20 candidatos, no se
+propone nada aunque otro RFC tenga un subconjunto limpio (decisión conservadora:
+no ocultar una ambigüedad); puede verse como ruido por movimiento.
+
+Revisión nativa de T1 (riesgo medio, 828 líneas, `slice_budget_reached`):
+consentimiento concedido, lente `review-reliability`, **aprobada** sin hallazgos y
+acusada. Siguiente: T2.
