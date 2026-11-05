@@ -58,7 +58,7 @@ atómica con su bitácora (AD-7), con `rowCount` verificado y `23505` → 409.
 
 - [x] **T1 Lector y guardado.** `leerCfdi` reconoce `Estatus="Cancelado"`; un CFDI
   nuevo cancelado entra como `cancelada`. Pruebas con RED.
-- [ ] **T2 Transición de cancelación.** Una sentencia atómica: CFDI → `cancelada`,
+- [x] **T2 Transición de cancelación.** Una sentencia atómica: CFDI → `cancelada`,
   propuestas vivas de ese CFDI → `obsoleta`, decisiones `confirmada` →
   `requiere_revision = true` (sin reabrir ni tocar `movimientos.estado`), bitácora
   `actualizar`/`cfdi`. Idempotente. Pruebas de integración.
@@ -94,3 +94,4 @@ Los escritores pegan la salida RED.
 
 - 2026-11-05: mapeo hecho, documento creado, KAN-142 en curso, rama creada.
 - 2026-11-05: T1 hecha (ruta delegada, escritor único). `leerCfdi` expone `cancelado` y `estadoInicial = 'cancelada'` con `Estatus="Cancelado"`; el guardado ya lo inserta tal cual. RED: 4 pruebas fallando; GREEN: 81/81 en lector y cargas. Commit: ver `git log` (T1).
+- 2026-11-05: T2 hecha. `src/cfdi/cancelar-cfdi.ts`: candado de empresa, decisiones por id, CFDI, y una sentencia CTE (cfdi, obsoletas, por_revisar, bitácora `actualizar`/`cfdi`) con `rowCount` verificado y 23505 -> 409. RED: módulo inexistente; GREEN: 10/10. No se agregó `cfdi` a `ENTIDADES_BITACORA` (la prueba ENT-1 y el espejo del frontend fijan la lista): pendiente de decisión.
