@@ -40,7 +40,7 @@ describe('FiltrosEstado: estructura', () => {
 
   it('publica el orden fijo como texto visible junto a los filtros', () => {
     montar();
-    expect(screen.getByText('Orden: monto ↓')).toBeVisible();
+    expect(screen.getByText('Orden: confianza ↓')).toBeVisible();
   });
 });
 

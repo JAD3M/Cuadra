@@ -3,8 +3,11 @@ import type { EstadoBandeja } from '@/shared/dominio/bandeja';
 import { ETIQUETAS_ESTADO_BANDEJA } from '@/shared/dominio';
 import {
   ETIQUETA_REQUIERE_REVISION,
+  ETIQUETAS_MOTIVO_REVISION,
   GLIFO_REQUIERE_REVISION,
+  ROTULO_MOTIVO_REVISION,
 } from '@/shared/dominio/etiquetas';
+import type { MotivoRevision } from '@/shared/dominio/tipos';
 import { Td } from '@/shared/ui/Tabla';
 import { EstadoChip } from '@/shared/ui/EstadoChip';
 import { Monto } from '@/shared/ui/Monto';
@@ -35,6 +38,8 @@ export interface FilaTabla {
   estado: EstadoBandeja;
   /** Confirmada con la factura cancelada: el chip pide revisión. */
   requiereRevision?: boolean;
+  /** Por qué pide revisión; solo si el servidor lo afirma. */
+  motivoRevision?: MotivoRevision | null;
   regla: string | null;
   motivo: string | null;
   mejorPropuesta: {
@@ -101,6 +106,12 @@ export function FilaBandeja({ fila }: FilaBandejaProps) {
             <InsigniaIa simulada={insignia === 'ia_simulada'} />
           )}
         </div>
+        {fila.requiereRevision === true && fila.motivoRevision ? (
+          <div className={estilos.motivoRevision}>
+            {ROTULO_MOTIVO_REVISION}{' '}
+            {ETIQUETAS_MOTIVO_REVISION[fila.motivoRevision]}
+          </div>
+        ) : null}
       </Td>
       <Td className={estilos.cfdi}>{etiquetaCfdi(propuesta?.cfdi ?? null)}</Td>
       <Td numerica className={estilos.diferencia}>

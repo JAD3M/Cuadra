@@ -102,6 +102,14 @@ export const REGLAS_SIN_MATCH = [
 export type ReglaSinMatch = (typeof REGLAS_SIN_MATCH)[number];
 
 /**
+ * Por qué una decisión confirmada quedó por revisar (5.1). Códigos estables:
+ * se muestran tal cual y nunca se renombran. Hoy solo hay una causa; la
+ * bandeja lo deduce de la factura, no de una columna.
+ */
+export const MOTIVOS_REVISION = ['cfdi_cancelado'] as const;
+export type MotivoRevision = (typeof MOTIVOS_REVISION)[number];
+
+/**
  * Nivel de confianza de una propuesta del motor de reglas (CU-11, AC6).
  * Se deriva de la puntuación de su regla con `nivelDeConfianza`; nunca se
  * guarda ni se inventa fuera de ahí.

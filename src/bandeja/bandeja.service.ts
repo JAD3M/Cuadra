@@ -1,6 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { ContextoEmpresa } from '../database/contexto-empresa';
-import type { EstadoCfdi } from '../common/entities/tipos';
+import {
+  REGLA_MONTO_UNICO,
+  REGLA_REFERENCIA_MONTO_DIFERENTE,
+  REGLA_REFERENCIA_MONTO_EXACTO,
+  REGLA_SUMA_GRUPO,
+} from '../conciliacion/evaluar-par';
+import {
+  REGLA_LLM_SUGERENCIA,
+  type EstadoCfdi,
+  type MotivoRevision,
+} from '../common/entities/tipos';
 import {
   type ConsultaBandejaDto,
   type EstadoBandeja,
@@ -53,6 +63,32 @@ const DESDE_FILTRO = `
       OR (m.estado = 'abierto' AND p.id IS NULL
           AND m.regla_sin_match IS NOT NULL AND 'sin_match' = ANY($2))
     )`;
+
+/**
+ * Reglas de la más a la menos segura (5.1, UX-DR6): regla 1, el depósito que
+ * cubre varias facturas, regla 2, regla 3 y la sugerencia de la IA. La posición
+ * en esta lista es el rango; una regla que no figure (futura) cae justo después
+ * de la IA, sin colarse delante de ninguna conocida.
+ */
+const REGLAS_POR_CONFIANZA = [
+  REGLA_REFERENCIA_MONTO_EXACTO,
+  REGLA_SUMA_GRUPO,
+  REGLA_REFERENCIA_MONTO_DIFERENTE,
+  REGLA_MONTO_UNICO,
+  REGLA_LLM_SUGERENCIA,
+];
+
+/**
+ * Rango de orden de una fila de DESDE_FILTRO; `$5` es REGLAS_POR_CONFIANZA.
+ * Primero las propuestas por regla (una conciliada con `requiere_revision`
+ * entra con la suya), luego los sin match y al final las conciliadas normales.
+ */
+const RANGO_DE_CONFIANZA = `
+  CASE WHEN m.estado = 'conciliado' AND NOT COALESCE(p.requiere_revision, false)
+            THEN ${REGLAS_POR_CONFIANZA.length + 3}
+       WHEN p.id IS NULL THEN ${REGLAS_POR_CONFIANZA.length + 2}
+       ELSE COALESCE(array_position($5::text[], p.regla),
+                     ${REGLAS_POR_CONFIANZA.length + 1}) END`;
 
 /** Todas las facturas de la mejor propuesta (id ascendente); `p` es la lateral. */
 const CFDIS_DE_LA_PROPUESTA = `
@@ -144,9 +180,9 @@ export class BandejaService {
               f.estado AS cfdi_estado,
               lc.cfdis
        ${DESDE_FILTRO.replace('WHERE m.company_id', `LEFT JOIN cfdi f ON f.company_id = $1 AND f.id = p.cfdi_id\n  LEFT JOIN LATERAL (${CFDIS_DE_LA_PROPUESTA}) lc ON true\n  WHERE m.company_id`)}
-       ORDER BY m.monto DESC, m.id
+       ORDER BY ${RANGO_DE_CONFIANZA}, m.monto DESC, m.id
        LIMIT $3 OFFSET $4`,
-      [companyId, estados, limite, (pagina - 1) * limite],
+      [companyId, estados, limite, (pagina - 1) * limite, REGLAS_POR_CONFIANZA],
     );
 
     return { datos: filas.map(aFila), pagina, limite, total };
@@ -198,6 +234,17 @@ export class BandejaService {
   }
 }
 
+/**
+ * Solo una factura cancelada explica la revisión, y solo si la decisión quedó
+ * marcada. Sin eso no se afirma nada: un motivo falso es peor que ninguno.
+ */
+function motivoDeRevision(f: FilaSql): MotivoRevision | null {
+  if (f.requiere_revision !== true) return null;
+  return (f.cfdis ?? []).some((c) => c.estado === 'cancelada')
+    ? 'cfdi_cancelado'
+    : null;
+}
+
 function aFila(f: FilaSql): FilaBandejaDto {
   const conciliado = f.estado_movimiento === 'conciliado';
   const estado: EstadoBandeja = conciliado
@@ -218,6 +265,7 @@ function aFila(f: FilaSql): FilaBandejaDto {
     motivo: sinMatch ? f.motivo_sin_match : f.motivo,
     regla: sinMatch ? f.regla_sin_match : f.regla,
     requiereRevision: f.requiere_revision === true,
+    motivoRevision: motivoDeRevision(f),
     mejorPropuesta:
       f.conciliacion_id === null || f.cfdi_id === null
         ? null

@@ -47,7 +47,7 @@ describe('TablaBandeja: estructura', () => {
     const region = screen.getByRole('region');
     expect(region).toHaveAccessibleName(/Movimientos por revisar/);
     expect(container.querySelector('caption')).toHaveTextContent(
-      'Orden: monto ↓',
+      'Orden: confianza ↓',
     );
     const encabezado = screen.getAllByRole('columnheader');
     for (const e of encabezado) {
@@ -191,6 +191,31 @@ describe('TablaBandeja: requiere revisión (4.6)', () => {
     montar([filaBandeja({ estado: 'conciliado', requiereRevision: false })]);
     expect(screen.getByText('Conciliado')).toBeInTheDocument();
     expect(screen.queryByText('Requiere revisión')).toBeNull();
+  });
+
+  it('muestra el motivo de la revisión bajo la regla cuando la factura se canceló (5.1)', () => {
+    montar([
+      filaBandeja({
+        estado: 'conciliado',
+        requiereRevision: true,
+        motivoRevision: 'cfdi_cancelado',
+      }),
+    ]);
+    expect(screen.getByText('Motivo: la factura se canceló')).toBeVisible();
+  });
+
+  it('sin motivoRevision no inventa uno, aunque la fila pida revisión (5.1)', () => {
+    montar([
+      filaBandeja({
+        estado: 'conciliado',
+        requiereRevision: true,
+        motivoRevision: null,
+      }),
+    ]);
+    expect(
+      screen.getByText('Requiere revisión', { exact: false }),
+    ).toBeVisible();
+    expect(screen.queryByText(/Motivo:/)).toBeNull();
   });
 
   it('conserva regla y motivo de la fila', () => {

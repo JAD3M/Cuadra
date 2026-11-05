@@ -744,6 +744,17 @@ huecos con pruebas:
 - El proveedor real (Anthropic) no se usa ni se paga: sin `ANTHROPIC_API_KEY` el
   módulo queda desactivado. La prueba real con el proveedor llega en la épica 7.
 
+**Bandeja por confianza (v2, historia 5.1), terminada el 5 nov 2026.** Primera historia
+de la épica 5. La bandeja ordena por la confianza de la regla y señala con su motivo las
+decisiones que requieren revisión (FR-17, AD-4):
+
+- Orden: regla 1, depósito con varias facturas, regla 2, regla 3, IA, sin match y las
+  conciliadas normales al final; dentro de cada rango, monto de mayor a menor.
+- `motivoRevision` en cada fila: `cfdi_cancelado` solo si la decisión está marcada y su
+  factura está cancelada; sin migración. Otra causa de revisión exigiría una columna.
+- **Pendiente (5.1):** los candidatos de un `sin_match` no se muestran porque el motor no
+  los guarda; mostrarlos pide persistirlos.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

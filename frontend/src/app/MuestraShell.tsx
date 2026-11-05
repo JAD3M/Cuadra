@@ -61,7 +61,7 @@ export function MuestraShell() {
       >
         <Header
           titulo="Bandeja de revisión"
-          subtitulo="Movimientos abiertos, del monto más alto al más bajo"
+          subtitulo="Movimientos abiertos, de la propuesta más segura a la más dudosa"
           empresa={SESION_DE_EJEMPLO.empresa}
           onCambiarEmpresa={() => {}}
         />

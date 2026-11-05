@@ -83,7 +83,9 @@ describe('tabla de rutas', () => {
       screen.getByRole('heading', { level: 1, name: 'Bandeja de revisión' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Movimientos abiertos, del monto más alto al más bajo'),
+      screen.getByText(
+        'Movimientos abiertos, de la propuesta más segura a la más dudosa',
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Pantalla en construcción/)).toBeNull();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);

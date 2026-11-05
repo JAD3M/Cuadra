@@ -10,7 +10,12 @@ import {
   Min,
 } from 'class-validator';
 
-import { ESTADOS_CFDI, type EstadoCfdi } from '../../common/entities/tipos';
+import {
+  ESTADOS_CFDI,
+  MOTIVOS_REVISION,
+  type EstadoCfdi,
+  type MotivoRevision,
+} from '../../common/entities/tipos';
 
 export const ESTADOS_BANDEJA = [
   'conciliado',
@@ -124,6 +129,13 @@ export class FilaBandejaDto {
       'true si la decisión confirmada quedó por revisar porque una de sus facturas se canceló. Sigue conciliada; Cuadra nunca la reabre sola.',
   })
   requiereRevision: boolean;
+  @ApiProperty({
+    nullable: true,
+    enum: MOTIVOS_REVISION,
+    description:
+      'Por qué quedó por revisar. Solo viene si hay requiereRevision y una de sus facturas está cancelada; si no, null.',
+  })
+  motivoRevision: MotivoRevision | null;
   @ApiProperty({ nullable: true, type: MejorPropuestaDto })
   mejorPropuesta: MejorPropuestaDto | null;
 }

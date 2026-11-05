@@ -8,9 +8,10 @@ import type { TipoMensaje } from '@/shared/api/mensajes';
  */
 
 export const TITULO = 'Bandeja de revisión';
-export const SUBTITULO = 'Movimientos abiertos, del monto más alto al más bajo';
+export const SUBTITULO =
+  'Movimientos abiertos, de la propuesta más segura a la más dudosa';
 export const TITULO_DOCUMENTO = 'Bandeja de revisión · Cuadra';
-export const ORDEN = 'Orden: monto ↓';
+export const ORDEN = 'Orden: confianza ↓';
 export const NOMBRE_TABLA = 'Movimientos por revisar';
 
 /** Texto de los filtros de estado. */

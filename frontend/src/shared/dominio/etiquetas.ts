@@ -3,6 +3,7 @@ import {
   type AccionBitacora,
   type EstadoCarga,
   type TipoCarga,
+  type MotivoRevision,
   type OrigenConciliacion,
   ROLES,
   type Rol,
@@ -50,6 +51,15 @@ export const ETIQUETAS_ESTADO_BANDEJA: Record<EstadoBandeja, string> = {
  * tono ámbar de `sin_match` y el texto lleva el significado.
  */
 export const ETIQUETA_REQUIERE_REVISION = 'Requiere revisión';
+
+/**
+ * Por qué la decisión pide revisión (5.1). El servidor manda el código y solo
+ * si la factura está cancelada; el texto vive aquí.
+ */
+export const ROTULO_MOTIVO_REVISION = 'Motivo:';
+export const ETIQUETAS_MOTIVO_REVISION: Record<MotivoRevision, string> = {
+  cfdi_cancelado: 'la factura se canceló',
+};
 export const GLIFO_REQUIERE_REVISION = '⚠';
 
 /**

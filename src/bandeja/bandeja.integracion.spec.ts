@@ -413,6 +413,81 @@ describe('BJ-3 paginación', () => {
   });
 });
 
+describe('BJ-2d carga en pendiente_vista_previa (5.1)', () => {
+  it('lo que espera la vista previa no aparece como pendiente, ni en la lista ni en el resumen', async () => {
+    const { id: carga } = await una<{ id: string }>(
+      ds,
+      `INSERT INTO cargas (company_id, tipo, nombre_archivo, hash_archivo,
+                           estado, total_registros)
+       VALUES ($1, 'estado_cuenta', 'espera.pdf', $2, 'pendiente_vista_previa', 1)
+       RETURNING id`,
+      [A, 'c'.repeat(64)],
+    );
+    await ds.query(
+      `INSERT INTO movimientos_pendientes
+         (company_id, carga_id, linea_numero, fecha, descripcion, monto)
+       VALUES ($1, $2, 1, '2026-10-01', 'DEPOSITO EN ESPERA', 777.00)`,
+      [A, carga],
+    );
+    const visible = await sinMatch(A, '50.00');
+
+    const r = await listar(
+      '?estado=sugerencia&estado=sin_match&estado=conciliado',
+    );
+
+    expect(ids(r)).toEqual([visible]);
+    expect(r.total).toBe(1);
+    expect((await resumen()).conteos).toEqual({
+      conciliado: 0,
+      sugerencia: 0,
+      sin_match: 1,
+    });
+  });
+});
+
+describe('BJ-2c motivo de la revisión (5.1)', () => {
+  const cancelarFacturas = (movimientoId: string) =>
+    ds.query(
+      `UPDATE cfdi SET estado = 'cancelada'
+        WHERE company_id = $1
+          AND id IN (SELECT l.cfdi_id FROM decision_lineas l
+                      JOIN decisiones d ON d.id = l.decision_id
+                     WHERE d.company_id = $1 AND d.movimiento_id = $2)`,
+      [A, movimientoId],
+    );
+
+  it('una confirmada marcada cuya factura se canceló trae el motivo cfdi_cancelado', async () => {
+    const m = await cerrado(A, '100.00');
+    await marcarRevision(m);
+    await cancelarFacturas(m);
+    const [fila] = (await listar()).datos;
+    expect(fila).toMatchObject({
+      requiereRevision: true,
+      motivoRevision: 'cfdi_cancelado',
+    });
+  });
+
+  it('marcada pero con la factura vigente no trae motivo: no se inventa uno', async () => {
+    const m = await cerrado(A, '100.00');
+    await marcarRevision(m);
+    const [fila] = (await listar()).datos;
+    expect(fila.requiereRevision).toBe(true);
+    expect(fila.motivoRevision).toBeNull();
+  });
+
+  it('sin marca no hay motivo, aunque la factura esté cancelada, y las demás filas lo traen nulo', async () => {
+    const m = await cerrado(A, '100.00');
+    await cancelarFacturas(m);
+    const s = await sugerido(A, '300.00');
+    await sinMatch(A, '50.00');
+    const r = await listar(
+      '?estado=sugerencia&estado=sin_match&estado=conciliado',
+    );
+    expect(ids(r)).toContain(s);
+    expect(r.datos.map((f) => f.motivoRevision)).toEqual([null, null, null]);
+  });
+});
+
 describe('BJ-4 orden', () => {
   it('S15: monto descendente numérico, no de texto', async () => {
     await sinMatch(A, '100.00');
@@ -433,6 +508,92 @@ describe('BJ-4 orden', () => {
     const p1 = await listar('?limite=2&pagina=1');
     const p2 = await listar('?limite=2&pagina=2');
     expect([...ids(p1), ...ids(p2)]).toEqual(esperado);
+  });
+});
+
+describe('BJ-4b orden por confianza (5.1)', () => {
+  /** Movimiento abierto con una propuesta de la regla dada. */
+  async function conRegla(
+    regla: string,
+    monto: string,
+    o: { origen?: 'regla' | 'llm'; score?: string | null } = {},
+  ): Promise<string> {
+    const m = await movimiento(A, { monto });
+    await sembrarDecision(ds, {
+      companyId: A,
+      movimientoId: m,
+      cfdiId: await factura(A, monto),
+      estado: 'propuesta',
+      origen: o.origen ?? 'regla',
+      regla,
+      score: o.score === undefined ? '0.9000' : o.score,
+      diferenciaMonto: '0.0000',
+      motivo: `Motivo de ${regla}`,
+    });
+    return m;
+  }
+
+  it('regla 1, depósito con varias facturas, regla 2, regla 3, IA y sin match; el monto solo desempata', async () => {
+    // Los montos van a propósito al revés del orden esperado.
+    const sinProp = await sinMatch(A, '9999.00');
+    const ia = await conRegla('llm_sugerencia', '950.00', {
+      origen: 'llm',
+      score: null,
+    });
+    const regla3 = await conRegla('monto_unico', '900.00', { score: '0.4000' });
+    const regla2 = await conRegla('referencia_monto_diferente', '800.00', {
+      score: '0.5000',
+    });
+    const grupo = await movimiento(A, { monto: '700.00' });
+    await sembrarDecision(ds, {
+      companyId: A,
+      movimientoId: grupo,
+      cfdiIds: [await factura(A, '300.00'), await factura(A, '400.00')],
+      estado: 'propuesta',
+      origen: 'regla',
+      regla: 'suma_grupo',
+      score: '0.7000',
+      diferenciaMonto: '0.0000',
+      motivo: 'Motivo de suma_grupo',
+    });
+    const regla1Chica = await conRegla('referencia_monto_exacto', '100.00', {
+      score: '1.0000',
+    });
+    const regla1Grande = await conRegla('referencia_monto_exacto', '500.00', {
+      score: '1.0000',
+    });
+
+    const r = await listar();
+
+    expect(ids(r)).toEqual([
+      regla1Grande,
+      regla1Chica,
+      grupo,
+      regla2,
+      regla3,
+      ia,
+      sinProp,
+    ]);
+  });
+
+  it('una confirmada que requiere revisión se ordena por su regla, y una conciliada normal va al final', async () => {
+    const sinProp = await sinMatch(A, '9999.00');
+    const regla2 = await conRegla('referencia_monto_diferente', '800.00', {
+      score: '0.5000',
+    });
+    const normal = await cerrado(A, '5000.00');
+    const marcada = await cerrado(A, '50.00');
+    await ds.query(
+      `UPDATE decisiones SET regla = 'referencia_monto_exacto', requiere_revision = true
+        WHERE company_id = $1 AND movimiento_id = $2`,
+      [A, marcada],
+    );
+
+    const r = await listar(
+      '?estado=sugerencia&estado=sin_match&estado=conciliado',
+    );
+
+    expect(ids(r)).toEqual([marcada, regla2, sinProp, normal]);
   });
 });
 

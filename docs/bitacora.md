@@ -5,6 +5,23 @@
 
 ### 5 nov 2026
 
+- **Historia 5.1 de la v2: ver la bandeja ordenada por confianza (primera de la épica 5).**
+  Rama `feat/v2-5-1-bandeja-por-confianza`, documento `odd/tasks/v2-5-1-bandeja-por-confianza.md`
+  (KAN-144). Se actualizó el mockup de la bandeja (oscuro y claro) y se acordó antes de
+  escribir código.
+  - **Orden:** `listar` ordena por rango de regla y después por monto: regla 1
+    (`referencia_monto_exacto`), depósito con varias facturas (`suma_grupo`), regla 2
+    (`referencia_monto_diferente`), regla 3 (`monto_unico`), IA, sin match y, al final, las
+    conciliadas normales. Una conciliada con `requiere_revision` entra con su regla. La
+    historia no ubicaba la IA ni el sin match: se acordó en el mockup.
+  - **Motivo de la revisión:** la API suma `motivoRevision` (`cfdi_cancelado` o `null`).
+    Decisión del usuario: sin migración, derivado de la factura, y solo si la decisión
+    está marcada Y una de sus facturas está `cancelada`; si no, no se inventa un motivo.
+    El texto «Motivo: la factura se canceló» vive en el frontend.
+  - **Pruebas:** orden por confianza, motivo con y sin salvaguarda, y que una carga en
+    `pendiente_vista_previa` no aparece en la bandeja.
+  - **Pendiente:** los candidatos de un `sin_match` no se muestran; el motor no los guarda.
+
 - **Historia 4.7 de la v2: sugerencias de la IA en los casos ambiguos.** Rama
   `feat/v2-4-7-sugerencias-ia` (KAN-143). El módulo `sugerencias` ya cumplía casi todo
   desde CU-17; se verificó criterio por criterio.
