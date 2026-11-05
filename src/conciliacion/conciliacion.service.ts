@@ -2,6 +2,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { TransaccionEmpresa } from '../database/transaccion-empresa';
 import { tomarCandadoDeConciliacion } from './candado';
 import {
+  proponerGrupos,
+  type PropuestaGrupoDeMovimiento,
+} from './evaluar-grupo';
+import {
   type CfdiAbierto,
   evaluarConMotivos,
   type MovimientoAbierto,
@@ -85,13 +89,33 @@ export class ConciliacionService {
           [companyId],
         );
 
-        const { propuestas: nuevas, sinMatch: sinPropuesta } =
-          evaluarConMotivos(
-            movimientos,
-            cfdis,
-            await this.tolerancia.obtener(companyId),
-            existentes,
-          );
+        const tolerancia = await this.tolerancia.obtener(companyId);
+        const { propuestas: nuevas, sinMatch: sinPorFactura } =
+          evaluarConMotivos(movimientos, cfdis, tolerancia, existentes);
+
+        // Historia 4.5: la búsqueda de grupos solo corre donde las reglas de
+        // una factura no encontraron nada (ni referencia ni monto).
+        const sinCandidato = new Set(
+          sinPorFactura
+            .filter((s) => s.regla === 'sin_candidato_monto')
+            .map((s) => s.movimientoId),
+        );
+        const grupos = proponerGrupos(
+          movimientos.filter((m) => sinCandidato.has(m.id)),
+          cfdis,
+          tolerancia,
+          existentes,
+          await this.huellasRechazadas(manager, companyId),
+          new Set(nuevas.map((p) => p.cfdiId)),
+        );
+        const sustituidos = new Set([
+          ...grupos.propuestas.map((p) => p.movimientoId),
+          ...grupos.sinMatch.map((s) => s.movimientoId),
+        ]);
+        const sinPropuesta = [
+          ...sinPorFactura.filter((s) => !sustituidos.has(s.movimientoId)),
+          ...grupos.sinMatch,
+        ];
 
         let insertadas = 0;
         for (let i = 0; i < nuevas.length; i += TAMANO_LOTE) {
@@ -99,6 +123,13 @@ export class ConciliacionService {
             manager,
             companyId,
             nuevas.slice(i, i + TAMANO_LOTE),
+          );
+        }
+        for (let i = 0; i < grupos.propuestas.length; i += TAMANO_LOTE) {
+          insertadas += await this.insertarGrupos(
+            manager,
+            companyId,
+            grupos.propuestas.slice(i, i + TAMANO_LOTE),
           );
         }
 
@@ -119,6 +150,29 @@ export class ConciliacionService {
       `Empresa ${companyId}: ${propuestas} propuesta(s) nuevas, ${sinMatch} motivo(s) sin coincidencia escritos`,
     );
     return { propuestas };
+  }
+
+  /** Huellas de los conjuntos ya rechazados, por movimiento (4.5). */
+  private async huellasRechazadas(
+    manager: Manager,
+    companyId: string,
+  ): Promise<Map<string, Set<string>>> {
+    const filas = await manager.query<
+      { movimientoId: string; huella: string }[]
+    >(
+      `SELECT movimiento_id AS "movimientoId", huella_conjunto AS huella
+         FROM decisiones
+        WHERE company_id = $1 AND estado = 'rechazada'
+          AND huella_conjunto IS NOT NULL`,
+      [companyId],
+    );
+    const porMovimiento = new Map<string, Set<string>>();
+    for (const f of filas) {
+      const set = porMovimiento.get(f.movimientoId) ?? new Set<string>();
+      set.add(f.huella);
+      porMovimiento.set(f.movimientoId, set);
+    }
+    return porMovimiento;
   }
 
   /**
@@ -231,6 +285,73 @@ export class ConciliacionService {
                 'score', c.score::text,
                 'diferenciaMonto', c.diferencia_monto::text,
                 'cfdiId', f.cfdi_id,
+                'movimientoId', c.movimiento_id)
+         FROM cabeceras c
+         JOIN fuente f ON f.id = c.id
+       RETURNING id`,
+      [companyId, JSON.stringify(filas)],
+    );
+    return auditadas.length;
+  }
+
+  /**
+   * Propuestas de grupo (4.5): una decisión con una línea por factura y su fila
+   * `crear` en la bitácora, en UNA sentencia. Misma disciplina que `insertar`;
+   * la huella cubre todas las facturas y el índice único por huella abierta
+   * (ON CONFLICT DO NOTHING) es el respaldo ante una corrida repetida.
+   */
+  private async insertarGrupos(
+    manager: Manager,
+    companyId: string,
+    lote: PropuestaGrupoDeMovimiento[],
+  ): Promise<number> {
+    const filas = lote.map((p) => ({
+      movimiento_id: p.movimientoId,
+      cfdi_ids: p.cfdiIds,
+      regla: p.regla,
+      score: p.score.toFixed(4),
+      diferencia_monto: p.diferenciaMonto,
+      motivo: p.motivo,
+    }));
+    const auditadas = await manager.query<{ id: string }[]>(
+      `WITH fuente AS (
+         SELECT uuidv7() AS id, x.movimiento_id, x.cfdi_ids, x.regla,
+                x.score, x.diferencia_monto, x.motivo
+           FROM jsonb_to_recordset($2::jsonb)
+             AS x(movimiento_id uuid, cfdi_ids jsonb, regla text, score numeric,
+                  diferencia_monto numeric, motivo text)
+       ),
+       cabeceras AS (
+         INSERT INTO decisiones
+                (id, company_id, movimiento_id, tipo, estado, origen, regla,
+                 score, diferencia_monto, motivo, requiere_revision,
+                 huella_conjunto)
+         SELECT f.id, $1, f.movimiento_id, 'conciliacion', 'propuesta', 'regla',
+                f.regla, f.score, f.diferencia_monto, f.motivo, false,
+                huella_conjunto(ARRAY(
+                  SELECT e::uuid FROM jsonb_array_elements_text(f.cfdi_ids) e))
+           FROM fuente f
+         ON CONFLICT DO NOTHING
+         RETURNING id, movimiento_id, regla, score, diferencia_monto
+       ),
+       lineas AS (
+         INSERT INTO decision_lineas
+                (company_id, decision_id, estado_decision, cfdi_id)
+         SELECT $1, f.id, 'propuesta', e::uuid
+           FROM fuente f
+           JOIN cabeceras c ON c.id = f.id
+          CROSS JOIN LATERAL jsonb_array_elements_text(f.cfdi_ids) e
+         RETURNING decision_id
+       )
+       INSERT INTO bitacora (company_id, user_id, entidad, entidad_id, accion, datos)
+       SELECT $1, NULL, 'decisiones', c.id, 'crear',
+              jsonb_build_object(
+                'despues', jsonb_build_object('estado', 'propuesta'),
+                'origen', 'regla',
+                'regla', c.regla,
+                'score', c.score::text,
+                'diferenciaMonto', c.diferencia_monto::text,
+                'cfdiIds', f.cfdi_ids,
                 'movimientoId', c.movimiento_id)
          FROM cabeceras c
          JOIN fuente f ON f.id = c.id

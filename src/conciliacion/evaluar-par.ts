@@ -270,7 +270,7 @@ export interface EvaluacionConMotivos {
  * proponer, y lo que tiene conciliación vigente sigue contando como candidato
  * pero ya no recibe otra.
  */
-function predicadosDelMotor(
+export function predicadosDelMotor(
   tolerancia: Dinero,
   existentes: readonly ParExistente[],
 ) {

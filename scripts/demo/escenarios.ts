@@ -560,6 +560,31 @@ function choca(monto: string, usados: readonly string[]): boolean {
   return usados.some((u) => dinero(monto).minus(dinero(u)).abs().lt(MARGEN));
 }
 
+/**
+ * Historia 4.5: un monto "sin coincidencia" tampoco debe sumar 2 a 5 facturas
+ * (el motor ahora propone grupos). Sumas en centavos enteros, solo como guarda
+ * de los datos de la demo.
+ */
+function sumasDeGrupo(totales: readonly string[]): bigint[] {
+  const centavos = totales.map((t) => BigInt(t.replace('.', '')));
+  const porTamano: Set<bigint>[] = [
+    new Set([0n]),
+    ...[1, 2, 3, 4, 5].map(() => new Set<bigint>()),
+  ];
+  for (const c of centavos) {
+    for (let k = 5; k >= 1; k--) {
+      for (const previo of [...porTamano[k - 1]]) porTamano[k].add(previo + c);
+    }
+  }
+  return [...porTamano.slice(2).flatMap((x) => [...x])];
+}
+
+function chocaConGrupo(monto: string, sumas: readonly bigint[]): boolean {
+  const m = BigInt(monto.replace('.', ''));
+  const margen = BigInt(MARGEN.toFixed(2).replace('.', ''));
+  return sumas.some((x) => (m > x ? m - x : x - m) < margen);
+}
+
 /** Importes en múltiplos de 0.25: el IVA al 16% sale exacto al centavo. */
 function cuartos(q: number): string {
   return aTexto(dinero(String(q)).div(4), 2);
@@ -663,12 +688,17 @@ function escenariosMasivos(
     'TRANSFERENCIA RECIBIDA TERCERO',
     'DEPOSITO EN EFECTIVO SUC CENTRO',
   ];
+  const sumas = sumasDeGrupo(
+    [...explicitos, s1, s2].flatMap((e) =>
+      e.cfdis.map((c) => totalDe(c.conceptos.map((x) => x.importe))),
+    ),
+  );
   for (let i = 0; i < 9; i++) {
     const archivo = i < 6 ? 1 : 2;
     let monto: string;
     do {
       monto = aTexto(dinero(String(prng.entero(250000, 4500000))).div(100), 2);
-    } while (choca(monto, usados));
+    } while (choca(monto, usados) || chocaConGrupo(monto, sumas));
     usados.push(monto);
     const fecha =
       archivo === 1

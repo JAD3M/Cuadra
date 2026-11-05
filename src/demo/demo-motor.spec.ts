@@ -5,6 +5,7 @@ import {
   type MovimientoAbierto,
   type ParExistente,
 } from '../conciliacion/evaluar-par';
+import { proponerGrupos } from '../conciliacion/evaluar-grupo';
 import { normalizarReferencia } from '../conciliacion/referencia-normalizer';
 import { leerCfdi } from '../cfdi/lector-cfdi';
 import { REGLA_LLM_SUGERENCIA } from '../common/entities/tipos';
@@ -63,6 +64,7 @@ function cfdisDe(
       fechaEmision: c.fechaEmision.slice(0, 10),
       total: c.total,
       moneda: c.moneda,
+      rfcReceptor: c.rfcReceptor,
       metodoPago: c.metodoPago,
     }));
 }
@@ -149,6 +151,30 @@ class Simulacion {
       dinero(tolerancia),
       this.existentes(),
     );
+    // Historia 4.5, igual que ConciliacionService: la búsqueda de grupos solo
+    // corre donde las reglas de una factura no encontraron nada, y reutiliza
+    // la función pura real.
+    const sinCandidato = new Set(
+      r.sinMatch
+        .filter((s) => s.regla === 'sin_candidato_monto')
+        .map((s) => s.movimientoId),
+    );
+    const grupos = proponerGrupos(
+      movs.filter((m) => sinCandidato.has(m.id)),
+      cfdis,
+      dinero(tolerancia),
+      this.existentes(),
+      new Map(),
+      new Set(r.propuestas.map((p) => p.cfdiId)),
+    );
+    const sustituidos = new Set([
+      ...grupos.propuestas.map((p) => p.movimientoId),
+      ...grupos.sinMatch.map((s) => s.movimientoId),
+    ]);
+    r.sinMatch = [
+      ...r.sinMatch.filter((s) => !sustituidos.has(s.movimientoId)),
+      ...grupos.sinMatch,
+    ];
     for (const p of r.propuestas) {
       this.pares.push({
         cfdiId: p.cfdiId,
@@ -157,6 +183,17 @@ class Simulacion {
         rechazada: false,
         confirmada: false,
       });
+    }
+    for (const g of grupos.propuestas) {
+      for (const cfdiId of g.cfdiIds) {
+        this.pares.push({
+          cfdiId,
+          movimientoId: g.movimientoId,
+          regla: g.regla,
+          rechazada: false,
+          confirmada: false,
+        });
+      }
     }
     this.sinMatch = new Map(r.sinMatch.map((s) => [s.movimientoId, s.regla]));
 

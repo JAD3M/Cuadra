@@ -76,7 +76,7 @@ facturas. Falta el motor: hoy solo evalúa pares. Mapeo del 2026-11-04:
   (`combinaciones_multiples`, candidatos excedidos), migración de CHECKs, specs
   unitarios (único, ambiguo, fuera de tolerancia, RFC distintos, cotas,
   determinismo, precedencia).
-- [ ] **T2** Servicio: cargar `rfc_receptor`, filtrar rechazados por `huella_conjunto`,
+- [x] **T2** Servicio: cargar `rfc_receptor`, filtrar rechazados por `huella_conjunto`,
   persistir propuestas de n líneas con la diferencia del grupo, `requiere_revision`
   y `lote_id` fijos, integración con base real (incl. factura confirmada que no
   entra y rechazo por huella).
@@ -120,4 +120,33 @@ no ocultar una ambigüedad); puede verse como ruido por movimiento.
 
 Revisión nativa de T1 (riesgo medio, 828 líneas, `slice_budget_reached`):
 consentimiento concedido, lente `review-reliability`, **aprobada** sin hallazgos y
-acusada. Siguiente: T2.
+acusada.
+
+La revisión de toda la rama (lente `review-reliability`) dejó un WARNING válido:
+la migración `1790713000000` derivaba sus listas de la constante viva, igual que
+`1790712000000`. El padre congeló las listas en las dos (`c01a1cb`); el escritor
+había afirmado que ya estaban congeladas y no era cierto.
+
+T2 hecha en `6e708ae`. Ruta: delegada, un escritor (disparador: 2+ archivos no
+triviales, SQL y demo). RED observado: 6 pruebas de integración fallidas antes de
+implementar. `proponerGrupos` (puro) + `insertarGrupos` (una sentencia CTE con la
+decisión, una línea por factura y la bitácora). El grupo solo se busca cuando el
+resultado de una factura fue `sin_candidato_monto`; los conjuntos rechazados no se
+re-proponen pero siguen contando para la ambigüedad; dos depósitos que compiten por
+una factura no proponen ninguno (el orden de entrada nunca decide).
+Efecto en el demo: un movimiento de Ferretería S7 (6496.04) sumaba tres facturas
+del mismo receptor; el generador de montos del demo ahora evita montos cercanos a
+sumas de 2 a 5 facturas, el espejo del motor reutiliza `proponerGrupos`, y se
+regeneraron los dos CSV de `demo/` (exigido por `demo-drift.spec.ts`). Backend 88
+suites / 1786 pruebas, lint y prettier verdes (verificado por el padre).
+Revisión nativa de T2 (riesgo medio, 667 líneas): aprobada sin hallazgos y acusada.
+
+Para T3: la propuesta de grupo es una fila de `decisiones` con
+`regla = 'suma_grupo'` y varias `decision_lineas`; la bitácora `crear` de un grupo
+guarda `datos.cfdiIds` (arreglo, sin `cfdiId`), así que los lectores deben tolerar
+ambas formas; las facturas de la ambigüedad (`combinaciones_multiples`) solo existen
+como etiquetas en `motivo_sin_match`, no como ids. Riesgos anotados: rendimiento de
+la búsqueda (~21 mil subconjuntos por RFC y por movimiento, sin poda); un grupo
+omitido por rechazo o competencia deja `sin_candidato_monto` (mensaje algo engañoso).
+
+Siguiente: T3.
