@@ -1,8 +1,24 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  ArrayUnique,
+  IsArray,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
+import {
+  RAZONES_OMISION_LOTE,
+  type RazonOmisionLote,
+} from '../../common/entities/tipos';
 
 export const MOTIVO_MAXIMO = 500;
+
+/** Tope de propuestas por lote (5.3): más pide dividirlo, no se corta en silencio. */
+export const MAXIMO_LOTE = 500;
 
 export class RechazarDto {
   @ApiPropertyOptional({
@@ -39,4 +55,50 @@ export class ResolucionRespuestaDto {
   @ApiProperty({ nullable: true, type: String }) motivo: string | null;
   @ApiProperty({ nullable: true, type: String }) confirmadaAt: string | null;
   @ApiProperty({ type: [String] }) rechazadasAutomaticamente: string[];
+}
+
+export class LoteDto {
+  @ApiProperty({
+    type: [String],
+    maxItems: MAXIMO_LOTE,
+    description:
+      'Ids de las propuestas que la persona dejó marcadas (1 a 500, sin repetir). El lote no pide motivo.',
+  })
+  // Un uuid en mayúsculas es el mismo id: se normaliza antes de validar para que
+  // `ArrayUnique` lo vea repetido y la regla de choques compare lo mismo que la base.
+  @Transform(({ value }: { value: unknown }) =>
+    Array.isArray(value)
+      ? value.map((id: unknown) =>
+          typeof id === 'string' ? id.toLowerCase() : id,
+        )
+      : value,
+  )
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(MAXIMO_LOTE)
+  @ArrayUnique()
+  @IsUUID('all', { each: true })
+  ids: string[];
+}
+
+export class OmisionDeLoteDto {
+  @ApiProperty() id: string;
+  @ApiProperty({ enum: RAZONES_OMISION_LOTE }) razon: RazonOmisionLote;
+}
+
+export class LoteRespuestaDto {
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description:
+      'Identificador del lote (también queda en cada decisión y en su bitácora). null si no se confirmó ninguna.',
+  })
+  loteId: string | null;
+  @ApiProperty({ type: [String], description: 'Ids confirmadas.' })
+  confirmadas: string[];
+  @ApiProperty({
+    type: [OmisionDeLoteDto],
+    description: 'Las que quedaron fuera, cada una con su razón.',
+  })
+  omitidas: OmisionDeLoteDto[];
 }

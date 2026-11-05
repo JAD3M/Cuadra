@@ -18,7 +18,12 @@ import {
 import type { Request } from 'express';
 import type { UsuarioAutenticado } from '../auth/tipos';
 import { Permiso, UsuarioActual } from '../common/decorators/decoradores';
-import { RechazarDto, ResolucionRespuestaDto } from './dto/resolucion.dto';
+import {
+  LoteDto,
+  LoteRespuestaDto,
+  RechazarDto,
+  ResolucionRespuestaDto,
+} from './dto/resolucion.dto';
 import { ResolucionService } from './resolucion.service';
 
 /** La sesión (cookie, AD-6) ya la exige SesionCookieGuard; aquí solo se estrecha el tipo. */
@@ -29,6 +34,36 @@ type Sesion = Extract<UsuarioAutenticado, { scope: 'sesion' }>;
 @Controller('conciliaciones')
 export class ResolucionController {
   constructor(private readonly resolucion: ResolucionService) {}
+
+  /**
+   * 5.3. Confirma de una vez las propuestas que la persona dejó marcadas. Una
+   * que no se puede confirmar se omite con su razón y no frena a las demás; el
+   * lote no pide motivo. Mismo permiso que confirmar un caso (el auditor no).
+   */
+  @Post('lotes')
+  @HttpCode(200)
+  @Permiso('conciliaciones.resolver')
+  @ApiOkResponse({ type: LoteRespuestaDto })
+  @ApiBadRequestResponse({
+    description: 'ids vacío, repetido, con más de 500 o con un id inválido.',
+  })
+  @ApiForbiddenResponse({
+    description:
+      'Sin el permiso conciliaciones.resolver (por ejemplo, auditor).',
+  })
+  confirmarLote(
+    @UsuarioActual() usuario: Sesion,
+    @Body() cuerpo: LoteDto,
+    @Req() solicitud: Request,
+  ): Promise<LoteRespuestaDto> {
+    return this.resolucion.confirmarLote(usuario.companyId, cuerpo.ids, {
+      userId: usuario.userId,
+      ip: solicitud.ip,
+      userAgent: solicitud.headers['user-agent'],
+      metodo: solicitud.method,
+      ruta: solicitud.path,
+    });
+  }
 
   @Post(':id/confirmar')
   @HttpCode(200)

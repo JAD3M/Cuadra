@@ -502,8 +502,9 @@ describe('4.5 (g): aislamiento entre empresas', () => {
 });
 
 describe('4.5: un grupo nunca va a lote ni se cierra solo', () => {
-  // No existe función de lote en src (solo la columna `lote_id`): se prueba
-  // sobre la fila persistida, el endpoint y el CHECK de la base.
+  // La función de lote existe desde la 5.3 (`POST /conciliaciones/lotes`) y
+  // acepta un grupo solo si la persona lo marca: nunca viene marcado de inicio.
+  // Aquí se prueba la fila persistida, el endpoint de un caso y el CHECK.
   it('la propuesta persiste sin lote y sin quien confirme; sin sesión no se confirma', async () => {
     const g = await grupo();
 

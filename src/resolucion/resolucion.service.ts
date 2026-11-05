@@ -12,9 +12,13 @@ import { tomarCandadoDeConciliacion } from '../conciliacion/candado';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import type { ContextoDeCambio } from '../companies/tolerancia.service';
 import { ContextoEmpresa } from '../database/contexto-empresa';
-import type { Rol } from '../common/entities/tipos';
+import type { RazonOmisionLote, Rol } from '../common/entities/tipos';
 import { subioAlgunaCarga } from '../common/separacion-funciones';
-import type { ResolucionRespuestaDto } from './dto/resolucion.dto';
+import { idsQueChocan } from './choques-de-lote';
+import type {
+  LoteRespuestaDto,
+  ResolucionRespuestaDto,
+} from './dto/resolucion.dto';
 
 interface DecisionBloqueada {
   id: string;
@@ -41,6 +45,16 @@ export interface ContextoDeConfirmacion extends ContextoDeCambio {
 interface LadoBloqueado {
   estado: string;
   cargaId: string | null;
+}
+
+/**
+ * Una propuesta que el lote deja fuera, con su razón (5.3). Solo se lanza en
+ * modo lote: la confirmación de un caso sigue respondiendo 404, 409 o 403.
+ */
+class PropuestaOmitida extends Error {
+  constructor(readonly razon: RazonOmisionLote) {
+    super(razon);
+  }
 }
 
 /**
@@ -79,8 +93,99 @@ export class ResolucionService {
     id: string,
     quien: ContextoDeConfirmacion,
   ): Promise<ResolucionRespuestaDto> {
+    return this.confirmarUna(companyId, id, quien, null);
+  }
+
+  /**
+   * Confirma un lote (5.3, FR-19, FR-31): cada propuesta marcada se confirma
+   * con LA MISMA sentencia atómica de un caso, dentro de su propio SAVEPOINT; la
+   * que no se puede (ya resuelta, CFDI o movimiento cerrados, separación de
+   * funciones, un cambio concurrente) se omite con su razón y las demás siguen.
+   * Todas las confirmadas comparten el `lote_id`. Orden de candados (AD-19):
+   * consultivo de la empresa una sola vez y luego las decisiones por `id`
+   * ascendente. Las marcadas que chocan entre sí (mismo movimiento o misma
+   * factura) se omiten las dos: no se elige una al azar. Un error que no es una
+   * omisión revierte el lote entero.
+   */
+  async confirmarLote(
+    companyId: string,
+    ids: readonly string[],
+    quien: ContextoDeConfirmacion,
+  ): Promise<LoteRespuestaDto> {
     const manager = this.contexto.manager();
-    const decision = await this.cargarPropuesta(companyId, id, true);
+    await tomarCandadoDeConciliacion(manager, companyId);
+    // Defensa en profundidad: el DTO ya normaliza, pero aquí se compara contra los
+    // ids que devuelve la base (siempre en minúsculas).
+    const ordenados = [...new Set(ids.map((id) => id.toLowerCase()))].sort();
+    const choques = await this.marcadasQueChocan(companyId, ordenados);
+    const [{ id: loteId }] = await manager.query<{ id: string }[]>(
+      'SELECT uuidv7() AS id',
+    );
+
+    const confirmadas: string[] = [];
+    const omitidas: LoteRespuestaDto['omitidas'] = [];
+    for (const id of ordenados) {
+      if (choques.has(id)) {
+        omitidas.push({ id, razon: 'choca_con_otra_del_lote' });
+        continue;
+      }
+      await manager.query('SAVEPOINT item_de_lote');
+      try {
+        await this.confirmarUna(companyId, id, quien, loteId);
+        await manager.query('RELEASE SAVEPOINT item_de_lote');
+        confirmadas.push(id);
+      } catch (error) {
+        if (!(error instanceof PropuestaOmitida)) throw error;
+        await manager.query('ROLLBACK TO SAVEPOINT item_de_lote');
+        omitidas.push({ id, razon: error.razon });
+      }
+    }
+    return {
+      loteId: confirmadas.length > 0 ? loteId : null,
+      confirmadas,
+      omitidas,
+    };
+  }
+
+  /** Las marcadas (aún propuestas) que comparten movimiento o factura entre sí. */
+  private async marcadasQueChocan(
+    companyId: string,
+    ids: readonly string[],
+  ): Promise<Set<string>> {
+    const filas = await this.contexto
+      .manager()
+      .query<{ id: string; movimientoId: string; cfdiIds: string[] }[]>(
+        `SELECT d.id, d.movimiento_id AS "movimientoId",
+              COALESCE(array_agg(l.cfdi_id::text) FILTER (WHERE l.cfdi_id IS NOT NULL),
+                       '{}'::text[]) AS "cfdiIds"
+         FROM decisiones d
+         LEFT JOIN decision_lineas l ON l.decision_id = d.id AND l.company_id = $1
+        WHERE d.company_id = $1 AND d.id = ANY($2::uuid[])
+          AND d.tipo = 'conciliacion' AND d.estado = 'propuesta'
+        GROUP BY d.id`,
+        [companyId, ids],
+      );
+    return idsQueChocan(filas);
+  }
+
+  /** Falla de un paso previo: omisión en un lote, la excepción HTTP en un caso. */
+  private falla(
+    enLote: boolean,
+    razon: RazonOmisionLote,
+    http: () => Error,
+  ): Error {
+    return enLote ? new PropuestaOmitida(razon) : http();
+  }
+
+  private async confirmarUna(
+    companyId: string,
+    id: string,
+    quien: ContextoDeConfirmacion,
+    loteId: string | null,
+  ): Promise<ResolucionRespuestaDto> {
+    const enLote = loteId !== null;
+    const manager = this.contexto.manager();
+    const decision = await this.cargarPropuesta(companyId, id, true, enLote);
     const cfdiId = decision.cfdiIds[0];
 
     const cfdis = await manager.query<LadoBloqueado[]>(
@@ -90,12 +195,21 @@ export class ResolucionService {
       [decision.cfdiIds, companyId],
     );
     if (cfdis.length !== decision.cfdiIds.length) {
-      throw new ConflictException('El CFDI de la propuesta ya no existe');
+      throw this.falla(
+        enLote,
+        'cfdi_no_abierto',
+        () => new ConflictException('El CFDI de la propuesta ya no existe'),
+      );
     }
     const cerrado = cfdis.find((cfdi) => cfdi.estado !== 'abierta');
     if (cerrado) {
-      throw new ConflictException(
-        `El CFDI está '${cerrado.estado}': solo se confirma contra uno abierto`,
+      throw this.falla(
+        enLote,
+        'cfdi_no_abierto',
+        () =>
+          new ConflictException(
+            `El CFDI está '${cerrado.estado}': solo se confirma contra uno abierto`,
+          ),
       );
     }
     const [movimiento] = await manager.query<LadoBloqueado[]>(
@@ -104,15 +218,30 @@ export class ResolucionService {
       [decision.movimientoId, companyId],
     );
     if (!movimiento) {
-      throw new ConflictException('El movimiento de la propuesta ya no existe');
+      throw this.falla(
+        enLote,
+        'movimiento_no_abierto',
+        () =>
+          new ConflictException('El movimiento de la propuesta ya no existe'),
+      );
     }
     if (movimiento.estado !== 'abierto') {
-      throw new ConflictException(
-        `El movimiento está '${movimiento.estado}': solo se confirma contra uno abierto`,
+      throw this.falla(
+        enLote,
+        'movimiento_no_abierto',
+        () =>
+          new ConflictException(
+            `El movimiento está '${movimiento.estado}': solo se confirma contra uno abierto`,
+          ),
       );
     }
 
-    await this.exigirSegregacion(companyId, quien, cfdis, movimiento);
+    if (await this.segregacionViolada(companyId, quien, cfdis, movimiento)) {
+      // En un lote se omite en silencio (sin 403 ni rastro de acceso denegado):
+      // la persona ya vio el motivo al armar el lote.
+      if (enLote) throw new PropuestaOmitida('separacion_de_funciones');
+      await this.rastroYDenegar(companyId, quien);
+    }
 
     let resultado: {
       confirmadaAt: string | null;
@@ -126,7 +255,7 @@ export class ResolucionService {
         `WITH objetivo AS (
            UPDATE decisiones
               SET estado = 'confirmada', confirmada_por_id = $3,
-                  confirmada_at = now(), updated_at = now()
+                  confirmada_at = now(), lote_id = $10::uuid, updated_at = now()
             WHERE id = $2 AND company_id = $1 AND estado = 'propuesta'
            RETURNING id, confirmada_at, diferencia_monto, regla, score
          ),
@@ -179,7 +308,8 @@ export class ResolucionService {
                                                      'antes', 'abierto', 'despues', 'conciliado'),
                     'diferenciaMonto', o.diferencia_monto::text)
                   || jsonb_strip_nulls(jsonb_build_object(
-                    'regla', o.regla, 'score', o.score::text)),
+                    'regla', o.regla, 'score', o.score::text,
+                    'loteId', $10::uuid)),
                   $8::inet, $9
              FROM objetivo o
            UNION ALL
@@ -212,10 +342,14 @@ export class ResolucionService {
           cfdiId,
           quien.ip ?? null,
           quien.userAgent ?? null,
+          loteId,
         ],
       );
     } catch (error) {
-      throw this.traducir(error);
+      const traducido = this.traducir(error);
+      throw enLote && traducido instanceof ConflictException
+        ? new PropuestaOmitida('cambio_concurrente')
+        : traducido;
     }
 
     // Cada UPDATE debe haber afectado exactamente lo esperado. Si no, 409: la
@@ -226,8 +360,13 @@ export class ResolucionService {
       resultado.movimientos !== 1 ||
       resultado.auditoria !== 1 + resultado.hermanas.length
     ) {
-      throw new ConflictException(
-        'La conciliación cambió mientras se confirmaba: no se aplicó nada',
+      throw this.falla(
+        enLote,
+        'cambio_concurrente',
+        () =>
+          new ConflictException(
+            'La conciliación cambió mientras se confirmaba: no se aplicó nada',
+          ),
       );
     }
 
@@ -245,23 +384,29 @@ export class ResolucionService {
 
   /**
    * D-08: quien subió la carga del CFDI o la del movimiento no confirma su
-   * propio trabajo. Sin carga (null) ese lado no restringe. El 403 revierte
-   * la transacción de la petición, así que el rastro se escribe aparte.
+   * propio trabajo. Sin carga (null) ese lado no restringe. La regla vive en
+   * `separacion-funciones.ts` (la bandeja usa la misma) y aquí no lanza nada.
    */
-  private async exigirSegregacion(
+  private segregacionViolada(
     companyId: string,
     quien: ContextoDeConfirmacion,
     cfdis: LadoBloqueado[],
     movimiento: LadoBloqueado,
-  ): Promise<void> {
-    const subio = await subioAlgunaCarga(
-      this.contexto.manager(),
-      companyId,
-      quien.userId,
-      [...cfdis.map((cfdi) => cfdi.cargaId), movimiento.cargaId],
-    );
-    if (!subio) return;
+  ): Promise<boolean> {
+    return subioAlgunaCarga(this.contexto.manager(), companyId, quien.userId, [
+      ...cfdis.map((cfdi) => cfdi.cargaId),
+      movimiento.cargaId,
+    ]);
+  }
 
+  /**
+   * El 403 de un caso suelto. Revierte la transacción de la petición, así que
+   * el rastro del acceso denegado se escribe aparte.
+   */
+  private async rastroYDenegar(
+    companyId: string,
+    quien: ContextoDeConfirmacion,
+  ): Promise<never> {
     const roles = await this.contexto
       .manager()
       .query<{ rol: Rol }[]>(
@@ -397,6 +542,7 @@ export class ResolucionService {
     companyId: string,
     id: string,
     conHermanas: boolean,
+    enLote = false,
   ): Promise<DecisionBloqueada> {
     const manager = this.contexto.manager();
     await tomarCandadoDeConciliacion(manager, companyId);
@@ -429,15 +575,28 @@ export class ResolucionService {
       [companyId, id],
     );
     if (filas.length === 0) {
-      throw new NotFoundException('Conciliación no encontrada');
+      throw this.falla(
+        enLote,
+        'no_existe',
+        () => new NotFoundException('Conciliación no encontrada'),
+      );
     }
     if (filas[0].estado !== 'propuesta') {
-      throw new ConflictException(
-        `La conciliación ya está '${filas[0].estado}': solo una propuesta se puede resolver`,
+      throw this.falla(
+        enLote,
+        'ya_resuelta',
+        () =>
+          new ConflictException(
+            `La conciliación ya está '${filas[0].estado}': solo una propuesta se puede resolver`,
+          ),
       );
     }
     if (filas[0].cfdiIds.length === 0) {
-      throw new ConflictException('La propuesta no tiene CFDI asociado');
+      throw this.falla(
+        enLote,
+        'cfdi_no_abierto',
+        () => new ConflictException('La propuesta no tiene CFDI asociado'),
+      );
     }
     return filas[0];
   }
