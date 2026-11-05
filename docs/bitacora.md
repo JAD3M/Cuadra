@@ -5,6 +5,13 @@
 
 ### 5 nov 2026
 
+- **Pendiente 4.6 (d): `cancelarCfdi` que falla al resubir.** Rama
+  `fix/v2-pendientes-cancelar-cfdi-lote`. Se verificó antes de tocar nada: abortar el
+  lote no es un fallo sino el diseño de CU-08 (el worker revierte todo y BullMQ reintenta;
+  los dos 409 de `cancelarCfdi` son transitorios). Se corrigió el pendiente, no el código,
+  y se fijó con dos pruebas: falla pasajera (el reintento completa el lote, sin duplicar
+  la bitácora) y falla permanente (`fallida`, sin el CFDI nuevo ni la cancelación).
+
 - **Historia 5.2 de la v2: confirmar o rechazar un caso individual.** Rama
   `feat/v2-5-2-confirmar-rechazar-individual` (KAN-145). Un explorador mapeó los cinco
   criterios contra el código: ya estaban cubiertos desde CU-15 y CU-23 (confirmar, rechazar,

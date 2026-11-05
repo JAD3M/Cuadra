@@ -159,6 +159,7 @@ async function conFalla<T>(
   uuid: string,
   veces: number | 'siempre',
   cuerpo: () => Promise<T>,
+  evento: 'INSERT' | 'UPDATE' = 'INSERT',
 ): Promise<T> {
   const condicion =
     veces === 'siempre' ? 'true' : `nextval('falla_cu08') <= ${veces}`;
@@ -173,7 +174,7 @@ async function conFalla<T>(
       RETURN NEW;
     END $$`);
   await ds.query(
-    `CREATE TRIGGER falla_cu08 BEFORE INSERT ON cfdi
+    `CREATE TRIGGER falla_cu08 BEFORE ${evento} ON cfdi
        FOR EACH ROW WHEN (NEW.uuid_fiscal = '${uuid}')
        EXECUTE FUNCTION falla_cu08()`,
   );
@@ -717,6 +718,60 @@ describe('POST /cargas/cfdi, volver a subir un CFDI cancelado (4.6)', () => {
       ),
     ).toEqual({ estado: 'confirmada', requiere_revision: true });
     expect((await enCfdi([previo.uuid]))[0].estado).toBe('cancelada');
+  });
+
+  // Diseño (CU-08): una falla al cancelar es de infraestructura. El lote se
+  // revierte entero y el job se reintenta desde cero; no se reporta «error»
+  // por archivo ni se deja un lote a medias.
+  describe('si la cancelación falla', () => {
+    const lote = (nuevo: { xml: string }, previo: { xml: string }) => [
+      { nombre: 'nuevo.xml', contenido: nuevo.xml },
+      { nombre: 'cancelado.xml', contenido: marcarCancelado(previo.xml) },
+    ];
+
+    it('falla pasajera: el reintento deja el lote completo, sin duplicar la bitácora', async () => {
+      const token = await tokenSesion(ANA, FERRETERIA);
+      const { previo, cfdiId } = await conPropuesta(token);
+      const nuevo = cfdi('con-descuento.xml');
+
+      const carga = await conFalla(
+        previo.uuid,
+        2,
+        async () => cargarYEsperar(token, lote(nuevo, previo)),
+        'UPDATE',
+      );
+
+      expect(carga).toMatchObject({ estado: 'procesada', registrosOk: 1 });
+      expect(carga.resultados).toContainEqual({
+        archivo: 'cancelado.xml',
+        resultado: 'ya_existia',
+        cancelada: true,
+      });
+      expect((await enCfdi([nuevo.uuid])).length).toBe(1);
+      expect((await enCfdi([previo.uuid]))[0].estado).toBe('cancelada');
+      expect(await bitacoraDeCfdi(cfdiId)).toHaveLength(1);
+    });
+
+    it('falla en todos los intentos: carga fallida y nada a medias (ni el nuevo ni la cancelación)', async () => {
+      const token = await tokenSesion(ANA, FERRETERIA);
+      const { previo, cfdiId } = await conPropuesta(token);
+      const nuevo = cfdi('con-descuento.xml');
+
+      const carga = await conFalla(
+        previo.uuid,
+        'siempre',
+        async () => cargarYEsperar(token, lote(nuevo, previo)),
+        'UPDATE',
+      );
+
+      expect(carga).toMatchObject({
+        estado: 'fallida',
+        errorMensaje: MENSAJE_FALLIDA,
+      });
+      expect(await enCfdi([nuevo.uuid])).toHaveLength(0);
+      expect((await enCfdi([previo.uuid]))[0].estado).toBe('abierta');
+      expect(await bitacoraDeCfdi(cfdiId)).toEqual([]);
+    });
   });
 });
 
