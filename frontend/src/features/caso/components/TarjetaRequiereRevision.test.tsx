@@ -9,7 +9,7 @@ describe('TarjetaRequiereRevision', () => {
   it('avisa que la factura fue cancelada y que Cuadra no reabre sola', () => {
     render(
       <TarjetaRequiereRevision
-        etiquetaCfdi="A-1001"
+        etiquetasCanceladas={['A-1001']}
         usuario="Ana"
         confirmadaAt={INSTANTE}
       />,
@@ -32,7 +32,7 @@ describe('TarjetaRequiereRevision', () => {
   it('sin usuario o sin fecha dice solo lo que el servidor devolvió', () => {
     const { rerender } = render(
       <TarjetaRequiereRevision
-        etiquetaCfdi="A-1"
+        etiquetasCanceladas={['A-1']}
         usuario={null}
         confirmadaAt={null}
       />,
@@ -41,7 +41,7 @@ describe('TarjetaRequiereRevision', () => {
     expect(screen.queryByText(/null/)).toBeNull();
     rerender(
       <TarjetaRequiereRevision
-        etiquetaCfdi="A-1"
+        etiquetasCanceladas={['A-1']}
         usuario="Ana"
         confirmadaAt={null}
       />,
@@ -54,11 +54,53 @@ describe('TarjetaRequiereRevision', () => {
   it('no tiene controles de decisión', () => {
     render(
       <TarjetaRequiereRevision
-        etiquetaCfdi="A-1"
+        etiquetasCanceladas={['A-1']}
         usuario="Ana"
         confirmadaAt={INSTANTE}
       />,
     );
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('con varias canceladas las nombra en plural, con «y» antes de la última', () => {
+    const { rerender } = render(
+      <TarjetaRequiereRevision
+        etiquetasCanceladas={['A-1', 'A-2']}
+        usuario="Ana"
+        confirmadaAt={INSTANTE}
+      />,
+    );
+    expect(
+      screen.getByText(
+        'Las facturas A-1 y A-2 fueron canceladas. Revisa esta conciliación.',
+      ),
+    ).toBeInTheDocument();
+    rerender(
+      <TarjetaRequiereRevision
+        etiquetasCanceladas={['A-1', 'A-2', 'B-3']}
+        usuario="Ana"
+        confirmadaAt={INSTANTE}
+      />,
+    );
+    expect(
+      screen.getByText(
+        'Las facturas A-1, A-2 y B-3 fueron canceladas. Revisa esta conciliación.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('sin ninguna cancelada identificable no nombra factura alguna', () => {
+    render(
+      <TarjetaRequiereRevision
+        etiquetasCanceladas={[]}
+        usuario="Ana"
+        confirmadaAt={INSTANTE}
+      />,
+    );
+    expect(
+      screen.getByText(
+        'Una de las facturas de esta conciliación fue cancelada. Revisa esta conciliación.',
+      ),
+    ).toBeInTheDocument();
   });
 });

@@ -135,8 +135,18 @@ export const CONCILIADO = {
 /** Conciliado cuya factura se canceló: Cuadra no lo reabre, pide revisión. */
 export const REQUIERE_REVISION = {
   titulo: 'Requiere revisión',
-  cancelada: (etiquetaCfdi: string) =>
-    `La factura ${etiquetaCfdi} fue cancelada. Revisa esta conciliación.`,
+  /** Solo nombra las facturas que el servidor marca canceladas; sin ninguna, no inventa. */
+  cancelada: (etiquetas: readonly string[]) => {
+    const ultima = etiquetas.at(-1);
+    if (ultima === undefined) {
+      return 'Una de las facturas de esta conciliación fue cancelada. Revisa esta conciliación.';
+    }
+    if (etiquetas.length === 1) {
+      return `La factura ${ultima} fue cancelada. Revisa esta conciliación.`;
+    }
+    const lista = `${etiquetas.slice(0, -1).join(', ')} y ${ultima}`;
+    return `Las facturas ${lista} fueron canceladas. Revisa esta conciliación.`;
+  },
   /** Pieza a pieza: el servidor puede no traer el usuario o la fecha. */
   nota: (usuario: string | null, fecha: string | null) =>
     [
