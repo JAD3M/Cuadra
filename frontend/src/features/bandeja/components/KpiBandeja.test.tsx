@@ -149,3 +149,62 @@ describe('KpiBandeja: error', () => {
     expect(onReintentar).toHaveBeenCalledOnce();
   });
 });
+
+describe('KpiBandeja: conciliadas que requieren revisión (5.1)', () => {
+  const tileConciliados = () =>
+    screen.getByText('Conciliados').parentElement as HTMLElement;
+
+  it('avisa en Conciliados cuántas piden revisión sin tocar el conteo', () => {
+    montar({ requiereRevision: 2 });
+    const tile = tileConciliados();
+    expect(within(tile).getByText('4')).toBeInTheDocument();
+    expect(within(tile).getByText(/2 requieren revisión/)).toBeInTheDocument();
+  });
+
+  it('en singular dice «1 requiere revisión»', () => {
+    montar({ requiereRevision: 1 });
+    expect(
+      within(tileConciliados()).getByText(/1 requiere revisión/),
+    ).toBeInTheDocument();
+  });
+
+  it('con 0 o sin dato no muestra el aviso ni lo inventa', () => {
+    const { unmount } = montar({ requiereRevision: 0 });
+    expect(screen.queryByText(/requiere/)).not.toBeInTheDocument();
+    unmount();
+    montar();
+    expect(screen.queryByText(/requiere/)).not.toBeInTheDocument();
+  });
+
+  it('no aparece en las tarjetas de sugerencias ni de sin match', () => {
+    montar({ requiereRevision: 3 });
+    expect(
+      within(
+        screen.getByText('Sugerencias').parentElement as HTMLElement,
+      ).queryByText(/requiere/),
+    ).not.toBeInTheDocument();
+    expect(
+      within(
+        screen.getByText('Sin match').parentElement as HTMLElement,
+      ).queryByText(/requiere/),
+    ).not.toBeInTheDocument();
+  });
+
+  it('en error o cargando no muestra el aviso', () => {
+    const { unmount } = montar({
+      estado: 'error',
+      conteos: undefined,
+      montoPorRevisar: undefined,
+      requiereRevision: 2,
+    });
+    expect(screen.queryByText(/requieren revisión/)).not.toBeInTheDocument();
+    unmount();
+    montar({
+      estado: 'cargando',
+      conteos: undefined,
+      montoPorRevisar: undefined,
+      requiereRevision: 2,
+    });
+    expect(screen.queryByText(/requieren revisión/)).not.toBeInTheDocument();
+  });
+});

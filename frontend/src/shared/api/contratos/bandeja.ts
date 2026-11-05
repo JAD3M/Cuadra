@@ -74,6 +74,11 @@ export const respuestaBandeja = z.object({
 export const resumenBandeja = z.object({
   conteos: z.record(estadoBandeja, z.int().min(0)),
   montoPorRevisar: z.array(z.object({ moneda, monto: montoDecimal })),
+  /**
+   * Conciliadas marcadas «requiere revisión» (5.1). Ya cuentan en
+   * `conteos.conciliado`; este número solo avisa cuántas piden mirarse.
+   */
+  requiereRevision: z.int().min(0),
 });
 
 export type FilaBandeja = z.infer<typeof filaBandeja>;

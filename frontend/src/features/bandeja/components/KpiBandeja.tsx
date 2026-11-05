@@ -10,6 +10,7 @@ import {
   KPI_NO_DISPONIBLE,
   KPI_NO_DISPONIBLE_OCULTO,
   REINTENTAR,
+  kpiRequiereRevision,
 } from '@/features/bandeja/textos';
 import estilos from './KpiBandeja.module.css';
 
@@ -25,6 +26,8 @@ export interface KpiBandejaProps {
   conteos?: Readonly<Record<EstadoBandeja, number>>;
   /** Solo con `estado="listo"`; vacío significa que no hay nada por revisar. */
   montoPorRevisar?: readonly MontoPorMoneda[];
+  /** Solo con `estado="listo"`; las conciliadas que piden revisión. */
+  requiereRevision?: number;
   onReintentar: () => void;
 }
 
@@ -49,6 +52,7 @@ export function KpiBandeja({
   estado,
   conteos,
   montoPorRevisar,
+  requiereRevision,
   onReintentar,
 }: KpiBandejaProps) {
   const cargando = estado === 'cargando';
@@ -71,6 +75,16 @@ export function KpiBandeja({
             </span>
           )}
           <span className={estilos.detalle}>{KPI[clave].detalle}</span>
+          {clave === 'conciliado' &&
+          !cargando &&
+          !error &&
+          requiereRevision !== undefined &&
+          requiereRevision > 0 ? (
+            <span className={estilos.aviso}>
+              <span aria-hidden="true">⚠ </span>
+              {kpiRequiereRevision(requiereRevision)}
+            </span>
+          ) : null}
         </div>
       ))}
       <TileMonto

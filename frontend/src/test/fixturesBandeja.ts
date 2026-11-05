@@ -186,7 +186,10 @@ export function resumenDe(filas: readonly FilaBandeja[]): ResumenBandeja {
   const montoPorRevisar = [...porMoneda.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([moneda, monto]) => ({ moneda, monto: monto.toFixed(4) }));
-  return { conteos, montoPorRevisar };
+  const requiereRevision = filas.filter(
+    (f) => f.estado === 'conciliado' && f.requiereRevision,
+  ).length;
+  return { conteos, montoPorRevisar, requiereRevision };
 }
 
 const ERROR_NEST = (status: number) =>

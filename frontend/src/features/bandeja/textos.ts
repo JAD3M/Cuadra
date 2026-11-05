@@ -33,6 +33,9 @@ export const KPI = {
     detalle: 'confirmados por una persona',
   },
 } as const;
+/** Aviso de la tarjeta «Conciliados»: cuántas conciliadas piden revisión. */
+export const kpiRequiereRevision = (n: number) =>
+  n === 1 ? '1 requiere revisión' : `${n} requieren revisión`;
 export const KPI_MONTO = 'Monto por revisar';
 export const KPI_MONTO_UNA_MONEDA = 'MXN en sugerencias y sin match';
 export const KPI_MONTO_VARIAS_MONEDAS = 'En sugerencias y sin match';

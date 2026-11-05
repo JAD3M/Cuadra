@@ -5,6 +5,17 @@
 
 ### 5 nov 2026
 
+- **Pendiente 4.6 (c): el resumen de la bandeja y las conciliadas que requieren revisión.**
+  Rama `feat/v2-bandeja-resumen-requiere-revision`. Decisión del usuario entre tres
+  opciones: una nota en la tarjeta «Conciliados» (no una tarjeta nueva ni contarlas como por
+  revisar), con el mockup de Bandeja (oscuro y claro) acordado antes del código. Tampoco se
+  agregó un botón de filtro: ya salen en la vista por defecto. Backend: `resumen` devuelve
+  `requiereRevision` (conciliadas con la marca, por empresa); `conteos` y el monto por
+  revisar no cambian. Frontend: el contrato lo exige (entero ≥ 0) y la tarjeta dice «1
+  requiere revisión» o «N requieren revisión»; en carga o error no se muestra. Se corrigió
+  además una nota falsa de `CUADRA.md`: el revisor sin `cargas.ver` es el diseño (FR-9,
+  FR-53, matriz y mockup coinciden), no una decisión pendiente.
+
 - **Pendiente 4.6 (b): evento «se marcó cancelada» en el historial del caso.** Rama
   `fix/v2-pendientes-historial-cancelada`, encadenada sobre la del pendiente (d). El
   mockup del Detalle ya dibujaba el evento. Backend: `BitacoraService.historial` suma las

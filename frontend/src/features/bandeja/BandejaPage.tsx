@@ -78,6 +78,7 @@ export function BandejaPage() {
         estado={resumen.isError ? 'error' : resumen.data ? 'listo' : 'cargando'}
         conteos={resumen.data?.conteos}
         montoPorRevisar={resumen.data?.montoPorRevisar}
+        requiereRevision={resumen.data?.requiereRevision}
         onReintentar={() => void resumen.refetch()}
       />
       <section className={estilos.tarjeta}>

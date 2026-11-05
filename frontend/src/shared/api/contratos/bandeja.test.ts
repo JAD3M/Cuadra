@@ -300,6 +300,7 @@ describe('resumenBandeja', () => {
       { moneda: 'MXN', monto: '847688.4300' },
       { moneda: 'USD', monto: '2150.0000' },
     ],
+    requiereRevision: 1,
   });
 
   it('acepta la forma real y conserva los montos de cuatro decimales', () => {
@@ -307,6 +308,21 @@ describe('resumenBandeja', () => {
     expect(r.conteos.sugerencia).toBe(25);
     expect(r.montoPorRevisar[0]?.monto).toBe('847688.4300');
     expect(r.montoPorRevisar[1]?.monto).toBe('2150.0000');
+  });
+
+  it('requiereRevision es obligatorio, entero y no negativo', () => {
+    const sin: Record<string, unknown> = { ...resumen() };
+    delete sin.requiereRevision;
+    expect(resumenBandeja.safeParse(sin).success).toBe(false);
+    for (const valor of [-1, 1.5, '2']) {
+      expect(
+        resumenBandeja.safeParse({ ...resumen(), requiereRevision: valor })
+          .success,
+      ).toBe(false);
+    }
+    expect(
+      resumenBandeja.safeParse({ ...resumen(), requiereRevision: 0 }).success,
+    ).toBe(true);
   });
 
   it('acepta montoPorRevisar vacío', () => {

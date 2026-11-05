@@ -180,4 +180,10 @@ export class ResumenBandejaDto {
       'Monto por revisar (sugerencia + sin_match) por moneda, ordenado por moneda. Sin monedas sin pendientes.',
   })
   montoPorRevisar: MontoPorMonedaDto[];
+  @ApiProperty({
+    example: 2,
+    description:
+      'Conciliadas marcadas como «requiere revisión». Ya cuentan en conteos.conciliado; no se restan ni entran al monto por revisar.',
+  })
+  requiereRevision: number;
 }

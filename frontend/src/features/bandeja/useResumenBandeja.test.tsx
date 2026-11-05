@@ -17,6 +17,7 @@ function resumenCon(sugerencia: number, sin_match: number) {
     HttpResponse.json({
       conteos: { conciliado: 4, sugerencia, sin_match },
       montoPorRevisar: [],
+      requiereRevision: 0,
     }),
   );
 }
@@ -90,6 +91,7 @@ describe('useResumenBandeja', () => {
         return HttpResponse.json({
           conteos: { conciliado: 0, sugerencia: llamadas, sin_match: 0 },
           montoPorRevisar: [],
+          requiereRevision: 0,
         });
       }),
     );

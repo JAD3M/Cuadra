@@ -163,6 +163,7 @@ describe('manejadores de la bandeja', () => {
     ).toEqual({
       conteos: { conciliado: 0, sugerencia: 0, sin_match: 1 },
       montoPorRevisar: [{ moneda: 'MXN', monto: '7.0000' }],
+      requiereRevision: 0,
     });
   });
 });

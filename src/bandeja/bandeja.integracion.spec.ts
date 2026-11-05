@@ -332,6 +332,24 @@ describe('BJ-2b requiere revisión (4.6)', () => {
     });
   });
 
+  it('el resumen cuenta aparte las conciliadas marcadas, sin quitarlas de conciliado ni del monto por revisar', async () => {
+    await cerrado(A, '100.00');
+    const marcada1 = await cerrado(A, '200.00');
+    const marcada2 = await cerrado(A, '300.00');
+    await marcarRevision(marcada1);
+    await marcarRevision(marcada2);
+    await sugerido(A, '40.00');
+    // Una marcada de otra empresa no cuenta en esta.
+    const ajena = await cerrado(B, '999.00');
+    await marcarRevision(ajena, B);
+
+    const r = await resumen();
+
+    expect(r.requiereRevision).toBe(2);
+    expect(r.conteos).toEqual({ conciliado: 3, sugerencia: 1, sin_match: 0 });
+    expect(r.montoPorRevisar).toEqual([{ moneda: 'MXN', monto: '40.0000' }]);
+  });
+
   it('cada factura de un grupo confirmado trae su estado: la cancelada no es necesariamente la primera', async () => {
     const m = await movimiento(A, { monto: '2320.00', estado: 'conciliado' });
     const f1 = await factura(A);
@@ -885,8 +903,13 @@ describe('RS-1 empresa vacía', () => {
     expect(r).toEqual({
       conteos: { conciliado: 0, sugerencia: 0, sin_match: 0 },
       montoPorRevisar: [],
+      requiereRevision: 0,
     });
-    expect(Object.keys(r).sort()).toEqual(['conteos', 'montoPorRevisar']);
+    expect(Object.keys(r).sort()).toEqual([
+      'conteos',
+      'montoPorRevisar',
+      'requiereRevision',
+    ]);
     expect(Object.keys(r.conteos).sort()).toEqual([
       'conciliado',
       'sin_match',
@@ -1011,10 +1034,12 @@ describe('RS-4 aislamiento y acceso', () => {
     expect(deA).toEqual({
       conteos: { conciliado: 0, sugerencia: 0, sin_match: 1 },
       montoPorRevisar: [{ moneda: 'MXN', monto: '10.0000' }],
+      requiereRevision: 0,
     });
     expect(deB).toEqual({
       conteos: { conciliado: 0, sugerencia: 1, sin_match: 2 },
       montoPorRevisar: [{ moneda: 'MXN', monto: '7.0000' }],
+      requiereRevision: 0,
     });
   });
 

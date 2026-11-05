@@ -503,8 +503,9 @@ que entre a conciliación:
 
 **Pendientes (3.4):** el lector de BBVA sigue sin validarse con un PDF real y
 aceptar manda datos de ese lector a conciliación; el revisor no tiene
-`cargas.ver` en la matriz aunque el mockup de Cargas lo dibuja en solo consulta
-(decisión pendiente); `ContratoError` se clasifica como `servidor` aunque la
+`cargas.ver` a propósito (FR-9, FR-53, la matriz y el mockup de Cargas coinciden: ve la
+pantalla «sin acceso»; la nota anterior que decía lo contrario era un error);
+`ContratoError` se clasifica como `servidor` aunque la
 escritura probablemente se aplicó.
 
 **Huellas (v2, historia 3.5).** La vista previa y el resultado del CSV
@@ -527,8 +528,7 @@ distinguen lo nuevo de lo que ya estaba:
 quedan estacionados, fuera de la conciliación y de la bandeja. Si el conteo de
 `dudosos` se vuelve lento, evaluar un índice en `movimientos.carga_id`. La
 moneda duplicada entre el lector y la normalización sigue pendiente de
-refactor. El lector de BBVA sigue sin validarse con un PDF real y el revisor
-sin `cargas.ver` (ver 3.4).
+refactor. El lector de BBVA sigue sin validarse con un PDF real.
 
 **Vista previa levantada por banco (v2, historia 3.6).** La vista previa de un
 PDF es obligatoria hasta que el dueño la levanta para ese banco:
@@ -754,6 +754,11 @@ decisiones que requieren revisión (FR-17, AD-4):
   conciliadas normales al final; dentro de cada rango, monto de mayor a menor.
 - `motivoRevision` en cada fila: `cfdi_cancelado` solo si la decisión está marcada y su
   factura está cancelada; sin migración. Otra causa de revisión exigiría una columna.
+- **Resumen (pendiente 4.6 c, resuelto):** `GET /bandeja/resumen` suma `requiereRevision`,
+  cuántas conciliadas están marcadas. Siguen contando en `conteos.conciliado` y no entran al
+  «Monto por revisar»; la tarjeta «Conciliados» muestra «⚠ N requieren revisión» (mockups
+  Bandeja y Bandeja claro, aprobados el 5 nov 2026). No hay botón de filtro nuevo: ya aparecen
+  en la vista por defecto con su chip y su motivo.
 - **Pendiente (5.1):** los candidatos de un `sin_match` no se muestran porque el motor no
   los guarda; mostrarlos pide persistirlos.
 
