@@ -538,6 +538,49 @@ describe('elegibilidad (IA-01 a IA-04)', () => {
     expect(resumen.omitidos).toBe(1);
   });
 
+  it('4.5: un grupo rechazado no descarta como par a cada una de sus facturas', async () => {
+    const { m, cfdis } = await ambiguo(A, { folios: ['1001', '1002', '1003'] });
+    await sembrarDecision(ds, {
+      companyId: A,
+      cfdiIds: [cfdis[0], cfdis[1]],
+      movimientoId: m,
+      estado: 'rechazada',
+      origen: 'regla',
+      regla: 'suma_grupo',
+      motivo: 'no era',
+    });
+    const proveedor = new ProveedorFalso();
+    await servicio(proveedor).sugerirParaEmpresa(A);
+    expect(proveedor.recibidas[0].candidatos.map((c) => c.serieFolio)).toEqual([
+      'A-1001',
+      'A-1002',
+      'A-1003',
+    ]);
+  });
+
+  it('4.5: una factura de un grupo propuesto para otro movimiento no es candidata', async () => {
+    const { m, cfdis } = await ambiguo(A, {
+      folios: ['1001', '1002', '1003', '1004'],
+    });
+    const otro = await movimiento(A, { monto: '2320.00' });
+    await sembrarDecision(ds, {
+      companyId: A,
+      cfdiIds: [cfdis[0], cfdis[1]],
+      movimientoId: otro,
+      estado: 'propuesta',
+      origen: 'regla',
+      regla: 'suma_grupo',
+      score: '0.6000',
+    });
+    const proveedor = new ProveedorFalso();
+    await servicio(proveedor).sugerirParaEmpresa(A);
+    expect(proveedor.recibidas[0].candidatos.map((c) => c.serieFolio)).toEqual([
+      'A-1003',
+      'A-1004',
+    ]);
+    expect(m).toBeDefined();
+  });
+
   it('función apagada: ni llama al proveedor, ni lee la base, ni escribe', async () => {
     await ambiguo();
     const transaccion = entorno.app.get(TransaccionEmpresa);

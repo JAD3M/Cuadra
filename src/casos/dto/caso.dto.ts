@@ -76,7 +76,18 @@ export class PropuestaCasoDto {
   confirmadaAt: string | null;
   @ApiProperty({ nullable: true, type: ConfirmadaPorDto })
   confirmadaPor: ConfirmadaPorDto | null;
-  @ApiProperty({ type: CfdiResumenDto }) cfdi: CfdiResumenDto;
+  @ApiProperty({
+    type: CfdiResumenDto,
+    description:
+      'Primera factura (id ascendente); en un grupo, ver `cfdis`. Se conserva para clientes de una sola factura.',
+  })
+  cfdi: CfdiResumenDto;
+  @ApiProperty({
+    type: [CfdiResumenDto],
+    description:
+      'Todas las facturas de la propuesta, en id ascendente (un grupo tiene varias).',
+  })
+  cfdis: CfdiResumenDto[];
 }
 
 export class RespuestaCasoDto {

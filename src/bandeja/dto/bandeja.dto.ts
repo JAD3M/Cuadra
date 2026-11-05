@@ -85,7 +85,18 @@ export class MejorPropuestaDto {
   @ApiProperty({ nullable: true, type: String }) motivo: string | null;
   @ApiProperty({ nullable: true, type: String, example: '0.0000' })
   diferenciaMonto: string | null;
-  @ApiProperty({ type: CfdiResumenDto }) cfdi: CfdiResumenDto;
+  @ApiProperty({
+    type: CfdiResumenDto,
+    description:
+      'Primera factura (id ascendente); en un grupo, ver `cfdis`. Se conserva para clientes de una sola factura.',
+  })
+  cfdi: CfdiResumenDto;
+  @ApiProperty({
+    type: [CfdiResumenDto],
+    description:
+      'Todas las facturas de la propuesta, en id ascendente (un grupo tiene varias).',
+  })
+  cfdis: CfdiResumenDto[];
 }
 
 export class FilaBandejaDto {

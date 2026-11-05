@@ -5,6 +5,42 @@
 
 ### 4 nov 2026
 
+- **Historia 4.5 de la v2: proponer un depósito que cubre varias facturas.** Rama
+  `feat/v2-4-5-deposito-varias-facturas` con ODD, documento
+  `odd/tasks/v2-4-5-deposito-varias-facturas.md` (KAN-141). El esquema ya admitía
+  n líneas; faltaba el motor.
+  - **Decisiones de producto (registradas, ajustables):** «misma contraparte» es el
+    mismo `rfc_receptor` (la v1 no agrupaba por RFC, así que el supuesto del epic no
+    tenía respaldo allá; se adopta por conservador); subconjuntos de 2 a 5 facturas y
+    como máximo 20 candidatos por RFC (el spine no fija cota); las reglas de una
+    factura van primero; las facturas ya propuestas o confirmadas se excluyen.
+  - **Motor puro** (`evaluar-grupo.ts`): búsqueda determinista por RFC con `Dinero`.
+    Un único subconjunto dentro de la tolerancia produce una propuesta
+    (`suma_grupo`, puntuación 0.6, nivel `media`, con la diferencia del grupo); dos o
+    más dan `combinaciones_multiples`; pasar de 20 candidatos da `candidatos_excedidos`.
+    Migración `1790713000000-CombinacionesMultiples`.
+  - **Servicio:** el grupo solo se busca cuando las reglas de una factura dejaron
+    `sin_candidato_monto`. Una sentencia escribe la decisión, una línea por factura y
+    la bitácora. Un conjunto rechazado no se re-propone pero cuenta para la
+    ambigüedad; dos depósitos que compiten por una factura no proponen ninguno.
+  - **Resolución y lectura:** confirmar y rechazar ya eran atómicos para n facturas
+    (se probó con rollback). La respuesta y la bitácora llevan `cfdiIds`; casos y
+    bandeja muestran el grupo una vez, con sus líneas. La bandeja inflaba el conteo
+    por línea y sugerencias leía un grupo rechazado como un par por factura: ambos
+    corregidos.
+  - **Demo:** un movimiento sin match (Ferretería S7) sumaba tres facturas del mismo
+    receptor; el generador de montos evita ahora sumas de 2 a 5 facturas y se
+    regeneraron los CSV de `demo/`.
+  - **Migraciones:** las listas de `regla_sin_match` de `1790712000000` y
+    `1790713000000` quedan congeladas (antes se derivaban de la constante viva y el
+    `down` dejaba valores de más); el `down` de ambas tiene prueba directa.
+  - **Suite:** backend 89 suites, 1802 pruebas; frontend 291 archivos, 4725 pruebas.
+  - **Revisión nativa** de T1, T2 y T3 (riesgo medio): aprobadas. Seguimiento
+    opcional: `cfdi: cfdis[0]` quedaría indefinido en una decisión de conciliación
+    sin líneas (el diseño no lo produce).
+  - **Pendiente:** mostrar un grupo en la pantalla del caso (requiere mockup);
+    rendimiento de la búsqueda (~21 mil subconjuntos por RFC y movimiento, sin poda).
+
 - **Historia 4.4 de la v2: proponer una pareja de factura y pago, con su regla y
   confianza.** Rama `feat/v2-4-4-pareja-factura-pago` con ODD, documento
   `odd/tasks/v2-4-4-pareja-factura-pago.md` (KAN-140). El motor de la 4.2 ya

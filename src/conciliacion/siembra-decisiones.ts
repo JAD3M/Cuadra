@@ -4,13 +4,16 @@ import { huellaConjunto } from './huella-conjunto';
 
 /**
  * Siembra para los specs (historia 4.2): una decisión de tipo 'conciliacion'
- * con su única línea. Solo para pruebas: el código de la aplicación nunca
+ * con una línea por factura (una sola salvo `cfdiIds`). Solo para pruebas: el código de la aplicación nunca
  * importa este archivo.
  */
 export interface DecisionSembrada {
   companyId: string;
   movimientoId: string;
-  cfdiId: string;
+  /** Una factura; ignorado si se da `cfdiIds`. */
+  cfdiId?: string;
+  /** Un grupo (4.5): una línea por factura, misma huella de conjunto. */
+  cfdiIds?: string[];
   estado: EstadoDecision;
   /** Por omisión 'manual'. */
   origen?: 'regla' | 'llm' | 'manual';
@@ -34,6 +37,8 @@ export async function sembrarDecision(
   d: DecisionSembrada,
 ): Promise<string> {
   const confirmada = d.estado === 'confirmada';
+  const cfdiIds = d.cfdiIds ?? (d.cfdiId ? [d.cfdiId] : []);
+  if (cfdiIds.length === 0) throw new Error('sembrarDecision: falta cfdiId');
   const { id } = await una<{ id: string }>(
     origen,
     `INSERT INTO decisiones (company_id, movimiento_id, tipo, estado, origen,
@@ -49,16 +54,18 @@ export async function sembrarDecision(
       d.regla ?? null,
       d.score ?? null,
       d.diferenciaMonto ?? null,
-      huellaConjunto([d.cfdiId]),
+      huellaConjunto(cfdiIds),
       d.confirmadaPorId ?? null,
       d.confirmadaAt ?? (confirmada ? new Date() : null),
       d.motivo ?? null,
     ],
   );
-  await origen.query(
-    `INSERT INTO decision_lineas (company_id, decision_id, estado_decision, cfdi_id)
-     VALUES ($1, $2, $3, $4)`,
-    [d.companyId, id, d.estado, d.cfdiId],
-  );
+  for (const cfdiId of cfdiIds) {
+    await origen.query(
+      `INSERT INTO decision_lineas (company_id, decision_id, estado_decision, cfdi_id)
+       VALUES ($1, $2, $3, $4)`,
+      [d.companyId, id, d.estado, cfdiId],
+    );
+  }
   return id;
 }

@@ -224,7 +224,13 @@ export class SugerenciasService {
            JOIN decision_lineas l
              ON l.decision_id = d.id AND l.company_id = d.company_id
           WHERE d.company_id = $1
-            AND d.estado IN ('propuesta', 'confirmada', 'rechazada')`,
+            AND d.estado IN ('propuesta', 'confirmada', 'rechazada')
+            -- Un grupo rechazado (4.5) rechazó el CONJUNTO, no cada factura
+            -- por separado: no se vuelve un par rechazado por línea.
+            AND (d.estado <> 'rechazada'
+                 OR (SELECT count(*) FROM decision_lineas x
+                      WHERE x.decision_id = d.id
+                        AND x.company_id = d.company_id) = 1)`,
         [companyId],
       );
       const vistos = await manager.query<
