@@ -12,6 +12,7 @@ import {
   TRANSPORTES,
 } from '../cargas/testing/app-de-cargas';
 import { ENTIDADES_BITACORA } from '../common/entities/tipos';
+import { cancelarCfdi } from '../cfdi/cancelar-cfdi';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import { sembrarDecision } from '../conciliacion/siembra-decisiones';
 import { una } from '../database/testing/base-de-pruebas';
@@ -212,6 +213,37 @@ describe('GET /conciliaciones/:id/historial (AU-10 a AU-14)', () => {
     expect(Date.parse(eventosDe(res)[0].createdAt)).toBeLessThan(
       Date.parse(eventosDe(res)[1].createdAt),
     );
+  });
+
+  it('4.6: la cancelación de su factura aparece al final del historial de la decisión confirmada', async () => {
+    const { id, cfdiId } = await propuesta();
+    await confirmar(id).expect(200);
+    await ds.transaction((m) => cancelarCfdi(m, A, cfdiId, null));
+
+    const res = await historial(id).expect(200);
+
+    expect(accionesDe(res)).toEqual(['crear', 'confirmar', 'actualizar']);
+    expect(eventosDe(res)[2]).toMatchObject({
+      entidad: 'cfdi',
+      entidadId: cfdiId,
+      usuario: null,
+      datos: {
+        antes: { estado: 'conciliada' },
+        despues: { estado: 'cancelada' },
+      },
+    });
+  });
+
+  it('4.6: la cancelación de una factura ajena a la decisión no entra a su historial', async () => {
+    const { id } = await propuesta();
+    const otra = await propuesta();
+    await confirmar(id).expect(200);
+    await confirmar(otra.id).expect(200);
+    await ds.transaction((m) => cancelarCfdi(m, A, otra.cfdiId, null));
+
+    const res = await historial(id).expect(200);
+
+    expect(accionesDe(res)).toEqual(['crear', 'confirmar']);
   });
 
   it('AU-11: no expone ip ni userAgent', async () => {

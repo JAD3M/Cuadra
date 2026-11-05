@@ -5,6 +5,17 @@
 
 ### 5 nov 2026
 
+- **Pendiente 4.6 (b): evento «se marcó cancelada» en el historial del caso.** Rama
+  `fix/v2-pendientes-historial-cancelada`, encadenada sobre la del pendiente (d). El
+  mockup del Detalle ya dibujaba el evento. Backend: `BitacoraService.historial` suma las
+  filas `cfdi`/`actualizar` con estado final `cancelada` de las facturas de la decisión
+  (`EXISTS` sobre `decision_lineas`, con `company_id`); una factura ajena no entra.
+  Frontend: el contrato del historial acepta `entidad` y `entidadId` (opcionales), y el
+  evento se nombra con la etiqueta de la factura, con el detalle «Cuadra no reabre la
+  conciliación: hace falta revisarla». Sin etiqueta conocida no inventa una factura.
+  Pruebas: dos de backend (aparece; la ajena no) y tres de componente, más el helper
+  `etiquetasPorCfdi`. `cfdi` sigue fuera de `ENTIDADES_BITACORA` (pendiente 4.6 e).
+
 - **Pendiente 4.6 (d): `cancelarCfdi` que falla al resubir.** Rama
   `fix/v2-pendientes-cancelar-cfdi-lote`. Se verificó antes de tocar nada: abortar el
   lote no es un fallo sino el diseño de CU-08 (el worker revierte todo y BullMQ reintenta;

@@ -48,6 +48,64 @@ describe('Historial', () => {
     expect(items[1]).toHaveTextContent('Ana');
   });
 
+  it('4.6: la cancelación de una factura se nombra con su etiqueta y no con el actor', () => {
+    dibujar({
+      eventos: [
+        ...EVENTOS,
+        {
+          id: 'e3',
+          accion: 'actualizar',
+          entidad: 'cfdi',
+          entidadId: 'cfdi-1',
+          createdAt: '2026-10-06T18:00:00.000Z',
+          usuario: null,
+        },
+      ],
+      etiquetasPorCfdi: { 'cfdi-1': 'A-1044' },
+    });
+    const items = within(screen.getByRole('list')).getAllByRole('listitem');
+    expect(items).toHaveLength(3);
+    expect(items[2]).toHaveTextContent('La factura A-1044 se marcó cancelada');
+    expect(items[2]).toHaveTextContent(
+      'Cuadra no reabre la conciliación: hace falta revisarla',
+    );
+    expect(items[2]).not.toHaveTextContent('Sistema');
+  });
+
+  it('4.6: sin etiqueta conocida no inventa una factura', () => {
+    dibujar({
+      eventos: [
+        {
+          id: 'e3',
+          accion: 'actualizar',
+          entidad: 'cfdi',
+          entidadId: 'desconocida',
+          createdAt: '2026-10-06T18:00:00.000Z',
+          usuario: null,
+        },
+      ],
+      etiquetasPorCfdi: { otra: 'A-1' },
+    });
+    expect(
+      screen.getByText('Una factura de esta conciliación se marcó cancelada'),
+    ).toBeInTheDocument();
+  });
+
+  it('un «actualizar» de otra entidad no se confunde con la cancelación', () => {
+    dibujar({
+      eventos: [
+        {
+          id: 'e4',
+          accion: 'actualizar',
+          entidad: 'decisiones',
+          createdAt: '2026-10-06T18:00:00.000Z',
+          usuario: { nombre: 'Ana' },
+        },
+      ],
+    });
+    expect(screen.queryByText(/se marcó cancelada/)).not.toBeInTheDocument();
+  });
+
   it('nunca muestra datos, correo, IP ni agente de usuario', () => {
     const conSecretos = EVENTOS.map((e) => ({
       ...e,

@@ -29,3 +29,21 @@ export function etiquetasCanceladas(propuesta: PropuestaConFacturas): string[] {
     .filter((f) => f.estado === 'cancelada')
     .map((f) => etiquetaCfdi(f));
 }
+
+/**
+ * Etiqueta de cada factura de la decisión por su id, para nombrar en el
+ * historial la que se marcó cancelada. Sin propuesta a la vista, vacío.
+ */
+export function etiquetasPorCfdi(
+  propuesta: {
+    cfdi: CfdiEtiquetable & { id: string };
+    cfdis?: ReadonlyArray<CfdiEtiquetable & { id: string }>;
+  } | null,
+): Record<string, string> {
+  if (propuesta === null) return {};
+  const facturas =
+    propuesta.cfdis !== undefined && propuesta.cfdis.length > 0
+      ? propuesta.cfdis
+      : [propuesta.cfdi];
+  return Object.fromEntries(facturas.map((f) => [f.id, etiquetaCfdi(f)]));
+}

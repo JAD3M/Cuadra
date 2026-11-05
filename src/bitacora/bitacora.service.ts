@@ -66,7 +66,7 @@ export class BitacoraService {
   constructor(private readonly contexto: ContextoEmpresa) {}
 
   /**
-   * Eventos de una decisión, del más antiguo al más nuevo. Una propuesta
+   * Eventos de una decisión (y la cancelación de sus facturas), del más antiguo al más nuevo. Una propuesta
    * anterior a CU-16 no tiene fila 'crear' y devuelve solo lo posterior. El
    * 404 es el mismo para una decisión inexistente y para una ajena.
    */
@@ -89,8 +89,14 @@ export class BitacoraService {
          FROM bitacora b
          LEFT JOIN users u ON u.id = b.user_id
         WHERE b.company_id = $1
-          AND b.entidad IN ${ENTIDADES_DE_DECISION}
-          AND b.entidad_id = $2
+          AND ((b.entidad IN ${ENTIDADES_DE_DECISION} AND b.entidad_id = $2)
+            -- Historia 4.6: la cancelación de una factura de la decisión es
+            -- parte de su historia aunque se escriba bajo la entidad 'cfdi'.
+            OR (b.entidad = 'cfdi' AND b.accion = 'actualizar'
+                AND b.datos #>> '{despues,estado}' = 'cancelada'
+                AND EXISTS (SELECT 1 FROM decision_lineas l
+                             WHERE l.decision_id = $2 AND l.company_id = $1
+                               AND l.cfdi_id = b.entidad_id)))
         ORDER BY b.created_at ASC, b.id ASC`,
       [companyId, conciliacionId],
     );

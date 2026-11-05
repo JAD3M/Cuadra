@@ -18,6 +18,14 @@ export interface EventoHistorialProps {
   createdAt: string;
   /** Etiqueta del CFDI propuesto, para el evento `crear`. */
   etiquetaCfdi: string | null;
+  /** Entidad del evento; `cfdi` + `actualizar` es la cancelación de una factura. */
+  entidad?: string;
+  /** Etiqueta de la factura cancelada; `null` si no se conoce. */
+  etiquetaFactura?: string | null;
+}
+
+function esCancelacionDeFactura(entidad: string | undefined, accion: string) {
+  return entidad === 'cfdi' && accion === 'actualizar';
 }
 
 function esAccionConocida(accion: string): accion is AccionBitacora {
@@ -32,7 +40,8 @@ function tituloDe(accion: string, etiquetaCfdi: string | null): string {
     : `${ETIQUETAS_ACCION_BITACORA.crear} ${etiquetaCfdi}`;
 }
 
-function tonoDe(accion: string): string {
+function tonoDe(accion: string, cancelacion: boolean): string {
+  if (cancelacion) return estilos.revision ?? '';
   if (accion === ACCION_CREAR) return estilos.propuesta ?? '';
   if (accion === ACCION_CONFIRMAR) return estilos.confirmada ?? '';
   if (accion === ACCION_RECHAZAR) return estilos.rechazada ?? '';
@@ -48,19 +57,26 @@ export function EventoHistorial({
   usuario,
   createdAt,
   etiquetaCfdi,
+  entidad,
+  etiquetaFactura = null,
 }: EventoHistorialProps) {
+  const cancelacion = esCancelacionDeFactura(entidad, accion);
   return (
     <li className={estilos.evento}>
       <span
-        className={`${estilos.punto} ${tonoDe(accion)}`}
+        className={`${estilos.punto} ${tonoDe(accion, cancelacion)}`}
         aria-hidden="true"
       />
       <div className={estilos.cuerpo}>
         <strong className={estilos.titulo}>
-          {tituloDe(accion, etiquetaCfdi)}
+          {cancelacion
+            ? HISTORIAL.facturaCancelada(etiquetaFactura)
+            : tituloDe(accion, etiquetaCfdi)}
         </strong>
         <span className={estilos.detalle}>
-          {usuario?.nombre ?? HISTORIAL.sistema}
+          {cancelacion
+            ? HISTORIAL.facturaCanceladaDetalle
+            : (usuario?.nombre ?? HISTORIAL.sistema)}
         </span>
         <span className={estilos.cuando}>{formatearInstante(createdAt)}</span>
       </div>

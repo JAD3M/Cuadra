@@ -167,6 +167,13 @@ export const HISTORIAL = {
   sistema: 'Sistema',
   /** La propuesta cuando el CFDI ya no está a la vista (p. ej. rechazada). */
   propuestaSinCfdi: 'El motor propuso un CFDI',
+  /** Evento 4.6: una factura de la decisión se marcó cancelada. */
+  facturaCancelada: (etiqueta: string | null) =>
+    etiqueta === null
+      ? 'Una factura de esta conciliación se marcó cancelada'
+      : `La factura ${etiqueta} se marcó cancelada`,
+  facturaCanceladaDetalle:
+    'Cuadra no reabre la conciliación: hace falta revisarla',
   /** Fila derivada del estado del servidor: no es un evento real. */
   pendiente: {
     titulo: 'Esperando decisión',

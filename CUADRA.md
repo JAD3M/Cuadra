@@ -717,10 +717,10 @@ detectar las reales exigiría consultar el servicio de estatus del SAT (RFC emis
 RFC receptor, total y UUID; devuelve Vigente, Cancelado o No Encontrado, con
 cancelación «en proceso» posible). Es un no objetivo del PRD (§6, FR-66); sería una
 historia aparte con enmienda del PRD, FR-66 y el spine, y con decisión de qué estado
-queda si el SAT no responde. (b) El historial del caso no muestra el evento «se
-marcó cancelada» que dibuja el mockup: su consulta solo trae la bitácora de
-`conciliaciones` y `decisiones`, y la cancelación se escribe bajo `cfdi`; hace falta
-un cambio de backend. (c) Resumen
+queda si el SAT no responde. (b) Resuelto: el historial del caso (`GET /conciliaciones/:id/historial`) suma la
+cancelación de las facturas de la decisión (entidad `cfdi`, acción `actualizar`, estado
+final `cancelada`) y el frontend la dibuja como en el mockup: «La factura A-1044 se marcó
+cancelada», con punto ámbar. Una cancelación de una factura ajena a la decisión no entra. (c) Resumen
 de la bandeja: la `confirmada` marcada cuenta como `conciliado` y no entra en «por
 revisar»; cambiarlo exige mockup. (d) Si `cancelarCfdi` falla al resubir un archivo
 (409 o error de SQL), la excepción aborta todo el lote: es el diseño de CU-08 (falla de

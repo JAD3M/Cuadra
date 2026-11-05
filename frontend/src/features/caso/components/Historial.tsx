@@ -9,6 +9,8 @@ import estilos from './Historial.module.css';
 export interface EventoDeHistorial {
   id: string;
   accion: string;
+  entidad?: string;
+  entidadId?: string;
   createdAt: string;
   usuario: { nombre: string } | null;
 }
@@ -18,6 +20,8 @@ export interface HistorialProps {
   eventos: readonly EventoDeHistorial[];
   /** Etiqueta del CFDI de la propuesta, para su evento `crear`. */
   etiquetaCfdi: string | null;
+  /** Etiqueta de cada factura de la decisión por id, para nombrar la cancelada. */
+  etiquetasPorCfdi?: Readonly<Record<string, string>>;
   /** Agrega «Esperando decisión»: solo con el estado `sugerencia`. */
   pendiente: boolean;
   /** Se está pidiendo: no se afirma que esté vacío. */
@@ -35,6 +39,7 @@ export interface HistorialProps {
 export function Historial({
   eventos,
   etiquetaCfdi,
+  etiquetasPorCfdi = {},
   pendiente,
   cargando = false,
   fallo = false,
@@ -69,6 +74,12 @@ export function Historial({
               usuario={evento.usuario}
               createdAt={evento.createdAt}
               etiquetaCfdi={etiquetaCfdi}
+              entidad={evento.entidad}
+              etiquetaFactura={
+                evento.entidadId === undefined
+                  ? null
+                  : (etiquetasPorCfdi[evento.entidadId] ?? null)
+              }
             />
           ))}
           {pendiente ? <EventoPendiente /> : null}
