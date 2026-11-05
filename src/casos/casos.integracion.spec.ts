@@ -180,6 +180,26 @@ describe('CAS-1 endpoint, acceso y validación del id', () => {
     expect(revisor.propuestas).toHaveLength(1);
   });
 
+  it('un auditor abre el caso (200) y recibe el mismo cuerpo que un admin', async () => {
+    const m = await movimiento(A);
+    await conciliacion(A, await factura(A), m, 'propuesta');
+    const admin = await obtener(m, tokenA);
+    const cambiarRol = (rol: string) =>
+      ds.query(
+        `UPDATE user_company_roles SET rol = $3
+          WHERE user_id = $1 AND company_id = $2`,
+        [entorno.persona(LUIS), A, rol],
+      );
+    await cambiarRol('auditor');
+    try {
+      const auditor = await obtener(m, await entorno.token(LUIS, FERRETERIA));
+      expect(auditor).toEqual(admin);
+      expect(auditor.propuestas).toHaveLength(1);
+    } finally {
+      await cambiarRol('contador');
+    }
+  });
+
   it('un id que no es UUID es 400', async () => {
     await caso(tokenA, '42').expect(400);
   });

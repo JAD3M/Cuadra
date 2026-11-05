@@ -5,6 +5,18 @@
 
 ### 5 nov 2026
 
+- **Historia 5.2 de la v2: confirmar o rechazar un caso individual.** Rama
+  `feat/v2-5-2-confirmar-rechazar-individual` (KAN-145). Un explorador mapeó los cinco
+  criterios contra el código: ya estaban cubiertos desde CU-15 y CU-23 (confirmar, rechazar,
+  detalle, auditor de solo lectura y 409).
+  - **Decisión del usuario:** el criterio 5 decía que «la pantalla se actualiza» ante un 409,
+    pero el diseño probado muestra el aviso, bloquea los controles y ofrece «Recargar caso»,
+    sin recarga automática (el caso no cambia bajo los ojos de la persona). Se corrigió el
+    criterio en `epics.md`, no el código.
+  - **Hueco cerrado:** prueba de backend de que un auditor abre `GET /casos/:id` (200) con el
+    mismo cuerpo que un admin; el 403 de confirmar y rechazar ya estaba en
+    `permisos.integracion.spec.ts`.
+
 - **Historia 5.1 de la v2: ver la bandeja ordenada por confianza (primera de la épica 5).**
   Rama `feat/v2-5-1-bandeja-por-confianza`, documento `odd/tasks/v2-5-1-bandeja-por-confianza.md`
   (KAN-144). Se actualizó el mockup de la bandeja (oscuro y claro) y se acordó antes de
