@@ -70,6 +70,7 @@ atómica con su bitácora (AD-7), con `rowCount` verificado y `23505` → 409.
 - [ ] **T6 Cierre.** Hecho: `CUADRA.md` (pendientes y el límite del SAT) y bitácora.
   Pendiente: repaso en Engram y PR (en cadena si pasa de 400 líneas).
 - [x] **T7 Frontend.** Mockup acordado el 2026-11-05. Chip «⚠ Requiere revisión» (tono ámbar de `sin_match`) en bandeja y encabezado del caso, y tarjeta ámbar en lugar de «Conciliado». El evento de historial no se muestra: la API no lo trae (ver Pendientes).
+- [x] **T8 Estado por factura.** `estado` en `CfdiResumenDto` (bandeja y caso) y en los contratos del frontend; la tarjeta ámbar nombra solo las facturas `cancelada` de la decisión (una, varias o ninguna identificable), con función pura probada. Corrige el aviso no bloqueante de la revisión de T7: en un grupo, `cfdi` es la primera factura y no necesariamente la cancelada.
 
 ## Rutas
 
@@ -119,3 +120,4 @@ Los escritores pegan la salida RED.
 - 2026-11-05: revisión nativa de los commits T1 a T4: aprobada, una lente, un hallazgo no bloqueante (pendiente d).
 - 2026-11-05: T6 parcial: `CUADRA.md` y bitácora escritas (suite final backend 90 suites, 1834 pruebas; un fallo intermitente en `esquema.spec.ts` «usa el índice parcial» que pasa solo). Faltan el repaso en Engram y el PR. T7 sigue condicionada al mockup.
 - 2026-11-05: T7 hecha (ruta delegada, escritor único). Contratos con `requiereRevision: z.boolean()`, chip ámbar, `TarjetaRequiereRevision`. RED: 6 pruebas fallando; GREEN: 292 archivos / 4737 pruebas. Commit: 2332475.
+- 2026-11-05: T8 hecha (ruta delegada, escritor único). RED backend: 2 pruebas fallando (`estado` indefinido); GREEN: suite backend 90 suites / 1837 pruebas. RED frontend: 4 pruebas fallando más el import faltante; GREEN: 293 archivos / 4747 pruebas. Commits: e72ef59 (backend y espejo), 9e55f2c (frontend).
