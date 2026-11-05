@@ -123,6 +123,37 @@ describe('CasoPage: acciones según las capacidades (2.2)', () => {
   });
 });
 
+describe('CasoPage: una sugerencia de la IA nunca viene marcada (4.7)', () => {
+  it('se muestra como sugerencia pendiente: sin cierre y sin enviar ninguna resolución sola', async () => {
+    const espia = espiarSolicitudes();
+    const caso = servir(
+      casoSugerencia({
+        propuestas: [
+          propuestaCaso(1, {
+            origen: 'llm',
+            regla: 'llm_sugerencia',
+            score: null,
+          }),
+        ],
+      }),
+    );
+    montar(caso.movimiento.id, sesionConRoles(['revisor']));
+    await screen.findByRole('button', { name: /Confirmar conciliación/ });
+
+    // Nada la muestra confirmada ni cerrada: la decisión sigue en manos de la persona.
+    expect(screen.queryByText('Conciliado')).toBeNull();
+    expect(
+      screen.queryByText('Este caso ya está cerrado y no admite cambios.'),
+    ).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+
+    // Ver el caso no confirma ni rechaza nada: solo lecturas.
+    espia.detener();
+    const escrituras = espia.solicitudes.filter((s) => s.metodo !== 'GET');
+    expect(escrituras).toEqual([]);
+  });
+});
+
 describe('CasoPage', () => {
   it('lee el parámetro movimientoId y pide ese caso', async () => {
     const espia = espiarSolicitudes();

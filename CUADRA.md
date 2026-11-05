@@ -730,6 +730,20 @@ ENT-1 fija la lista y el frontend la espeja); `GET /bitacora` acepta cualquier
 entidad, así que las entradas se ven; decidir al tocar el frontend. (f) La
 `confirmada` marcada no tiene orden prioritario en la bandeja.
 
+**Sugerencias de la IA (v2, historia 4.7), terminada el 5 nov 2026.** El módulo
+`sugerencias` ya existía desde CU-17 y ya trabajaba sobre `decisiones` con el candado
+de empresa (AD-21, AD-19); la historia lo verificó contra sus criterios y cerró dos
+huecos con pruebas:
+
+- La sugerencia vive en `decisiones` (propuesta, `origen = 'llm'`, explicación en
+  `motivo`); `sugerencias_ia` solo registra qué se consultó (`input_hash`). El
+  criterio de `epics.md` se corrigió para decirlo.
+- Prueba de backend: todo lo que escribe el módulo es `propuesta` sin persona, aun con
+  confianza alta. Prueba de frontend: una sugerencia de IA se muestra pendiente, sin
+  cierre, y ver el caso no envía ninguna escritura.
+- El proveedor real (Anthropic) no se usa ni se paga: sin `ANTHROPIC_API_KEY` el
+  módulo queda desactivado. La prueba real con el proveedor llega en la épica 7.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**
