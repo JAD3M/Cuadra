@@ -46,7 +46,7 @@ const CONSULTA = `
                'nombreReceptor', f.nombre_receptor,
                'fechaEmision', to_char(f.fecha_emision,'YYYY-MM-DD'),
                'total', f.total::text, 'moneda', f.moneda,
-               'metodoPago', f.metodo_pago) ORDER BY f.id) AS cfdis
+               'metodoPago', f.metodo_pago, 'estado', f.estado) ORDER BY f.id) AS cfdis
         FROM decision_lineas l
         JOIN cfdi f ON f.company_id = $2 AND f.id = l.cfdi_id
        WHERE l.company_id = $2 AND l.decision_id = c.id

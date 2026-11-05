@@ -40,6 +40,7 @@ export function propuestaCaso(
       total: '1160.0000',
       moneda: 'MXN',
       metodoPago: 'PUE',
+      estado: 'abierta',
     },
     ...o,
   };

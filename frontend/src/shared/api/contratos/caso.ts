@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import {
+  ESTADOS_CFDI,
   NIVELES_CONFIANZA,
   ORIGENES_CONCILIACION,
   type EstadoConciliacion,
@@ -33,6 +34,8 @@ export const cfdiCaso = z.object({
   total: montoDecimal,
   moneda,
   metodoPago: z.string().nullable(),
+  /** De ESTA factura: en un grupo, la cancelada puede no ser la primera. */
+  estado: z.enum(ESTADOS_CFDI),
 });
 
 export const propuestaCaso = z.object({

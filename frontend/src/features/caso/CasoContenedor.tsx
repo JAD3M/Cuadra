@@ -23,6 +23,7 @@ import { Historial } from './components/Historial';
 import { ListaPropuestas } from './components/ListaPropuestas';
 import { PanelDecision } from './components/PanelDecision';
 import { TarjetaConciliado } from './components/TarjetaConciliado';
+import { etiquetasCanceladas } from './canceladas';
 import { TarjetaRequiereRevision } from './components/TarjetaRequiereRevision';
 import { TarjetaSinMatch } from './components/TarjetaSinMatch';
 import estilos from './CasoContenedor.module.css';
@@ -262,7 +263,7 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
               />
               {enRevision ? (
                 <TarjetaRequiereRevision
-                  etiquetaCfdi={etiquetaCfdi(expandida.cfdi)}
+                  etiquetasCanceladas={etiquetasCanceladas(expandida)}
                   usuario={expandida.confirmadaPor?.nombre ?? null}
                   confirmadaAt={expandida.confirmadaAt}
                 />

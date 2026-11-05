@@ -551,6 +551,31 @@ describe('CAS-3b requiere revisión (4.6)', () => {
   });
 });
 
+describe('CAS-3b estado de cada factura (4.6)', () => {
+  it('cfdi y cfdis traen el estado de su factura; en un grupo la cancelada puede no ser la primera', async () => {
+    const m = await movimiento(A, { monto: '2320.00', estado: 'conciliado' });
+    const f1 = await factura(A);
+    const f2 = await factura(A);
+    await sembrarDecision(ds, {
+      companyId: A,
+      movimientoId: m,
+      cfdiIds: [f1, f2],
+      estado: 'confirmada',
+      origen: 'manual',
+      confirmadaPorId: entorno.persona(ANA),
+    });
+    await ds.query(
+      `UPDATE cfdi SET estado = 'cancelada' WHERE company_id = $1 AND id = $2`,
+      [A, f2],
+    );
+    const [p] = (await obtener(m)).propuestas;
+    const estadoDe = (id: string) => p.cfdis.find((c) => c.id === id)?.estado;
+    expect(estadoDe(f1)).toBe('abierta');
+    expect(estadoDe(f2)).toBe('cancelada');
+    expect(p.cfdi.estado).toBe(estadoDe(p.cfdi.id));
+  });
+});
+
 describe('CAS-4 montos como cadenas decimales exactas', () => {
   it('conserva el máximo de numeric(18,4) y una diferencia negativa pequeña como texto (B1)', async () => {
     const m = await movimiento(A, { monto: '99999999999999.9999' });

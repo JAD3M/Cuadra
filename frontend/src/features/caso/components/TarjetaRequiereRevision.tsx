@@ -5,8 +5,8 @@ import comunes from './bloques.module.css';
 import estilos from './TarjetaRequiereRevision.module.css';
 
 export interface TarjetaRequiereRevisionProps {
-  /** «serie-folio» del CFDI cancelado, como en el resto del caso. */
-  etiquetaCfdi: string;
+  /** «serie-folio» de cada CFDI cancelado, como en el resto del caso; vacío si ninguno se identifica. */
+  etiquetasCanceladas: readonly string[];
   /** Nombre de quien confirmó; `null` si el servidor no lo devolvió. */
   usuario: string | null;
   /** Instante ISO de la confirmación; `null` si el servidor no lo devolvió. */
@@ -19,7 +19,7 @@ export interface TarjetaRequiereRevisionProps {
  * historia. El estado lo decide el servidor, nunca el rol de quien mira.
  */
 export function TarjetaRequiereRevision({
-  etiquetaCfdi,
+  etiquetasCanceladas,
   usuario,
   confirmadaAt,
 }: TarjetaRequiereRevisionProps) {
@@ -35,7 +35,7 @@ export function TarjetaRequiereRevision({
         {REQUIERE_REVISION.titulo}
       </h3>
       <p className={estilos.parrafo}>
-        {REQUIERE_REVISION.cancelada(etiquetaCfdi)}
+        {REQUIERE_REVISION.cancelada(etiquetasCanceladas)}
       </p>
       <span className={estilos.nota}>
         {REQUIERE_REVISION.nota(usuario, fecha)}

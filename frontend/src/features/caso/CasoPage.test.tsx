@@ -244,6 +244,7 @@ describe('CasoPage', () => {
       propuestas: base.propuestas.map((p) => ({
         ...p,
         requiereRevision: true,
+        cfdi: { ...p.cfdi, estado: 'cancelada' as const },
       })),
     });
     montar(caso.movimiento.id);
@@ -262,6 +263,36 @@ describe('CasoPage', () => {
     ).toBeNull();
     expect(screen.queryByText('Conciliado')).toBeNull();
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('en un grupo confirmado la tarjeta nombra la factura cancelada, no la primera (4.6)', async () => {
+    const base = casoConciliado();
+    const caso = servir({
+      ...base,
+      requiereRevision: true,
+      propuestas: base.propuestas.map((p) => {
+        const primera = { ...p.cfdi, estado: 'abierta' as const };
+        const segunda = {
+          ...p.cfdi,
+          id: idDe(9001),
+          folio: '2002',
+          estado: 'cancelada' as const,
+        };
+        return {
+          ...p,
+          requiereRevision: true,
+          cfdi: primera,
+          cfdis: [primera, segunda],
+        };
+      }),
+    });
+    montar(caso.movimiento.id);
+    expect(
+      await screen.findByText(
+        'La factura A-2002 fue cancelada. Revisa esta conciliación.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/A-1001 fue cancelada/)).toBeNull();
   });
 
   it('un caso conciliado tampoco lista propuestas', async () => {

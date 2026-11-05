@@ -332,6 +332,33 @@ describe('BJ-2b requiere revisión (4.6)', () => {
     });
   });
 
+  it('cada factura de un grupo confirmado trae su estado: la cancelada no es necesariamente la primera', async () => {
+    const m = await movimiento(A, { monto: '2320.00', estado: 'conciliado' });
+    const f1 = await factura(A);
+    const f2 = await factura(A);
+    await sembrarDecision(ds, {
+      companyId: A,
+      movimientoId: m,
+      cfdiIds: [f1, f2],
+      estado: 'confirmada',
+      origen: 'manual',
+      confirmadaPorId: entorno.persona(ANA),
+    });
+    await ds.query(
+      `UPDATE cfdi SET estado = 'cancelada' WHERE company_id = $1 AND id = $2`,
+      [A, f2],
+    );
+    await marcarRevision(m);
+    const { mejorPropuesta } = (await listar()).datos[0];
+    const estadoDe = (id: string) =>
+      mejorPropuesta?.cfdis.find((c) => c.id === id)?.estado;
+    expect(estadoDe(f1)).toBe('abierta');
+    expect(estadoDe(f2)).toBe('cancelada');
+    expect(mejorPropuesta?.cfdi.estado).toBe(
+      estadoDe(mejorPropuesta?.cfdi.id as string),
+    );
+  });
+
   it('la marca de otra empresa no se ve ni cuenta', async () => {
     const m = await cerrado(B, '100.00');
     await marcarRevision(m, B);

@@ -70,6 +70,7 @@ function filaConPropuesta(
               folio: mejor.cfdi.folio,
               total: mejor.cfdi.total,
               moneda: mejor.cfdi.moneda,
+              estado: mejor.cfdi.estado,
             },
           },
   };
