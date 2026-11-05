@@ -3,6 +3,50 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 5 nov 2026
+
+- **Historia 4.6 de la v2: sacar de las propuestas las facturas canceladas.** Rama
+  `feat/v2-4-6-facturas-canceladas` con ODD, documento
+  `odd/tasks/v2-4-6-facturas-canceladas.md` (KAN-142). Cuadra no consulta al SAT y
+  nunca reabre sola una decisión confirmada.
+  - **Decisiones:** la señal es el atributo `Estatus="Cancelado"` en el nodo
+    `Comprobante`. Es una convención de Cuadra, no del SAT: un CFDI 4.0 real no trae
+    marca de cancelación. Sin consulta al SAT (PRD §6, FR-66). La bitácora usa la
+    acción existente `actualizar` sobre la entidad `cfdi`, así que no hay migración.
+  - **T1 (097edc4), lector:** `leerCfdi` reconoce la señal y un CFDI nuevo con ella
+    nace `cancelada`.
+  - **T2 (ae915d8), transición atómica:** `cancelarCfdi` (`src/cfdi/cancelar-cfdi.ts`)
+    es una sentencia con CTE bajo el orden de bloqueo AD-19. Un CFDI abierto, con
+    parcialidades o conciliado pasa a `cancelada`; sus propuestas vivas pasan a
+    `obsoleta` (un grupo, entero); una decisión `confirmada` sigue `confirmada` con
+    `requiere_revision = true`, sin reabrirse y sin tocar `movimientos.estado`.
+    Idempotente: una ya cancelada no cambia nada ni escribe bitácora.
+  - **T3 (07271c8), resubir:** un CFDI que ya existe y llega con la señal se cancela;
+    el resultado de la carga sigue siendo `ya_existia` y suma `cancelada: true`. Sin
+    la señal no cambia nada.
+  - **T4 (ca242c4), motor y sugerencias:** ya filtraban `estado = 'abierta'`; ahora hay
+    pruebas que lo fijan, en pares y en grupos.
+  - **T5 (c27d660), bandeja y casos:** exponen `requiereRevision`. Una `confirmada`
+    marcada aparece en la bandeja (con el filtro `sugerencia`, que incluye el default,
+    o con `conciliado`), sin cambiar el orden. Ningún endpoint limpia la marca: reabrir
+    es de la 5.7.
+  - **Suite:** backend 90 suites, 1834 pruebas; un fallo intermitente en
+    `esquema.spec.ts` («usa el índice parcial») que pasa al correrlo solo, atribuido
+    al planificador.
+  - **Revisión nativa** de los commits T1 a T4: aprobada, con una lente y un hallazgo
+    no bloqueante (pendiente d).
+  - **Pendientes:** (a) consultar al SAT: un XML real no marca la cancelación; sería
+    una historia aparte con enmienda del PRD, FR-66 y el spine, y con decisión de qué
+    estado queda si el SAT no responde. (b) El frontend no muestra `requiereRevision`
+    en bandeja ni en el caso (antes, el mockup). (c) El resumen de la bandeja cuenta
+    la `confirmada` marcada como `conciliado` y no como «por revisar». (d) Si
+    `cancelarCfdi` falla al resubir un archivo, la excepción aborta todo el lote en
+    vez de reportar solo ese archivo (`src/cargas/guardar-cfdi.ts:89-91`); esa ruta no
+    tiene prueba. (e) `cfdi` no está en `ENTIDADES_BITACORA` (la prueba ENT-1 fija la
+    lista y el frontend la espeja); `GET /bitacora` acepta cualquier entidad, así que
+    las entradas se ven. (f) La `confirmada` marcada no tiene orden prioritario en la
+    bandeja.
+
 ### 4 nov 2026
 
 - **Historia 4.5 de la v2: proponer un depósito que cubre varias facturas.** Rama

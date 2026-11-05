@@ -683,6 +683,46 @@ el caso (AD-3, AD-4):
 mockup); la búsqueda no tiene poda (~21 mil subconjuntos por RFC y movimiento en el
 peor caso).
 
+**Facturas canceladas (v2, historia 4.6), terminada el 5 nov 2026.** Una factura
+cancelada deja de proponerse; Cuadra no consulta al SAT y nunca reabre sola una
+decisión confirmada (AD-4, AD-7, AD-19):
+
+- La señal es el atributo `Estatus="Cancelado"` en el nodo `Comprobante`
+  (`src/cfdi/lector-cfdi.ts`). Es una convención de Cuadra, no del SAT: un CFDI 4.0
+  real no trae marca de cancelación. Un CFDI nuevo con la señal nace `cancelada`.
+- `cancelarCfdi` (`src/cfdi/cancelar-cfdi.ts`) es una sentencia con CTE bajo el
+  orden de bloqueo AD-19. Un CFDI abierto, con parcialidades o conciliado pasa a
+  `cancelada`; sus propuestas vivas pasan a `obsoleta` (un grupo, entero); una
+  decisión `confirmada` sigue `confirmada` con `requiere_revision = true`, sin
+  reabrirse y sin tocar `movimientos.estado`. Bitácora `actualizar` sobre la
+  entidad `cfdi`. Es idempotente: una ya cancelada no cambia nada ni escribe
+  bitácora.
+- Resubir un CFDI que ya existe con la señal lo cancela; el resultado de la carga
+  sigue siendo `ya_existia` y suma `cancelada: true`. Sin la señal no cambia nada.
+- El motor, las sugerencias y la resolución ya filtraban `estado = 'abierta'`; la
+  4.6 lo fija con pruebas (pares y grupos).
+- Bandeja y casos exponen `requiereRevision`; una `confirmada` marcada aparece en
+  la bandeja (con el filtro `sugerencia`, que incluye el default, o con
+  `conciliado`), sin cambiar el orden. Ningún endpoint limpia la marca: reabrir es
+  de la 5.7.
+- Sin migración: la acción de bitácora es la existente `actualizar`.
+
+**Pendientes (4.6):** (a) consultar al SAT: un XML real no marca la cancelación;
+detectar las reales exigiría consultar el servicio de estatus del SAT (RFC emisor,
+RFC receptor, total y UUID; devuelve Vigente, Cancelado o No Encontrado, con
+cancelación «en proceso» posible). Es un no objetivo del PRD (§6, FR-66); sería una
+historia aparte con enmienda del PRD, FR-66 y el spine, y con decisión de qué estado
+queda si el SAT no responde. (b) El frontend no muestra `requiereRevision` en
+bandeja ni en el caso: antes hay que actualizar el mockup y acordarlo. (c) Resumen
+de la bandeja: la `confirmada` marcada cuenta como `conciliado` y no entra en «por
+revisar»; cambiarlo exige mockup. (d) Si `cancelarCfdi` falla al resubir un archivo
+(409 o error de SQL), la excepción aborta todo el lote en vez de reportar solo ese
+archivo (`src/cargas/guardar-cfdi.ts:89-91`); esa ruta no tiene prueba (hallazgo no
+bloqueante de la revisión). (e) `cfdi` no está en `ENTIDADES_BITACORA` (la prueba
+ENT-1 fija la lista y el frontend la espeja); `GET /bitacora` acepta cualquier
+entidad, así que las entradas se ven; decidir al tocar el frontend. (f) La
+`confirmada` marcada no tiene orden prioritario en la bandeja.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

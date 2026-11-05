@@ -77,6 +77,11 @@ export class PropuestaCasoDto {
   @ApiProperty({ nullable: true, type: ConfirmadaPorDto })
   confirmadaPor: ConfirmadaPorDto | null;
   @ApiProperty({
+    description:
+      'true si esta decisión quedó por revisar porque una de sus facturas se canceló (4.6).',
+  })
+  requiereRevision: boolean;
+  @ApiProperty({
     type: CfdiResumenDto,
     description:
       'Primera factura (id ascendente); en un grupo, ver `cfdis`. Se conserva para clientes de una sola factura.',
@@ -97,6 +102,11 @@ export class RespuestaCasoDto {
     description: 'Mismo estado derivado que GET /bandeja.',
   })
   estado: EstadoBandeja;
+  @ApiProperty({
+    description:
+      'true si alguna decisión del caso requiere revisión (factura cancelada tras confirmar). El caso sigue conciliado; Cuadra nunca lo reabre sola.',
+  })
+  requiereRevision: boolean;
   @ApiProperty({
     nullable: true,
     type: SinMatchCasoDto,
