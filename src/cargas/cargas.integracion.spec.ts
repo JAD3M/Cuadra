@@ -545,6 +545,29 @@ describe('resubir un lote que no terminó lo reencola (CU-08)', () => {
   });
 });
 
+describe('POST /cargas/cfdi, CFDI cancelado (4.6)', () => {
+  it('un CFDI nuevo que ya llega cancelado entra como cancelada y se reporta nuevo', async () => {
+    const token = await tokenSesion(ANA, FERRETERIA);
+    const pue = cfdi('pue-valido.xml');
+    const contenido = pue.xml.replace(
+      'Version="4.0"',
+      'Version="4.0" Estatus="Cancelado"',
+    );
+
+    const carga = await cargarYEsperar(token, [
+      { nombre: 'cancelado.xml', contenido },
+    ]);
+
+    expect(carga).toMatchObject({ estado: 'procesada', registrosOk: 1 });
+    expect(carga.resultados).toEqual([
+      { archivo: 'cancelado.xml', resultado: 'nuevo' },
+    ]);
+    expect(await enCfdi([pue.uuid])).toEqual([
+      expect.objectContaining({ estado: 'cancelada' }),
+    ]);
+  });
+});
+
 describe('POST /cargas/cfdi, idempotencia (CU-07)', () => {
   describe('lote repetido', () => {
     it('la segunda vez: 200, yaExistia, la carga original y nada crece', async () => {
