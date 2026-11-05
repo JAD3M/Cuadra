@@ -4,3 +4,6 @@
 
 /** Largo máximo del motivo de rechazo, en puntos de código. */
 export const MOTIVO_MAXIMO = 500;
+
+/** Tope de propuestas por lote (5.3); más pide dividirlo en partes. */
+export const MAXIMO_LOTE = 500;

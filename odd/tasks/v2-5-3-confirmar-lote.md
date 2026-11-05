@@ -40,6 +40,9 @@ Supuestos (míos, a confirmar con el usuario si algo no cuadra):
 - A4: tope de 500 ids por lote, constante con nombre.
 - A5: la separación de funciones sigue siempre activa como hoy; el interruptor por empresa
   (`companies.separacion_funciones`) es la 5.4.
+- A7 (agregado en T2): si dos propuestas marcadas chocan entre sí (mismo movimiento o misma
+  factura) se omiten LAS DOS con la razón `choca_con_otra_del_lote`; no se elige una al azar
+  (un falso positivo es peor que no conciliar). Las decide una persona caso por caso.
 - A6: el servidor acepta cualquier id que la persona marque (también regla 2 o 3 o un
   grupo); lo único que cambia es qué viene marcado de inicio. Lo que la separación de
   funciones prohíbe se omite con su razón aunque el cliente lo mande marcado.
@@ -53,10 +56,13 @@ Supuestos (míos, a confirmar con el usuario si algo no cuadra):
   consulta) por fila, con espejo y contrato en el frontend. Sin `puedeConfirmar`: `null`
   significa que puede. Ruta: inline. PR 1. RED: 6 pruebas BJ-2e fallaron por el campo
   ausente. Commit: ver PR de T1.
-- [ ] T2 (S2, S3, S5, S6): `POST /conciliaciones/lotes` con `{ ids }` (no `/lote/confirmar`: chocaría con `/:id/confirmar`): candado de
+- [x] T2 (S2, S3, S5, S6) [código y pruebas hechas; falta el veredicto del verificador]: `POST /conciliaciones/lotes` con `{ ids }` (no `/lote/confirmar`: chocaría con `/:id/confirmar`): candado de
   empresa, `lote_id` único, omitidas con razón, una bitácora `confirmar` por decisión con
   `loteId`. Alto riesgo (item 4, bloqueos): verificador independiente. Ruta: inline. PR 2.
-  Commit: —
+  Hecho: `ResolucionService.confirmarLote` + `confirmarUna` (la misma sentencia atómica que un
+  caso, con `lote_id`), un SAVEPOINT por propuesta, `idsQueChocan` (A7), razones en
+  `RAZONES_OMISION_LOTE` con espejo en el frontend, `MAXIMO_LOTE = 500` con espejo. RED: 21 de
+  22 pruebas del endpoint fallaron antes. Commit: ver PR de T2.
 - [ ] T3 (S1, S4, S5): mockup de la confirmación en lote (Bandeja oscuro y claro), acordado
   con el usuario antes del código. Ruta: inline. Commit: —
 - [ ] T4 (S1-S6): frontend: modo lote en la bandeja (casillas, deshabilitadas con motivo,
@@ -78,3 +84,8 @@ Supuestos (míos, a confirmar con el usuario si algo no cuadra):
   `fatal error in commit_refs_rules` (probado: rama completa, solo el primer commit, otro
   nombre de rama; sin rulesets ni protección). No es contenido ni nombre. PR de T1 pendiente
   de abrir cuando el push pase.
+- L4 (2026-11-05): T2 implementada. Respuesta `{ loteId | null, confirmadas[], omitidas[{id, razon}] }`;
+  sin ninguna confirmada no nace lote (`loteId: null`). Orden de candados AD-19: consultivo de
+  la empresa una vez y las decisiones por id ascendente. Pruebas: 22 del endpoint (incluye dos
+  lotes simultáneos y un lote contra un caso suelto), 6 unitarias de choques. Backend 1886,
+  frontend 4771 verdes.

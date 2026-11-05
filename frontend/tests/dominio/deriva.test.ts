@@ -22,8 +22,8 @@ describe('espejo del dominio frente al backend (src/common/entities/tipos.ts)', 
   const texto = fs.readFileSync(RUTA_BACKEND, 'utf8');
   const backend = extraerExportsBackend(texto, RUTA_BACKEND);
 
-  it('encuentra las dieciocho listas y la constante de la regla del LLM', () => {
-    expect(Object.keys(backend.arreglos)).toHaveLength(18);
+  it('encuentra las diecinueve listas y la constante de la regla del LLM', () => {
+    expect(Object.keys(backend.arreglos)).toHaveLength(19);
     expect(backend.constantes).toEqual({
       REGLA_LLM_SUGERENCIA: 'llm_sugerencia',
     });
@@ -267,9 +267,12 @@ describe('espejo de la resolución frente al backend (src/resolucion/dto/resoluc
       0,
     );
 
-  it('encuentra el límite del motivo y no deja nada sin clasificar', () => {
+  it('encuentra los límites (motivo y lote) y no deja nada sin clasificar', () => {
     const backend = extraerExportsBackend(texto, RUTA_DTO);
-    expect(backend.constantes).toEqual({ MOTIVO_MAXIMO: 500 });
+    expect(backend.constantes).toEqual({
+      MOTIVO_MAXIMO: 500,
+      MAXIMO_LOTE: 500,
+    });
     expect(backend.desconocidos).toEqual([]);
   });
 
@@ -285,7 +288,10 @@ describe('espejo de la resolución frente al backend (src/resolucion/dto/resoluc
 
   it('si la extracción no encuentra la constante, el espejo falla nombrándola', () => {
     const problemas = comparar('// vacío');
-    expect(problemas).toHaveLength(1);
-    expect(problemas[0]).toContain('MOTIVO_MAXIMO: el espejo lo exporta');
+    expect(problemas).toHaveLength(2);
+    expect(problemas.join('\n')).toContain(
+      'MOTIVO_MAXIMO: el espejo lo exporta',
+    );
+    expect(problemas.join('\n')).toContain('MAXIMO_LOTE: el espejo lo exporta');
   });
 });
