@@ -1,10 +1,21 @@
 import { type EntityManager, QueryFailedError } from 'typeorm';
+import { cancelarCfdi } from '../cfdi/cancelar-cfdi';
 import { type CfdiLeido, CfdiRechazado } from '../cfdi/cfdi-leido';
 import { esMonedaNoSoportada, leerCfdi } from '../cfdi/lector-cfdi';
 import type { MarcaDeMoneda, ResultadoDeArchivo } from './carga.entity';
 import type { ResultadoDeProceso } from './resultado-de-proceso';
 
 export const INDICE_UUID = 'ux_cfdi_company_id_uuid_fiscal';
+
+/**
+ * Historia 4.6: `cancelada` solo viaja cuando un archivo que ya existía hizo
+ * que se aplicara la cancelación al CFDI existente. El contrato del resultado
+ * no cambia (sigue siendo `ya_existia`); la marca es opcional, como la de la
+ * moneda.
+ */
+export type ResultadoDeArchivoCfdi = ResultadoDeArchivo & {
+  cancelada?: true;
+};
 
 export interface ArchivoEnEspera {
   nombre: string;
@@ -23,7 +34,7 @@ export async function guardarCfdi(
   companyId: string,
   cargaId: string,
   { nombre, contenido }: ArchivoEnEspera,
-): Promise<ResultadoDeArchivo> {
+): Promise<ResultadoDeArchivoCfdi> {
   if (contenido === null) {
     return {
       archivo: nombre,
@@ -73,10 +84,16 @@ export async function guardarCfdi(
       // Sin esto, el 23505 deja la transacción abortada y todo lo que sigue
       // falla con "current transaction is aborted".
       await manager.query('ROLLBACK TO SAVEPOINT archivo');
+      // Historia 4.6: volver a subir el mismo CFDI con la señal de cancelación
+      // lo cancela. Sin la señal, el archivo repetido no cambia nada.
+      const cancelada =
+        cfdi?.cancelado === true &&
+        (await cancelarExistente(manager, companyId, cargaId, cfdi.uuidFiscal));
       return {
         archivo: nombre,
         resultado: 'ya_existia',
         ...(cfdi ? marcaDeMoneda(cfdi) : {}),
+        ...(cancelada ? { cancelada: true as const } : {}),
       };
     }
     if (error instanceof CfdiRechazado) {
@@ -85,6 +102,34 @@ export async function guardarCfdi(
     }
     throw error;
   }
+}
+
+/**
+ * Aplica la transición de cancelación al CFDI que ya estaba en la empresa.
+ * Devuelve true solo si de verdad cambió (una ya cancelada no cambia).
+ */
+async function cancelarExistente(
+  manager: EntityManager,
+  companyId: string,
+  cargaId: string,
+  uuidFiscal: string,
+): Promise<boolean> {
+  const [existente] = await manager.query<{ id: string }[]>(
+    `SELECT id FROM cfdi WHERE company_id = $1 AND uuid_fiscal = $2`,
+    [companyId, uuidFiscal],
+  );
+  if (!existente) return false;
+  const [carga] = await manager.query<{ quien: string | null }[]>(
+    `SELECT subido_por_id AS quien FROM cargas WHERE id = $1 AND company_id = $2`,
+    [cargaId, companyId],
+  );
+  const r = await cancelarCfdi(
+    manager,
+    companyId,
+    existente.id,
+    carga?.quien ?? null,
+  );
+  return r.resultado === 'cancelada';
 }
 
 /** Historia 3.1: la marca solo viaja cuando la moneda no es MXN ni XXX. */
@@ -113,7 +158,7 @@ export async function procesarLoteCfdi(
       ORDER BY orden`,
     [cargaId, companyId],
   );
-  const resultados: ResultadoDeArchivo[] = [];
+  const resultados: ResultadoDeArchivoCfdi[] = [];
   for (const archivo of archivos) {
     resultados.push(await guardarCfdi(manager, companyId, cargaId, archivo));
   }
