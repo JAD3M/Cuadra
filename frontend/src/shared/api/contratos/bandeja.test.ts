@@ -22,6 +22,7 @@ const respuestaReal = () => ({
       estado: 'sugerencia',
       propuestasCount: 2,
       requiereRevision: false,
+      motivoRevision: null,
       motivo: 'Mismo monto y fecha cercana',
       regla: 'monto_exacto',
       mejorPropuesta: {
@@ -194,6 +195,24 @@ describe('respuestaBandeja', () => {
     }
     const ok = respuestaBandeja.parse(conFila({ requiereRevision: true }));
     expect(ok.datos[0]?.requiereRevision).toBe(true);
+  });
+
+  it('exige motivoRevision: un código conocido o null (5.1)', () => {
+    const sinCampo = conFila({}) as { datos: Record<string, unknown>[] };
+    delete sinCampo.datos[0]?.motivoRevision;
+    expect(respuestaBandeja.safeParse(sinCampo).success).toBe(false);
+    for (const malo of ['la factura se canceló', 'otro_motivo', 1, false]) {
+      expect(
+        respuestaBandeja.safeParse(conFila({ motivoRevision: malo })).success,
+      ).toBe(false);
+    }
+    const ok = respuestaBandeja.parse(
+      conFila({ requiereRevision: true, motivoRevision: 'cfdi_cancelado' }),
+    );
+    expect(ok.datos[0]?.motivoRevision).toBe('cfdi_cancelado');
+    expect(respuestaBandeja.parse(conFila({})).datos[0]?.motivoRevision).toBe(
+      null,
+    );
   });
 
   it('rechaza un movimientoId que no es guid', () => {

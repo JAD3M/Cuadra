@@ -22,7 +22,7 @@ export interface TablaBandejaProps {
 
 /**
  * Tabla de movimientos de la bandeja. Presentacional y de solo lectura: el
- * orden (monto de mayor a menor) es del servidor y el texto «Orden: monto ↓»
+ * orden (por confianza, 5.1) es del servidor y el texto «Orden: confianza ↓»
  * se publica en el título accesible de la tabla, sin controles de orden.
  */
 export function TablaBandeja({ filas, cargando = false }: TablaBandejaProps) {

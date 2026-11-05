@@ -46,6 +46,12 @@
   overflow-wrap: anywhere;
 }
 
+.motivoRevision {
+  margin-top: var(--space-4);
+  color: var(--estado-sin-match-text);
+  font-size: var(--text-sm);
+}
+
 .cfdi {
   font-family: var(--font-mono);
   font-size: var(--text-md);

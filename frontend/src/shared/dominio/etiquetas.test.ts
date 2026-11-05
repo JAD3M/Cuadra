@@ -3,10 +3,11 @@ import { ESTADOS_BANDEJA } from './bandeja';
 import {
   DESCRIPCIONES_ROL,
   ETIQUETAS_ESTADO_BANDEJA,
+  ETIQUETAS_MOTIVO_REVISION,
   ETIQUETAS_ROL,
   ordenarRoles,
 } from './etiquetas';
-import { ROLES, type Rol } from './tipos';
+import { MOTIVOS_REVISION, ROLES, type Rol } from './tipos';
 
 describe('ETIQUETAS_ROL', () => {
   it('etiqueta cada rol del espejo y nada más', () => {
@@ -30,6 +31,17 @@ describe('DESCRIPCIONES_ROL', () => {
       revisor:
         'Confirma y rechaza casos y consulta la bitácora; no sube cargas.',
       auditor: 'Solo lectura de la bandeja y la bitácora.',
+    });
+  });
+});
+
+describe('ETIQUETAS_MOTIVO_REVISION (5.1)', () => {
+  it('etiqueta cada motivo del espejo y nada más', () => {
+    expect(Object.keys(ETIQUETAS_MOTIVO_REVISION).sort()).toEqual(
+      [...MOTIVOS_REVISION].sort(),
+    );
+    expect(ETIQUETAS_MOTIVO_REVISION).toEqual({
+      cfdi_cancelado: 'la factura se canceló',
     });
   });
 });

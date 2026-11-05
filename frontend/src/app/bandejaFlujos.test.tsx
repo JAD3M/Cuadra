@@ -48,7 +48,9 @@ describe('flujos de la bandeja', () => {
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText('Movimientos abiertos, del monto más alto al más bajo'),
+      screen.getByText(
+        'Movimientos abiertos, de la propuesta más segura a la más dudosa',
+      ),
     ).toBeInTheDocument();
     await screen.findByRole('table');
     expect(filasDeDatos()).toHaveLength(20);
