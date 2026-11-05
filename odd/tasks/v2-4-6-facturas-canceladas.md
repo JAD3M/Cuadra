@@ -64,7 +64,7 @@ atómica con su bitácora (AD-7), con `rowCount` verificado y `23505` → 409.
   `actualizar`/`cfdi`. Idempotente. Pruebas de integración.
 - [x] **T3 Reexportar.** `ya_existia` con XML cancelado dispara T2 sobre el CFDI
   existente; sin cancelación no cambia nada.
-- [ ] **T4 Motor y sugerencias.** Pruebas explícitas: una `cancelada` no se propone
+- [x] **T4 Motor y sugerencias.** Pruebas explícitas: una `cancelada` no se propone
   ni sugiere, ni en pares ni en grupos.
 - [ ] **T5 Bandeja y casos.** Exponer `requiereRevision` en la API y contratos.
 - [ ] **T6 Cierre.** `CUADRA.md` (estado, pendientes y el límite del SAT), bitácora,
@@ -96,3 +96,4 @@ Los escritores pegan la salida RED.
 - 2026-11-05: T1 hecha (ruta delegada, escritor único). `leerCfdi` expone `cancelado` y `estadoInicial = 'cancelada'` con `Estatus="Cancelado"`; el guardado ya lo inserta tal cual. RED: 4 pruebas fallando; GREEN: 81/81 en lector y cargas. Commit: ver `git log` (T1).
 - 2026-11-05: T2 hecha. `src/cfdi/cancelar-cfdi.ts`: candado de empresa, decisiones por id, CFDI, y una sentencia CTE (cfdi, obsoletas, por_revisar, bitácora `actualizar`/`cfdi`) con `rowCount` verificado y 23505 -> 409. RED: módulo inexistente; GREEN: 10/10. No se agregó `cfdi` a `ENTIDADES_BITACORA` (la prueba ENT-1 y el espejo del frontend fijan la lista): pendiente de decisión.
 - 2026-11-05: T3 hecha. `guardarCfdi`: en `ya_existia`, si el XML trae la señal, aplica `cancelarCfdi` al existente (usuario = quien subió la carga) y agrega `cancelada: true` al resultado (`ResultadoDeArchivoCfdi`, local a guardar-cfdi.ts; `carga.entity.ts` y el espejo del frontend no se tocaron: el zod del frontend descarta claves desconocidas). RED: 3 de 4 pruebas nuevas fallando; GREEN: cargas y cfdi 210/210.
+- 2026-11-05: T4 hecha. Pruebas de caracterización (el motor ya filtraba `abierta`, no hay RED posible): par y grupo en `conciliacion.integracion.spec.ts`, candidatos, un solo candidato y carrera de cancelación en `sugerencias.integracion.spec.ts`. GREEN: 8 nuevas; suite completa 90 suites / 1828 pruebas en verde.

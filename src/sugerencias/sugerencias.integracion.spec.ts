@@ -12,6 +12,7 @@ import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import { sembrarDecision } from '../conciliacion/siembra-decisiones';
 import { ProveedorTolerancia } from '../conciliacion/tolerancia';
 import { filas, una } from '../database/testing/base-de-pruebas';
+import { cancelarCfdi } from '../cfdi/cancelar-cfdi';
 import { TransaccionEmpresa } from '../database/transaccion-empresa';
 import { PersistenciaSugerencias } from './persistencia-sugerencias';
 import { ProveedorFalso } from './proveedor-falso';
@@ -819,6 +820,13 @@ describe('revalidación bajo el candado (IA-12)', () => {
           ]),
       ],
       [
+        'el CFDI se canceló (4.6)',
+        (_m, cfdis) =>
+          entorno.app
+            .get(TransaccionEmpresa)
+            .ejecutar(A, (manager) => cancelarCfdi(manager, A, cfdis[0], null)),
+      ],
+      [
         'el par quedó rechazado',
         (m, cfdis) =>
           sembrarDecision(ds, {
@@ -1150,5 +1158,57 @@ describe('integración con CU-14, CU-15 y CU-16 (IA-26 a IA-28)', () => {
       }
     ).datos.find((e) => e.entidadId === llm.id);
     expect(crear).toMatchObject({ usuario: null, datos: { origen: 'llm' } });
+  });
+});
+
+describe('una factura cancelada no se sugiere (4.6)', () => {
+  it('no viaja al proveedor como candidata, en par', async () => {
+    const m = await movimiento(A, { monto: '1160.00' });
+    const vivas = [
+      await factura(A, { folio: '1001', total: '1160.00' }),
+      await factura(A, { folio: '1002', total: '1160.00' }),
+      await factura(A, { folio: '1003', total: '1160.00' }),
+    ];
+    await conciliacion.conciliar(A);
+    await entorno.app
+      .get(TransaccionEmpresa)
+      .ejecutar(A, (manager) => cancelarCfdi(manager, A, vivas[2], null));
+    const proveedor = new ProveedorFalso();
+
+    await servicio(proveedor).sugerirParaEmpresa(A);
+
+    expect(proveedor.recibidas[0].candidatos.map((c) => c.serieFolio)).toEqual([
+      'A-1001',
+      'A-1002',
+    ]);
+    expect(m).toBeDefined();
+  });
+
+  it('no viaja al proveedor como candidata, con un grupo propuesto sobre otras', async () => {
+    const { cfdis } = await ambiguo(A, { folios: ['1001', '1002', '1003'] });
+    await ds.query(`UPDATE cfdi SET estado = 'cancelada' WHERE id = $1`, [
+      cfdis[1],
+    ]);
+    const proveedor = new ProveedorFalso();
+
+    await servicio(proveedor).sugerirParaEmpresa(A);
+
+    expect(proveedor.recibidas[0].candidatos.map((c) => c.serieFolio)).toEqual([
+      'A-1001',
+      'A-1003',
+    ]);
+  });
+
+  it('si solo queda una cancelada como candidata, no se llama al proveedor', async () => {
+    const { cfdis } = await ambiguo(A, { folios: ['1001', '1002'] });
+    await ds.query(`UPDATE cfdi SET estado = 'cancelada' WHERE id = ANY($1)`, [
+      cfdis,
+    ]);
+    const proveedor = new ProveedorFalso(sugiere());
+
+    await servicio(proveedor).sugerirParaEmpresa(A);
+
+    expect(proveedor.llamadas).toBe(0);
+    expect(await decisionesLlm()).toEqual([]);
   });
 });
