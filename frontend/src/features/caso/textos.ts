@@ -132,6 +132,23 @@ export const CONCILIADO = {
       .join(' ') + '.',
 } as const;
 
+/** Conciliado cuya factura se canceló: Cuadra no lo reabre, pide revisión. */
+export const REQUIERE_REVISION = {
+  titulo: 'Requiere revisión',
+  cancelada: (etiquetaCfdi: string) =>
+    `La factura ${etiquetaCfdi} fue cancelada. Revisa esta conciliación.`,
+  /** Pieza a pieza: el servidor puede no traer el usuario o la fecha. */
+  nota: (usuario: string | null, fecha: string | null) =>
+    [
+      'Cuadra no la reabre sola.',
+      usuario === null && fecha === null
+        ? null
+        : CONCILIADO.confirmado(usuario, fecha),
+    ]
+      .filter((p): p is string => p !== null)
+      .join(' '),
+} as const;
+
 /** Historial de la propuesta, a la derecha en la maqueta. */
 export const HISTORIAL = {
   titulo: 'Historial',

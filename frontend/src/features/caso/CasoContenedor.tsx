@@ -23,6 +23,7 @@ import { Historial } from './components/Historial';
 import { ListaPropuestas } from './components/ListaPropuestas';
 import { PanelDecision } from './components/PanelDecision';
 import { TarjetaConciliado } from './components/TarjetaConciliado';
+import { TarjetaRequiereRevision } from './components/TarjetaRequiereRevision';
 import { TarjetaSinMatch } from './components/TarjetaSinMatch';
 import estilos from './CasoContenedor.module.css';
 import { clavesCaso } from './claves';
@@ -153,12 +154,15 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
     resuelta === null
       ? null
       : bannerDe(resuelta, desactualizado ? undefined : caso);
+  // Solo un caso cerrado puede pedir revisión; el servidor sigue diciendo «conciliado».
+  const enRevision = vista === 'conciliado' && caso.requiereRevision;
   const conPropuestas = vista === 'sugerencia' || vista === 'varias';
 
   return (
     <div className={estilos.pagina}>
       <EncabezadoCaso
         estado={caso.estado}
+        requiereRevision={enRevision}
         regla={expandida?.regla ?? null}
         origen={expandida?.origen ?? null}
         descripcion={caso.movimiento.descripcion}
@@ -256,10 +260,18 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
                 propuesta={expandida}
                 toleranciaMonto={caso.toleranciaMonto}
               />
-              <TarjetaConciliado
-                usuario={expandida.confirmadaPor?.nombre ?? null}
-                confirmadaAt={expandida.confirmadaAt}
-              />
+              {enRevision ? (
+                <TarjetaRequiereRevision
+                  etiquetaCfdi={etiquetaCfdi(expandida.cfdi)}
+                  usuario={expandida.confirmadaPor?.nombre ?? null}
+                  confirmadaAt={expandida.confirmadaAt}
+                />
+              ) : (
+                <TarjetaConciliado
+                  usuario={expandida.confirmadaPor?.nombre ?? null}
+                  confirmadaAt={expandida.confirmadaAt}
+                />
+              )}
             </>
           ) : null}
         </div>

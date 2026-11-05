@@ -27,6 +27,7 @@ export function propuestaCaso(
     diferenciaMonto: '0.0000',
     confirmadaAt: null,
     confirmadaPor: null,
+    requiereRevision: false,
     cfdi: {
       id: idDe(7000 + n),
       uuidFiscal: `A1B2C3D4-0000-4000-8000-${String(n).padStart(12, '0')}`,
@@ -58,6 +59,7 @@ function caso(o: Partial<RespuestaCaso> = {}): RespuestaCaso {
     estado: 'sugerencia',
     sinMatch: null,
     toleranciaMonto: '0.5000',
+    requiereRevision: false,
     propuestas: [propuestaCaso(1)],
     ...o,
   };

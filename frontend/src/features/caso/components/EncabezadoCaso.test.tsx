@@ -27,6 +27,16 @@ describe('EncabezadoCaso', () => {
     expect(enlace).toHaveAttribute('href', '/bandeja');
   });
 
+  it('con requiereRevision el chip de estado es ámbar y dice Requiere revisión', () => {
+    const { container } = dibujar({
+      estado: 'conciliado',
+      requiereRevision: true,
+    });
+    const chip = container.querySelector('[data-tono="sin_match"]');
+    expect(chip).toHaveTextContent('⚠Requiere revisión');
+    expect(screen.queryByText('Conciliado')).toBeNull();
+  });
+
   it.each([
     ['sugerencia', '●', 'Sugerencia'],
     ['sin_match', '○', 'Sin match'],

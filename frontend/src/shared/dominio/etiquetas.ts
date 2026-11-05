@@ -45,6 +45,14 @@ export const ETIQUETAS_ESTADO_BANDEJA: Record<EstadoBandeja, string> = {
 };
 
 /**
+ * Marca de presentación, no un estado de dominio: una decisión confirmada cuya
+ * factura se canceló después (`requiereRevision` del backend). Se pinta con el
+ * tono ámbar de `sin_match` y el texto lleva el significado.
+ */
+export const ETIQUETA_REQUIERE_REVISION = 'Requiere revisión';
+export const GLIFO_REQUIERE_REVISION = '⚠';
+
+/**
  * Texto visible de cada acción de la bitácora en el historial de un caso
  * (maqueta Detalle.dc.html). `crear` es la propuesta del motor: el historial
  * le agrega la etiqueta del CFDI. Es

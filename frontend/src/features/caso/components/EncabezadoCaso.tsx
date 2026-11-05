@@ -5,6 +5,10 @@ import {
   ETIQUETAS_ORIGEN_CONCILIACION,
 } from '@/shared/dominio';
 import type { OrigenConciliacion } from '@/shared/dominio';
+import {
+  ETIQUETA_REQUIERE_REVISION,
+  GLIFO_REQUIERE_REVISION,
+} from '@/shared/dominio/etiquetas';
 import { EstadoChip } from '@/shared/ui/EstadoChip';
 import { GLIFOS_ESTADO, VOLVER_A_BANDEJA } from '@/features/caso/textos';
 import { EnlaceBandeja } from './EnlaceBandeja';
@@ -13,6 +17,8 @@ import estilos from './EncabezadoCaso.module.css';
 export interface EncabezadoCasoProps {
   /** Estado derivado que decide el servidor; nunca el rol del usuario. */
   estado: EstadoBandeja;
+  /** Conciliado con la factura cancelada: el chip pide revisión (4.6). */
+  requiereRevision?: boolean;
   /** Regla de la propuesta expandida; `null` si el caso no tiene propuesta. */
   regla: string | null;
   /** Origen de la propuesta expandida; `null` si el caso no tiene propuesta. */
@@ -31,6 +37,7 @@ export interface EncabezadoCasoProps {
  */
 export function EncabezadoCaso({
   estado,
+  requiereRevision = false,
   regla,
   origen,
   descripcion,
@@ -43,10 +50,17 @@ export function EncabezadoCaso({
       {avisos}
       <header className={estilos.encabezado}>
         <div className={estilos.chips}>
-          <EstadoChip tono={estado}>
-            <span aria-hidden="true">{GLIFOS_ESTADO[estado]}</span>
-            {ETIQUETAS_ESTADO_BANDEJA[estado]}
-          </EstadoChip>
+          {requiereRevision ? (
+            <EstadoChip tono="sin_match">
+              <span aria-hidden="true">{GLIFO_REQUIERE_REVISION}</span>
+              {ETIQUETA_REQUIERE_REVISION}
+            </EstadoChip>
+          ) : (
+            <EstadoChip tono={estado}>
+              <span aria-hidden="true">{GLIFOS_ESTADO[estado]}</span>
+              {ETIQUETAS_ESTADO_BANDEJA[estado]}
+            </EstadoChip>
+          )}
           {regla === null ? null : (
             <EstadoChip tono="neutral">
               <span className={estilos.mono}>{regla}</span>

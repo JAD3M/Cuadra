@@ -175,6 +175,36 @@ describe('TablaBandeja: monto y estado', () => {
   });
 });
 
+describe('TablaBandeja: requiere revisión (4.6)', () => {
+  it('una conciliada con requiereRevision muestra el chip ámbar en vez de Conciliado', () => {
+    const { container } = montar([
+      filaBandeja({ estado: 'conciliado', requiereRevision: true }),
+    ]);
+    const chip = container.querySelector('[data-tono="sin_match"]');
+    expect(chip).toHaveTextContent('⚠Requiere revisión');
+    expect(chip?.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    expect(screen.queryByText('Conciliado')).toBeNull();
+    expect(container.querySelector('[data-tono="conciliado"]')).toBeNull();
+  });
+
+  it('sin la marca, una conciliada sigue mostrando Conciliado', () => {
+    montar([filaBandeja({ estado: 'conciliado', requiereRevision: false })]);
+    expect(screen.getByText('Conciliado')).toBeInTheDocument();
+    expect(screen.queryByText('Requiere revisión')).toBeNull();
+  });
+
+  it('conserva regla y motivo de la fila', () => {
+    montar([
+      filaBandeja({
+        estado: 'conciliado',
+        requiereRevision: true,
+        regla: 'referencia_exacta',
+      }),
+    ]);
+    expect(screen.getByText('referencia_exacta')).toBeInTheDocument();
+  });
+});
+
 describe('TablaBandeja: regla, insignia, CFDI y diferencia', () => {
   it('muestra el código de la regla y nunca el texto del motivo', () => {
     montar([

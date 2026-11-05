@@ -236,6 +236,34 @@ describe('CasoPage', () => {
     expect(screen.queryByRole('button')).toBeNull();
   });
 
+  it('un conciliado con requiereRevision muestra la tarjeta ámbar, sin controles (4.6)', async () => {
+    const base = casoConciliado();
+    const caso = servir({
+      ...base,
+      requiereRevision: true,
+      propuestas: base.propuestas.map((p) => ({
+        ...p,
+        requiereRevision: true,
+      })),
+    });
+    montar(caso.movimiento.id);
+    expect(
+      await screen.findByRole('heading', {
+        level: 3,
+        name: 'Requiere revisión',
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/^La factura A-1001 fue cancelada\. Revisa esta/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^Cuadra no la reabre sola\./)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { level: 3, name: 'Conciliado' }),
+    ).toBeNull();
+    expect(screen.queryByText('Conciliado')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
   it('un caso conciliado tampoco lista propuestas', async () => {
     const caso = servir(casoConciliado());
     montar(caso.movimiento.id);

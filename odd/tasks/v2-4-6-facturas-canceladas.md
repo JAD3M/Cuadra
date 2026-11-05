@@ -69,7 +69,7 @@ atómica con su bitácora (AD-7), con `rowCount` verificado y `23505` → 409.
 - [x] **T5 Bandeja y casos.** Exponer `requiereRevision` en la API y contratos.
 - [ ] **T6 Cierre.** Hecho: `CUADRA.md` (pendientes y el límite del SAT) y bitácora.
   Pendiente: repaso en Engram y PR (en cadena si pasa de 400 líneas).
-- [ ] **T7 Frontend (condicionada).** Solo tras actualizar y acordar el mockup.
+- [x] **T7 Frontend.** Mockup acordado el 2026-11-05. Chip «⚠ Requiere revisión» (tono ámbar de `sin_match`) en bandeja y encabezado del caso, y tarjeta ámbar en lugar de «Conciliado». El evento de historial no se muestra: la API no lo trae (ver Pendientes).
 
 ## Rutas
 
@@ -92,8 +92,11 @@ Los escritores pegan la salida RED.
   Encontrado, y puede haber cancelación «en proceso»). Hoy es un no objetivo del PRD
   (§6). Sería una historia aparte, con enmienda del PRD, FR-66 y el spine, y con
   decisión sobre qué estado queda si el SAT no responde.
-- (b) El frontend no muestra `requiereRevision` en bandeja ni en el caso: antes hay
-  que actualizar el mockup y acordarlo (T7).
+- (b) Resuelto en T7: el frontend muestra `requiereRevision` en bandeja y caso.
+  Falta el evento «La factura se marcó cancelada» del historial: `GET
+  /conciliaciones/:id/historial` solo trae entidades `conciliaciones`/`decisiones`
+  (`src/bitacora/bitacora.service.ts:92`) y la cancelación se escribe con entidad
+  `cfdi`; exige un cambio de backend.
 - (c) Resumen de la bandeja: la `confirmada` marcada cuenta como `conciliado` y no
   entra en «por revisar»; cambiarlo exige mockup.
 - (d) Si `cancelarCfdi` falla al resubir un archivo (409 o error de SQL), la
@@ -115,3 +118,4 @@ Los escritores pegan la salida RED.
 - 2026-11-05: T5 hecha (ruta en línea, 2 archivos de servicio con cambio mecánico + pruebas). `requiereRevision` en bandeja (fila) y casos (caso y propuesta); una confirmada con la marca entra en la lista por defecto sin cambiar orden. RED: 4 pruebas fallando; GREEN: bandeja y casos 95/95. Commit: c27d660.
 - 2026-11-05: revisión nativa de los commits T1 a T4: aprobada, una lente, un hallazgo no bloqueante (pendiente d).
 - 2026-11-05: T6 parcial: `CUADRA.md` y bitácora escritas (suite final backend 90 suites, 1834 pruebas; un fallo intermitente en `esquema.spec.ts` «usa el índice parcial» que pasa solo). Faltan el repaso en Engram y el PR. T7 sigue condicionada al mockup.
+- 2026-11-05: T7 hecha (ruta delegada, escritor único). Contratos con `requiereRevision: z.boolean()`, chip ámbar, `TarjetaRequiereRevision`. RED: 6 pruebas fallando; GREEN: 292 archivos / 4737 pruebas. Commit: 2332475.
