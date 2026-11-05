@@ -1320,7 +1320,7 @@ So that resuelva con criterio los casos que no entran en un lote.
 
 **Given** que alguien más ya resolvió el caso
 **When** la persona intenta confirmarlo o rechazarlo
-**Then** recibe 409 con un mensaje claro y la pantalla se actualiza
+**Then** recibe 409 con un mensaje claro, los controles quedan bloqueados y la pantalla ofrece «Recargar caso»; el caso se actualiza solo cuando la persona lo pide, para que no cambie bajo sus ojos
 
 *Cubre: FR-20. Arquitectura: AD-3, AD-4, AD-11, AD-19. Ratifica CU-15 y CU-23 de la v1.*
 

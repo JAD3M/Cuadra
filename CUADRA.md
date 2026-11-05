@@ -755,6 +755,16 @@ decisiones que requieren revisión (FR-17, AD-4):
 - **Pendiente (5.1):** los candidatos de un `sin_match` no se muestran porque el motor no
   los guarda; mostrarlos pide persistirlos.
 
+**Confirmar o rechazar un caso individual (v2, historia 5.2), terminada el 5 nov 2026.**
+Ya estaba construida desde CU-15 y CU-23; la historia la verificó criterio por criterio:
+
+- Ante un 409 (alguien más resolvió el caso) la pantalla muestra «Este caso ya cambió.»,
+  bloquea los controles y ofrece «Recargar caso»; no recarga sola. El criterio de `epics.md`
+  se corrigió para decirlo.
+- Prueba de backend nueva: un auditor abre el detalle del caso (200) con el mismo cuerpo que
+  un admin; sus intentos de confirmar y rechazar dan 403 (cubierto en
+  `permisos.integracion.spec.ts`).
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**
