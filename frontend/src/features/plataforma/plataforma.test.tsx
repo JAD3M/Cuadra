@@ -29,11 +29,13 @@ const EMPRESAS = [
     id: '00000000-0000-4000-8000-0000000000a1',
     razonSocial: 'Ferretería Aurora S.A. de C.V.',
     rfc: 'FAU210215QK4',
+    separacionFunciones: true,
   },
   {
     id: '00000000-0000-4000-8000-0000000000a2',
     razonSocial: 'Distribuidora del Norte S.A. de C.V.',
     rfc: 'DNO180904TB7',
+    separacionFunciones: true,
   },
 ];
 

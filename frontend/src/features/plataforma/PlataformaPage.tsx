@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { mensajeDeError } from '@/shared/api';
+import { ApiError, mensajeDeError } from '@/shared/api';
 import { normalizarRfc } from '@/shared/dominio';
 import {
   useAccionesPlataforma,
@@ -10,6 +10,7 @@ import { AlertaError } from '@/shared/ui/AlertaError';
 import { Button } from '@/shared/ui/Button';
 import { AvisoEmpresaCreada } from './components/AvisoEmpresaCreada';
 import { AvisoInvitacionEnviada } from './components/AvisoInvitacionEnviada';
+import { AvisoSeparacionCambiada } from './components/AvisoSeparacionCambiada';
 import { AvisoVistaPreviaLevantada } from './components/AvisoVistaPreviaLevantada';
 import {
   EmpresasPlataforma,
@@ -20,12 +21,17 @@ import {
   FormularioCrearEmpresa,
   type ValoresCrearEmpresa,
 } from './components/FormularioCrearEmpresa';
+import { FormularioCambiarSeparacion } from './components/FormularioCambiarSeparacion';
 import { FormularioInvitarAdmin } from './components/FormularioInvitarAdmin';
 import { FormularioLevantarVistaPrevia } from './components/FormularioLevantarVistaPrevia';
 import { TablaBancos, type FilaBanco } from './components/TablaBancos';
 import { describirFalloAlta, type FalloAlta } from './mensajesAlta';
 import { describirFalloInvitar, type FalloInvitar } from './mensajesInvitar';
 import { describirFalloLevantar, type FalloLevantar } from './mensajesBancos';
+import {
+  describirFalloSeparacion,
+  type FalloSeparacion,
+} from './mensajesSeparacion';
 import { nombreDeBanco } from './nombreDeBanco';
 import estilos from './PlataformaPage.module.css';
 import {
@@ -34,6 +40,7 @@ import {
   TEXTOS_PLATAFORMA,
 } from './textos';
 import { useBancosPlataforma } from './useBancosPlataforma';
+import { useCambiarSeparacionPlataforma } from './useCambiarSeparacionPlataforma';
 import { useCrearEmpresaPlataforma } from './useCrearEmpresaPlataforma';
 import { useInvitarAdminPlataforma } from './useInvitarAdminPlataforma';
 import { useLevantarVistaPrevia } from './useLevantarVistaPrevia';
@@ -89,6 +96,64 @@ export function PlataformaPage() {
           setInvitando(null);
         },
         onError: (error) => setFalloInvitar(describirFalloInvitar(error)),
+      },
+    );
+  }
+
+  const cambiar = useCambiarSeparacionPlataforma();
+  const [cambiando, setCambiando] = useState<FilaEmpresaPlataforma | null>(
+    null,
+  );
+  const [cambiada, setCambiada] = useState<{
+    razonSocial: string;
+    activa: boolean;
+  } | null>(null);
+  const [falloCambiar, setFalloCambiar] = useState<FalloSeparacion | null>(
+    null,
+  );
+
+  function abrirCambiar(empresa: FilaEmpresaPlataforma) {
+    cambiar.reset();
+    setCambiada(null);
+    setFalloCambiar(null);
+    setCambiando(empresa);
+  }
+
+  function cerrarCambiar() {
+    cambiar.reset();
+    setFalloCambiar(null);
+    setCambiando(null);
+  }
+
+  function enviarCambio(motivo: string) {
+    if (!cambiando) return;
+    // El estado que se pide es el contrario al que muestra la fila; el
+    // servidor decide (409 si ya estaba así).
+    const activa = !cambiando.separacionFunciones;
+    const razonSocial = cambiando.razonSocial;
+    setFalloCambiar(null);
+    setCambiada(null);
+    cambiar.mutate(
+      { empresaId: cambiando.id, activa, motivo },
+      {
+        onSuccess: () => {
+          setCambiada({ razonSocial, activa });
+          setCambiando(null);
+        },
+        onError: (error) => {
+          const fallo = describirFalloSeparacion(error);
+          setFalloCambiar(fallo);
+          // Un fallo de alerta (409, 404, red) cierra el panel solo si el
+          // servidor ya contestó con un estado; con la red caída se conserva
+          // lo escrito.
+          if (
+            fallo?.donde === 'alerta' &&
+            error instanceof ApiError &&
+            (error.statusCode === 409 || error.statusCode === 404)
+          ) {
+            setCambiando(null);
+          }
+        },
       },
     );
   }
@@ -167,6 +232,7 @@ export function PlataformaPage() {
     esFinDeSesion(empresas.error) ||
     esFinDeSesion(crear.error) ||
     esFinDeSesion(invitar.error) ||
+    esFinDeSesion(cambiar.error) ||
     esFinDeSesion(bancos.error) ||
     esFinDeSesion(levantar.error);
   useEffect(() => {
@@ -250,10 +316,36 @@ export function PlataformaPage() {
             onCancelar={cerrarInvitar}
           />
         )}
+        {cambiada !== null && (
+          <AvisoSeparacionCambiada
+            razonSocial={cambiada.razonSocial}
+            activa={cambiada.activa}
+          />
+        )}
+        {falloCambiar?.donde === 'alerta' && (
+          <AlertaError
+            titulo={falloCambiar.titulo}
+            detalle={falloCambiar.detalle}
+          />
+        )}
+        {cambiando && (
+          <FormularioCambiarSeparacion
+            key={cambiando.id}
+            razonSocial={cambiando.razonSocial}
+            desactivar={cambiando.separacionFunciones}
+            pendiente={cambiar.isPending}
+            errorMotivo={
+              falloCambiar?.donde === 'campo' ? falloCambiar.texto : undefined
+            }
+            onEnviar={enviarCambio}
+            onCancelar={cerrarCambiar}
+          />
+        )}
         <EmpresasPlataforma
           empresas={empresas.data ?? null}
           onCrear={abrirFormulario}
           onInvitar={abrirInvitar}
+          onCambiarSeparacion={abrirCambiar}
           alerta={
             fallo ? (
               <AlertaError titulo={fallo.titulo} detalle={fallo.detalle} />
