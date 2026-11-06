@@ -8,6 +8,8 @@ export interface ErrorBandejaProps {
   detalle?: string;
   /** Ausente = sin reintento (p. ej. falta de permiso: reintentar no ayuda). */
   onReintentar?: () => void;
+  /** Rótulo de la acción; por omisión «Reintentar». */
+  textoAccion?: string;
 }
 
 /** Fallo de la lista: la alerta compartida con su acción de reintento. */
@@ -15,6 +17,7 @@ export function ErrorBandeja({
   titulo,
   detalle,
   onReintentar,
+  textoAccion = REINTENTAR,
 }: ErrorBandejaProps) {
   return (
     <div className={estilos.margen}>
@@ -24,7 +27,7 @@ export function ErrorBandeja({
         accion={
           onReintentar ? (
             <Button variante="secundario" onClick={onReintentar}>
-              {REINTENTAR}
+              {textoAccion}
             </Button>
           ) : undefined
         }

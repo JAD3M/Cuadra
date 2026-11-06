@@ -1,0 +1,62 @@
+/* Resultado del lote (mockups 2 y 7). Solo tokens de rol. */
+.recuadro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  margin: 0 var(--space-16) var(--space-16);
+  padding: var(--space-16) var(--space-20);
+  border: 1px solid var(--estado-conciliado-tile-border);
+  border-radius: var(--radius-lg);
+  background: var(--estado-conciliado-tile-bg);
+  --_titulo: var(--estado-conciliado-text);
+}
+
+/* Nada se confirmó: el mismo recuadro, en ámbar. */
+.ninguna {
+  border-color: var(--estado-sin-match-tile-border);
+  background: var(--estado-sin-match-tile-bg);
+  --_titulo: var(--estado-sin-match-text);
+}
+
+.titulo {
+  color: var(--_titulo);
+}
+
+.resumen {
+  color: var(--color-text-soft);
+  font-size: var(--text-md);
+}
+
+.lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-inline-start: var(--space-12);
+  border-inline-start: 2px solid var(--estado-sin-match-accent);
+}
+
+.descripcion {
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.referencia {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
+.razon {
+  color: var(--estado-sin-match-text);
+  font-size: var(--text-md);
+}

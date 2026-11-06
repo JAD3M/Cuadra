@@ -1,26 +1,53 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { mensajeDeError } from '@/shared/api';
+import { puede } from '@/shared/dominio';
 import type { EstadoBandeja } from '@/shared/dominio/bandeja';
+import type { RazonOmisionLote } from '@/shared/dominio/tipos';
+import { useSessionContext } from '@/shared/sesion';
+import { Button } from '@/shared/ui/Button';
 import { Paginacion } from '@/shared/ui/Paginacion';
 import { paginaMaxima } from '@/shared/ui/paginas';
+import { BarraLote } from './components/BarraLote';
 import { EstadoVacio } from './components/EstadoVacio';
 import { ErrorBandeja } from './components/ErrorBandeja';
 import { FiltrosEstado } from './components/FiltrosEstado';
 import { KpiBandeja } from './components/KpiBandeja';
+import { ResultadoLote } from './components/ResultadoLote';
 import { TablaBandeja } from './components/TablaBandeja';
 import { LIMITE_PAGINA } from './constantes';
+import { etiquetaCfdi } from './etiquetaCfdi';
 import { alternarEstado, leerFiltros, serializar } from './filtrosUrl';
-import { ERROR_CONEXION, detallePorTipo } from './textos';
+import { marcables, marcadasIniciales, propuestaDeLote } from './lote';
+import {
+  ERROR_CONEXION,
+  ERROR_SIN_PERMISO,
+  LOTE,
+  SIN_DATO,
+  detallePorTipo,
+} from './textos';
 import { useBandeja } from './useBandeja';
+import { useConfirmarLote } from './useConfirmarLote';
 import { useResumenBandeja } from './useResumenBandeja';
 import estilos from './BandejaPage.module.css';
+
+/** Lo que se muestra de un lote ya enviado (mockups 2 y 7). */
+interface ResultadoGuardado {
+  confirmadas: number;
+  omitidas: Array<{
+    id: string;
+    descripcion: string;
+    referencia: string;
+    razon: RazonOmisionLote;
+  }>;
+}
 
 /**
  * Pantalla de la bandeja de revisión (contenedor). Los filtros y la página
  * viven en la URL: aquí se leen con tolerancia, se normalizan con `replace` y
- * se escriben en forma canónica. Es de solo lectura: solo hace GET y nunca
- * decide ni cierra un caso. El título y el subtítulo los pone el encabezado
+ * se escriben en forma canónica. Lee con GET y, en el modo lote (5.3), pide al
+ * servidor confirmar lo que la persona marcó: la pantalla nunca decide ni cierra
+ * un caso, y cambiar de página o de filtro cancela el lote. El título y el subtítulo los pone el encabezado
  * del shell desde el `handle` de la ruta.
  */
 export function BandejaPage() {
@@ -40,6 +67,90 @@ export function BandejaPage() {
   const resumen = useResumenBandeja();
   const { data } = lista;
 
+  // Confirmación en lote (5.3). `marcadas === null` es el modo normal.
+  const sesion = useSessionContext();
+  const puedeConfirmar =
+    sesion.status === 'ready' &&
+    puede(sesion.contexto.capacidades, 'conciliaciones.resolver');
+  const confirmarLote = useConfirmarLote();
+  const [marcadas, setMarcadas] = useState<ReadonlySet<string> | null>(null);
+  const [resultado, setResultado] = useState<ResultadoGuardado | null>(null);
+  const [falloLote, setFalloLote] = useState<unknown>(null);
+  const hayFalloLote = falloLote !== null;
+  const permitidas = new Set(marcables(data?.datos ?? []));
+  // Filas con casilla en esta página, también las bloqueadas (mockups 2 y 7).
+  const conCasilla = (data?.datos ?? []).filter(
+    (fila) => propuestaDeLote(fila) !== null,
+  ).length;
+  const marcadasVisibles =
+    marcadas === null
+      ? 0
+      : [...marcadas].filter((id) => permitidas.has(id)).length;
+
+  /** Sale del lote y descarta lo marcado, el resultado y el aviso de error. */
+  function salirDelLote() {
+    setMarcadas(null);
+    setResultado(null);
+    setFalloLote(null);
+  }
+
+  function abrirLote() {
+    if (!data) return;
+    setResultado(null);
+    setFalloLote(null);
+    setMarcadas(marcadasIniciales(data.datos));
+  }
+
+  function alternarMarca(id: string) {
+    setMarcadas((actual) => {
+      if (actual === null) return actual;
+      const siguiente = new Set(actual);
+      if (!siguiente.delete(id)) siguiente.add(id);
+      return siguiente;
+    });
+  }
+
+  function confirmar() {
+    if (!data || marcadas === null) return;
+    // Lo que se manda es lo marcado, visible y que esta persona puede confirmar.
+    const ids = [...marcadas].filter((id) => permitidas.has(id));
+    const visibles = new Map<
+      string,
+      { descripcion: string; referencia: string }
+    >();
+    for (const fila of data.datos) {
+      const id = propuestaDeLote(fila);
+      if (id !== null) {
+        visibles.set(id, {
+          descripcion: fila.descripcion,
+          referencia: etiquetaCfdi(fila.mejorPropuesta?.cfdi ?? null),
+        });
+      }
+    }
+    setFalloLote(null);
+    confirmarLote.confirmar(ids, {
+      onExito: (respuesta) => {
+        setResultado({
+          confirmadas: respuesta.confirmadas.length,
+          omitidas: respuesta.omitidas.map((o) => ({
+            id: o.id,
+            razon: o.razon,
+            descripcion: visibles.get(o.id)?.descripcion ?? SIN_DATO,
+            referencia: visibles.get(o.id)?.referencia ?? SIN_DATO,
+          })),
+        });
+        setMarcadas(null);
+      },
+      onFallo: (error) => setFalloLote(error ?? true),
+    });
+  }
+
+  function recargar() {
+    salirDelLote();
+    void lista.refetch();
+    void resumen.refetch();
+  }
+
   // Página que ya no existe (enlace viejo o datos que se redujeron): se pasa a
   // la última válida sin historial, y mientras tanto no se muestra el vacío.
   const ultima = data ? paginaMaxima(data.total, LIMITE_PAGINA) : 1;
@@ -53,15 +164,20 @@ export function BandejaPage() {
 
   function alternar(estado: EstadoBandeja) {
     const siguiente = alternarEstado(filtros, estado);
-    if (siguiente) setParams(serializar(siguiente), { replace: true });
+    if (siguiente) {
+      salirDelLote();
+      setParams(serializar(siguiente), { replace: true });
+    }
   }
 
   function irAPagina(pagina: number) {
+    salirDelLote();
     setParams(serializar({ ...filtros, pagina }));
     resultados.current?.focus();
   }
 
   function restablecer() {
+    salirDelLote();
     setParams('', { replace: true });
   }
 
@@ -82,7 +198,38 @@ export function BandejaPage() {
         onReintentar={() => void resumen.refetch()}
       />
       <section className={estilos.tarjeta}>
-        <FiltrosEstado estados={filtros.estados} onAlternar={alternar} />
+        <FiltrosEstado
+          estados={filtros.estados}
+          onAlternar={alternar}
+          accion={
+            puedeConfirmar &&
+            marcadas === null &&
+            data &&
+            data.datos.length > 0 ? (
+              <Button variante="secundario" onClick={abrirLote}>
+                {LOTE.abrir}
+              </Button>
+            ) : undefined
+          }
+        />
+        {marcadas !== null && data ? (
+          <BarraLote
+            marcadas={marcadasVisibles}
+            total={conCasilla}
+            enviando={confirmarLote.enviando}
+            onConfirmar={confirmar}
+            onCancelar={salirDelLote}
+          />
+        ) : null}
+        {resultado ? (
+          <ResultadoLote
+            confirmadas={resultado.confirmadas}
+            omitidas={resultado.omitidas}
+          />
+        ) : null}
+        {hayFalloLote ? (
+          <FalloLote error={falloLote} onRecargar={recargar} />
+        ) : null}
         <div
           ref={resultados}
           tabIndex={-1}
@@ -100,7 +247,18 @@ export function BandejaPage() {
             <EstadoVacio conFiltros={!porDefecto} onRestablecer={restablecer} />
           ) : data ? (
             <>
-              <TablaBandeja filas={data.datos} />
+              <TablaBandeja
+                filas={data.datos}
+                lote={
+                  marcadas === null
+                    ? undefined
+                    : {
+                        marcadas,
+                        enviando: confirmarLote.enviando,
+                        onAlternar: alternarMarca,
+                      }
+                }
+              />
               <Paginacion
                 pagina={data.pagina}
                 total={data.total}
@@ -134,6 +292,36 @@ function Fallo({
       titulo={titulo}
       detalle={detalle}
       onReintentar={sinReintento ? undefined : onReintentar}
+    />
+  );
+}
+
+/**
+ * El lote falló. Sin permiso es un rechazo limpio (no se aplicó nada). Cualquier
+ * otro fallo es dudoso —un corte puede llegar después de que el servidor
+ * escribió—, así que no se afirma que no se aplicó nada: se pide recargar.
+ */
+function FalloLote({
+  error,
+  onRecargar,
+}: {
+  error: unknown;
+  onRecargar: () => void;
+}) {
+  if (mensajeDeError(error, 'general')?.tipo === 'sin_permiso') {
+    return (
+      <ErrorBandeja
+        titulo={ERROR_SIN_PERMISO.titulo}
+        detalle={ERROR_SIN_PERMISO.detalle}
+      />
+    );
+  }
+  return (
+    <ErrorBandeja
+      titulo={LOTE.errorTitulo}
+      detalle={LOTE.errorDetalle}
+      textoAccion={LOTE.recargar}
+      onReintentar={onRecargar}
     />
   );
 }

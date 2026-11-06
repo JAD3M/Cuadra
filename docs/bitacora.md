@@ -5,6 +5,17 @@
 
 ### 5 nov 2026
 
+- **Historia 5.3 de la v2: confirmar un lote con la regla 1 ya marcada.** Ramas
+  `feat/v2-5-3-*`, documento `odd/tasks/v2-5-3-confirmar-lote.md` (KAN-146). PR #103 (regla de
+  separación de funciones y `motivoBloqueo` en la bandeja), #104 (`POST /conciliaciones/lotes`),
+  #105 y el siguiente (contrato, hook y pantalla). Decisiones del usuario: omitir las DOS
+  propuestas que chocan entre sí (A7); el modo lote trabaja sobre la página visible, sin
+  «marcar todas» ni ventana de confirmación; mockups 2 y 7 aprobados, con un estado extra para
+  cuando todas se omiten. Alto riesgo (concurrencia): un verificador independiente halló un
+  blocker (un uuid en mayúsculas se saltaba la regla de choques), corregido con sus pruebas.
+  Desvío del plan: una prueba de bandeja afirmaba que no había ningún botón de confirmar; ahora
+  el único es «Confirmar en lote» (ninguna fila decide).
+
 - **Pendiente 4.6 (e): `cfdi` en el filtro de entidad de la bitácora.** Rama
   `feat/v2-bitacora-entidad-cfdi`. Mockup 6 acordado antes del código: el filtro «Entidad»
   lista las cinco entidades reales (el mockup solo tenía dos) y hay dos filas de ejemplo de

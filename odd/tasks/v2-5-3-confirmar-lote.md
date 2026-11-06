@@ -67,11 +67,11 @@ Supuestos (míos, a confirmar con el usuario si algo no cuadra):
   caso, con `lote_id`), un SAVEPOINT por propuesta, `idsQueChocan` (A7), razones en
   `RAZONES_OMISION_LOTE` con espejo en el frontend, `MAXIMO_LOTE = 500` con espejo. RED: 21 de
   22 pruebas del endpoint fallaron antes. Commit: ver PR de T2.
-- [ ] T3 (S1, S4, S5) [mockup dibujado el 2026-11-05, esperando aprobación]: mockup de la confirmación en lote (Bandeja oscuro y claro), acordado
+- [x] T3 (S1, S4, S5) [aprobado el 2026-11-05]: mockup de la confirmación en lote (Bandeja oscuro y claro), acordado
   con el usuario antes del código. Ruta: inline. Commit: —
-- [ ] T4 (S1-S6): frontend: modo lote en la bandeja (casillas, deshabilitadas con motivo,
+- [x] T4 (S1-S6) [PR #105 y el de la pantalla]: frontend: modo lote en la bandeja (casillas, deshabilitadas con motivo,
   resumen de omitidas), oculto sin `conciliaciones.resolver`. Ruta: inline. PR 3. Commit: —
-- [ ] T5: documentación (`CUADRA.md`, bitácora), repaso y cierre de la historia. Commit: —
+- [ ] T5 [documentación hecha; falta el repaso al integrar]: documentación (`CUADRA.md`, bitácora), repaso y cierre de la historia. Commit: —
 
 ## Log
 
@@ -106,3 +106,9 @@ Supuestos (míos, a confirmar con el usuario si algo no cuadra):
   para el auditor), barra «Confirmación en lote» con contador y botones, casilla por fila con
   solo la regla 1 marcada, fila bloqueada con su motivo, y las vistas `lote`,
   `lote_sin_marcadas`, `lote_enviando`, `lote_resultado` y `lote_error`.
+- L7 (2026-11-05): el usuario aprobó el mockup (2 y 7) y el estado extra `lote_resultado_vacio`.
+  Frontend en dos PR por tamaño (~1500 líneas con pruebas): #105 (contrato, etiquetas, textos,
+  lógica y hook) y el de la pantalla (BarraLote, ResultadoLote, casilla en la fila, página).
+  4816 pruebas del frontend verdes; comprobado por mutación que romper «solo la regla 1»
+  hace fallar 6 pruebas. Se actualizó la prueba «solo lectura» de la bandeja: el único control
+  de decisión es «Confirmar en lote».

@@ -1,0 +1,47 @@
+/* Barra de la confirmación en lote (mockups 2 y 7). Solo tokens de rol. */
+.barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12) var(--space-24);
+  margin: 0 var(--space-16) var(--space-16);
+  padding: var(--space-16);
+  border: 1px solid var(--estado-sugerencia-tile-border);
+  border-radius: var(--radius-lg);
+  background: var(--estado-sugerencia-tile-bg);
+}
+
+.texto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.titulo {
+  font-size: var(--text-lg);
+}
+
+.ayuda {
+  color: var(--color-text-soft);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.contador {
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* Sin nada marcado el contador pide marcar algo: ámbar, no rojo. */
+.aviso {
+  color: var(--estado-sin-match-text);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}

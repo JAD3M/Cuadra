@@ -416,8 +416,8 @@ describe('BandejaPage: indicadores', () => {
   });
 });
 
-describe('BandejaPage: solo lectura', () => {
-  it('solo emite GET y no tiene controles de decisión ni textos del servidor', async () => {
+describe('BandejaPage: solo lectura hasta abrir el lote', () => {
+  it('navegar solo emite GET; el único control de decisión es «Confirmar en lote» y ninguna fila decide', async () => {
     const usuario = userEvent.setup();
     const espiaGet = espiarSolicitudes();
     const espia = espiar();
@@ -433,8 +433,13 @@ describe('BandejaPage: solo lectura', () => {
     espia.detener();
     espiaGet.detener();
     expect(espia.noGet).toEqual([]);
+    // 5.3: el lote es el único control de decisión de la pantalla; ninguna fila
+    // confirma, rechaza ni cierra, y sin abrirlo no hay casillas.
     expect(
-      screen.queryByRole('button', { name: /confirmar|rechazar|cerrar/i }),
-    ).toBeNull();
+      screen
+        .getAllByRole('button', { name: /confirmar|rechazar|cerrar/i })
+        .map((b) => b.textContent),
+    ).toEqual(['Confirmar en lote']);
+    expect(screen.queryAllByRole('checkbox')).toEqual([]);
   });
 });
