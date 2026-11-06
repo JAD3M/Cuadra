@@ -165,6 +165,7 @@ export function crearHandlersPlataforma() {
         id: `00000000-0000-4000-8000-${String(contador).padStart(12, '0')}`,
         razonSocial,
         rfc,
+        separacionFunciones: true,
       };
       empresasSimuladas.push(empresa);
       return HttpResponse.json(empresa, { status: 201 });

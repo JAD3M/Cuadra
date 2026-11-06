@@ -3,8 +3,10 @@ import {
   TEXTOS_ALTA_EMPRESA,
   TEXTOS_INVITAR,
   TEXTOS_PLATAFORMA,
+  TEXTOS_SEPARACION,
 } from '@/features/plataforma/textos';
 import { Button } from '@/shared/ui/Button';
+import { EstadoChip } from '@/shared/ui/EstadoChip';
 import { Tabla, Td, Th } from '@/shared/ui/Tabla';
 import estilos from './EmpresasPlataforma.module.css';
 
@@ -13,6 +15,7 @@ export interface FilaEmpresaPlataforma {
   id: string;
   razonSocial: string;
   rfc: string;
+  separacionFunciones: boolean;
 }
 
 export interface EmpresasPlataformaProps {
@@ -24,6 +27,8 @@ export interface EmpresasPlataformaProps {
   onCrear?: () => void;
   /** Acción «Invitar administrador» de una fila; sin ella no hay columna. */
   onInvitar?: (empresa: FilaEmpresaPlataforma) => void;
+  /** Acción «Desactivar/Activar separación» de una fila; sin ella no hay botón. */
+  onCambiarSeparacion?: (empresa: FilaEmpresaPlataforma) => void;
 }
 
 /**
@@ -36,6 +41,7 @@ export function EmpresasPlataforma({
   alerta,
   onCrear,
   onInvitar,
+  onCambiarSeparacion,
 }: EmpresasPlataformaProps) {
   const cargando = empresas === null && !alerta;
 
@@ -49,7 +55,10 @@ export function EmpresasPlataforma({
               <Th className={estilos.sinPartir}>
                 {TEXTOS_PLATAFORMA.columnaRfc}
               </Th>
-              {onInvitar && <Th>{TEXTOS_INVITAR.columnaAcciones}</Th>}
+              <Th className={estilos.sinPartir}>{TEXTOS_SEPARACION.columna}</Th>
+              {(onInvitar || onCambiarSeparacion) && (
+                <Th>{TEXTOS_INVITAR.columnaAcciones}</Th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -57,18 +66,53 @@ export function EmpresasPlataforma({
               <tr key={empresa.id}>
                 <Td>{empresa.razonSocial}</Td>
                 <Td className={estilos.rfc}>{empresa.rfc}</Td>
-                {onInvitar && (
+                <Td>
+                  {empresa.separacionFunciones ? (
+                    <EstadoChip tono="conciliado">
+                      {TEXTOS_SEPARACION.activa}
+                    </EstadoChip>
+                  ) : (
+                    <EstadoChip tono="sin_match">
+                      {TEXTOS_SEPARACION.desactivada}
+                    </EstadoChip>
+                  )}
+                </Td>
+                {(onInvitar || onCambiarSeparacion) && (
                   <Td className={estilos.acciones}>
-                    <Button
-                      type="button"
-                      variante="secundario"
-                      aria-label={TEXTOS_INVITAR.etiquetaBoton(
-                        empresa.razonSocial,
+                    <div className={estilos.botones}>
+                      {onInvitar && (
+                        <Button
+                          type="button"
+                          variante="secundario"
+                          aria-label={TEXTOS_INVITAR.etiquetaBoton(
+                            empresa.razonSocial,
+                          )}
+                          onClick={() => onInvitar(empresa)}
+                        >
+                          {TEXTOS_INVITAR.boton}
+                        </Button>
                       )}
-                      onClick={() => onInvitar(empresa)}
-                    >
-                      {TEXTOS_INVITAR.boton}
-                    </Button>
+                      {onCambiarSeparacion && (
+                        <Button
+                          type="button"
+                          variante="secundario"
+                          aria-label={
+                            empresa.separacionFunciones
+                              ? TEXTOS_SEPARACION.etiquetaDesactivar(
+                                  empresa.razonSocial,
+                                )
+                              : TEXTOS_SEPARACION.etiquetaActivar(
+                                  empresa.razonSocial,
+                                )
+                          }
+                          onClick={() => onCambiarSeparacion(empresa)}
+                        >
+                          {empresa.separacionFunciones
+                            ? TEXTOS_SEPARACION.botonDesactivar
+                            : TEXTOS_SEPARACION.botonActivar}
+                        </Button>
+                      )}
+                    </div>
                   </Td>
                 )}
               </tr>

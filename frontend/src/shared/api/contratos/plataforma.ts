@@ -34,6 +34,8 @@ export const empresaPlataforma = z.object({
   id,
   razonSocial: texto,
   rfc: texto,
+  /** `false` si el dueño desactivó la separación de funciones de esa empresa. */
+  separacionFunciones: z.boolean(),
 });
 
 export const listaEmpresasPlataforma = z.array(empresaPlataforma);
@@ -49,6 +51,18 @@ export const solicitudCrearEmpresa = z.object({
 
 /** Respuesta de `POST /plataforma/empresas`: la misma forma que una fila de la lista. */
 export const empresaCreadaPlataforma = empresaPlataforma;
+
+/**
+ * Cuerpo de `PUT /plataforma/empresas/:id/separacion-funciones` (historia 5.5).
+ * El motivo es obligatorio; el servidor lo recorta y decide (1 a 500).
+ */
+export const solicitudCambiarSeparacion = z.object({
+  activa: z.boolean(),
+  motivo: texto,
+});
+
+/** Respuesta del PUT: la empresa con su estado nuevo. */
+export const empresaSeparacionCambiada = empresaPlataforma;
 
 /**
  * Banco de `GET /plataforma/bancos` y respuesta de
@@ -76,4 +90,7 @@ export type RespuestaSesionPlataforma = z.infer<
 export type SolicitudLoginPlataforma = z.infer<typeof solicitudLoginPlataforma>;
 export type EmpresaPlataforma = z.infer<typeof empresaPlataforma>;
 export type SolicitudCrearEmpresa = z.infer<typeof solicitudCrearEmpresa>;
+export type SolicitudCambiarSeparacion = z.infer<
+  typeof solicitudCambiarSeparacion
+>;
 export type BancoPlataforma = z.infer<typeof bancoPlataforma>;

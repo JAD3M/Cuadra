@@ -70,7 +70,14 @@
   font-size: var(--text-base);
 }
 
-/* Columna «Acciones»: el botón no se parte. */
+/* Columna «Acciones»: cada botón no se parte. */
 .acciones {
   white-space: nowrap;
+}
+
+/* Los botones van lado a lado y bajan si no caben. */
+.botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
 }

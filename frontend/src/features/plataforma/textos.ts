@@ -101,3 +101,38 @@ export const TEXTOS_BANCOS = {
   yaLevantadaDetalle: 'No se cambió nada.',
   sinEvidenciaTitulo: 'Todavía no hay evidencia suficiente.',
 } as const;
+
+/** Separación de funciones por empresa (mockup `Plataforma.dc.html`, historia 5.5). */
+export const TEXTOS_SEPARACION = {
+  columna: 'Separación de funciones',
+  activa: 'Activa',
+  desactivada: 'Desactivada',
+  botonDesactivar: 'Desactivar separación',
+  botonActivar: 'Activar separación',
+  etiquetaDesactivar: (razonSocial: string) =>
+    `Desactivar la separación de funciones de ${razonSocial}`,
+  etiquetaActivar: (razonSocial: string) =>
+    `Activar la separación de funciones de ${razonSocial}`,
+  formularioDesactivar: 'Desactivar separación de funciones',
+  formularioActivar: 'Activar separación de funciones',
+  tituloDesactivar: (razonSocial: string) =>
+    `Desactivar la separación de funciones de ${razonSocial}`,
+  tituloActivar: (razonSocial: string) =>
+    `Volver a activar la separación de funciones de ${razonSocial}`,
+  textoDesactivar:
+    'Quien suba una carga de esta empresa podrá confirmar sus propias conciliaciones, y todos sus usuarios verán un aviso en la bandeja y en la bitácora. Solo afecta a esta empresa.',
+  textoActivar:
+    'La empresa volverá a impedir que quien sube una carga confirme sus propias conciliaciones, y el aviso de la bandeja y de la bitácora desaparece.',
+  etiquetaMotivo: 'Motivo',
+  ayudaMotivo:
+    'Obligatorio, hasta 500 caracteres. Queda en la bitácora de la plataforma y en la de la empresa.',
+  motivoVacio: 'Escribe el motivo del cambio.',
+  guardando: 'Guardando…',
+  cancelar: 'Cancelar',
+  desactivadaTitulo: 'Separación de funciones desactivada.',
+  activadaTitulo: 'Separación de funciones activada de nuevo.',
+  cambiadaDetalle: (razonSocial: string) =>
+    `${razonSocial}. Quedó en la bitácora de la plataforma y en la de la empresa, con tu usuario, la fecha y el motivo.`,
+  yaEstabaTitulo: 'La separación de funciones ya estaba en ese estado.',
+  yaEstabaDetalle: 'No se cambió nada.',
+} as const;

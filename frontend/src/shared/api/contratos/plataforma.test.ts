@@ -15,13 +15,25 @@ describe('contrato de empresas de plataforma', () => {
       id: ID,
       razonSocial: 'Ferretería Aurora S.A. de C.V.',
       rfc: 'FAU210215QK4',
+      separacionFunciones: true,
       extra: 'se ignora',
     });
     expect(empresa).toEqual({
       id: ID,
       razonSocial: 'Ferretería Aurora S.A. de C.V.',
       rfc: 'FAU210215QK4',
+      separacionFunciones: true,
     });
+  });
+
+  it('una empresa sin `separacionFunciones` falla en voz alta', () => {
+    expect(
+      empresaCreadaPlataforma.safeParse({
+        id: ID,
+        razonSocial: 'X',
+        rfc: 'FAU210215QK4',
+      }).success,
+    ).toBe(false);
   });
 
   it('una respuesta sin RFC falla en voz alta', () => {
@@ -31,7 +43,12 @@ describe('contrato de empresas de plataforma', () => {
   });
 
   it('la lista reutiliza la forma de la empresa creada', () => {
-    const fila = { id: ID, razonSocial: 'Aurora', rfc: 'FAU210215QK4' };
+    const fila = {
+      id: ID,
+      razonSocial: 'Aurora',
+      rfc: 'FAU210215QK4',
+      separacionFunciones: false,
+    };
     expect(listaEmpresasPlataforma.parse([fila])).toEqual([fila]);
   });
 
