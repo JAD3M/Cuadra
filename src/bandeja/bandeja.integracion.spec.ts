@@ -461,6 +461,26 @@ describe('BJ-2e separación de funciones por fila (5.3)', () => {
     expect(motivoDe(await listar(), m)).toBe('separacion_de_funciones');
   });
 
+  it('con la separación desactivada en la empresa nada sale bloqueado', async () => {
+    const m = await sugerido(A, '100.00');
+    await ds.query(`UPDATE cfdi SET carga_id = $1 WHERE company_id = $2`, [
+      await carga(entorno.persona(ANA)),
+      A,
+    ]);
+    await ds.query(
+      `UPDATE companies SET separacion_funciones = false WHERE id = $1`,
+      [A],
+    );
+    try {
+      expect(motivoDe(await listar(), m)).toBeNull();
+    } finally {
+      await ds.query(
+        `UPDATE companies SET separacion_funciones = true WHERE id = $1`,
+        [A],
+      );
+    }
+  });
+
   it('también si la persona subió el estado de cuenta del movimiento', async () => {
     const m = await sugerido(A, '100.00');
     await ds.query(`UPDATE movimientos SET carga_id = $1 WHERE id = $2`, [

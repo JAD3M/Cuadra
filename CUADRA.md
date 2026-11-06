@@ -788,7 +788,10 @@ Segunda historia de la épica 5 que ata FR-18, FR-19 y FR-31 (AD-4, AD-7, AD-19)
 - La regla de separación de funciones (D-08) vive en un solo lugar,
   `src/common/separacion-funciones.ts`. En un lote se omite en silencio (sin 403 ni
   `acceso_denegado`); `GET /bandeja` suma `motivoBloqueo` por fila para que la pantalla la
-  muestre desmarcada y deshabilitada. Sigue siempre activa: el interruptor es la 5.4.
+  muestre desmarcada y deshabilitada. Desde la 5.4 (AD-13) la regla respeta
+  `companies.separacion_funciones` (default `true`) con `separacionActiva`: solo un `false`
+  explícito la desactiva; fila ausente, valor raro o lectura fallida (SAVEPOINT) la dejan activa.
+  La confirmación, el lote (una lectura) y la bandeja usan la misma decisión. Cambiarla es la 5.5.
 - Mismo permiso que confirmar un caso (`conciliaciones.resolver`): el auditor recibe 403. Un id
   en mayúsculas es el mismo id (se normaliza antes de validar).
 - Frontend (mockups 2 y 7): botón «Confirmar en lote» en la barra de filtros, barra con

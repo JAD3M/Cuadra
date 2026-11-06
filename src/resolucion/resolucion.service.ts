@@ -13,7 +13,10 @@ import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import type { ContextoDeCambio } from '../companies/tolerancia.service';
 import { ContextoEmpresa } from '../database/contexto-empresa';
 import type { RazonOmisionLote, Rol } from '../common/entities/tipos';
-import { subioAlgunaCarga } from '../common/separacion-funciones';
+import {
+  separacionActiva,
+  subioAlgunaCarga,
+} from '../common/separacion-funciones';
 import { idsQueChocan } from './choques-de-lote';
 import type {
   LoteRespuestaDto,
@@ -117,6 +120,8 @@ export class ResolucionService {
     // Defensa en profundidad: el DTO ya normaliza, pero aquí se compara contra los
     // ids que devuelve la base (siempre en minúsculas).
     const ordenados = [...new Set(ids.map((id) => id.toLowerCase()))].sort();
+    // AD-13: una sola lectura de la configuración para todo el lote.
+    const separacion = await separacionActiva(manager, companyId);
     const choques = await this.marcadasQueChocan(companyId, ordenados);
     const [{ id: loteId }] = await manager.query<{ id: string }[]>(
       'SELECT uuidv7() AS id',
@@ -131,7 +136,7 @@ export class ResolucionService {
       }
       await manager.query('SAVEPOINT item_de_lote');
       try {
-        await this.confirmarUna(companyId, id, quien, loteId);
+        await this.confirmarUna(companyId, id, quien, loteId, separacion);
         await manager.query('RELEASE SAVEPOINT item_de_lote');
         confirmadas.push(id);
       } catch (error) {
@@ -182,6 +187,7 @@ export class ResolucionService {
     id: string,
     quien: ContextoDeConfirmacion,
     loteId: string | null,
+    separacion?: boolean,
   ): Promise<ResolucionRespuestaDto> {
     const enLote = loteId !== null;
     const manager = this.contexto.manager();
@@ -236,7 +242,15 @@ export class ResolucionService {
       );
     }
 
-    if (await this.segregacionViolada(companyId, quien, cfdis, movimiento)) {
+    if (
+      await this.segregacionViolada(
+        companyId,
+        quien,
+        cfdis,
+        movimiento,
+        separacion,
+      )
+    ) {
       // En un lote se omite en silencio (sin 403 ni rastro de acceso denegado):
       // la persona ya vio el motivo al armar el lote.
       if (enLote) throw new PropuestaOmitida('separacion_de_funciones');
@@ -387,13 +401,18 @@ export class ResolucionService {
    * propio trabajo. Sin carga (null) ese lado no restringe. La regla vive en
    * `separacion-funciones.ts` (la bandeja usa la misma) y aquí no lanza nada.
    */
-  private segregacionViolada(
+  private async segregacionViolada(
     companyId: string,
     quien: ContextoDeConfirmacion,
     cfdis: LadoBloqueado[],
     movimiento: LadoBloqueado,
+    separacion?: boolean,
   ): Promise<boolean> {
-    return subioAlgunaCarga(this.contexto.manager(), companyId, quien.userId, [
+    const manager = this.contexto.manager();
+    // AD-13: sin la separación activa (lectura falla cerrada) la regla no aplica.
+    const activa = separacion ?? (await separacionActiva(manager, companyId));
+    if (!activa) return false;
+    return subioAlgunaCarga(manager, companyId, quien.userId, [
       ...cfdis.map((cfdi) => cfdi.cargaId),
       movimiento.cargaId,
     ]);

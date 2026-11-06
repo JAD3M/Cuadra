@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ContextoEmpresa } from '../database/contexto-empresa';
-import { sqlSubioAlgunaCarga } from '../common/separacion-funciones';
+import {
+  separacionActiva,
+  sqlSubioAlgunaCarga,
+} from '../common/separacion-funciones';
 import {
   REGLA_MONTO_UNICO,
   REGLA_REFERENCIA_MONTO_DIFERENTE,
@@ -175,6 +178,8 @@ export class BandejaService {
     const pagina = consulta.pagina ?? 1;
     const limite = consulta.limite ?? LIMITE_POR_DEFECTO;
     const manager = this.contexto.manager();
+    // AD-13: con la separación desactivada nada se marca como bloqueado.
+    const separacion = await separacionActiva(manager, companyId);
 
     const [{ total }] = await manager.query<{ total: number }[]>(
       `SELECT count(*)::int AS total ${DESDE_FILTRO}`,
@@ -190,6 +195,7 @@ export class BandejaService {
               p.diferencia_monto::text AS diferencia_monto,
               p.regla, p.motivo, p.n, p.requiere_revision,
               (m.estado = 'abierto' AND p.id IS NOT NULL
+               AND $7::boolean
                AND ${sqlSubioAlgunaCarga('$1', '$6::uuid', CARGAS_DE_LA_PROPUESTA)})
                 AS bloqueada,
               f.id AS cfdi_id, f.uuid_fiscal, f.serie, f.folio,
@@ -208,6 +214,7 @@ export class BandejaService {
         (pagina - 1) * limite,
         REGLAS_POR_CONFIANZA,
         userId,
+        separacion,
       ],
     );
 

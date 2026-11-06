@@ -5,6 +5,13 @@
 
 ### 5 nov 2026
 
+- **Historia 5.4 de la v2: separación de funciones activa por defecto.** Rama
+  `feat/v2-5-4-separacion-activa`, documento `odd/tasks/v2-5-4-separacion-activa.md` (KAN-147).
+  La regla D-08 ya existía y estaba siempre activa; ahora lee `companies.separacion_funciones`
+  mediante `separacionActiva` (falla cerrada, con SAVEPOINT porque `companies` no tiene RLS y un
+  error SQL abortaría la transacción). Confirmación individual, lote (una sola lectura) y bandeja
+  comparten la decisión. Pruebas: ambos modos, config ausente/nula/fallida y mutación verificada.
+
 - **Historia 5.3 de la v2: confirmar un lote con la regla 1 ya marcada.** Ramas
   `feat/v2-5-3-*`, documento `odd/tasks/v2-5-3-confirmar-lote.md` (KAN-146). PR #103 (regla de
   separación de funciones y `motivoBloqueo` en la bandeja), #104 (`POST /conciliaciones/lotes`),
