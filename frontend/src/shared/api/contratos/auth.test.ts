@@ -31,6 +31,26 @@ describe('contratos de autenticación: cargas válidas', () => {
     expect(contextoSesion.parse(CONTEXTO_SESION)).toEqual(CONTEXTO_SESION);
   });
 
+  it('el contexto exige separacionFunciones booleano en la empresa', () => {
+    const empresa = { ...CONTEXTO_SESION.empresa } as Record<string, unknown>;
+    delete empresa.separacionFunciones;
+    expect(
+      contextoSesion.safeParse({ ...CONTEXTO_SESION, empresa }).success,
+    ).toBe(false);
+    expect(
+      contextoSesion.safeParse({
+        ...CONTEXTO_SESION,
+        empresa: { ...empresa, separacionFunciones: 'no' },
+      }).success,
+    ).toBe(false);
+    expect(
+      contextoSesion.parse({
+        ...CONTEXTO_SESION,
+        empresa: { ...empresa, separacionFunciones: false },
+      }).empresa.separacionFunciones,
+    ).toBe(false);
+  });
+
   it('la respuesta de login no lleva token: la sesión viaja en la cookie', () => {
     expect(Object.keys(RESPUESTA_LOGIN)).not.toContain('token');
     expect(Object.keys(respuestaLogin.parse(RESPUESTA_LOGIN))).toEqual([

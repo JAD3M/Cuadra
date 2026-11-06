@@ -30,7 +30,7 @@ Entrega: `ask-on-risk`; pronóstico ~700 líneas, cadena de 2-3 PR (T1-T2 backen
   servicio transaccional, `separacionFunciones` en el listado de empresas. Pruebas.
 - [x] T2 (S4 backend): `separacionFunciones` en `GET /auth/contexto`.
 - [x] T3 (mockup, aprobado por el usuario 2026-11-05; números 10, 11, 2, 7 y 6): pantalla del dueño (control + motivo) y aviso en bandeja y bitácora. Acordar ANTES del código.
-- T4 (S4-S6 frontend): espejo, etiquetas/tonos/detalle de bitácora, hook y formulario del dueño, aviso.
+- [x] T4 (S4-S6 frontend, dos escritores en paralelo U1 y U2): espejo, etiquetas/tonos/detalle de bitácora, hook y formulario del dueño, aviso.
 
 ## Log
 
@@ -44,3 +44,4 @@ Entrega: `ask-on-risk`; pronóstico ~700 líneas, cadena de 2-3 PR (T1-T2 backen
 - T2 hecha: `empresa.separacionFunciones` en GET /auth/contexto (falla cerrada: solo false explícito avisa). Suite auth verde (147). Risk: item 3 (el contexto suma un campo; contrato aditivo).
 - T3 hecha: mockups 10 y 11 (Plataforma: columna, botones, formulario con motivo y estados vía prop `separacion`), 2 y 7 (Bandeja) y 6 (Bitácora) con aviso (prop `separacion`, default `activa`) y la acción «Separación de funciones cambiada». El usuario aprobó los oscuros; los claros siguen los mismos roles de color.
 - Ruta T4: dos escritores en paralelo con superficies disjuntas (U1 pantalla del dueño; U2 aviso en bandeja/bitácora + etiquetas de bitácora). Razón: dos unidades independientes de varios archivos cada una.
+- T4 hecha: U1 (pantalla del dueño) y U2 (aviso + bitácora). Desvío detectado por U2 y corregido por mí con RED/GREEN: el contexto tiene `staleTime` infinito, el aviso no cambiaba sin recargar; `useSeparacionDesactivada` relee el contexto al abrir la pantalla. Frontend 4862 pruebas, typecheck, lint y prettier verdes. Risk: none (cambios aditivos de UI).

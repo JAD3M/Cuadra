@@ -791,7 +791,17 @@ Segunda historia de la épica 5 que ata FR-18, FR-19 y FR-31 (AD-4, AD-7, AD-19)
   muestre desmarcada y deshabilitada. Desde la 5.4 (AD-13) la regla respeta
   `companies.separacion_funciones` (default `true`) con `separacionActiva`: solo un `false`
   explícito la desactiva; fila ausente, valor raro o lectura fallida (SAVEPOINT) la dejan activa.
-  La confirmación, el lote (una lectura) y la bandeja usan la misma decisión. Cambiarla es la 5.5.
+  La confirmación, el lote (una lectura) y la bandeja usan la misma decisión.
+  Desde la 5.5 (AD-5, AD-7, AD-13) solo el dueño la cambia: `PUT
+  /plataforma/empresas/:id/separacion-funciones` con `{activa, motivo}` (motivo obligatorio también
+  al reactivar; 400 sin él, 404 si no existe, 409 si ya estaba en ese estado). Apagar y reactivar
+  son la MISMA acción `desactivar_separacion`; el sentido va en `antes/despues` del detalle. Queda
+  en `bitacora_plataforma` y en la `bitacora` de la empresa (`user_id` NULL, el dueño en `datos`) en
+  una sola transacción. Una sesión de empresa, incluso admin, recibe 403 del guard y queda un
+  `acceso_denegado` en `bitacora_plataforma`. `cuadra_app` solo tiene `UPDATE (separacion_funciones)`
+  sobre `companies`. `GET /auth/contexto` trae `empresa.separacionFunciones`; con `false` explícito
+  la bandeja y la bitácora muestran el aviso «Esta empresa opera sin separación de funciones.»
+  (mockups 2, 6 y 7), que se relee al abrir cada pantalla.
 - Mismo permiso que confirmar un caso (`conciliaciones.resolver`): el auditor recibe 403. Un id
   en mayúsculas es el mismo id (se normaliza antes de validar).
 - Frontend (mockups 2 y 7): botón «Confirmar en lote» en la barra de filtros, barra con

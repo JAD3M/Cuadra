@@ -53,7 +53,7 @@ export function capacidadesDeRoles(roles: readonly string[]): string[] {
 
 export const CONTEXTO_SESION = {
   usuario: USUARIO,
-  empresa: EMPRESA_CONTEXTO,
+  empresa: { ...EMPRESA_CONTEXTO, separacionFunciones: true },
   roles: ['admin', 'contador'],
   capacidades: capacidadesDeRoles(['admin', 'contador']),
 };
@@ -71,6 +71,7 @@ export const CONTEXTO_SESION_B = {
     id: EMPRESAS_DISPONIBLES[1]!.id,
     razonSocial: EMPRESAS_DISPONIBLES[1]!.razonSocial,
     rfc: EMPRESAS_DISPONIBLES[1]!.rfc,
+    separacionFunciones: true,
   },
   roles: ['revisor'],
   capacidades: capacidadesDeRoles(['revisor']),

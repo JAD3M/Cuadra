@@ -11,6 +11,7 @@ export type {
   SessionState,
 } from './tipos';
 export { useSessionContext } from './useSessionContext';
+export { useSeparacionDesactivada } from './useSeparacionDesactivada';
 export { useSessionActions } from './useSessionActions';
 export {
   destinoDeRegreso,

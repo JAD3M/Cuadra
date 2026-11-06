@@ -9,6 +9,7 @@ describe('textoAccion', () => {
     ['cancelar_invitacion', 'Invitación cancelada'],
     ['cambiar_rol', 'Rol cambiado'],
     ['quitar_rol', 'Rol quitado'],
+    ['desactivar_separacion', 'Separación de funciones cambiada'],
   ] as const)('%s se muestra como «%s»', (accion, texto) => {
     expect(textoAccion(accion)).toBe(texto);
   });
