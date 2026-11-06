@@ -3,6 +3,7 @@ export type { MontoDecimal } from './montoDecimal';
 export * from './auth';
 export * from './bandeja';
 export * from './caso';
+export * from './lote';
 export * from './cargas';
 export * from './tolerancia';
 export * from './bitacora';
