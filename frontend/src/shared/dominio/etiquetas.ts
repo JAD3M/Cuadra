@@ -3,8 +3,10 @@ import {
   type AccionBitacora,
   type EstadoCarga,
   type TipoCarga,
+  type MotivoBloqueo,
   type MotivoRevision,
   type OrigenConciliacion,
+  type RazonOmisionLote,
   ROLES,
   type Rol,
 } from './tipos';
@@ -61,6 +63,32 @@ export const ETIQUETAS_MOTIVO_REVISION: Record<MotivoRevision, string> = {
   cfdi_cancelado: 'la factura se canceló',
 };
 export const GLIFO_REQUIERE_REVISION = '⚠';
+
+/**
+ * Por qué ESTA persona no puede confirmar una propuesta (5.3). El servidor
+ * manda el código; el texto vive aquí.
+ */
+export const ETIQUETAS_MOTIVO_BLOQUEO: Record<MotivoBloqueo, string> = {
+  separacion_de_funciones:
+    'No puedes confirmarla: subiste su CFDI o su estado de cuenta. Debe confirmarla otra persona.',
+};
+
+/**
+ * Por qué una propuesta marcada en un lote se dejó fuera (5.3). Un
+ * `Record<RazonOmisionLote, string>`: si el backend agrega una razón, esta
+ * tabla deja de compilar hasta explicarla.
+ */
+export const ETIQUETAS_RAZON_OMISION_LOTE: Record<RazonOmisionLote, string> = {
+  no_existe: 'Ya no existe.',
+  ya_resuelta: 'Otra persona ya la resolvió.',
+  cfdi_no_abierto: 'Su factura ya no está abierta.',
+  movimiento_no_abierto: 'Su movimiento ya no está abierto.',
+  separacion_de_funciones:
+    'Subiste su CFDI o su estado de cuenta: debe confirmarla otra persona.',
+  choca_con_otra_del_lote:
+    'Choca con otra marcada (misma factura o mismo movimiento): confírmala a mano.',
+  cambio_concurrente: 'Cambió mientras se confirmaba: revísala de nuevo.',
+};
 
 /**
  * Texto visible de cada acción de la bitácora en el historial de un caso

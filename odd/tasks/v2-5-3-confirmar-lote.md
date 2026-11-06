@@ -43,6 +43,10 @@ Supuestos (míos, a confirmar con el usuario si algo no cuadra):
 - A7 (agregado en T2): si dos propuestas marcadas chocan entre sí (mismo movimiento o misma
   factura) se omiten LAS DOS con la razón `choca_con_otra_del_lote`; no se elige una al azar
   (un falso positivo es peor que no conciliar). Las decide una persona caso por caso.
+  El usuario confirmó A7 el 2026-11-05 («estoy de acuerdo»).
+- A8 (mockup T3): el modo lote trabaja sobre la página que se ve (50 por página); lo que ves
+  es lo que marcas. Sin casilla «marcar todas», sin ventana de confirmación aparte (el botón
+  dice cuántas va a confirmar) y sin suma de montos (podría mezclar monedas).
 - A6: el servidor acepta cualquier id que la persona marque (también regla 2 o 3 o un
   grupo); lo único que cambia es qué viene marcado de inicio. Lo que la separación de
   funciones prohíbe se omite con su razón aunque el cliente lo mande marcado.
@@ -63,7 +67,7 @@ Supuestos (míos, a confirmar con el usuario si algo no cuadra):
   caso, con `lote_id`), un SAVEPOINT por propuesta, `idsQueChocan` (A7), razones en
   `RAZONES_OMISION_LOTE` con espejo en el frontend, `MAXIMO_LOTE = 500` con espejo. RED: 21 de
   22 pruebas del endpoint fallaron antes. Commit: ver PR de T2.
-- [ ] T3 (S1, S4, S5): mockup de la confirmación en lote (Bandeja oscuro y claro), acordado
+- [ ] T3 (S1, S4, S5) [mockup dibujado el 2026-11-05, esperando aprobación]: mockup de la confirmación en lote (Bandeja oscuro y claro), acordado
   con el usuario antes del código. Ruta: inline. Commit: —
 - [ ] T4 (S1-S6): frontend: modo lote en la bandeja (casillas, deshabilitadas con motivo,
   resumen de omitidas), oculto sin `conciliaciones.resolver`. Ruta: inline. PR 3. Commit: —
@@ -97,3 +101,8 @@ Supuestos (míos, a confirmar con el usuario si algo no cuadra):
   validar (así `ArrayUnique` ve repetido el mismo id) y el servicio lo repite como defensa.
   Sondas del verificador agregadas como pruebas. Backend verde. Sin segunda ronda: el
   bloqueo se cerró con una sola corrección.
+- L6 (2026-11-05): el usuario confirmó A7 y pidió empezar el mockup. Se dibujó en Bandeja
+  (2 · oscuro) y Bandeja claro (7): botón «Confirmar en lote» en la barra de filtros (oculto
+  para el auditor), barra «Confirmación en lote» con contador y botones, casilla por fila con
+  solo la regla 1 marcada, fila bloqueada con su motivo, y las vistas `lote`,
+  `lote_sin_marcadas`, `lote_enviando`, `lote_resultado` y `lote_error`.

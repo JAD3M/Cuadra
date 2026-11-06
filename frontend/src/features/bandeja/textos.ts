@@ -37,6 +37,49 @@ export const KPI = {
 export const kpiRequiereRevision = (n: number) =>
   n === 1 ? '1 requiere revisión' : `${n} requieren revisión`;
 export const KPI_MONTO = 'Monto por revisar';
+
+/** Confirmación en lote (5.3). Textos acordados en los mockups 2 y 7. */
+export const LOTE = {
+  abrir: 'Confirmar en lote',
+  titulo: 'Confirmación en lote',
+  ayuda:
+    'Solo la regla 1 viene marcada. Desmarca lo que no te convenza. El lote no pide motivo.',
+  cancelar: 'Cancelar',
+  confirmando: 'Confirmando…',
+  columna: 'Incluir en el lote',
+  incluir: (descripcion: string, referencia: string) =>
+    `Incluir en el lote: ${descripcion}, ${referencia}`,
+  contador: (marcadas: number, total: number) =>
+    marcadas === 0
+      ? `0 de ${total} marcadas en esta página · Marca al menos una propuesta`
+      : `${marcadas} de ${total} marcadas en esta página`,
+  confirmar: (n: number) =>
+    n === 0
+      ? 'Confirmar propuestas'
+      : n === 1
+        ? 'Confirmar 1 propuesta'
+        : `Confirmar ${n} propuestas`,
+  /** Resultado con al menos una confirmada. */
+  resultadoTitulo: (n: number) =>
+    n === 1
+      ? 'Lote confirmado: 1 propuesta.'
+      : `Lote confirmado: ${n} propuestas.`,
+  resultadoOmitidas: (n: number) =>
+    n === 1
+      ? '1 se omitió y sigue en la bandeja. Ninguna se confirmó a medias.'
+      : `${n} se omitieron y siguen en la bandeja. Ninguna se confirmó a medias.`,
+  /** Resultado donde todas se omitieron. */
+  ningunaTitulo: 'No se confirmó ninguna propuesta.',
+  ningunaOmitidas: (n: number) =>
+    n === 1
+      ? 'La única se omitió y sigue en la bandeja.'
+      : `Las ${n} se omitieron y siguen en la bandeja.`,
+  /** Resultado dudoso: puede que una parte se haya aplicado. */
+  errorTitulo: 'No pudimos confirmar el resultado del lote.',
+  errorDetalle:
+    'Puede que una parte se haya aplicado. Recarga la bandeja para ver qué quedó.',
+  recargar: 'Recargar bandeja',
+} as const;
 export const KPI_MONTO_UNA_MONEDA = 'MXN en sugerencias y sin match';
 export const KPI_MONTO_VARIAS_MONEDAS = 'En sugerencias y sin match';
 export const KPI_NO_DISPONIBLE = '—';
