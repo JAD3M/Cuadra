@@ -39,3 +39,32 @@ export async function subioAlgunaCarga(
   );
   return fila?.subio === true;
 }
+
+/**
+ * AD-13: ¿aplica la separación de funciones a esta empresa? Falla cerrada: solo
+ * un `false` explícito la desactiva; fila ausente, valor nulo o raro, o una
+ * lectura que falla, la dejan activa. `companies` no tiene RLS, por eso el
+ * filtro por id es a mano. La lectura va en un SAVEPOINT: si truena, el error
+ * SQL no deja abortada la transacción de la petición.
+ */
+export async function separacionActiva(
+  manager: EntityManager,
+  companyId: string,
+): Promise<boolean> {
+  try {
+    await manager.query('SAVEPOINT leer_separacion');
+    const filas = await manager.query<{ separacion_funciones: unknown }[]>(
+      'SELECT separacion_funciones FROM companies WHERE id = $1',
+      [companyId],
+    );
+    await manager.query('RELEASE SAVEPOINT leer_separacion');
+    return filas[0]?.separacion_funciones !== false;
+  } catch {
+    try {
+      await manager.query('ROLLBACK TO SAVEPOINT leer_separacion');
+    } catch {
+      // Sin savepoint utilizable, igual se falla cerrado.
+    }
+    return true;
+  }
+}

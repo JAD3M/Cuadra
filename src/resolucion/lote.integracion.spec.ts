@@ -401,6 +401,27 @@ describe('POST /conciliaciones/lotes: separación de funciones (S4)', () => {
     expect(await denegados()).toEqual([]);
   });
 
+  it('con la separación desactivada en la empresa, el lote confirma también lo suyo', async () => {
+    await ds.query(
+      `UPDATE companies SET separacion_funciones = false WHERE id = $1`,
+      [A],
+    );
+    try {
+      const suya = await carga(A, entorno.persona(ANA));
+      const propia = await propuesta(A, { cargaCfdi: suya });
+
+      const r = cuerpo(await lote([propia.id]).expect(200));
+
+      expect(r.confirmadas).toEqual([propia.id]);
+      expect(r.omitidas).toEqual([]);
+    } finally {
+      await ds.query(
+        `UPDATE companies SET separacion_funciones = true WHERE id = $1`,
+        [A],
+      );
+    }
+  });
+
   it('lo que sube otra persona sí se puede confirmar', async () => {
     const deLuis = await carga(A, entorno.persona(LUIS));
     const p = await propuesta(A, { cargaCfdi: deLuis });

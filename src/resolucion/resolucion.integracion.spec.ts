@@ -14,6 +14,7 @@ import { rolesConPermiso } from '../auth/permisos/matriz';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import { sembrarDecision } from '../conciliacion/siembra-decisiones';
 import { filas, una } from '../database/testing/base-de-pruebas';
+import * as separacion from '../common/separacion-funciones';
 import { MOTIVO_HERMANA } from './resolucion.service';
 import type { ResolucionRespuestaDto } from './dto/resolucion.dto';
 
@@ -807,6 +808,40 @@ describe('RS-D1..D4: segregación de funciones (D-08)', () => {
     await confirmar(id).expect(409);
 
     expect(await deniegos()).toHaveLength(0);
+  });
+
+  describe('AD-13: la configuración de la empresa', () => {
+    const fijar = (valor: boolean, empresa = A) =>
+      ds.query(`UPDATE companies SET separacion_funciones = $1 WHERE id = $2`, [
+        valor,
+        empresa,
+      ]);
+    afterEach(() => fijar(true));
+
+    it('desactivada: quien subió la carga confirma (200) y no queda acceso_denegado', async () => {
+      await fijar(false);
+      const { id } = await conCargas(ana(), ana());
+
+      await confirmar(id).expect(200);
+
+      expect((await conciliacionEn(id)).estado).toBe('confirmada');
+      expect(await deniegos()).toHaveLength(0);
+    });
+
+    it('activada (el default) sigue dando 403', async () => {
+      await fijar(true);
+      const { id } = await conCargas(ana(), luis());
+      await confirmar(id).expect(403);
+    });
+
+    it('la lectura de la configuración falla: se aplica la separación (403)', async () => {
+      const lectura = jest
+        .spyOn(separacion, 'separacionActiva')
+        .mockResolvedValue(true);
+      const { id } = await conCargas(ana(), luis());
+      await confirmar(id).expect(403);
+      expect(lectura).toHaveBeenCalled();
+    });
   });
 
   it('rechazar sigue permitido a quien subió la carga', async () => {
