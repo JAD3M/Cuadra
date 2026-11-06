@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Put,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -28,6 +29,7 @@ import { Limite } from '../limite/limite.decorator';
 import { BancosVistaPrevia } from './bancos-vista-previa.service';
 import {
   BancoPlataformaDto,
+  CambiarSeparacionDto,
   CrearEmpresaDto,
   EmpresaPlataformaDto,
   InvitacionEnviadaDto,
@@ -87,6 +89,33 @@ export class PlataformaController {
       throw new UnauthorizedException('No autorizado');
     }
     return this.empresas.crear(dto, actual.plataformaUsuarioId);
+  }
+
+  @Put('empresas/:id/separacion-funciones')
+  @ApiCookieAuth()
+  @ApiOperation({
+    summary: 'Desactiva o vuelve a activar la separación de funciones',
+    description:
+      'Solo el dueño. Afecta únicamente a esa empresa y exige un motivo, también al volver a activarla. Queda como `desactivar_separacion` en las dos bitácoras, en una sola transacción.',
+  })
+  @ApiParam({ name: 'id', format: 'uuid', description: 'Id de la empresa' })
+  @ApiOkResponse({ type: EmpresaPlataformaDto })
+  @ApiBadRequestResponse({ description: 'Falta el motivo o el valor.' })
+  @ApiNotFoundResponse({ description: 'La empresa no existe.' })
+  @ApiConflictResponse({ description: 'La empresa ya estaba en ese estado.' })
+  @ApiUnauthorizedResponse({ description: 'Sin sesión o venció.' })
+  @ApiForbiddenResponse({
+    description: 'La sesión no es de plataforma. Queda en la bitácora.',
+  })
+  cambiarSeparacion(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CambiarSeparacionDto,
+    @UsuarioActual() actual: UsuarioAutenticado,
+  ): Promise<EmpresaPlataformaDto> {
+    if (actual.scope !== 'plataforma') {
+      throw new UnauthorizedException('No autorizado');
+    }
+    return this.empresas.cambiarSeparacion(id, dto, actual.plataformaUsuarioId);
   }
 
   @Post('empresas/:id/invitaciones')

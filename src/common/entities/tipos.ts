@@ -177,6 +177,7 @@ export const ACCIONES_BITACORA = [
   'cancelar_invitacion',
   'cambiar_rol',
   'quitar_rol',
+  'desactivar_separacion',
 ] as const;
 export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 
@@ -211,6 +212,7 @@ export const ACCIONES_BITACORA_PLATAFORMA = [
   'invitar',
   'restablecer_contrasena',
   'levantar_vista_previa',
+  'desactivar_separacion',
 ] as const;
 export type AccionBitacoraPlataforma =
   (typeof ACCIONES_BITACORA_PLATAFORMA)[number];

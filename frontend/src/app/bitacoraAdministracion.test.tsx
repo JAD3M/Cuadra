@@ -262,6 +262,7 @@ describe('bitácora de administración: filtros y vacío', () => {
       'Invitación cancelada',
       'Rol cambiado',
       'Rol quitado',
+      'desactivar_separacion',
     ]);
   });
 

@@ -1,6 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsNotEmpty,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 import { normalizarEmail } from '../../users/email';
 
 export class UsuarioPlataformaDto {
@@ -25,6 +31,34 @@ export class EmpresaPlataformaDto {
 
   @ApiProperty()
   rfc!: string;
+
+  @ApiProperty({
+    description:
+      'false = la empresa opera sin separación de funciones (la apagó el dueño).',
+  })
+  separacionFunciones!: boolean;
+}
+
+export class CambiarSeparacionDto {
+  @ApiProperty({
+    description: 'true la activa; false la desactiva solo para esa empresa.',
+  })
+  @IsBoolean({ message: 'Indica si la separación queda activa (true o false)' })
+  activa!: boolean;
+
+  @ApiProperty({
+    example: 'Despacho de una sola persona',
+    maxLength: 500,
+    description: 'Obligatorio, también al volver a activarla.',
+  })
+  // Corre antes de validar: los espacios de los bordes no cuentan.
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString({ message: 'El motivo es obligatorio' })
+  @IsNotEmpty({ message: 'El motivo es obligatorio' })
+  @MaxLength(500, { message: 'El motivo excede 500 caracteres' })
+  motivo!: string;
 }
 
 export class CrearEmpresaDto {

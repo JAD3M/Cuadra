@@ -349,9 +349,15 @@ describe('GET /plataforma/empresas', () => {
       id: ferreteriaId,
       razonSocial: ferreteria.razon_social,
       rfc: FERRETERIA,
+      separacionFunciones: true,
     });
     for (const e of lista) {
-      expect(Object.keys(e).sort()).toEqual(['id', 'razonSocial', 'rfc']);
+      expect(Object.keys(e).sort()).toEqual([
+        'id',
+        'razonSocial',
+        'rfc',
+        'separacionFunciones',
+      ]);
     }
     const nombres = lista.map((e) => e.razonSocial as string);
     expect(nombres).toEqual(
@@ -451,6 +457,7 @@ describe('POST /plataforma/empresas', () => {
       id: cuerpo.id,
       razonSocial: 'Comercial Nueva SA de CV',
       rfc: RFC_NUEVO,
+      separacionFunciones: true,
     });
 
     const empresa = await una<{
@@ -608,6 +615,7 @@ describe('POST /plataforma/empresas', () => {
       id: creadas[0],
       razonSocial: 'Comercial Nueva SA de CV',
       rfc: RFC_NUEVO,
+      separacionFunciones: true,
     });
   });
 
@@ -617,6 +625,217 @@ describe('POST /plataforma/empresas', () => {
     const cookie = await abrirSesion(ds, anaId, ferreteriaId);
     await crear(cookie, cuerpo).expect(403);
     expect(await empresasConRfc('CRU240101AB3')).toEqual([]);
+  });
+});
+
+describe('PUT /plataforma/empresas/:id/separacion-funciones (5.5, AD-13)', () => {
+  const ruta = (id: string) =>
+    `/plataforma/empresas/${id}/separacion-funciones`;
+  const cambiar = (
+    cookie: string,
+    id: string,
+    cuerpo: Record<string, unknown>,
+  ) => http().put(ruta(id)).set('Cookie', cookie).send(cuerpo);
+
+  const separacionDe = async (id: string) =>
+    (
+      await una<{ separacion_funciones: boolean }>(
+        ds,
+        'SELECT separacion_funciones FROM companies WHERE id = $1',
+        [id],
+      )
+    ).separacion_funciones;
+
+  const deEmpresa = (id: string) =>
+    filas<{
+      user_id: string | null;
+      entidad: string;
+      entidad_id: string;
+      accion: string;
+      datos: Record<string, unknown>;
+    }>(
+      ds,
+      `SELECT user_id, entidad, entidad_id, accion, datos
+         FROM bitacora WHERE company_id = $1 AND accion = 'desactivar_separacion'
+        ORDER BY created_at`,
+      [id],
+    );
+
+  let objetivo: string;
+  let otra: string;
+
+  beforeEach(async () => {
+    const [{ id }] = await ds.query(
+      `INSERT INTO companies (rfc, razon_social) VALUES ('SEP240101AB3', 'Sep Uno SA') RETURNING id`,
+    );
+    const [{ id: id2 }] = await ds.query(
+      `INSERT INTO companies (rfc, razon_social) VALUES ('SEP240102AB3', 'Sep Dos SA') RETURNING id`,
+    );
+    objetivo = id;
+    otra = id2;
+  });
+
+  afterEach(async () => {
+    for (const id of [objetivo, otra]) {
+      await ds.query('DELETE FROM bitacora WHERE company_id = $1', [id]);
+      await ds.query('DELETE FROM companies WHERE id = $1', [id]);
+    }
+  });
+
+  it('desactiva solo esa empresa, con motivo, y deja las dos bitácoras', async () => {
+    const desde = new Date();
+    const res = await cambiar(await loginDueno(), objetivo, {
+      activa: false,
+      motivo: '  Despacho de una sola persona  ',
+    }).expect(200);
+
+    expect(res.body).toMatchObject({
+      id: objetivo,
+      separacionFunciones: false,
+    });
+    expect(await separacionDe(objetivo)).toBe(false);
+    expect(await separacionDe(otra)).toBe(true);
+
+    const [fila, ...resto] = await deEmpresa(objetivo);
+    expect(resto).toHaveLength(0);
+    expect(fila).toMatchObject({
+      user_id: null,
+      entidad: 'companies',
+      entidad_id: objetivo,
+    });
+    expect(fila.datos).toMatchObject({
+      plataformaUsuarioId: duenoId,
+      motivo: 'Despacho de una sola persona',
+      antes: true,
+      despues: false,
+    });
+    const [plataforma, ...otras] = (
+      await bitacoraDe('desactivar_separacion', desde)
+    ).filter((f) => f.company_id === objetivo);
+    expect(otras).toHaveLength(0);
+    expect(plataforma.plataforma_usuario_id).toBe(duenoId);
+    expect(plataforma.detalle).toMatchObject({
+      motivo: 'Despacho de una sola persona',
+      antes: true,
+      despues: false,
+    });
+  });
+
+  it.each([
+    ['sin motivo', { activa: false }],
+    ['con motivo vacío', { activa: false, motivo: '' }],
+    ['con motivo en blanco', { activa: false, motivo: '   ' }],
+    ['sin el campo activa', { motivo: 'x' }],
+  ])('%s: 400 y no cambia nada', async (_caso, cuerpo) => {
+    const desde = new Date();
+    await cambiar(await loginDueno(), objetivo, cuerpo).expect(400);
+
+    expect(await separacionDe(objetivo)).toBe(true);
+    expect(await deEmpresa(objetivo)).toHaveLength(0);
+    expect(
+      (await bitacoraDe('desactivar_separacion', desde)).filter(
+        (f) => f.company_id === objetivo,
+      ),
+    ).toHaveLength(0);
+  });
+
+  it('volver a activar queda registrado igual, con motivo', async () => {
+    const cookie = await loginDueno();
+    await cambiar(cookie, objetivo, { activa: false, motivo: 'Uno' }).expect(
+      200,
+    );
+    await cambiar(cookie, objetivo, {
+      activa: true,
+      motivo: 'Ya son dos',
+    }).expect(200);
+
+    expect(await separacionDe(objetivo)).toBe(true);
+    const filasEmpresa = await deEmpresa(objetivo);
+    expect(filasEmpresa).toHaveLength(2);
+    expect(filasEmpresa[1].datos).toMatchObject({
+      motivo: 'Ya son dos',
+      antes: false,
+      despues: true,
+    });
+  });
+
+  it('pedir el estado que ya tiene da 409 y no escribe bitácora', async () => {
+    await cambiar(await loginDueno(), objetivo, {
+      activa: true,
+      motivo: 'Nada cambia',
+    }).expect(409);
+    expect(await deEmpresa(objetivo)).toHaveLength(0);
+  });
+
+  it('una empresa inexistente da 404', async () => {
+    await cambiar(await loginDueno(), '00000000-0000-4000-8000-000000000000', {
+      activa: false,
+      motivo: 'x',
+    }).expect(404);
+  });
+
+  it('una persona de la empresa, incluso admin, recibe 403, queda el acceso denegado y nada cambia', async () => {
+    const desde = new Date();
+    const cookie = await abrirSesion(ds, anaId, ferreteriaId);
+    await cambiar(cookie, objetivo, { activa: false, motivo: 'x' }).expect(403);
+
+    expect(await separacionDe(objetivo)).toBe(true);
+    const [fila] = await bitacoraDe('acceso_denegado', desde);
+    expect(fila.detalle).toMatchObject({
+      metodo: 'PUT',
+      ruta: '/plataforma/empresas/:id/separacion-funciones',
+      tipoSesion: 'empresa',
+    });
+  });
+
+  it('sin sesión da 401', async () => {
+    await http()
+      .put(ruta(objetivo))
+      .send({ activa: false, motivo: 'x' })
+      .expect(401);
+  });
+
+  it('si falla la bitácora de plataforma, la separación no cambia', async () => {
+    await ds.query(`
+      CREATE OR REPLACE FUNCTION fallar_bitacora_prueba() RETURNS trigger AS $$
+      BEGIN RAISE EXCEPTION 'bitacora caida a proposito'; END $$ LANGUAGE plpgsql`);
+    await ds.query(
+      `CREATE TRIGGER tg_fallar_bitacora_prueba BEFORE INSERT ON bitacora_plataforma
+       FOR EACH ROW WHEN (NEW.accion = 'desactivar_separacion')
+       EXECUTE FUNCTION fallar_bitacora_prueba()`,
+    );
+    try {
+      await cambiar(await loginDueno(), objetivo, {
+        activa: false,
+        motivo: 'x',
+      }).expect(500);
+    } finally {
+      await ds.query(
+        'DROP TRIGGER tg_fallar_bitacora_prueba ON bitacora_plataforma',
+      );
+      await ds.query('DROP FUNCTION fallar_bitacora_prueba()');
+    }
+    expect(await separacionDe(objetivo)).toBe(true);
+    expect(await deEmpresa(objetivo)).toHaveLength(0);
+  });
+
+  it('la lista del dueño trae el estado de la separación de cada empresa', async () => {
+    await ds.query(
+      'UPDATE companies SET separacion_funciones = false WHERE id = $1',
+      [objetivo],
+    );
+    const res = await http()
+      .get('/plataforma/empresas')
+      .set('Cookie', await loginDueno())
+      .expect(200);
+    const lista = res.body as Array<{
+      id: string;
+      separacionFunciones: boolean;
+    }>;
+    expect(lista.find((e) => e.id === objetivo)?.separacionFunciones).toBe(
+      false,
+    );
+    expect(lista.find((e) => e.id === otra)?.separacionFunciones).toBe(true);
   });
 });
 

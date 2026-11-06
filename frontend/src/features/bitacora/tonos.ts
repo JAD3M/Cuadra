@@ -23,4 +23,5 @@ export const TONOS_ACCION: Readonly<Record<AccionBitacora, TonoAccion>> = {
   cancelar_invitacion: 'neutral',
   cambiar_rol: 'neutral',
   quitar_rol: 'neutral',
+  desactivar_separacion: 'neutral',
 };
