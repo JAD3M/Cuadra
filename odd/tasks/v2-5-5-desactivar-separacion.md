@@ -28,8 +28,8 @@ Entrega: `ask-on-risk`; pronóstico ~700 líneas, cadena de 2-3 PR (T1-T2 backen
 - [x] T1 (S1-S3, S6 backend + espejo mínimo del frontend, inline, alto riesgo item 2 y 3; commit propio): migración (CHECK de ambas bitácoras +
   `GRANT UPDATE (separacion_funciones)`), `tipos.ts`, endpoint `/plataforma/empresas/:id/separacion-funciones`,
   servicio transaccional, `separacionFunciones` en el listado de empresas. Pruebas.
-- T2 (S4 backend): `separacionFunciones` en `GET /auth/contexto`.
-- T3 (mockup): pantalla del dueño (control + motivo) y aviso en bandeja y bitácora. Acordar ANTES del código.
+- [x] T2 (S4 backend): `separacionFunciones` en `GET /auth/contexto`.
+- [x] T3 (mockup, aprobado por el usuario 2026-11-05; números 10, 11, 2, 7 y 6): pantalla del dueño (control + motivo) y aviso en bandeja y bitácora. Acordar ANTES del código.
 - T4 (S4-S6 frontend): espejo, etiquetas/tonos/detalle de bitácora, hook y formulario del dueño, aviso.
 
 ## Log
@@ -41,3 +41,6 @@ Entrega: `ask-on-risk`; pronóstico ~700 líneas, cadena de 2-3 PR (T1-T2 backen
   `cuadra_app` hoy solo tiene `UPDATE (tolerancia_monto)` en companies; última migración
   `1790713000000-CombinacionesMultiples`.
 - T1 hecha: PUT /plataforma/empresas/:id/separacion-funciones {activa, motivo}; migración 1790714000000; 409 si ya estaba en ese estado (supuesto A2, no pedido); el 403 de empresa sale del guard existente (acceso_denegado en bitacora_plataforma, ruta como patrón). Backend 1911 y frontend 4818 verdes. El texto visible de la acción en la bitácora queda para T4 tras el mockup (hoy el filtro muestra el valor de la API). Risk: item 2 (GRANT UPDATE a cuadra_app sobre separacion_funciones) y item 3 (la lista de empresas suma un campo).
+- T2 hecha: `empresa.separacionFunciones` en GET /auth/contexto (falla cerrada: solo false explícito avisa). Suite auth verde (147). Risk: item 3 (el contexto suma un campo; contrato aditivo).
+- T3 hecha: mockups 10 y 11 (Plataforma: columna, botones, formulario con motivo y estados vía prop `separacion`), 2 y 7 (Bandeja) y 6 (Bitácora) con aviso (prop `separacion`, default `activa`) y la acción «Separación de funciones cambiada». El usuario aprobó los oscuros; los claros siguen los mismos roles de color.
+- Ruta T4: dos escritores en paralelo con superficies disjuntas (U1 pantalla del dueño; U2 aviso en bandeja/bitácora + etiquetas de bitácora). Razón: dos unidades independientes de varios archivos cada una.

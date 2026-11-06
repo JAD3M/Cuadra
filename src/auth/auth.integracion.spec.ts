@@ -680,7 +680,12 @@ describe('GET /auth/empresas', () => {
 describe('GET /auth/contexto', () => {
   interface Contexto {
     usuario: { id: string; nombre: string; email: string };
-    empresa: { id: string; razonSocial: string; rfc: string };
+    empresa: {
+      id: string;
+      razonSocial: string;
+      rfc: string;
+      separacionFunciones: boolean;
+    };
     roles: string[];
     capacidades: string[];
   }
@@ -707,11 +712,39 @@ describe('GET /auth/contexto', () => {
         id: empresas.get(FERRETERIA),
         razonSocial: 'Ferreteria del Bajio SA de CV',
         rfc: FERRETERIA,
+        separacionFunciones: true,
       },
       roles: ['contador'],
       capacidades: permisosDeRoles(['contador']),
     });
     expect(JSON.stringify(res.body)).not.toMatch(/password/i);
+  });
+
+  it('separacionFunciones sale false solo para la empresa a la que el dueño se la apagó, para cualquier rol', async () => {
+    await ds.query(
+      'UPDATE companies SET separacion_funciones = false WHERE rfc = $1',
+      [FERRETERIA],
+    );
+    try {
+      const apagada = await contexto(
+        await tokenSesion(JORGE, FERRETERIA),
+      ).expect(200);
+      const soloRevisor = await contexto(
+        await tokenSesion(JORGE, TRANSPORTES),
+      ).expect(200);
+
+      expect((apagada.body as Contexto).empresa.separacionFunciones).toBe(
+        false,
+      );
+      expect((soloRevisor.body as Contexto).empresa.separacionFunciones).toBe(
+        true,
+      );
+    } finally {
+      await ds.query(
+        'UPDATE companies SET separacion_funciones = true WHERE rfc = $1',
+        [FERRETERIA],
+      );
+    }
   });
 
   it('un miembro solo revisor también puede leerlo (sin @Roles)', async () => {

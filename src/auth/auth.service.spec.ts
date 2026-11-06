@@ -250,12 +250,34 @@ describe('AuthService.contexto', () => {
 
     expect(contexto).toEqual({
       usuario: user,
-      empresa: EMPRESA_A,
+      empresa: { ...EMPRESA_A, separacionFunciones: true },
       roles: ['admin', 'revisor'],
       capacidades: permisosDeRoles(['admin', 'revisor']),
     });
     expect(contexto.usuario).not.toHaveProperty('passwordHash');
   });
+
+  it.each([
+    ['false explícito', false, false],
+    ['true', true, true],
+    ['ausente', undefined, true],
+    ['nulo', null, true],
+  ])(
+    'separacionFunciones (%s) llega como %s',
+    async (_caso, valor, esperado) => {
+      buscarRoles.mockResolvedValueOnce([
+        {
+          rol: 'admin',
+          user,
+          company: { ...EMPRESA_A, separacionFunciones: valor },
+        },
+      ]);
+
+      const contexto = await service.contexto(user.id, EMPRESA_A.id);
+
+      expect(contexto.empresa.separacionFunciones).toBe(esperado);
+    },
+  );
 
   it('las capacidades son la unión de la matriz de sus roles, sin permisos del dueño', async () => {
     buscarRoles.mockResolvedValueOnce([fila('auditor')]);

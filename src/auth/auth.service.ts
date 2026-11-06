@@ -161,7 +161,12 @@ export class AuthService implements OnModuleInit {
       select: {
         rol: true,
         user: { id: true, nombre: true, email: true },
-        company: { id: true, razonSocial: true, rfc: true },
+        company: {
+          id: true,
+          razonSocial: true,
+          rfc: true,
+          separacionFunciones: true,
+        },
       },
       relations: { user: true, company: true },
       where: {
@@ -182,6 +187,8 @@ export class AuthService implements OnModuleInit {
         id: company.id,
         razonSocial: company.razonSocial,
         rfc: company.rfc,
+        // AD-13: solo un false explícito avisa; ausente o raro = activa.
+        separacionFunciones: company.separacionFunciones !== false,
       },
       roles,
       capacidades: permisosDeRoles(roles),
