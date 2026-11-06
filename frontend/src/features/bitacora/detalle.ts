@@ -297,6 +297,24 @@ function detalleQuitarRol(datos: Objeto): string {
   ]);
 }
 
+/** `activa` / `desactivada` según el booleano que guarda el servidor. */
+const estadoSeparacion = (activa: boolean): string =>
+  activa ? 'activa' : 'desactivada';
+
+/**
+ * Cambio de la separación de funciones por el dueño de la plataforma (5.5).
+ * Sin los dos booleanos (distintos entre sí) y el motivo no afirma nada.
+ */
+function detalleDesactivarSeparacion(datos: Objeto): string {
+  const { antes, despues } = datos;
+  const motivo = texto(datos.motivo);
+  if (typeof antes !== 'boolean' || typeof despues !== 'boolean') {
+    return SIN_DETALLE;
+  }
+  if (antes === despues || motivo === undefined) return SIN_DETALLE;
+  return `separación de funciones: ${estadoSeparacion(antes)} → ${estadoSeparacion(despues)} · por el dueño de la plataforma · motivo: ${motivo}`;
+}
+
 /**
  * Detalle de un evento de la bitácora. `eliminar` y `cargar` no se emiten
  * hoy y no tienen redacción: dan «—», igual que cualquier `datos` nulo, que no
@@ -331,6 +349,8 @@ export function detalleEvento({
       return detalleCambiarRol(datos);
     case 'quitar_rol':
       return detalleQuitarRol(datos);
+    case 'desactivar_separacion':
+      return detalleDesactivarSeparacion(datos);
     default:
       return SIN_DETALLE;
   }

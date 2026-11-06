@@ -82,6 +82,7 @@ function contextoActual() {
       id: empresa?.id,
       razonSocial: empresa?.razonSocial,
       rfc: empresa?.rfc,
+      separacionFunciones: true,
     },
   };
 }

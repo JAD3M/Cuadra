@@ -15,6 +15,7 @@ const SESION_DE_EJEMPLO: ContextoSesion = {
     id: '7a1c9e52-0b34-4d6f-8e21-5c9d3b7a4f10',
     razonSocial: 'Ferretería del Bajío',
     rfc: 'FDB190215QK4',
+    separacionFunciones: true,
   },
   roles: ['revisor', 'admin'],
   capacidades: [

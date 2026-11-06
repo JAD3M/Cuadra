@@ -5,6 +5,18 @@
 
 ### 5 nov 2026
 
+- **Historia 5.5 de la v2: el dueño desactiva la separación de funciones y la empresa lo ve.**
+  Rama `feat/v2-5-5-desactivar-separacion`, documento `odd/tasks/v2-5-5-desactivar-separacion.md`
+  (KAN-148). Backend: `PUT /plataforma/empresas/:id/separacion-funciones` (migración del CHECK de
+  las dos bitácoras y `GRANT UPDATE (separacion_funciones)`), `separacionFunciones` en
+  `GET /auth/contexto` y en la lista del dueño. Frontend: columna, botón y formulario con motivo en
+  la pantalla del dueño; aviso en bandeja y bitácora; etiqueta y detalle de la acción nueva.
+  Mockups 10 y 11 (plataforma), 2 y 7 (bandeja) y 6 (bitácora), aprobados por el usuario antes del
+  código. Decisiones mías, a confirmar: reactivar usa la misma acción (A1) y pedir el estado que ya
+  tiene la empresa da 409 sin escribir bitácora (A2). Desvío: el contexto no caducaba (`staleTime`
+  infinito), así que el aviso solo cambiaba al recargar; las dos pantallas lo releen al abrirse.
+  Alto riesgo (GRANT, ruta de plataforma): revisión nativa aprobada con avisos no bloqueantes.
+
 - **Historia 5.4 de la v2: separación de funciones activa por defecto.** Rama
   `feat/v2-5-4-separacion-activa`, documento `odd/tasks/v2-5-4-separacion-activa.md` (KAN-147).
   La regla D-08 ya existía y estaba siempre activa; ahora lee `companies.separacion_funciones`

@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef } from 'react';
 import { useSearchParams } from 'react-router';
+import { useSeparacionDesactivada } from '@/shared/sesion';
+import { AvisoSinSeparacion } from '@/shared/ui/AvisoSinSeparacion';
 import { Paginacion } from '@/shared/ui/Paginacion';
 import { paginaMaxima } from '@/shared/ui/paginas';
 import { ErrorBitacora, VacioBitacora } from './components/EstadosBitacora';
@@ -43,6 +45,7 @@ export function BitacoraPage() {
   const consulta = armarConsulta(filtros);
   const lista = useBitacora(consulta);
   const personas = useUsuariosBitacora();
+  const sinSeparacion = useSeparacionDesactivada();
   const { data } = lista;
 
   // Página que ya no existe (enlace viejo o datos que se redujeron): se pasa a
@@ -87,6 +90,7 @@ export function BitacoraPage() {
 
   return (
     <div className={estilos.pagina}>
+      {sinSeparacion ? <AvisoSinSeparacion /> : null}
       <FiltrosBitacora
         filtros={filtros}
         usuarios={usuarios}

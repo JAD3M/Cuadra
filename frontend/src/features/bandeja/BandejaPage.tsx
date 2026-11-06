@@ -4,7 +4,8 @@ import { mensajeDeError } from '@/shared/api';
 import { puede } from '@/shared/dominio';
 import type { EstadoBandeja } from '@/shared/dominio/bandeja';
 import type { RazonOmisionLote } from '@/shared/dominio/tipos';
-import { useSessionContext } from '@/shared/sesion';
+import { useSeparacionDesactivada, useSessionContext } from '@/shared/sesion';
+import { AvisoSinSeparacion } from '@/shared/ui/AvisoSinSeparacion';
 import { Button } from '@/shared/ui/Button';
 import { Paginacion } from '@/shared/ui/Paginacion';
 import { paginaMaxima } from '@/shared/ui/paginas';
@@ -72,6 +73,7 @@ export function BandejaPage() {
   const puedeConfirmar =
     sesion.status === 'ready' &&
     puede(sesion.contexto.capacidades, 'conciliaciones.resolver');
+  const sinSeparacion = useSeparacionDesactivada();
   const confirmarLote = useConfirmarLote();
   const [marcadas, setMarcadas] = useState<ReadonlySet<string> | null>(null);
   const [resultado, setResultado] = useState<ResultadoGuardado | null>(null);
@@ -190,6 +192,7 @@ export function BandejaPage() {
 
   return (
     <div className={estilos.pagina}>
+      {sinSeparacion ? <AvisoSinSeparacion /> : null}
       <KpiBandeja
         estado={resumen.isError ? 'error' : resumen.data ? 'listo' : 'cargando'}
         conteos={resumen.data?.conteos}

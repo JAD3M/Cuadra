@@ -16,7 +16,8 @@ export const ACCIONES_RESOLUCION = [ACCION_CONFIRMAR, ACCION_RECHAZAR] as const;
 export type AccionResolucion = (typeof ACCIONES_RESOLUCION)[number];
 
 /**
- * Las acciones de administración de usuarios: la bitácora las muestra con su
+ * Las acciones de administración (usuarios y, desde la 5.5, la separación de
+ * funciones de la empresa): la bitácora las muestra con su
  * etiqueta en español (Bitacora.dc.html); las demás, con el valor de la API.
  */
 export const ACCIONES_ADMINISTRACION = [
@@ -25,4 +26,5 @@ export const ACCIONES_ADMINISTRACION = [
   'cancelar_invitacion',
   'cambiar_rol',
   'quitar_rol',
+  'desactivar_separacion',
 ] as const satisfies readonly AccionBitacora[];

@@ -718,6 +718,41 @@ describe('detalleEvento: acciones de administración (historia 2.7)', () => {
     });
   });
 
+  describe('desactivar_separacion', () => {
+    const datos = (o: Record<string, unknown> = {}) => ({
+      plataformaUsuarioId: CFDI,
+      motivo: 'Despacho de una sola persona',
+      antes: true,
+      despues: false,
+      ...o,
+    });
+    it('desactivada y reactivada', () => {
+      expect(admin('desactivar_separacion', datos())).toBe(
+        'separación de funciones: activa → desactivada · por el dueño de la plataforma · motivo: Despacho de una sola persona',
+      );
+      expect(
+        admin('desactivar_separacion', datos({ antes: false, despues: true })),
+      ).toBe(
+        'separación de funciones: desactivada → activa · por el dueño de la plataforma · motivo: Despacho de una sola persona',
+      );
+    });
+    it('mal formado da «—»', () => {
+      expect(admin('desactivar_separacion', datos({ motivo: undefined }))).toBe(
+        '—',
+      );
+      expect(admin('desactivar_separacion', datos({ motivo: '' }))).toBe('—');
+      expect(admin('desactivar_separacion', datos({ antes: 'true' }))).toBe(
+        '—',
+      );
+      expect(
+        admin('desactivar_separacion', datos({ despues: undefined })),
+      ).toBe('—');
+      expect(
+        admin('desactivar_separacion', datos({ antes: true, despues: true })),
+      ).toBe('—');
+    });
+  });
+
   it('un rol desconocido se muestra tal cual vino, sin inventar etiqueta', () => {
     expect(admin('quitar_rol', { email: EMAIL, roles: ['contable'] })).toBe(
       `${EMAIL} · roles quitados: contable`,

@@ -29,6 +29,14 @@ export const empresaContexto = z.object({
   rfc: texto,
 });
 
+/**
+ * Empresa del contexto de la sesión: además trae si la separación de funciones
+ * está activa (`false` = la desactivó el dueño de la plataforma, historia 5.5).
+ */
+export const empresaDelContexto = empresaContexto.extend({
+  separacionFunciones: z.boolean(),
+});
+
 /** Empresa elegible tras el login: incluye los roles del usuario en ella. */
 export const empresaDisponible = empresaContexto.extend({
   roles: z.array(rol),
@@ -43,7 +51,7 @@ export const listaEmpresasDisponibles = z.array(empresaDisponible);
  */
 export const contextoSesion = z.object({
   usuario: usuarioPublico,
-  empresa: empresaContexto,
+  empresa: empresaDelContexto,
   roles: z.array(rol),
   /** Permisos de la matriz que tiene alguno de sus roles (unión). */
   capacidades: z.array(permiso),
