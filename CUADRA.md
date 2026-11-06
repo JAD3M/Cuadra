@@ -773,6 +773,35 @@ Ya estaba construida desde CU-15 y CU-23; la historia la verificó criterio por 
   un admin; sus intentos de confirmar y rechazar dan 403 (cubierto en
   `permisos.integracion.spec.ts`).
 
+**Confirmar un lote con la regla 1 ya marcada (v2, historia 5.3), terminada el 5 nov 2026.**
+Segunda historia de la épica 5 que ata FR-18, FR-19 y FR-31 (AD-4, AD-7, AD-19):
+
+- `POST /conciliaciones/lotes` con `{ ids }` (1 a 500) devuelve `{ loteId | null, confirmadas,
+  omitidas: [{ id, razon }] }`. Cada propuesta se confirma con la MISMA sentencia atómica de un
+  caso suelto (`ResolucionService.confirmarUna`), ahora con `lote_id`, dentro de su propio
+  SAVEPOINT; una que no se puede se omite con su razón y no frena a las demás. Razones:
+  `no_existe`, `ya_resuelta`, `cfdi_no_abierto`, `movimiento_no_abierto`,
+  `separacion_de_funciones`, `choca_con_otra_del_lote`, `cambio_concurrente`. Una entrada de
+  bitácora `confirmar` por decisión, con `loteId`; la confirmación de un caso sigue sin él.
+- Si dos propuestas marcadas chocan entre sí (mismo movimiento o misma factura) se omiten LAS
+  DOS: no se elige una al azar, porque un falso positivo es peor que no conciliar.
+- La regla de separación de funciones (D-08) vive en un solo lugar,
+  `src/common/separacion-funciones.ts`. En un lote se omite en silencio (sin 403 ni
+  `acceso_denegado`); `GET /bandeja` suma `motivoBloqueo` por fila para que la pantalla la
+  muestre desmarcada y deshabilitada. Sigue siempre activa: el interruptor es la 5.4.
+- Mismo permiso que confirmar un caso (`conciliaciones.resolver`): el auditor recibe 403. Un id
+  en mayúsculas es el mismo id (se normaliza antes de validar).
+- Frontend (mockups 2 y 7): botón «Confirmar en lote» en la barra de filtros, barra con
+  contador, casilla por fila (solo la regla 1 marcada; grupo, reglas 2 y 3 e IA desmarcados) y
+  resultado con las omitidas y su razón en palabras. Trabaja sobre la página que se ve (50 filas);
+  cambiar de página o de filtro cancela el lote. Si todas se omiten el recuadro es ámbar y no
+  dice «Lote confirmado». Un error sin respuesta legible no afirma que nada se aplicó.
+- Revisado por un verificador independiente (alto riesgo: concurrencia): un blocker, corregido.
+
+**Pendientes (5.3):** no hay forma de consultar un lote por su id (queda en la decisión y su
+bitácora); reabrir un lote es la 5.7. El lote no abarca varias páginas: un mes grande se hace en
+varias tandas.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

@@ -3,11 +3,12 @@ import type { EstadoBandeja } from '@/shared/dominio/bandeja';
 import { ETIQUETAS_ESTADO_BANDEJA } from '@/shared/dominio';
 import {
   ETIQUETA_REQUIERE_REVISION,
+  ETIQUETAS_MOTIVO_BLOQUEO,
   ETIQUETAS_MOTIVO_REVISION,
   GLIFO_REQUIERE_REVISION,
   ROTULO_MOTIVO_REVISION,
 } from '@/shared/dominio/etiquetas';
-import type { MotivoRevision } from '@/shared/dominio/tipos';
+import type { MotivoBloqueo, MotivoRevision } from '@/shared/dominio/tipos';
 import { Td } from '@/shared/ui/Tabla';
 import { EstadoChip } from '@/shared/ui/EstadoChip';
 import { Monto } from '@/shared/ui/Monto';
@@ -19,6 +20,7 @@ import {
 import { formatearFecha } from '@/features/bandeja/fecha';
 import { insigniaIa } from '@/features/bandeja/ia';
 import {
+  LOTE,
   PREFIJO_REFERENCIA,
   SIN_DATO,
   SIN_REFERENCIA,
@@ -40,12 +42,25 @@ export interface FilaTabla {
   requiereRevision?: boolean;
   /** Por qué pide revisión; solo si el servidor lo afirma. */
   motivoRevision?: MotivoRevision | null;
+  /** Por qué ESTA persona no puede confirmarla; solo se muestra en el lote. */
+  motivoBloqueo?: MotivoBloqueo | null;
   regla: string | null;
   motivo: string | null;
   mejorPropuesta: {
+    /** Id de la propuesta: lo que el lote manda a confirmar. */
+    conciliacionId?: string;
     diferenciaMonto: string | null;
     cfdi: CfdiEtiquetable;
   } | null;
+}
+
+/** Lo que la fila necesita del modo lote (5.3). Ausente = modo normal. */
+export interface LoteDeFila {
+  /** La fila entra al lote: lleva casilla. Si no, la celda queda vacía. */
+  conCasilla: boolean;
+  marcada: boolean;
+  deshabilitada: boolean;
+  onAlternar: () => void;
 }
 
 const GLIFOS: Record<EstadoBandeja, string> = {
@@ -56,14 +71,44 @@ const GLIFOS: Record<EstadoBandeja, string> = {
 
 export interface FilaBandejaProps {
   fila: FilaTabla;
+  lote?: LoteDeFila;
 }
 
-/** Fila de solo lectura: ningún control decide, confirma ni cierra el caso. */
-export function FilaBandeja({ fila }: FilaBandejaProps) {
+/**
+ * Fila de la bandeja. En el modo normal es de solo lectura; en el lote suma una
+ * casilla, que solo propone: confirmar pasa por la API y la decide el servidor.
+ */
+export function FilaBandeja({ fila, lote }: FilaBandejaProps) {
   const insignia = insigniaIa(fila.regla, fila.motivo);
   const propuesta = fila.mejorPropuesta;
+  const referencia =
+    fila.referencia === null
+      ? SIN_REFERENCIA
+      : `${PREFIJO_REFERENCIA} ${fila.referencia}`;
   return (
     <tr>
+      {lote ? (
+        <Td
+          className={
+            lote.marcada
+              ? `${estilos.celdaCasilla} ${estilos.filaMarcada}`
+              : estilos.celdaCasilla
+          }
+        >
+          {lote.conCasilla ? (
+            <label className={estilos.casilla}>
+              <input
+                type="checkbox"
+                className={estilos.checkbox}
+                checked={lote.marcada}
+                disabled={lote.deshabilitada}
+                onChange={lote.onAlternar}
+                aria-label={LOTE.incluir(fila.descripcion, referencia)}
+              />
+            </label>
+          ) : null}
+        </Td>
+      ) : null}
       <Td className={estilos.fecha}>{formatearFecha(fila.fecha)}</Td>
       <Td>
         <Link
@@ -72,11 +117,7 @@ export function FilaBandeja({ fila }: FilaBandejaProps) {
         >
           {fila.descripcion}
         </Link>
-        <div className={estilos.referencia}>
-          {fila.referencia === null
-            ? SIN_REFERENCIA
-            : `${PREFIJO_REFERENCIA} ${fila.referencia}`}
-        </div>
+        <div className={estilos.referencia}>{referencia}</div>
       </Td>
       <Td numerica>
         <span className={estilos.monto}>
@@ -110,6 +151,11 @@ export function FilaBandeja({ fila }: FilaBandejaProps) {
           <div className={estilos.motivoRevision}>
             {ROTULO_MOTIVO_REVISION}{' '}
             {ETIQUETAS_MOTIVO_REVISION[fila.motivoRevision]}
+          </div>
+        ) : null}
+        {lote && fila.motivoBloqueo ? (
+          <div className={estilos.motivoRevision}>
+            {ETIQUETAS_MOTIVO_BLOQUEO[fila.motivoBloqueo]}
           </div>
         ) : null}
       </Td>

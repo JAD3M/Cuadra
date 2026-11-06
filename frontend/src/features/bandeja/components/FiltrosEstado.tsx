@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import { type EstadoBandeja } from '@/shared/dominio/bandeja';
 import { ORDEN_ESTADOS } from '@/features/bandeja/constantes';
 import { ETIQUETAS_ESTADO_BANDEJA } from '@/shared/dominio/etiquetas';
@@ -14,6 +14,8 @@ export interface FiltrosEstadoProps {
   estados: readonly EstadoBandeja[];
   /** Pide alternar un estado; nunca se llama para el último chip activo. */
   onAlternar: (estado: EstadoBandeja) => void;
+  /** Acción propia de la bandeja (p. ej. «Confirmar en lote»), antes del orden. */
+  accion?: ReactNode;
 }
 
 /**
@@ -22,7 +24,11 @@ export interface FiltrosEstadoProps {
  * no conoce la URL ni la API. El último chip activo no se puede apagar; sigue
  * enfocable (`aria-disabled`) y su aviso visible lo describe.
  */
-export function FiltrosEstado({ estados, onAlternar }: FiltrosEstadoProps) {
+export function FiltrosEstado({
+  estados,
+  onAlternar,
+  accion,
+}: FiltrosEstadoProps) {
   const idAviso = useId();
   const unSoloActivo = estados.length === 1;
 
@@ -52,6 +58,7 @@ export function FiltrosEstado({ estados, onAlternar }: FiltrosEstadoProps) {
         })}
       </div>
       <span className={estilos.apoyo}>
+        {accion}
         {unSoloActivo ? (
           <span role="status" id={idAviso}>
             {AVISO_ULTIMO_FILTRO}
