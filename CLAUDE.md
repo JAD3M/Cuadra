@@ -24,6 +24,11 @@ El diseño de referencia son los mockups aprobados en Claude Design:
 https://claude.ai/artifact/YNdRfrAaG7qQGqfS4wNJP7 (canvas privado; se
 lee con la herramienta Artifact, archivos `project/*.dc.html`).
 
+- Cada vez que se cree o modifique un mockup, se le dice al usuario su
+  número: el del título del tablero en `project/canvas.json` (por
+  ejemplo «2 · Bandeja de revisión»). Si son dos temas, los dos números.
+  Se lee del lienzo, no de memoria.
+
 - Toda pantalla se basa en su mockup: distribución, jerarquía,
   estados, textos, colores y tipografías. Antes de construir o cambiar
   una pantalla, lee su mockup.
