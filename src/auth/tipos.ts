@@ -54,6 +54,8 @@ export interface EmpresaContexto {
   id: string;
   razonSocial: string;
   rfc: string;
+  /** AD-13. `false` solo si el dueño la apagó: el frontend avisa. Falla cerrada. */
+  separacionFunciones: boolean;
 }
 
 /** Quién es, en qué empresa y con qué roles (sesión con empresa). */

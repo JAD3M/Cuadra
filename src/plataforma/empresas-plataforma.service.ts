@@ -2,10 +2,12 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { normalizarRfc, validarRfc } from '../common/rfc';
 import type {
+  CambiarSeparacionDto,
   CrearEmpresaDto,
   EmpresaPlataformaDto,
 } from './dto/plataforma.dto';
@@ -24,7 +26,8 @@ export class EmpresasPlataforma {
 
   async listar(): Promise<EmpresaPlataformaDto[]> {
     return await this.ds.query(
-      `SELECT id, razon_social AS "razonSocial", rfc
+      `SELECT id, razon_social AS "razonSocial", rfc,
+              separacion_funciones AS "separacionFunciones"
          FROM companies
         ORDER BY razon_social, rfc`,
     );
@@ -87,11 +90,88 @@ export class EmpresasPlataforma {
       );
 
       await qr.commitTransaction();
-      return { id: empresa.id, razonSocial: dto.razonSocial, rfc };
+      return {
+        id: empresa.id,
+        razonSocial: dto.razonSocial,
+        rfc,
+        separacionFunciones: true,
+      };
     } catch (error) {
       if (qr.isTransactionActive) await qr.rollbackTransaction();
       // Otra petición ganó la carrera entre el pre-chequeo y el INSERT.
       if (esViolacionUnica(error)) throw rfcDuplicado(rfc);
+      throw error;
+    } finally {
+      await qr.release();
+    }
+  }
+
+  /**
+   * AD-13, AD-5, AD-7. Apaga o vuelve a prender la separación de funciones de
+   * UNA empresa. Una sola transacción: el cambio, la bitácora de la empresa y
+   * la de plataforma; si cualquiera falla no queda nada (la de plataforma
+   * lanza). Apagar y volver a prender es la misma acción: el sentido va en
+   * `antes/despues`. `companies` no tiene RLS: el UPDATE filtra por id.
+   */
+  async cambiarSeparacion(
+    empresaId: string,
+    dto: CambiarSeparacionDto,
+    plataformaUsuarioId: string,
+  ): Promise<EmpresaPlataformaDto> {
+    const qr = this.ds.createQueryRunner();
+    await qr.connect();
+    try {
+      await qr.startTransaction();
+
+      const [empresa] = (await qr.query(
+        `SELECT razon_social AS "razonSocial", rfc,
+                separacion_funciones AS "separacionFunciones"
+           FROM companies WHERE id = $1 FOR UPDATE`,
+        [empresaId],
+      )) as Array<{
+        razonSocial: string;
+        rfc: string;
+        separacionFunciones: boolean;
+      }>;
+      if (!empresa) throw new NotFoundException('La empresa no existe');
+      if (empresa.separacionFunciones === dto.activa) {
+        throw new ConflictException(
+          `La separación de funciones ya estaba ${dto.activa ? 'activa' : 'desactivada'}`,
+        );
+      }
+
+      await qr.query(
+        `UPDATE companies SET separacion_funciones = $2 WHERE id = $1`,
+        [empresaId, dto.activa],
+      );
+      await qr.query(`SELECT set_config('app.company_id', $1, true)`, [
+        empresaId,
+      ]);
+      const cambio = {
+        motivo: dto.motivo,
+        antes: empresa.separacionFunciones,
+        despues: dto.activa,
+      };
+      await qr.query(
+        `INSERT INTO bitacora (company_id, user_id, entidad, entidad_id, accion, datos)
+         VALUES ($1, NULL, 'companies', $1, 'desactivar_separacion', $2::jsonb)`,
+        [empresaId, JSON.stringify({ plataformaUsuarioId, ...cambio })],
+      );
+      await qr.query(
+        `INSERT INTO bitacora_plataforma (plataforma_usuario_id, accion, company_id, detalle)
+         VALUES ($1, 'desactivar_separacion', $2, $3::jsonb)`,
+        [plataformaUsuarioId, empresaId, JSON.stringify(cambio)],
+      );
+
+      await qr.commitTransaction();
+      return {
+        id: empresaId,
+        razonSocial: empresa.razonSocial,
+        rfc: empresa.rfc,
+        separacionFunciones: dto.activa,
+      };
+    } catch (error) {
+      if (qr.isTransactionActive) await qr.rollbackTransaction();
       throw error;
     } finally {
       await qr.release();

@@ -51,6 +51,12 @@ export class EmpresaContextoDto implements EmpresaContexto {
 
   @ApiProperty({ example: 'FDB190215QK4' })
   rfc!: string;
+
+  @ApiProperty({
+    description:
+      'false = la empresa opera sin separación de funciones (la apagó el dueño de la plataforma). Cualquier otro valor se lee como activa.',
+  })
+  separacionFunciones!: boolean;
 }
 
 export class ContextoSesionDto implements ContextoSesion {

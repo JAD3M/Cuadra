@@ -111,6 +111,7 @@ export const ETIQUETAS_ACCION_BITACORA: Record<AccionBitacora, string> = {
   cancelar_invitacion: 'Invitación cancelada',
   cambiar_rol: 'Rol cambiado',
   quitar_rol: 'Rol quitado',
+  desactivar_separacion: 'Separación de funciones cambiada',
 };
 
 /**
