@@ -7,6 +7,7 @@ import {
   type MotivoRevision,
   type OrigenConciliacion,
   type RazonOmisionLote,
+  type RazonOmisionReapertura,
   ROLES,
   type Rol,
 } from './tipos';
@@ -88,6 +89,15 @@ export const ETIQUETAS_RAZON_OMISION_LOTE: Record<RazonOmisionLote, string> = {
   choca_con_otra_del_lote:
     'Choca con otra marcada (misma factura o mismo movimiento): confírmala a mano.',
   cambio_concurrente: 'Cambió mientras se confirmaba: revísala de nuevo.',
+};
+
+export const ETIQUETAS_RAZON_OMISION_REAPERTURA: Record<
+  RazonOmisionReapertura,
+  string
+> = {
+  ya_reabierta: 'Ya estaba reabierta.',
+  reconfirmada: 'Se volvió a confirmar: reábrela desde su caso.',
+  no_confirmada: 'Ya no está confirmada.',
 };
 
 /**

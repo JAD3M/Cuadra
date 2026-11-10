@@ -38,6 +38,10 @@ import {
   },
 )
 @Index('ix_decisiones_company_id_estado', ['companyId', 'estado'])
+// Historia 5.8: reabrir un lote busca por `lote_id`; sin índice sería un scan.
+@Index('ix_decisiones_company_lote', ['companyId', 'loteId'], {
+  where: 'lote_id IS NOT NULL',
+})
 @Check('ck_decisiones_estado', `estado IN (${listaSql(ESTADOS_DECISION)})`)
 @Check('ck_decisiones_tipo', `tipo IN (${listaSql(TIPOS_DECISION)})`)
 @Check('ck_decisiones_origen', `origen IN (${listaSql(ORIGENES_CONCILIACION)})`)

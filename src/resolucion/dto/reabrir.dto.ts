@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import {
+  RAZONES_OMISION_REAPERTURA,
+  type RazonOmisionReapertura,
+} from '../../common/entities/tipos';
 import { MOTIVO_MAXIMO } from './resolucion.dto';
 
 /** Historia 5.7: el motivo es obligatorio y sin él se rechaza (400). */
@@ -29,4 +33,25 @@ export class ReabrirRespuestaDto {
   })
   cfdiIds: string[];
   @ApiProperty() motivo: string;
+}
+
+export class OmisionDeReaperturaDto {
+  @ApiProperty() id: string;
+  @ApiProperty({ enum: RAZONES_OMISION_REAPERTURA })
+  razon: RazonOmisionReapertura;
+}
+
+/** Historia 5.8: lo que dejó reabrir un lote completo. */
+export class ReabrirLoteRespuestaDto {
+  @ApiProperty() loteId: string;
+  @ApiProperty({
+    type: [String],
+    description: 'Ids de las decisiones reabiertas (id ascendente).',
+  })
+  reabiertas: string[];
+  @ApiProperty({
+    type: [OmisionDeReaperturaDto],
+    description: 'Las que quedaron fuera, cada una con su razón.',
+  })
+  omitidas: OmisionDeReaperturaDto[];
 }

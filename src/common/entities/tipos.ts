@@ -133,6 +133,18 @@ export const RAZONES_OMISION_LOTE = [
 export type RazonOmisionLote = (typeof RAZONES_OMISION_LOTE)[number];
 
 /**
+ * Por qué un caso de un lote se deja fuera al reabrir el lote (5.8). Códigos
+ * estables; el texto lo pone la interfaz.
+ */
+export const RAZONES_OMISION_REAPERTURA = [
+  'ya_reabierta',
+  'reconfirmada',
+  'no_confirmada',
+] as const;
+export type RazonOmisionReapertura =
+  (typeof RAZONES_OMISION_REAPERTURA)[number];
+
+/**
  * Nivel de confianza de una propuesta del motor de reglas (CU-11, AC6).
  * Se deriva de la puntuación de su regla con `nivelDeConfianza`; nunca se
  * guarda ni se inventa fuera de ahí.
