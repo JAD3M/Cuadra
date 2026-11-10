@@ -811,6 +811,17 @@ Segunda historia de la épica 5 que ata FR-18, FR-19 y FR-31 (AD-4, AD-7, AD-19)
   el rol recibe 403 más `acceso_denegado`. Ambas escriben `descartar` y `deshacer_descarte` en la
   bitácora en la misma sentencia, con el motivo. `GET /casos/:id` trae `descarte { motivo, por,
   fecha, puedeDeshacer }`, que calcula el servidor (mockups 3, 8 y 6).
+- Desde la 5.7 (AD-4, AD-7, AD-19) una confirmación se reabre con `POST
+  /conciliaciones/:id/reabrir {motivo}` (motivo obligatorio, 400 sin él; 404 si no existe en la
+  empresa; 403 más `acceso_denegado` si no es admin ni quien la confirmó; 409 si no está
+  `confirmada` o si otra reapertura ganó). La decisión pasa a `reabierta`, las facturas
+  `conciliada` vuelven a `abierta` (una `cancelada` se queda así), el movimiento vuelve a `abierto`
+  y `requiere_revision` se limpia, todo en una sentencia con la fila `reabrir` de la bitácora
+  (motivo en `datos.motivo`). Las propuestas hermanas que la confirmación dejó `obsoleta` no se
+  restauran: después del COMMIT corre `conciliar()` y puede proponer de nuevo, y la
+  reconfirmación es una decisión nueva con las mismas reglas. `GET /casos/:id` trae
+  `puedeReabrir` (calculado en el servidor) y el historial de la propuesta nueva incluye los
+  eventos de las confirmaciones reabiertas del mismo movimiento (mockups 3, 8 y 6).
 - Mismo permiso que confirmar un caso (`conciliaciones.resolver`): el auditor recibe 403. Un id
   en mayúsculas es el mismo id (se normaliza antes de validar).
 - Frontend (mockups 2 y 7): botón «Confirmar en lote» en la barra de filtros, barra con

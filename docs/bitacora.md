@@ -5,6 +5,22 @@
 
 ### 10 nov 2026
 
+- **Historia 5.7 de la v2: reabrir una confirmación y volver a confirmar.**
+  Documento `odd/tasks/v2-5-7-reabrir-confirmacion.md` (KAN-150), PR #116 a #118 en cadena.
+  Backend: `POST /conciliaciones/:id/reabrir` (motivo obligatorio) pasa la decisión a `reabierta`,
+  devuelve a `abierta` las facturas que estaban `conciliada` y a `abierto` el movimiento, todo en
+  una sentencia con la bitácora, bajo el candado de empresa y en el orden decisión, CFDI,
+  movimiento (AD-19). Migración `1790716000000` (el CHECK de la bitácora suma `reabrir`).
+  `GET /casos/:id` trae `puedeReabrir` y el historial de la propuesta nueva incluye las
+  confirmaciones reabiertas del mismo movimiento. Frontend: botón y formulario «Reabrir
+  confirmación» en el caso conciliado y en «Requiere revisión», aviso de permiso y los eventos
+  «Confirmada» y «Reabierta» en el historial. Mockups 3 y 8 (detalle) y 6 (bitácora), aprobados
+  antes del código. Decisiones mías, a confirmar: reabre un admin o quien confirmó (A1), un CFDI
+  cancelado se queda cancelado (A2) y el motivo vive en la bitácora sin pisar el de la decisión
+  (A3). Esta vez el espejo del frontend fue en el mismo PR que el backend y el CI de la cadena pasó
+  sin retoques. La revisión nativa del backend se aprobó con avisos no bloqueantes (conciliar tras
+  el commit sin reintento ni métrica, CFDI vacío, orden 403 antes que 409).
+
 - **Historia 5.6 de la v2: descartar un movimiento y deshacer el descarte.**
   Documento `odd/tasks/v2-5-6-descartar-movimiento.md` (KAN-149), PR #112 a #114 en cadena.
   Backend: `POST /movimientos/:id/descartar` (motivo obligatorio) y `POST
