@@ -80,6 +80,48 @@ export const LOTE = {
     'Puede que una parte se haya aplicado. Recarga la bandeja para ver qué quedó.',
   recargar: 'Recargar bandeja',
 } as const;
+/** Reabrir un lote completo (5.8). Textos acordados en los mockups 2 y 7. */
+export const REABRIR_LOTE = {
+  accion: 'Reabrir lote',
+  ayuda:
+    'Vuelve a pendiente todo lo que este lote confirmó. Queda en la bitácora.',
+  titulo: 'Reabrir lote',
+  motivoEtiqueta: 'Motivo de la reapertura (obligatorio)',
+  motivoEjemplo: 'Ej. confirmé el lote equivocado',
+  motivoObligatorio: 'El motivo es obligatorio para reabrir.',
+  motivoLargo: 'El motivo no puede pasar de 500 caracteres.',
+  confirmar: 'Reabrir lote',
+  reabriendo: 'Reabriendo…',
+  cancelar: 'Cancelar',
+  nota: 'Se reabre todo o nada, y cada caso queda en la bitácora con tu nombre y el motivo.',
+  /** Región en vivo (solo lectores) mientras la reapertura viaja al servidor. */
+  enviando: 'Reabriendo el lote',
+  resultadoTitulo: (n: number) =>
+    n === 1 ? 'Lote reabierto: 1 caso.' : `Lote reabierto: ${n} casos.`,
+  resultadoTexto: (omitidas: number) => {
+    const final =
+      'Los casos reabiertos volvieron a la bandeja como pendientes.';
+    if (omitidas === 0) return final;
+    const cuantas =
+      omitidas === 1
+        ? '1 se omitió porque ya no estaba confirmada.'
+        : `${omitidas} se omitieron porque ya no estaban confirmadas.`;
+    return `${cuantas} ${final}`;
+  },
+  /** Resultado donde nada se reabrió: todas las del lote se omitieron. */
+  ningunaTitulo: 'No se reabrió ningún caso.',
+  ningunaOmitidas: (n: number) =>
+    n === 1
+      ? 'La única se omitió porque ya no estaba confirmada.'
+      : `Las ${n} se omitieron porque ya no estaban confirmadas.`,
+  /** El lote cambió (409) o ya no existe (404): no se reabrió nada. */
+  falloTitulo: 'No se reabrió ningún caso.',
+  falloDetalle:
+    'El lote cambió mientras se reabría. Recarga la bandeja y vuelve a intentarlo.',
+  /** Su rol lo tiene, pero el servidor dice que este lote no es suyo. */
+  soloAutorOAdmin:
+    'Solo quien confirmó el lote o un administrador puede reabrirlo.',
+} as const;
 export const KPI_MONTO_UNA_MONEDA = 'MXN en sugerencias y sin match';
 export const KPI_MONTO_VARIAS_MONEDAS = 'En sugerencias y sin match';
 export const KPI_NO_DISPONIBLE = '—';
