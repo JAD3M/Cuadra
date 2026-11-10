@@ -165,6 +165,8 @@ describe('TablaBitacora: chips de acción', () => {
       cambiar_rol: 'neutral',
       quitar_rol: 'neutral',
       desactivar_separacion: 'neutral',
+      descartar: 'neutral',
+      deshacer_descarte: 'neutral',
     });
   });
 });

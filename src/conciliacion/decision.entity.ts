@@ -55,6 +55,11 @@ import {
   'ck_decisiones_descarte_coherente',
   `tipo <> 'descarte' OR (motivo IS NOT NULL AND estado IN ('descartada', 'reabierta'))`,
 )
+// Historia 5.6: un descarte siempre dice quién lo hizo y cuándo.
+@Check(
+  'ck_decisiones_descarte_persona',
+  `tipo <> 'descarte' OR (descartada_por_id IS NOT NULL AND descartada_at IS NOT NULL)`,
+)
 export class Decision extends EntidadBase {
   @Column({ type: 'uuid' })
   companyId: string;
@@ -87,6 +92,13 @@ export class Decision extends EntidadBase {
 
   @Column({ type: 'timestamptz', nullable: true })
   confirmadaAt: Date | null;
+
+  /** Historia 5.6: quién descartó el movimiento (solo en tipo 'descarte'). */
+  @Column({ type: 'uuid', nullable: true })
+  descartadaPorId: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  descartadaAt: Date | null;
 
   @Column({ type: 'uuid', nullable: true })
   loteId: string | null;
@@ -135,4 +147,11 @@ export class Decision extends EntidadBase {
     foreignKeyConstraintName: 'fk_decisiones_confirmada_por',
   })
   confirmadaPor: User | null;
+
+  @ManyToOne(() => User, { onDelete: 'RESTRICT', nullable: true })
+  @JoinColumn({
+    name: 'descartada_por_id',
+    foreignKeyConstraintName: 'fk_decisiones_descartada_por',
+  })
+  descartadaPor: User | null;
 }

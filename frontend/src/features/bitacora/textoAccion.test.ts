@@ -10,6 +10,8 @@ describe('textoAccion', () => {
     ['cambiar_rol', 'Rol cambiado'],
     ['quitar_rol', 'Rol quitado'],
     ['desactivar_separacion', 'Separación de funciones cambiada'],
+    ['descartar', 'Movimiento descartado'],
+    ['deshacer_descarte', 'Descarte deshecho'],
   ] as const)('%s se muestra como «%s»', (accion, texto) => {
     expect(textoAccion(accion)).toBe(texto);
   });

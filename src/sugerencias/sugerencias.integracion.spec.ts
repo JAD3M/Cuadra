@@ -1023,6 +1023,7 @@ describe('el modelo nunca cierra un caso (IA-23)', () => {
     expect(checks.map((c) => c.conname)).toEqual([
       'ck_decisiones_confirmada_requiere_persona',
       'ck_decisiones_descarte_coherente',
+      'ck_decisiones_descarte_persona',
       'ck_decisiones_estado',
       'ck_decisiones_origen',
       'ck_decisiones_score_rango',

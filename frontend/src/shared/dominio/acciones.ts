@@ -27,4 +27,6 @@ export const ACCIONES_ADMINISTRACION = [
   'cambiar_rol',
   'quitar_rol',
   'desactivar_separacion',
+  'descartar',
+  'deshacer_descarte',
 ] as const satisfies readonly AccionBitacora[];

@@ -112,6 +112,8 @@ export const ETIQUETAS_ACCION_BITACORA: Record<AccionBitacora, string> = {
   cambiar_rol: 'Rol cambiado',
   quitar_rol: 'Rol quitado',
   desactivar_separacion: 'Separación de funciones cambiada',
+  descartar: 'Movimiento descartado',
+  deshacer_descarte: 'Descarte deshecho',
 };
 
 /**

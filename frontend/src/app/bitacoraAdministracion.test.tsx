@@ -263,6 +263,8 @@ describe('bitácora de administración: filtros y vacío', () => {
       'Rol cambiado',
       'Rol quitado',
       'Separación de funciones cambiada',
+      'Movimiento descartado',
+      'Descarte deshecho',
     ]);
   });
 

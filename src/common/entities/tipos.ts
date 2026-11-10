@@ -178,6 +178,8 @@ export const ACCIONES_BITACORA = [
   'cambiar_rol',
   'quitar_rol',
   'desactivar_separacion',
+  'descartar',
+  'deshacer_descarte',
 ] as const;
 export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 
