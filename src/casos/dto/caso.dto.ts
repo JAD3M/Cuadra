@@ -142,6 +142,11 @@ export class RespuestaCasoDto {
   })
   descarte: DescarteCasoDto | null;
   @ApiProperty({
+    description:
+      'true si el caso está conciliado y quien consulta puede reabrir la confirmación: admin o quien la confirmó, con rol que tenga el permiso. El servidor lo decide.',
+  })
+  puedeReabrir: boolean;
+  @ApiProperty({
     example: '0.5000',
     description: 'Tolerancia de monto de la empresa, texto decimal.',
   })

@@ -737,3 +737,47 @@ describe('CAS-5 movimiento descartado (historia 5.6)', () => {
     expect((await obtener(m)).descarte).toBeNull();
   });
 });
+
+describe('CAS-6 puedeReabrir (historia 5.7)', () => {
+  async function conciliado(confirmo: string): Promise<string> {
+    const m = await movimiento(A, { estado: 'conciliado' });
+    await conciliacion(A, await factura(A), m, 'confirmada', { confirmo });
+    return m;
+  }
+
+  it('quien confirmó y un admin pueden reabrir; otra persona con el rol no', async () => {
+    const deLuis = await conciliado(LUIS);
+    const tokenLuis = await entorno.token(LUIS, FERRETERIA);
+
+    expect((await obtener(deLuis, tokenLuis)).puedeReabrir).toBe(true);
+    expect((await obtener(deLuis, tokenA)).puedeReabrir).toBe(true);
+
+    const deAna = await conciliado(ANA);
+    expect((await obtener(deAna, tokenLuis)).puedeReabrir).toBe(false);
+    expect((await obtener(deAna, tokenA)).puedeReabrir).toBe(true);
+  });
+
+  it('un auditor no puede reabrir, aunque hubiera confirmado', async () => {
+    const m = await conciliado(LUIS);
+    const cambiarRol = (rol: string) =>
+      ds.query(
+        `UPDATE user_company_roles SET rol = $3
+          WHERE user_id = $1 AND company_id = $2`,
+        [entorno.persona(LUIS), A, rol],
+      );
+    await cambiarRol('auditor');
+    try {
+      const cuerpo = await obtener(m, await entorno.token(LUIS, FERRETERIA));
+      expect(cuerpo.puedeReabrir).toBe(false);
+    } finally {
+      await cambiarRol('contador');
+    }
+  });
+
+  it('un caso que no está conciliado trae puedeReabrir en false', async () => {
+    const m = await movimiento(A);
+    await conciliacion(A, await factura(A), m, 'propuesta');
+
+    expect((await obtener(m)).puedeReabrir).toBe(false);
+  });
+});

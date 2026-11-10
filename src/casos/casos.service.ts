@@ -30,7 +30,8 @@ const CONSULTA = `
          c.id AS conciliacion_id, c.estado AS estado_conciliacion, c.origen,
          c.score::text AS score, c.regla, c.motivo,
          c.diferencia_monto::text AS diferencia_monto,
-         c.confirmada_at, u.nombre AS confirmada_por, c.requiere_revision,
+         c.confirmada_at, u.nombre AS confirmada_por,
+         c.confirmada_por_id, c.requiere_revision,
          lc.cfdis,
          d.motivo AS descarte_motivo, ud.nombre AS descarte_por,
          d.descartada_por_id AS descarte_por_id, d.descartada_at AS descarte_at
@@ -83,6 +84,7 @@ interface FilaSql {
   diferencia_monto: string | null;
   confirmada_at: Date | null;
   confirmada_por: string | null;
+  confirmada_por_id: string | null;
   requiere_revision: boolean | null;
   cfdis: CfdiResumenDto[] | null;
   descarte_motivo: string | null;
@@ -132,13 +134,27 @@ export class CasosService {
             motivo: m.descarte_motivo,
             por: m.descarte_por,
             fecha: m.descarte_at ? new Date(m.descarte_at).toISOString() : null,
-            puedeDeshacer: await this.puedeDeshacer(
+            puedeDeshacer: await this.puedeActuar(
               companyId,
               userId,
               m.descarte_por_id,
+              'movimientos.deshacer_descarte',
             ),
           }
         : null;
+    // Historia 5.7: solo una confirmación vigente se reabre.
+    const confirmada = filas.find(
+      (f) => f.estado_conciliacion === 'confirmada',
+    );
+    const puedeReabrir =
+      m.estado_movimiento === 'conciliado' && confirmada !== undefined
+        ? await this.puedeActuar(
+            companyId,
+            userId,
+            confirmada.confirmada_por_id,
+            'conciliaciones.reabrir',
+          )
+        : false;
     return {
       movimiento: {
         id: m.movimiento_id,
@@ -158,19 +174,21 @@ export class CasosService {
           }
         : null,
       descarte,
+      puedeReabrir,
       toleranciaMonto: m.tolerancia_monto,
       propuestas,
     };
   }
   /**
-   * Lo mismo que exige `DescarteService.deshacer`: un rol con el permiso y,
-   * además, ser admin o quien descartó. El servidor decide; la interfaz solo
-   * lo muestra.
+   * Lo mismo que exigen `DescarteService.deshacer` y `ReabrirService`: un rol
+   * con el permiso y, además, ser admin o quien hizo la acción original
+   * (descartó o confirmó). El servidor decide; la interfaz solo lo muestra.
    */
-  private async puedeDeshacer(
+  private async puedeActuar(
     companyId: string,
     userId: string,
-    descartadaPorId: string | null,
+    autorId: string | null,
+    permiso: 'movimientos.deshacer_descarte' | 'conciliaciones.reabrir',
   ): Promise<boolean> {
     const roles = await this.contexto
       .manager()
@@ -178,10 +196,10 @@ export class CasosService {
         `SELECT rol FROM user_company_roles WHERE user_id = $1 AND company_id = $2`,
         [userId, companyId],
       );
-    const conPermiso = rolesConPermiso('movimientos.deshacer_descarte');
+    const conPermiso = rolesConPermiso(permiso);
     const lista = roles.map((fila) => fila.rol);
     if (!lista.some((rol) => conPermiso.includes(rol))) return false;
-    return lista.includes('admin') || descartadaPorId === userId;
+    return lista.includes('admin') || autorId === userId;
   }
 }
 

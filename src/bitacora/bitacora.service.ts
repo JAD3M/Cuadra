@@ -96,7 +96,17 @@ export class BitacoraService {
                 AND b.datos #>> '{despues,estado}' = 'cancelada'
                 AND EXISTS (SELECT 1 FROM decision_lineas l
                              WHERE l.decision_id = $2 AND l.company_id = $1
-                               AND l.cfdi_id = b.entidad_id)))
+                               AND l.cfdi_id = b.entidad_id))
+            -- Historia 5.7: una confirmación reabierta sigue siendo parte de
+            -- la historia del caso, aunque la propuesta nueva tenga otro id.
+            OR (b.entidad IN ${ENTIDADES_DE_DECISION}
+                AND EXISTS (SELECT 1 FROM decisiones p
+                             WHERE p.id = b.entidad_id AND p.company_id = $1
+                               AND p.tipo = 'conciliacion' AND p.estado = 'reabierta'
+                               AND p.movimiento_id = (SELECT x.movimiento_id
+                                                        FROM decisiones x
+                                                       WHERE x.id = $2
+                                                         AND x.company_id = $1))))
         ORDER BY b.created_at ASC, b.id ASC`,
       [companyId, conciliacionId],
     );
