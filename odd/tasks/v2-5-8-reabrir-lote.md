@@ -32,7 +32,7 @@ Entrega: `ask-on-risk`; cadena de PR. Todo lo que el frontend espeja de una list
 ## Tasks
 
 - [x] T1 (S1-S5 backend + espejo mínimo del frontend, inline; Risk item 4 y 5: reapertura masiva concurrente bajo candado y migración de índice): migración (índice), razones nuevas en `tipos.ts` y su espejo, `POST /conciliaciones/lotes/:loteId/reabrir`, servicio transaccional, pruebas incluida concurrencia y falla a la mitad.
-- [ ] T2 (mockup, S6): «Reabrir lote» en el resultado del lote (bandeja, mockups 2 y 7). Acordar con el usuario ANTES del código.
+- [~] T2 (mockup, S6; publicado el 2026-11-10 en el canvas v153, falta aprobación; números 2 y 7): «Reabrir lote» en el resultado del lote (bandeja, mockups 2 y 7). Acordar con el usuario ANTES del código.
 - [ ] T3 (frontend, S5-S6): guardar el `loteId` del resultado, botón y formulario de motivo, hook, contrato, resultado de la reapertura con omitidas y razones, error visible.
 
 ## Log
@@ -45,3 +45,4 @@ Entrega: `ask-on-risk`; cadena de PR. Todo lo que el frontend espeja de una list
   `RAZONES_OMISION_LOTE` está espejada a mano en el frontend; ningún spec prueba una falla a la
   mitad (hay que inyectarla).
 - T1 hecha (inline, una unidad): migración 1790717000000 (índice parcial `(company_id, lote_id)`), `RAZONES_OMISION_REAPERTURA` en `tipos.ts` con su espejo y etiquetas en el frontend (y el conteo de listas de `deriva.test.ts` de 19 a 20), `POST /conciliaciones/lotes/:loteId/reabrir`, `ReabrirService.reabrirLote` (candado, decisiones por id, CFDI por id, movimientos por id, una sentencia para todo el lote, `conciliar()` una vez). 14 pruebas de integración nuevas, con la falla a la mitad inyectada (movimiento inconsistente: 409 y nada cambia) y la concurrencia. Sin RED previo: el código se escribió antes que la prueba. Backend 1966 y frontend 4951 verdes. Risk: item 4 (reapertura masiva concurrente bajo candado) y item 1 (migración de un índice sobre una tabla existente).
+- T2 publicada: mockups 2 y 7 (Bandeja oscuro y claro) con «Reabrir lote» en el resultado del lote, formulario de motivo obligatorio, resultado «Lote reabierto: N casos.» con omitidas y razones, y aviso «No se reabrió ningún caso.» si falla; vistas `lote_reabriendo`, `lote_reabrir_sin_motivo`, `lote_reabierto`, `lote_reabrir_falla`. Pendiente la aprobación del usuario.
