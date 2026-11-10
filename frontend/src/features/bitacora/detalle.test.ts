@@ -753,6 +753,44 @@ describe('detalleEvento: acciones de administración (historia 2.7)', () => {
     });
   });
 
+  describe('descartar y deshacer_descarte', () => {
+    const MOV = '3f2b8c1e-7a4d-4e0b-9c55-0d1e2f3a4b5c';
+    const descartar = (o: Record<string, unknown> = {}) => ({
+      antes: { estado: 'abierto' },
+      despues: { estado: 'descartada', motivo: 'comisión bancaria' },
+      movimientoId: MOV,
+      motivo: 'comisión bancaria',
+      ...o,
+    });
+    const deshacer = (o: Record<string, unknown> = {}) => ({
+      antes: { estado: 'descartada' },
+      despues: { estado: 'reabierta' },
+      movimientoId: MOV,
+      motivo: 'comisión bancaria',
+      descartadaPorId: CFDI,
+      ...o,
+    });
+    it('descartar muestra el motivo', () => {
+      expect(admin('descartar', descartar())).toBe(
+        'movimiento descartado · motivo: comisión bancaria',
+      );
+    });
+    it('deshacer_descarte dice que vuelve a pendiente y el motivo del descarte', () => {
+      expect(admin('deshacer_descarte', deshacer())).toBe(
+        'descarte deshecho · el movimiento vuelve a pendiente · motivo del descarte: comisión bancaria',
+      );
+    });
+    it('mal formado da «—»', () => {
+      expect(admin('descartar', descartar({ motivo: undefined }))).toBe('—');
+      expect(admin('descartar', descartar({ motivo: '' }))).toBe('—');
+      expect(admin('descartar', descartar({ motivo: 7 }))).toBe('—');
+      expect(admin('deshacer_descarte', deshacer({ motivo: undefined }))).toBe(
+        '—',
+      );
+      expect(admin('deshacer_descarte', 'basura')).toBe('—');
+    });
+  });
+
   it('un rol desconocido se muestra tal cual vino, sin inventar etiqueta', () => {
     expect(admin('quitar_rol', { email: EMAIL, roles: ['contable'] })).toBe(
       `${EMAIL} · roles quitados: contable`,

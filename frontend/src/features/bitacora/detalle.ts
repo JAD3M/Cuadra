@@ -315,6 +315,20 @@ function detalleDesactivarSeparacion(datos: Objeto): string {
   return `separación de funciones: ${estadoSeparacion(antes)} → ${estadoSeparacion(despues)} · por el dueño de la plataforma · motivo: ${motivo}`;
 }
 
+/** Descarte de un movimiento (5.6): sin motivo no afirma nada. */
+function detalleDescartar(datos: Objeto): string {
+  const motivo = texto(datos.motivo);
+  if (motivo === undefined) return SIN_DETALLE;
+  return `movimiento descartado · motivo: ${motivo}`;
+}
+
+/** Deshacer el descarte (5.6): el movimiento vuelve a pendiente. */
+function detalleDeshacerDescarte(datos: Objeto): string {
+  const motivo = texto(datos.motivo);
+  if (motivo === undefined) return SIN_DETALLE;
+  return `descarte deshecho · el movimiento vuelve a pendiente · motivo del descarte: ${motivo}`;
+}
+
 /**
  * Detalle de un evento de la bitácora. `eliminar` y `cargar` no se emiten
  * hoy y no tienen redacción: dan «—», igual que cualquier `datos` nulo, que no
@@ -351,6 +365,10 @@ export function detalleEvento({
       return detalleQuitarRol(datos);
     case 'desactivar_separacion':
       return detalleDesactivarSeparacion(datos);
+    case 'descartar':
+      return detalleDescartar(datos);
+    case 'deshacer_descarte':
+      return detalleDeshacerDescarte(datos);
     default:
       return SIN_DETALLE;
   }
