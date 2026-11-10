@@ -802,6 +802,15 @@ Segunda historia de la épica 5 que ata FR-18, FR-19 y FR-31 (AD-4, AD-7, AD-19)
   sobre `companies`. `GET /auth/contexto` trae `empresa.separacionFunciones`; con `false` explícito
   la bandeja y la bitácora muestran el aviso «Esta empresa opera sin separación de funciones.»
   (mockups 2, 6 y 7), que se relee al abrir cada pantalla.
+- Desde la 5.6 (AD-4, AD-7) un movimiento `abierto` se descarta con `POST
+  /movimientos/:id/descartar {motivo}` (motivo obligatorio, 400 sin él; 404 si no existe; 409 si ya
+  tiene una decisión vigente). Crea una decisión `tipo = descarte`, `estado = descartada`, sin
+  líneas, y pone el movimiento en `descartado`; sale de la bandeja y sus propuestas no se muestran.
+  `POST /movimientos/:id/deshacer-descarte` la pasa a `reabierta` y el movimiento vuelve a
+  `abierto`; lo hace quien descartó (`decisiones.descartada_por_id`) o un admin, y otra persona con
+  el rol recibe 403 más `acceso_denegado`. Ambas escriben `descartar` y `deshacer_descarte` en la
+  bitácora en la misma sentencia, con el motivo. `GET /casos/:id` trae `descarte { motivo, por,
+  fecha, puedeDeshacer }`, que calcula el servidor (mockups 3, 8 y 6).
 - Mismo permiso que confirmar un caso (`conciliaciones.resolver`): el auditor recibe 403. Un id
   en mayúsculas es el mismo id (se normaliza antes de validar).
 - Frontend (mockups 2 y 7): botón «Confirmar en lote» en la barra de filtros, barra con
