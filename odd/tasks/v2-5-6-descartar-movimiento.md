@@ -30,7 +30,7 @@ Entrega: `ask-on-risk`; cadena de PR si pasa de ~400 líneas (backend primero, f
   (columnas del descarte + CHECK de `bitacora` + GRANTs), `tipos.ts`, endpoints descartar y
   deshacer, servicio transaccional con candado y bitácora en la misma sentencia. Pruebas.
 - [ ] T2 (S2 backend): caso de un descartado muestra motivo y quién lo descartó, sin propuestas.
-- [ ] T3 (mockup, S8): pantalla de descartar y deshacer. Acordar con el usuario ANTES del código.
+- [~] T3 (mockup, S8; publicado, falta aprobación del usuario; números 3, 8 y 6): pantalla de descartar y deshacer. Acordar con el usuario ANTES del código.
 - [ ] T4 (frontend): espejo, etiquetas/tonos/detalle de bitácora, acciones en el caso.
 
 ## Log
@@ -42,3 +42,5 @@ Entrega: `ask-on-risk`; cadena de PR si pasa de ~400 líneas (backend primero, f
   ya ocultan descartados. Patrón a copiar: `ResolucionService.rechazar` (CTE) y la migración
   `1790714000000-DesactivarSeparacion.ts` (CHECK de acciones).
 - T1 hecha (inline): migración 1790715000000 (descartada_por_id/descartada_at + CHECK + FK; CHECK de bitácora con descartar y deshacer_descarte), `DescarteService` + `DescarteController` (POST /movimientos/:id/descartar y /deshacer-descarte), tipos.ts. Tamaño: no se delegó (una unidad). Sin RED previo: el código se escribió antes que la prueba (15 casos de integración, verdes). Backend completo 1931 pruebas; se ajustaron dos specs de deriva (retiro-conciliaciones ignora lo posterior al retiro; sugerencias suma el CHECK nuevo). Risk: item 1 (migración añade columnas y CHECK a una tabla existente; aditivo y sin descartes previos).
+- T3 publicada (2026-11-10, versión 148 del canvas): mockup 3 y 8 (Detalle oscuro y claro) con vistas nuevas `descartando`, `descarte_sin_motivo`, `descartado`, `descartado_ajeno` (botón «Descartar movimiento» en sin match, formulario con motivo obligatorio, tarjeta «Descartado» con motivo/quién/fecha y «Deshacer descarte» o aviso de permiso); mockup 6 (Bitácora) con «Movimiento descartado» y «Descarte deshecho». Bandeja sin cambios. Pendiente: aprobación del usuario antes del código del frontend.
+- T2 pendiente: `GET /casos/:id` devuelve `descarte { motivo, por, fecha, puedeDeshacer }` (puedeDeshacer calculado en el servidor: admin o quien descartó, y rol con permiso).
