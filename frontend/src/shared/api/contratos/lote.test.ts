@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { RAZONES_OMISION_LOTE } from '@/shared/dominio/tipos';
-import { respuestaLote } from './lote';
+import {
+  RAZONES_OMISION_LOTE,
+  RAZONES_OMISION_REAPERTURA,
+} from '@/shared/dominio/tipos';
+import { respuestaLote, respuestaReabrirLote } from './lote';
 
 const A = '00000000-0000-4000-8000-000000000001';
 const B = '00000000-0000-4000-8000-000000000002';
@@ -52,6 +55,57 @@ describe('respuestaLote (5.3)', () => {
       const sin: Record<string, unknown> = { ...base };
       delete sin[clave];
       expect(respuestaLote.safeParse(sin).success).toBe(false);
+    }
+  });
+});
+
+describe('respuestaReabrirLote (5.8)', () => {
+  it('acepta reabiertas y omitidas con sus razones', () => {
+    const r = respuestaReabrirLote.parse({
+      loteId: LOTE,
+      reabiertas: [A],
+      omitidas: [{ id: B, razon: 'ya_reabierta' }],
+    });
+    expect(r.reabiertas).toEqual([A]);
+    expect(r.omitidas[0]?.razon).toBe('ya_reabierta');
+  });
+
+  it('acepta una reapertura vacía (nada se reabrió)', () => {
+    expect(
+      respuestaReabrirLote.safeParse({
+        loteId: LOTE,
+        reabiertas: [],
+        omitidas: [{ id: A, razon: 'no_confirmada' }],
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each(RAZONES_OMISION_REAPERTURA)('acepta la razón %s', (razon) => {
+    expect(
+      respuestaReabrirLote.safeParse({
+        loteId: LOTE,
+        reabiertas: [],
+        omitidas: [{ id: A, razon }],
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rechaza una razón de otro contrato, un id que no es guid y claves faltantes', () => {
+    const base = { loteId: LOTE, reabiertas: [], omitidas: [] };
+    expect(
+      respuestaReabrirLote.safeParse({
+        ...base,
+        omitidas: [{ id: A, razon: 'ya_resuelta' }],
+      }).success,
+    ).toBe(false);
+    expect(
+      respuestaReabrirLote.safeParse({ ...base, reabiertas: ['../admin'] })
+        .success,
+    ).toBe(false);
+    for (const clave of ['loteId', 'reabiertas', 'omitidas']) {
+      const sin: Record<string, unknown> = { ...base };
+      delete sin[clave];
+      expect(respuestaReabrirLote.safeParse(sin).success).toBe(false);
     }
   });
 });

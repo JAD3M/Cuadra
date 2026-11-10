@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { mensajeDeError } from '@/shared/api';
+import { ApiError, mensajeDeError } from '@/shared/api';
 import { puede } from '@/shared/dominio';
 import type { EstadoBandeja } from '@/shared/dominio/bandeja';
-import type { RazonOmisionLote } from '@/shared/dominio/tipos';
+import type {
+  RazonOmisionLote,
+  RazonOmisionReapertura,
+} from '@/shared/dominio/tipos';
 import { useSeparacionDesactivada, useSessionContext } from '@/shared/sesion';
 import { AvisoSinSeparacion } from '@/shared/ui/AvisoSinSeparacion';
 import { Button } from '@/shared/ui/Button';
@@ -14,7 +17,9 @@ import { EstadoVacio } from './components/EstadoVacio';
 import { ErrorBandeja } from './components/ErrorBandeja';
 import { FiltrosEstado } from './components/FiltrosEstado';
 import { KpiBandeja } from './components/KpiBandeja';
+import { ReabrirLote } from './components/ReabrirLote';
 import { ResultadoLote } from './components/ResultadoLote';
+import { ResultadoReapertura } from './components/ResultadoReapertura';
 import { TablaBandeja } from './components/TablaBandeja';
 import { LIMITE_PAGINA } from './constantes';
 import { etiquetaCfdi } from './etiquetaCfdi';
@@ -24,22 +29,42 @@ import {
   ERROR_CONEXION,
   ERROR_SIN_PERMISO,
   LOTE,
+  REABRIR_LOTE,
   SIN_DATO,
   detallePorTipo,
 } from './textos';
 import { useBandeja } from './useBandeja';
 import { useConfirmarLote } from './useConfirmarLote';
+import { useReabrirLote } from './useReabrirLote';
 import { useResumenBandeja } from './useResumenBandeja';
 import estilos from './BandejaPage.module.css';
 
 /** Lo que se muestra de un lote ya enviado (mockups 2 y 7). */
 interface ResultadoGuardado {
+  /** Id del lote para reabrirlo (5.8); `null` si nada se confirmó. */
+  loteId: string | null;
   confirmadas: number;
+  /**
+   * Lo que la persona vio de cada propuesta confirmada, para nombrar las que
+   * una reapertura omita (la respuesta solo trae ids).
+   */
+  nombres: ReadonlyMap<string, { descripcion: string; referencia: string }>;
   omitidas: Array<{
     id: string;
     descripcion: string;
     referencia: string;
     razon: RazonOmisionLote;
+  }>;
+}
+
+/** Lo que se muestra de una reapertura que respondió (mockups 2 y 7). */
+interface ReaperturaGuardada {
+  reabiertas: number;
+  omitidas: Array<{
+    id: string;
+    descripcion: string;
+    referencia: string;
+    razon: RazonOmisionReapertura;
   }>;
 }
 
@@ -79,6 +104,14 @@ export function BandejaPage() {
   const [resultado, setResultado] = useState<ResultadoGuardado | null>(null);
   const [falloLote, setFalloLote] = useState<unknown>(null);
   const hayFalloLote = falloLote !== null;
+  // Reabrir el lote recién confirmado (5.8).
+  const puedeReabrir =
+    sesion.status === 'ready' &&
+    puede(sesion.contexto.capacidades, 'conciliaciones.reabrir');
+  const reabrirLote = useReabrirLote();
+  const [reapertura, setReapertura] = useState<ReaperturaGuardada | null>(null);
+  const [falloReapertura, setFalloReapertura] = useState<unknown>(null);
+  const hayFalloReapertura = falloReapertura !== null;
   const permitidas = new Set(marcables(data?.datos ?? []));
   // Filas con casilla en esta página, también las bloqueadas (mockups 2 y 7).
   const conCasilla = (data?.datos ?? []).filter(
@@ -94,12 +127,16 @@ export function BandejaPage() {
     setMarcadas(null);
     setResultado(null);
     setFalloLote(null);
+    setReapertura(null);
+    setFalloReapertura(null);
   }
 
   function abrirLote() {
     if (!data) return;
     setResultado(null);
     setFalloLote(null);
+    setReapertura(null);
+    setFalloReapertura(null);
     setMarcadas(marcadasIniciales(data.datos));
   }
 
@@ -133,7 +170,17 @@ export function BandejaPage() {
     confirmarLote.confirmar(ids, {
       onExito: (respuesta) => {
         setResultado({
+          loteId: respuesta.loteId,
           confirmadas: respuesta.confirmadas.length,
+          nombres: new Map(
+            respuesta.confirmadas.map((id) => [
+              id,
+              visibles.get(id) ?? {
+                descripcion: SIN_DATO,
+                referencia: SIN_DATO,
+              },
+            ]),
+          ),
           omitidas: respuesta.omitidas.map((o) => ({
             id: o.id,
             razon: o.razon,
@@ -144,6 +191,27 @@ export function BandejaPage() {
         setMarcadas(null);
       },
       onFallo: (error) => setFalloLote(error ?? true),
+    });
+  }
+
+  function reabrir(motivo: string) {
+    if (!resultado || resultado.loteId === null) return;
+    const { nombres } = resultado;
+    setFalloReapertura(null);
+    reabrirLote.reabrir(resultado.loteId, motivo, {
+      onExito: (respuesta) => {
+        setReapertura({
+          reabiertas: respuesta.reabiertas.length,
+          omitidas: respuesta.omitidas.map((o) => ({
+            id: o.id,
+            razon: o.razon,
+            descripcion: nombres.get(o.id)?.descripcion ?? SIN_DATO,
+            referencia: nombres.get(o.id)?.referencia ?? SIN_DATO,
+          })),
+        });
+        setResultado(null);
+      },
+      onFallo: (error) => setFalloReapertura(error ?? true),
     });
   }
 
@@ -228,7 +296,27 @@ export function BandejaPage() {
           <ResultadoLote
             confirmadas={resultado.confirmadas}
             omitidas={resultado.omitidas}
+            accion={
+              puedeReabrir &&
+              resultado.loteId !== null &&
+              resultado.confirmadas > 0 &&
+              !hayFalloReapertura ? (
+                <ReabrirLote
+                  enviando={reabrirLote.enviando}
+                  onReabrir={reabrir}
+                />
+              ) : undefined
+            }
           />
+        ) : null}
+        {reapertura ? (
+          <ResultadoReapertura
+            reabiertas={reapertura.reabiertas}
+            omitidas={reapertura.omitidas}
+          />
+        ) : null}
+        {hayFalloReapertura ? (
+          <FalloReapertura error={falloReapertura} onRecargar={recargar} />
         ) : null}
         {hayFalloLote ? (
           <FalloLote error={falloLote} onRecargar={recargar} />
@@ -316,6 +404,47 @@ function FalloLote({
       <ErrorBandeja
         titulo={ERROR_SIN_PERMISO.titulo}
         detalle={ERROR_SIN_PERMISO.detalle}
+      />
+    );
+  }
+  return (
+    <ErrorBandeja
+      titulo={LOTE.errorTitulo}
+      detalle={LOTE.errorDetalle}
+      textoAccion={LOTE.recargar}
+      onReintentar={onRecargar}
+    />
+  );
+}
+
+/**
+ * La reapertura falló. 403: no es de esta persona, no se tocó nada. 409 y 404:
+ * el lote cambió o ya no existe, y el servidor no reabrió nada (todo o nada).
+ * Cualquier otro fallo es dudoso, como en el lote: se pide recargar.
+ */
+function FalloReapertura({
+  error,
+  onRecargar,
+}: {
+  error: unknown;
+  onRecargar: () => void;
+}) {
+  const estado = error instanceof ApiError ? error.statusCode : null;
+  if (estado === 403) {
+    return (
+      <ErrorBandeja
+        titulo={REABRIR_LOTE.falloTitulo}
+        detalle={REABRIR_LOTE.soloAutorOAdmin}
+      />
+    );
+  }
+  if (estado === 409 || estado === 404) {
+    return (
+      <ErrorBandeja
+        titulo={REABRIR_LOTE.falloTitulo}
+        detalle={REABRIR_LOTE.falloDetalle}
+        textoAccion={LOTE.recargar}
+        onReintentar={onRecargar}
       />
     );
   }

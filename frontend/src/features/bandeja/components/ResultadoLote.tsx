@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { ETIQUETAS_RAZON_OMISION_LOTE } from '@/shared/dominio/etiquetas';
 import type { RazonOmisionLote } from '@/shared/dominio/tipos';
 import { LOTE } from '@/features/bandeja/textos';
@@ -15,6 +16,8 @@ export interface OmisionVisible {
 export interface ResultadoLoteProps {
   confirmadas: number;
   omitidas: readonly OmisionVisible[];
+  /** Acción bajo el resultado (reabrir el lote, 5.8); ausente = ninguna. */
+  accion?: ReactNode;
 }
 
 /**
@@ -22,7 +25,11 @@ export interface ResultadoLoteProps {
  * quedaron fuera, cuál y por qué, en palabras. Si no se confirmó ninguna, el
  * recuadro es ámbar y no dice «Lote confirmado». Presentacional.
  */
-export function ResultadoLote({ confirmadas, omitidas }: ResultadoLoteProps) {
+export function ResultadoLote({
+  confirmadas,
+  omitidas,
+  accion,
+}: ResultadoLoteProps) {
   const ninguna = confirmadas === 0;
   const hayOmitidas = omitidas.length > 0;
   return (
@@ -57,6 +64,7 @@ export function ResultadoLote({ confirmadas, omitidas }: ResultadoLoteProps) {
           ))}
         </ul>
       ) : null}
+      {accion}
     </div>
   );
 }
