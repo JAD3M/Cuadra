@@ -5,6 +5,26 @@
 
 ### 10 nov 2026
 
+- **Historia 5.8 de la v2: reabrir un lote completo.**
+  Documento `odd/tasks/v2-5-8-reabrir-lote.md` (KAN-151), PR #120 y #121 en cadena. Backend:
+  `POST /conciliaciones/lotes/:loteId/reabrir` (motivo obligatorio) reabre en una sola transacción
+  todas las decisiones del lote que sigan `confirmada`, con el candado de empresa y el orden
+  decisiones, CFDI y movimientos por id ascendente (AD-19). Las que ya no están confirmadas se
+  omiten con su razón (`ya_reabierta`, `reconfirmada`, `no_confirmada`); queda una fila `reabrir`
+  por caso con el mismo motivo y el `loteId`. Quien no es admin solo reabre un lote que confirmó
+  entero (403 más acceso denegado); un lote ajeno o inexistente da 404; si algo no cuadra a la mitad
+  da 409 y no cambia nada. Migración `1790717000000` con un índice parcial `(company_id, lote_id)`.
+  Frontend: botón «Reabrir lote» en el resultado de «Confirmar en lote» (la página conserva el
+  `loteId` mientras ese resultado está en pantalla), formulario con motivo, resultado con los
+  omitidos y aviso de falla. Mockups 2 y 7, aprobados antes del código, así como los textos que el
+  mockup no definía (reapertura sin casos, 403 y 404 tratado como 409). Decisión del usuario: el
+  botón vive en el resultado del lote, no en una pantalla de lotes. Decisiones mías, a confirmar:
+  una persona que no es admin solo reabre un lote que confirmó entero (A3) y el índice (A4).
+  Límite conocido: si la persona sale de la pantalla pierde el acceso al lote y reabre caso por
+  caso (5.7). La revisión nativa del backend se aprobó con avisos no bloqueantes (`reconfirmada` solo
+  mira el mismo movimiento, sin prueba de `no_confirmada`, `CREATE INDEX` sin `CONCURRENTLY`,
+  `conciliar` tras el commit sin reintento).
+
 - **Historia 5.7 de la v2: reabrir una confirmación y volver a confirmar.**
   Documento `odd/tasks/v2-5-7-reabrir-confirmacion.md` (KAN-150), PR #116 a #118 en cadena.
   Backend: `POST /conciliaciones/:id/reabrir` (motivo obligatorio) pasa la decisión a `reabierta`,
