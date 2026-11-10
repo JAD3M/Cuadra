@@ -243,7 +243,8 @@ describe('CasoPage', () => {
 
   it('un sin_match muestra la tarjeta de solo lectura con el motivo del servidor', async () => {
     const caso = servir(casoSinMatch());
-    montar(caso.movimiento.id);
+    // Sin controles: el auditor no puede descartar (5.6); ver el bloque del descarte.
+    montar(caso.movimiento.id, sesionConRoles(['auditor']));
     expect(
       await screen.findByRole('heading', { level: 3, name: 'Sin match' }),
     ).toBeInTheDocument();

@@ -4,6 +4,7 @@ import {
   NIVELES_CONFIANZA,
   ORIGENES_CONCILIACION,
   type EstadoConciliacion,
+  type EstadoDecision,
 } from '@/shared/dominio/tipos';
 import { estadoBandeja } from './bandeja';
 import { montoDecimal } from './montoDecimal';
@@ -63,6 +64,18 @@ export const propuestaCaso = z.object({
 });
 
 /**
+ * El descarte vigente de un movimiento (5.6). `puedeDeshacer` lo decide el
+ * servidor (admin o quien descartó): el cliente no lo deduce del rol.
+ */
+export const descarteCaso = z.object({
+  motivo: texto,
+  por: z.string().nullable(),
+  /** Instante ISO del descarte. */
+  fecha: z.iso.datetime().nullable(),
+  puedeDeshacer: z.boolean(),
+});
+
+/**
  * La coherencia entre el estado derivado y las propuestas protege la regla de
  * que el cliente no decide: una respuesta incoherente es un `ContratoError`.
  */
@@ -82,9 +95,18 @@ export const respuestaCaso = z
     /** Alguna decisión del caso quedó por revisar; el caso sigue conciliado. */
     requiereRevision: z.boolean(),
     propuestas: z.array(propuestaCaso),
+    /** Solo un movimiento descartado lo trae; las respuestas viejas no. */
+    descarte: descarteCaso.nullable().optional(),
   })
   .superRefine((caso, ctx) => {
     const { estado, propuestas } = caso;
+    if (caso.descarte && (estado !== 'sin_match' || propuestas.length > 0)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['descarte'],
+        message: 'Un movimiento descartado no tiene propuestas',
+      });
+    }
     const todas = (e: string) => propuestas.every((p) => p.estado === e);
     const coherente =
       (estado === 'conciliado' &&
@@ -119,6 +141,17 @@ export const respuestaResolucion = z.object({
   rechazadasAutomaticamente: z.array(z.guid()),
 });
 
+/** `POST /movimientos/:id/descartar` y `/deshacer-descarte`. */
+export const respuestaDescarte = z.object({
+  id: z.guid(),
+  movimientoId: z.guid(),
+  estado: z.enum([
+    'descartada',
+    'reabierta',
+  ] as const satisfies readonly EstadoDecision[]),
+  motivo: z.string().nullable(),
+});
+
 /**
  * Historial de una conciliación. `datos` (el JSON crudo del evento), el
  * correo y la IP no se validan ni se exponen. Una acción desconocida pasa como
@@ -142,4 +175,6 @@ export type CfdiCaso = z.infer<typeof cfdiCaso>;
 export type PropuestaCaso = z.infer<typeof propuestaCaso>;
 export type RespuestaCaso = z.infer<typeof respuestaCaso>;
 export type RespuestaResolucion = z.infer<typeof respuestaResolucion>;
+export type DescarteCaso = z.infer<typeof descarteCaso>;
+export type RespuestaDescarte = z.infer<typeof respuestaDescarte>;
 export type RespuestaHistorial = z.infer<typeof respuestaHistorial>;

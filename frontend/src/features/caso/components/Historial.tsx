@@ -2,7 +2,11 @@ import { AlertaError } from '@/shared/ui/AlertaError';
 import { Button } from '@/shared/ui/Button';
 import { ERROR_CONEXION, REINTENTAR } from '@/features/bandeja/textos';
 import { HISTORIAL } from '@/features/caso/textos';
-import { EventoHistorial, EventoPendiente } from './EventoHistorial';
+import {
+  EventoDescarte,
+  EventoHistorial,
+  EventoPendiente,
+} from './EventoHistorial';
 import estilos from './Historial.module.css';
 
 /** Lo que el historial necesita de cada evento; el del contrato la cumple. */
@@ -24,6 +28,12 @@ export interface HistorialProps {
   etiquetasPorCfdi?: Readonly<Record<string, string>>;
   /** Agrega «Esperando decisión»: solo con el estado `sugerencia`. */
   pendiente: boolean;
+  /** Descarte vigente del movimiento: agrega la fila «Descartado». */
+  descarte?: {
+    por: string | null;
+    motivo: string;
+    fecha: string | null;
+  } | null;
   /** Se está pidiendo: no se afirma que esté vacío. */
   cargando?: boolean;
   /** La petición falló: error propio, el caso sigue usable. */
@@ -41,11 +51,12 @@ export function Historial({
   etiquetaCfdi,
   etiquetasPorCfdi = {},
   pendiente,
+  descarte = null,
   cargando = false,
   fallo = false,
   onReintentar,
 }: HistorialProps) {
-  const hayFilas = eventos.length > 0 || pendiente;
+  const hayFilas = eventos.length > 0 || pendiente || descarte !== null;
   return (
     <aside className={estilos.historial} aria-busy={cargando || undefined}>
       <h2 className={estilos.titulo}>{HISTORIAL.titulo}</h2>
@@ -83,6 +94,7 @@ export function Historial({
             />
           ))}
           {pendiente ? <EventoPendiente /> : null}
+          {descarte === null ? null : <EventoDescarte {...descarte} />}
         </ol>
       ) : null}
     </aside>

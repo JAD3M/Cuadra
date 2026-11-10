@@ -1,5 +1,9 @@
 import { ApiError, ContratoError } from '@/shared/api';
-import { ACCION_CONFIRMAR, type AccionResolucion } from '@/shared/dominio';
+import {
+  ACCION_CONFIRMAR,
+  ACCION_RECHAZAR,
+  type AccionResolucion,
+} from '@/shared/dominio';
 
 // Clasificadores propios del detalle: `mensajeDeError` no distingue contrato,
 // no encontrado ni conflicto y sirve a otras pantallas, así que no se toca.
@@ -60,4 +64,15 @@ export function clasificarErrorAccion(
     default:
       return error.statusCode >= 500 ? 'conexion' : 'generico';
   }
+}
+
+/**
+ * Clase del fallo al descartar o deshacer un descarte. No hay alerta propia
+ * del 400 (el motivo ya se valida antes de enviar): se muestra como genérico.
+ */
+export function clasificarErrorDescarte(
+  error: unknown,
+): Exclude<ErrorAccion, 'motivo_largo'> {
+  const clase = clasificarErrorAccion(error, ACCION_RECHAZAR);
+  return clase === 'motivo_largo' ? 'generico' : clase;
 }

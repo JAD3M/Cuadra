@@ -103,6 +103,24 @@ export const casoConciliado = (o: Partial<RespuestaCaso> = {}) =>
     ...o,
   });
 
+/**
+ * Un movimiento descartado (5.6): el servidor lo devuelve en `sin_match`, sin
+ * propuestas y con el descarte. `puedeDeshacer` lo decide el servidor.
+ */
+export const casoDescartado = (o: Partial<RespuestaCaso> = {}) =>
+  caso({
+    estado: 'sin_match',
+    sinMatch: null,
+    propuestas: [],
+    descarte: {
+      motivo: 'Comisión bancaria',
+      por: 'Luis Reyes',
+      fecha: '2026-10-05T10:00:00.000Z',
+      puedeDeshacer: true,
+    },
+    ...o,
+  });
+
 /** Propuesta del LLM simulado: el motivo lleva el prefijo completo. */
 export const casoLlm = (o: Partial<RespuestaCaso> = {}) =>
   caso({

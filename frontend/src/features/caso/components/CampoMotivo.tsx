@@ -12,6 +12,14 @@ export interface CampoMotivoProps {
   deshabilitado: boolean;
   /** Para devolverle el foco cuando el envío se bloquea por exceso. */
   campoRef?: Ref<HTMLTextAreaElement>;
+  /** Etiqueta del campo; por omisión la del rechazo. */
+  etiqueta?: string;
+  /** Texto de ejemplo del campo; por omisión el del rechazo. */
+  ejemplo?: string;
+  /** Mensaje cuando es inválido; por omisión el del límite de largo. */
+  mensajeError?: string;
+  /** El error se anuncia como alerta (descarte, motivo obligatorio). */
+  anunciarError?: boolean;
 }
 
 /**
@@ -25,20 +33,24 @@ export function CampoMotivo({
   invalido,
   deshabilitado,
   campoRef,
+  etiqueta = DECISION.motivoEtiqueta,
+  ejemplo = DECISION.motivoEjemplo,
+  mensajeError = DECISION.motivoLargo,
+  anunciarError = false,
 }: CampoMotivoProps) {
   const id = useId();
   const ayuda = `${id}-ayuda`;
   return (
     <div className={estilos.campo}>
       <label htmlFor={id} className={estilos.etiqueta}>
-        {DECISION.motivoEtiqueta}
+        {etiqueta}
       </label>
       <textarea
         id={id}
         ref={campoRef}
         className={estilos.control}
         value={valor}
-        placeholder={DECISION.motivoEjemplo}
+        placeholder={ejemplo}
         disabled={deshabilitado}
         aria-invalid={invalido ? 'true' : undefined}
         aria-describedby={ayuda}
@@ -46,7 +58,12 @@ export function CampoMotivo({
       />
       <div id={ayuda} className={estilos.ayuda}>
         {invalido ? (
-          <span className={estilos.error}>{DECISION.motivoLargo}</span>
+          <span
+            className={estilos.error}
+            role={anunciarError ? 'alert' : undefined}
+          >
+            {mensajeError}
+          </span>
         ) : null}
         <span
           className={`${estilos.contador} ${invalido ? estilos.contadorPeligro : ''}`}

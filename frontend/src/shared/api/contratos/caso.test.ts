@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   respuestaCaso,
+  respuestaDescarte,
   respuestaHistorial,
   respuestaResolucion,
   type RespuestaCaso,
@@ -433,6 +434,62 @@ describe('respuestaHistorial', () => {
       respuestaHistorial.safeParse({
         datos: [evento({ createdAt: 'ayer' })],
       }).success,
+    ).toBe(false);
+  });
+});
+
+const DESCARTE = {
+  motivo: 'Comisión bancaria',
+  por: 'Luis Reyes',
+  fecha: '2026-10-05T10:00:00.000Z',
+  puedeDeshacer: true,
+};
+
+const descartado = (descarte: unknown = DESCARTE) =>
+  caso({
+    movimiento: { ...caso().movimiento, estado: 'descartado' },
+    estado: 'sin_match',
+    sinMatch: null,
+    propuestas: [],
+    descarte,
+  });
+
+describe('respuestaCaso: el descarte (5.6)', () => {
+  it('sigue aceptando un caso sin la clave descarte (respuesta anterior)', () => {
+    const r = respuestaCaso.parse(caso());
+    expect(r.descarte ?? null).toBeNull();
+  });
+
+  it('acepta descarte nulo y el objeto completo', () => {
+    expect(respuestaCaso.parse(caso({ descarte: null })).descarte).toBeNull();
+    expect(respuestaCaso.parse(descartado()).descarte).toEqual(DESCARTE);
+  });
+
+  it('acepta quien y cuando nulos, pero exige puedeDeshacer booleano', () => {
+    const sinDatos = { ...DESCARTE, por: null, fecha: null };
+    expect(respuestaCaso.safeParse(descartado(sinDatos)).success).toBe(true);
+    const mala = { ...DESCARTE, puedeDeshacer: 'si' };
+    expect(respuestaCaso.safeParse(descartado(mala)).success).toBe(false);
+  });
+
+  it('rechaza un descarte con propuestas: el cliente no inventa coherencia', () => {
+    const incoherente = { ...descartado(), propuestas: [propuesta(1)] };
+    expect(respuestaCaso.safeParse(incoherente).success).toBe(false);
+  });
+});
+
+describe('respuestaDescarte: POST descartar y deshacer-descarte', () => {
+  const base = { id: G(9), movimientoId: G(1), motivo: 'Comisión bancaria' };
+
+  it('acepta descartada y reabierta', () => {
+    for (const estado of ['descartada', 'reabierta']) {
+      expect(respuestaDescarte.parse({ ...base, estado }).estado).toBe(estado);
+    }
+  });
+
+  it('rechaza un estado que no es del descarte', () => {
+    expect(
+      respuestaDescarte.safeParse({ ...base, estado: 'confirmada' }).success,
     ).toBe(false);
   });
 });

@@ -3,11 +3,13 @@ import type {
   FilaBandeja,
   PropuestaCaso,
   RespuestaCaso,
+  RespuestaDescarte,
   RespuestaHistorial,
   RespuestaResolucion,
 } from '@/shared/api/contratos';
 import { MOTIVO_MAXIMO } from '@/shared/dominio';
 import { USUARIO } from '@/test/fixtures';
+import { idDe } from '@/test/fixturesBandeja';
 import { casoDeFila } from '@/test/fixturesCaso';
 import { crearHandlersBandeja } from '@/test/handlersBandeja';
 
@@ -37,6 +39,8 @@ export interface OpcionesCaso {
   conflicto?: boolean;
   /** Confirmar responde 403 (quien subió el CFDI no puede confirmarlo). */
   segregacion?: boolean;
+  /** Descartar y deshacer responden 403 (rol o persona sin permiso). */
+  prohibido?: boolean;
 }
 
 /** Almacén de la bandeja con el que el caso comparte datos. */
@@ -83,6 +87,8 @@ export function crearHandlersCaso(
   let propios = new Map<string, RespuestaCaso>();
   let eventos = new Map<string, Evento[]>();
   let opciones: OpcionesCaso = {};
+  /** Filas que el descarte sacó de la bandeja, para devolverlas al deshacer. */
+  let retiradas = new Map<string, FilaBandeja>();
 
   function casos(): RespuestaCaso[] {
     const deFilas = bandeja
@@ -296,8 +302,100 @@ export function crearHandlersCaso(
     },
   );
 
+  /** Motivo del cuerpo de descartar: texto recortado de 1 a MOTIVO_MAXIMO. */
+  function motivoValido(cuerpo: unknown): string | undefined {
+    const crudo =
+      cuerpo !== null && typeof cuerpo === 'object' && 'motivo' in cuerpo
+        ? (cuerpo as { motivo: unknown }).motivo
+        : undefined;
+    if (typeof crudo !== 'string') return undefined;
+    const recortado = crudo.trim();
+    const largo = Array.from(recortado).length;
+    return largo >= 1 && largo <= MOTIVO_MAXIMO ? recortado : undefined;
+  }
+
+  const descartar = http.post(
+    '/api/movimientos/:movimientoId/descartar',
+    async ({ params, request }) => {
+      const id = String(params.movimientoId);
+      if (!GUID.test(id)) {
+        return ERROR_NEST(400, 'Validation failed (uuid is expected)');
+      }
+      const cuerpo: unknown = await request.json().catch(() => undefined);
+      const motivo = motivoValido(cuerpo);
+      if (motivo === undefined) return ERROR_NEST(400, 'motivo invalido');
+      const caso = buscarCaso(id);
+      if (caso === undefined)
+        return ERROR_NEST(404, 'Movimiento no encontrado');
+      if (opciones.prohibido === true)
+        return ERROR_NEST(403, 'acceso_denegado');
+      if (
+        opciones.conflicto === true ||
+        caso.estado !== 'sin_match' ||
+        caso.descarte
+      ) {
+        return ERROR_NEST(409, 'El movimiento ya no esta abierto');
+      }
+      const fila = bandeja.filas().find((f) => f.movimientoId === id);
+      if (fila) retiradas.set(id, fila);
+      bandeja.establecer(bandeja.filas().filter((f) => f.movimientoId !== id));
+      propios.set(id, {
+        ...caso,
+        sinMatch: null,
+        descarte: {
+          motivo,
+          por: USUARIO.nombre,
+          fecha: INSTANTE,
+          puedeDeshacer: true,
+        },
+      });
+      const respuesta: RespuestaDescarte = {
+        id: idDe(9000),
+        movimientoId: id,
+        estado: 'descartada',
+        motivo,
+      };
+      return HttpResponse.json(respuesta);
+    },
+  );
+
+  const deshacerDescarte = http.post(
+    '/api/movimientos/:movimientoId/deshacer-descarte',
+    ({ params }) => {
+      const id = String(params.movimientoId);
+      if (!GUID.test(id)) {
+        return ERROR_NEST(400, 'Validation failed (uuid is expected)');
+      }
+      const caso = buscarCaso(id);
+      if (caso === undefined)
+        return ERROR_NEST(404, 'Movimiento no encontrado');
+      if (opciones.prohibido === true)
+        return ERROR_NEST(403, 'acceso_denegado');
+      if (opciones.conflicto === true || !caso.descarte) {
+        return ERROR_NEST(409, 'El movimiento no esta descartado');
+      }
+      const fila = retiradas.get(id);
+      retiradas.delete(id);
+      if (fila && !bandeja.filas().some((f) => f.movimientoId === id)) {
+        bandeja.establecer([...bandeja.filas(), fila]);
+      }
+      propios.set(id, {
+        ...caso,
+        sinMatch: { regla: null, motivo: null },
+        descarte: null,
+      });
+      const respuesta: RespuestaDescarte = {
+        id: idDe(9000),
+        movimientoId: id,
+        estado: 'reabierta',
+        motivo: caso.descarte.motivo,
+      };
+      return HttpResponse.json(respuesta);
+    },
+  );
+
   return {
-    handlers: [detalle, historial, resolver],
+    handlers: [detalle, historial, resolver, descartar, deshacerDescarte],
     /** Reemplaza los casos que sirve la ruta. */
     establecer(nuevos: readonly RespuestaCaso[]) {
       propios = new Map(nuevos.map((c) => [c.movimiento.id, c]));
@@ -311,6 +409,7 @@ export function crearHandlersCaso(
       propios = new Map();
       eventos = new Map();
       opciones = {};
+      retiradas = new Map();
     },
   };
 }
@@ -325,6 +424,18 @@ export function casoFalla(status: number) {
 /** Corta la conexión de `GET /casos/:id` (fallo de red). */
 export function casoRedDeFallo() {
   return http.get('/api/casos/:movimientoId', () => HttpResponse.error());
+}
+
+/** Manejador de `POST descartar|deshacer-descarte` que falla con `status`. */
+export function descarteFalla(status: number) {
+  return [
+    http.post('/api/movimientos/:movimientoId/descartar', () =>
+      ERROR_NEST(status, 'detalle del servidor'),
+    ),
+    http.post('/api/movimientos/:movimientoId/deshacer-descarte', () =>
+      ERROR_NEST(status, 'detalle del servidor'),
+    ),
+  ];
 }
 
 /** Manejador de `POST confirmar|rechazar` que falla con `status`. */

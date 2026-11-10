@@ -5,8 +5,11 @@ import {
   ETIQUETAS_ACCION_BITACORA,
 } from '@/shared/dominio';
 import type { AccionBitacora } from '@/shared/dominio';
-import { formatearInstante } from '@/features/caso/fecha';
-import { HISTORIAL } from '@/features/caso/textos';
+import {
+  formatearDiaDeInstante,
+  formatearInstante,
+} from '@/features/caso/fecha';
+import { DESCARTADO, HISTORIAL } from '@/features/caso/textos';
 import estilos from './EventoHistorial.module.css';
 
 export interface EventoHistorialProps {
@@ -99,6 +102,39 @@ export function EventoPendiente() {
         <strong className={estilos.titulo}>{HISTORIAL.pendiente.titulo}</strong>
         <span className={estilos.detalle}>{HISTORIAL.pendiente.detalle}</span>
         <span className={estilos.cuando}>{HISTORIAL.pendiente.cuando}</span>
+      </div>
+    </li>
+  );
+}
+
+export interface EventoDescarteProps {
+  /** Quién descartó; `null` si el servidor no lo devolvió. */
+  por: string | null;
+  motivo: string;
+  /** Instante ISO del descarte; `null` si el servidor no lo devolvió. */
+  fecha: string | null;
+}
+
+/**
+ * «Descartado»: fila derivada del descarte vigente del caso, con quién y el
+ * motivo que devolvió el servidor. No es un evento de conciliación: el
+ * movimiento descartado no tiene propuestas ni historial propio.
+ */
+export function EventoDescarte({ por, motivo, fecha }: EventoDescarteProps) {
+  return (
+    <li className={estilos.evento} data-testid="evento-descarte">
+      <span
+        className={`${estilos.punto} ${estilos.neutro}`}
+        aria-hidden="true"
+      />
+      <div className={estilos.cuerpo}>
+        <strong className={estilos.titulo}>{DESCARTADO.evento}</strong>
+        <span className={estilos.detalle}>
+          {por === null ? motivo : `${por}${HISTORIAL.separador}${motivo}`}
+        </span>
+        <span className={estilos.cuando}>
+          {fecha === null ? DESCARTADO.sinDato : formatearDiaDeInstante(fecha)}
+        </span>
       </div>
     </li>
   );

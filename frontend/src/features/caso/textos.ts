@@ -165,6 +165,8 @@ export const HISTORIAL = {
   vacio: 'Aún no hay eventos en el historial.',
   /** Actor de un evento sin usuario. */
   sistema: 'Sistema',
+  /** Separador de «{usuario} · {detalle}». */
+  separador: ' · ',
   /** La propuesta cuando el CFDI ya no está a la vista (p. ej. rechazada). */
   propuestaSinCfdi: 'El motor propuso un CFDI',
   /** Evento 4.6: una factura de la decisión se marcó cancelada. */
@@ -195,4 +197,46 @@ export const BANNER = {
   quedan: (cantidad: number) =>
     `Quedan ${cantidad} propuestas vigentes para este movimiento.`,
   vuelveASinMatch: 'El movimiento vuelve a sin match.',
+} as const;
+
+/** Descartar un movimiento que no es de ningún cliente (5.6, maquetas 3 y 8). */
+export const DESCARTE = {
+  accion: 'Descartar movimiento',
+  ayuda:
+    'Para comisiones, intereses y otros movimientos que no son de ningún cliente.',
+  titulo: 'Descartar movimiento',
+  motivoEtiqueta: 'Motivo del descarte (obligatorio)',
+  motivoEjemplo: 'Ej. comisión bancaria',
+  motivoObligatorio: 'El motivo es obligatorio para descartar.',
+  motivoLargo: 'El motivo no puede pasar de 500 caracteres.',
+  confirmar: 'Descartar movimiento',
+  descartando: 'Descartando…',
+  cancelar: 'Cancelar',
+  nota: 'Queda en la bitácora con tu nombre y el motivo. Puedes deshacerlo después.',
+  /** Región en vivo (solo lectores) mientras el descarte viaja al servidor. */
+  enviando: 'Descartando el movimiento',
+} as const;
+
+/** Variante de solo lectura de un movimiento descartado. */
+export const DESCARTADO = {
+  /** Glifo decorativo del chip: el texto lleva el significado. */
+  glifo: '⊘',
+  titulo: 'Descartado',
+  principal: 'Este movimiento se descartó: no es de ningún cliente.',
+  motivo: 'Motivo',
+  por: 'Descartado por',
+  fecha: 'Fecha',
+  nota: 'Mientras siga descartado no se muestran sus propuestas y no aparece en la bandeja.',
+  deshacer: 'Deshacer descarte',
+  deshaciendo: 'Deshaciendo…',
+  deshacerAyuda: 'El movimiento vuelve a la bandeja como pendiente.',
+  /** Su rol no tiene el permiso (por ejemplo, el auditor). */
+  soloLecturaRol: 'Solo lectura: tu rol no puede deshacer descartes.',
+  /** Su rol lo tiene, pero el servidor dice que este descarte no es suyo. */
+  soloAutorOAdmin:
+    'Solo quien descartó el movimiento o un administrador puede deshacer el descarte.',
+  /** Evento del historial derivado del descarte vigente. */
+  evento: 'Descartado',
+  /** Sin dato del servidor no se inventa nada. */
+  sinDato: '—',
 } as const;

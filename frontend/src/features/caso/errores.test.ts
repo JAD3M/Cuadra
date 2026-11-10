@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError, ContratoError, NetworkError } from '@/shared/api';
-import { clasificarErrorAccion, clasificarErrorLectura } from './errores';
+import {
+  clasificarErrorAccion,
+  clasificarErrorDescarte,
+  clasificarErrorLectura,
+} from './errores';
 
 const api = (status: number, mensajes: string[] = ['texto del servidor']) =>
   new ApiError(status, 'Error', mensajes);
@@ -84,5 +88,26 @@ describe('clasificarErrorAccion', () => {
       'confirmar',
     );
     expect(clase).not.toMatch(/acceso_denegado|interno/);
+  });
+});
+
+describe('clasificarErrorDescarte', () => {
+  it.each([
+    [403, 'sin_permiso'],
+    [404, 'no_encontrado'],
+    [409, 'conflicto'],
+    [500, 'conexion'],
+    [422, 'generico'],
+  ])('el status %i es %s', (status, clase) => {
+    expect(clasificarErrorDescarte(api(status))).toBe(clase);
+  });
+
+  it('un 400 no es «motivo largo» (ya se validó antes de enviar): es genérico', () => {
+    expect(clasificarErrorDescarte(api(400))).toBe('generico');
+  });
+
+  it('un cuerpo ilegible es contrato y un fallo de red es conexión', () => {
+    expect(clasificarErrorDescarte(new ContratoError())).toBe('contrato');
+    expect(clasificarErrorDescarte(new NetworkError())).toBe('conexion');
   });
 });
