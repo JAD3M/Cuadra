@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { rolesConPermiso } from '../auth/permisos/matriz';
 import { ContextoEmpresa } from '../database/contexto-empresa';
-import type { EstadoMovimiento } from '../common/entities/tipos';
+import type { EstadoMovimiento, Rol } from '../common/entities/tipos';
 import type { EstadoBandeja } from '../bandeja/dto/bandeja.dto';
 import { nivelDeConfianza } from '../conciliacion/evaluar-par';
 import type { CfdiResumenDto } from '../bandeja/dto/bandeja.dto';
@@ -30,7 +31,9 @@ const CONSULTA = `
          c.score::text AS score, c.regla, c.motivo,
          c.diferencia_monto::text AS diferencia_monto,
          c.confirmada_at, u.nombre AS confirmada_por, c.requiere_revision,
-         lc.cfdis
+         lc.cfdis,
+         d.motivo AS descarte_motivo, ud.nombre AS descarte_por,
+         d.descartada_por_id AS descarte_por_id, d.descartada_at AS descarte_at
     FROM movimientos m
     JOIN companies co ON co.id = m.company_id AND co.id = $2
     LEFT JOIN decisiones c
@@ -52,6 +55,10 @@ const CONSULTA = `
        WHERE l.company_id = $2 AND l.decision_id = c.id
     ) lc ON true
     LEFT JOIN users u ON u.id = c.confirmada_por_id
+    LEFT JOIN decisiones d
+           ON d.company_id = $2 AND d.movimiento_id = m.id
+          AND d.tipo = 'descarte' AND d.estado = 'descartada'
+    LEFT JOIN users ud ON ud.id = d.descartada_por_id
    WHERE m.id = $1 AND m.company_id = $2
      AND m.estado <> 'pendiente_revision' -- estacionado (3.5): no es un caso
    ORDER BY c.score DESC NULLS LAST, c.id`;
@@ -78,6 +85,10 @@ interface FilaSql {
   confirmada_por: string | null;
   requiere_revision: boolean | null;
   cfdis: CfdiResumenDto[] | null;
+  descarte_motivo: string | null;
+  descarte_por: string | null;
+  descarte_por_id: string | null;
+  descarte_at: Date | null;
 }
 
 /**
@@ -93,6 +104,7 @@ export class CasosService {
   async obtener(
     companyId: string,
     movimientoId: string,
+    userId: string,
   ): Promise<RespuestaCasoDto> {
     const filas = await this.contexto
       .manager()
@@ -114,6 +126,19 @@ export class CasosService {
     const esSinMatch = estado === 'sin_match';
     // Un descartado guarda su regla, pero no es un "sin match" del motor.
     const conRegistro = esSinMatch && m.estado_movimiento !== 'descartado';
+    const descarte =
+      m.estado_movimiento === 'descartado' && m.descarte_motivo !== null
+        ? {
+            motivo: m.descarte_motivo,
+            por: m.descarte_por,
+            fecha: m.descarte_at ? new Date(m.descarte_at).toISOString() : null,
+            puedeDeshacer: await this.puedeDeshacer(
+              companyId,
+              userId,
+              m.descarte_por_id,
+            ),
+          }
+        : null;
     return {
       movimiento: {
         id: m.movimiento_id,
@@ -132,9 +157,31 @@ export class CasosService {
             motivo: conRegistro ? m.motivo_sin_match : null,
           }
         : null,
+      descarte,
       toleranciaMonto: m.tolerancia_monto,
       propuestas,
     };
+  }
+  /**
+   * Lo mismo que exige `DescarteService.deshacer`: un rol con el permiso y,
+   * además, ser admin o quien descartó. El servidor decide; la interfaz solo
+   * lo muestra.
+   */
+  private async puedeDeshacer(
+    companyId: string,
+    userId: string,
+    descartadaPorId: string | null,
+  ): Promise<boolean> {
+    const roles = await this.contexto
+      .manager()
+      .query<{ rol: Rol }[]>(
+        `SELECT rol FROM user_company_roles WHERE user_id = $1 AND company_id = $2`,
+        [userId, companyId],
+      );
+    const conPermiso = rolesConPermiso('movimientos.deshacer_descarte');
+    const lista = roles.map((fila) => fila.rol);
+    if (!lista.some((rol) => conPermiso.includes(rol))) return false;
+    return lista.includes('admin') || descartadaPorId === userId;
   }
 }
 

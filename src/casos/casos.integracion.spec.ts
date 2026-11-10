@@ -658,3 +658,82 @@ describe('CAS-5 documentación', () => {
     );
   });
 });
+
+describe('CAS-5 movimiento descartado (historia 5.6)', () => {
+  async function descartado(porEmail: string): Promise<string> {
+    const m = await movimiento(A, { estado: 'descartado' });
+    await sembrarDecision(ds, {
+      companyId: A,
+      movimientoId: m,
+      cfdiId: await factura(A),
+      estado: 'propuesta',
+    });
+    await ds.query(
+      `INSERT INTO decisiones (company_id, movimiento_id, tipo, estado, origen,
+                               huella_conjunto, motivo, descartada_por_id, descartada_at)
+       VALUES ($1,$2,'descarte','descartada','manual','v1:x','Comisión bancaria',$3,now())`,
+      [A, m, entorno.persona(porEmail)],
+    );
+    return m;
+  }
+
+  it('devuelve el descarte con motivo, quién y cuándo, y oculta las propuestas', async () => {
+    const m = await descartado(LUIS);
+    const { nombre } = await una<{ nombre: string }>(
+      ds,
+      'SELECT nombre FROM users WHERE id = $1',
+      [entorno.persona(LUIS)],
+    );
+
+    const cuerpo = await obtener(m);
+
+    expect(cuerpo.movimiento.estado).toBe('descartado');
+    expect(cuerpo.propuestas).toEqual([]);
+    expect(cuerpo.descarte).toEqual({
+      motivo: 'Comisión bancaria',
+      por: nombre,
+      fecha: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/) as string,
+      puedeDeshacer: true,
+    });
+  });
+
+  it('quien descartó puede deshacer; un admin también; otra persona no', async () => {
+    const m = await descartado(LUIS);
+
+    expect((await obtener(m, tokenA)).descarte?.puedeDeshacer).toBe(true);
+    expect(
+      (await obtener(m, await entorno.token(LUIS, FERRETERIA))).descarte
+        ?.puedeDeshacer,
+    ).toBe(true);
+
+    const ajeno = await descartado(ANA);
+    expect(
+      (await obtener(ajeno, await entorno.token(LUIS, FERRETERIA))).descarte
+        ?.puedeDeshacer,
+    ).toBe(false);
+  });
+
+  it('un auditor ve el descarte pero no puede deshacerlo, aunque lo hubiera hecho', async () => {
+    const m = await descartado(LUIS);
+    const cambiarRol = (rol: string) =>
+      ds.query(
+        `UPDATE user_company_roles SET rol = $3
+          WHERE user_id = $1 AND company_id = $2`,
+        [entorno.persona(LUIS), A, rol],
+      );
+    await cambiarRol('auditor');
+    try {
+      const cuerpo = await obtener(m, await entorno.token(LUIS, FERRETERIA));
+      expect(cuerpo.descarte?.puedeDeshacer).toBe(false);
+    } finally {
+      await cambiarRol('contador');
+    }
+  });
+
+  it('un movimiento que no está descartado trae descarte nulo', async () => {
+    const m = await movimiento(A);
+    await conciliacion(A, await factura(A), m, 'propuesta');
+
+    expect((await obtener(m)).descarte).toBeNull();
+  });
+});

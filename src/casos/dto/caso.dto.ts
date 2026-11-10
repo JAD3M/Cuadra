@@ -95,6 +95,27 @@ export class PropuestaCasoDto {
   cfdis: CfdiResumenDto[];
 }
 
+export class DescarteCasoDto {
+  @ApiProperty({ example: 'Comisión bancaria' }) motivo: string;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description: 'Nombre de quien descartó.',
+  })
+  por: string | null;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description: 'Fecha ISO del descarte.',
+  })
+  fecha: string | null;
+  @ApiProperty({
+    description:
+      'true si quien consulta puede deshacer el descarte: admin o quien lo descartó, con rol que tenga el permiso. El servidor lo decide.',
+  })
+  puedeDeshacer: boolean;
+}
+
 export class RespuestaCasoDto {
   @ApiProperty({ type: CasoMovimientoDto }) movimiento: CasoMovimientoDto;
   @ApiProperty({
@@ -113,6 +134,13 @@ export class RespuestaCasoDto {
     description: 'Solo en sin_match; sus campos son nulos si no hay registro.',
   })
   sinMatch: SinMatchCasoDto | null;
+  @ApiProperty({
+    nullable: true,
+    type: DescarteCasoDto,
+    description:
+      'Solo en un movimiento descartado; nulo en cualquier otro caso.',
+  })
+  descarte: DescarteCasoDto | null;
   @ApiProperty({
     example: '0.5000',
     description: 'Tolerancia de monto de la empresa, texto decimal.',
