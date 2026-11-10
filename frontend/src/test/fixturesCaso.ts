@@ -62,6 +62,7 @@ function caso(o: Partial<RespuestaCaso> = {}): RespuestaCaso {
     toleranciaMonto: '0.5000',
     requiereRevision: false,
     propuestas: [propuestaCaso(1)],
+    puedeReabrir: false,
     ...o,
   };
 }

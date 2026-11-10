@@ -78,3 +78,32 @@ describe('EventoPendiente', () => {
     expect(screen.getByTestId('evento-pendiente')).toBeInTheDocument();
   });
 });
+
+describe('EventoHistorial: reapertura (5.7)', () => {
+  it('la reapertura se titula «Reabierta» y dice quién y el motivo del servidor', () => {
+    dibujar({
+      accion: 'reabrir',
+      usuario: { nombre: 'Luis Reyes' },
+      motivo: 'Confirmé el CFDI equivocado',
+    });
+    expect(screen.getByText('Reabierta')).toBeInTheDocument();
+    expect(
+      screen.getByText('Luis Reyes · Confirmé el CFDI equivocado'),
+    ).toBeInTheDocument();
+  });
+
+  it('sin motivo en el evento no inventa uno', () => {
+    dibujar({ accion: 'reabrir', usuario: { nombre: 'Luis Reyes' } });
+    expect(screen.getByText('Luis Reyes')).toBeInTheDocument();
+  });
+
+  it('un motivo en otra acción no se muestra', () => {
+    dibujar({
+      accion: 'confirmar',
+      usuario: { nombre: 'Ana' },
+      motivo: 'no debería verse',
+    });
+    expect(screen.getByText('Ana')).toBeInTheDocument();
+    expect(screen.queryByText(/no debería verse/)).toBeNull();
+  });
+});

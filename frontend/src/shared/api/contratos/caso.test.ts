@@ -3,6 +3,7 @@ import {
   respuestaCaso,
   respuestaDescarte,
   respuestaHistorial,
+  respuestaReabrir,
   respuestaResolucion,
   type RespuestaCaso,
 } from './caso';
@@ -491,5 +492,95 @@ describe('respuestaDescarte: POST descartar y deshacer-descarte', () => {
     expect(
       respuestaDescarte.safeParse({ ...base, estado: 'confirmada' }).success,
     ).toBe(false);
+  });
+});
+
+describe('puedeReabrir del caso (5.7)', () => {
+  const crudo = (o: Record<string, unknown> = {}) => ({
+    movimiento: {
+      id: G(1),
+      fecha: '2026-09-02',
+      monto: '1160.0000',
+      moneda: 'MXN',
+      descripcion: 'SPEI',
+      referencia: null,
+    },
+    estado: 'sin_match',
+    sinMatch: { regla: null, motivo: null },
+    toleranciaMonto: '0.5000',
+    requiereRevision: false,
+    propuestas: [],
+    ...o,
+  });
+
+  it('una respuesta sin puedeReabrir sigue siendo válida y vale false', () => {
+    const r = respuestaCaso.parse(crudo());
+    expect(r.puedeReabrir).toBe(false);
+  });
+
+  it('conserva puedeReabrir cuando el servidor lo manda', () => {
+    expect(
+      respuestaCaso.parse(crudo({ puedeReabrir: true })).puedeReabrir,
+    ).toBe(true);
+  });
+
+  it('rechaza un puedeReabrir que no es booleano', () => {
+    expect(respuestaCaso.safeParse(crudo({ puedeReabrir: 'si' })).success).toBe(
+      false,
+    );
+  });
+});
+
+describe('respuestaReabrir: POST reabrir (5.7)', () => {
+  const base = {
+    id: G(1),
+    estado: 'reabierta',
+    movimientoId: G(2),
+    cfdiIds: [G(3)],
+    motivo: 'Confirmé el CFDI equivocado',
+  };
+
+  it('acepta la respuesta del servidor', () => {
+    expect(respuestaReabrir.parse(base).estado).toBe('reabierta');
+  });
+
+  it('rechaza otro estado', () => {
+    expect(
+      respuestaReabrir.safeParse({ ...base, estado: 'confirmada' }).success,
+    ).toBe(false);
+  });
+});
+
+describe('respuestaHistorial: motivo de la reapertura (5.7)', () => {
+  const evento = (datos: unknown) => ({
+    id: G(900),
+    entidad: 'decisiones',
+    entidadId: G(101),
+    accion: 'reabrir',
+    createdAt: '2026-10-06T10:00:00.000Z',
+    usuario: { nombre: 'Luis Reyes' },
+    datos,
+  });
+
+  it('expone solo el motivo del evento, no el resto de datos', () => {
+    const r = respuestaHistorial.parse({
+      datos: [
+        evento({ motivo: 'Confirmé el CFDI equivocado', ip: '10.0.0.1' }),
+      ],
+    });
+    expect(r.datos[0]?.motivo).toBe('Confirmé el CFDI equivocado');
+    expect(JSON.stringify(r)).not.toContain('10.0.0.1');
+    expect(r.datos[0]).not.toHaveProperty('datos');
+  });
+
+  it('un evento sin motivo (o con datos ilegibles) sigue siendo válido', () => {
+    const r = respuestaHistorial.parse({
+      datos: [evento(null), evento([1, 2]), evento({ motivo: 7 })],
+    });
+    expect(r.datos.map((e) => e.motivo)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+    ]);
   });
 });

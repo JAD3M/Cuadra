@@ -10,6 +10,7 @@ import { useSessionContext } from '@/shared/sesion';
 import { etiquetaCfdi } from '@/features/bandeja/etiquetaCfdi';
 import { useEpoca } from '@/features/bandeja/useEpoca';
 import { AlertaAccion } from './components/AlertaAccion';
+import { AvisoInfo } from './components/AvisoInfo';
 import { AvisoSoloLectura } from './components/AvisoSoloLectura';
 import { AvisoVarias } from './components/AvisoVarias';
 import { BannerResolucion } from './components/BannerResolucion';
@@ -22,6 +23,7 @@ import { ErrorCaso } from './components/ErrorCaso';
 import { EstadoCargaCaso } from './components/EstadoCargaCaso';
 import { Historial } from './components/Historial';
 import { ListaPropuestas } from './components/ListaPropuestas';
+import { ReabrirConfirmacion } from './components/ReabrirConfirmacion';
 import { PanelDecision } from './components/PanelDecision';
 import { TarjetaConciliado } from './components/TarjetaConciliado';
 import { etiquetasCanceladas, etiquetasPorCfdi } from './canceladas';
@@ -31,13 +33,14 @@ import { TarjetaSinMatch } from './components/TarjetaSinMatch';
 import estilos from './CasoContenedor.module.css';
 import { clavesCaso } from './claves';
 import { clasificarErrorAccion, clasificarErrorDescarte } from './errores';
-import { PROPUESTAS, VOLVER_A_BANDEJA } from './textos';
+import { PROPUESTAS, REABRIR, VOLVER_A_BANDEJA } from './textos';
 import { useCaso } from './useCaso';
 import {
   useDescartarMovimiento,
   useDeshacerDescarte,
 } from './useDescartarMovimiento';
 import { useHistorial } from './useHistorial';
+import { useReabrirConfirmacion } from './useReabrirConfirmacion';
 import { useResolverCaso } from './useResolverCaso';
 import {
   bannerDe,
@@ -84,7 +87,11 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
   const rolPuedeDeshacer =
     sesion.status === 'ready' &&
     puede(sesion.contexto.capacidades, 'movimientos.deshacer_descarte');
+  const rolPuedeReabrir =
+    sesion.status === 'ready' &&
+    puede(sesion.contexto.capacidades, 'conciliaciones.reabrir');
   const descartar = useDescartarMovimiento();
+  const reabrir = useReabrirConfirmacion();
   const deshacer = useDeshacerDescarte();
   const alertaRef = useRef<HTMLDivElement>(null);
   const descartadoRef = useRef<HTMLElement>(null);
@@ -150,10 +157,33 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
       (deshacer.isSuccess && deshacerVigente));
   const hayAlertaDescarte = errorDescarte !== null || errorDeshacer !== null;
 
+  // Reabrir: lo que se activó en otra época se ignora, igual.
+  const reabrirVigente =
+    reabrir.variables !== undefined && reabrir.variables.epoca === epoca;
+  const errorReabrir =
+    reabrir.isError && reabrirVigente
+      ? clasificarErrorDescarte(reabrir.error)
+      : null;
+  // Tras un 409 o 404 el formulario espera a recargar.
+  const reabrirBloqueado =
+    errorReabrir === 'conflicto' || errorReabrir === 'no_encontrado';
+  // La reapertura salió bien y volver a pedir el caso falló: el caso es viejo.
+  const reabrirDesactualizado =
+    consulta.isRefetchError && reabrir.isSuccess && reabrirVigente;
+
   // Tras un fallo el foco va a la alerta; el 400 lo lleva el propio campo.
   useEffect(() => {
-    if (conAlerta || hayAlertaDescarte) alertaRef.current?.focus();
-  }, [conAlerta, errorAccion, hayAlertaDescarte, errorDescarte, errorDeshacer]);
+    if (conAlerta || hayAlertaDescarte || errorReabrir !== null) {
+      alertaRef.current?.focus();
+    }
+  }, [
+    conAlerta,
+    errorAccion,
+    hayAlertaDescarte,
+    errorDescarte,
+    errorDeshacer,
+    errorReabrir,
+  ]);
 
   // Descartar terminó: el formulario ya no está; el foco va a la tarjeta
   // «Descartado». Al deshacer, a la descripción del movimiento.
@@ -180,6 +210,7 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
     resolucion.reset();
     descartar.reset();
     deshacer.reset();
+    reabrir.reset();
     await cliente.invalidateQueries({ queryKey: clavesCaso.todas(epoca) });
     descripcionRef.current?.focus();
   }
@@ -223,12 +254,16 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
         descartado={descarte !== null}
         descripcionRef={descripcionRef}
         avisos={
-          banner === null && !descarteDesactualizado ? null : (
+          banner === null &&
+          !descarteDesactualizado &&
+          !reabrirDesactualizado ? null : (
             <>
               {banner === null ? null : (
                 <BannerResolucion ref={bannerRef} {...banner} />
               )}
-              {desactualizado || descarteDesactualizado ? (
+              {desactualizado ||
+              descarteDesactualizado ||
+              reabrirDesactualizado ? (
                 <ErrorCaso
                   tipo="conexion"
                   onReintentar={() => void consulta.refetch()}
@@ -374,6 +409,39 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
                 <TarjetaConciliado
                   usuario={expandida.confirmadaPor?.nombre ?? null}
                   confirmadaAt={expandida.confirmadaAt}
+                />
+              )}
+              {caso.puedeReabrir ? (
+                <ReabrirConfirmacion
+                  key={expandida.conciliacionId}
+                  enviando={reabrir.isPending}
+                  deshabilitado={reabrirBloqueado || reabrirDesactualizado}
+                  onCambio={() => {
+                    if (reabrir.isError) reabrir.reset();
+                  }}
+                  alerta={
+                    errorReabrir === null ? null : (
+                      <AlertaAccion
+                        ref={alertaRef}
+                        tipo={errorReabrir}
+                        onRecargar={() => void recargar()}
+                      />
+                    )
+                  }
+                  onReabrir={(motivo) =>
+                    reabrir.reabrir({
+                      conciliacionId: expandida.conciliacionId,
+                      motivo,
+                    })
+                  }
+                />
+              ) : (
+                <AvisoInfo
+                  texto={
+                    rolPuedeReabrir
+                      ? REABRIR.soloAutorOAdmin
+                      : REABRIR.soloLecturaRol
+                  }
                 />
               )}
             </>

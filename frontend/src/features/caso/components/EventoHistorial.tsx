@@ -25,6 +25,8 @@ export interface EventoHistorialProps {
   entidad?: string;
   /** Etiqueta de la factura cancelada; `null` si no se conoce. */
   etiquetaFactura?: string | null;
+  /** Motivo que el servidor guardó en el evento (la reapertura lo trae). */
+  motivo?: string;
 }
 
 function esCancelacionDeFactura(entidad: string | undefined, accion: string) {
@@ -37,10 +39,23 @@ function esAccionConocida(accion: string): accion is AccionBitacora {
 
 function tituloDe(accion: string, etiquetaCfdi: string | null): string {
   if (!esAccionConocida(accion)) return accion;
+  if (accion === 'reabrir') return HISTORIAL.reabierta;
   if (accion !== 'crear') return ETIQUETAS_ACCION_BITACORA[accion];
   return etiquetaCfdi === null
     ? HISTORIAL.propuestaSinCfdi
     : `${ETIQUETAS_ACCION_BITACORA.crear} ${etiquetaCfdi}`;
+}
+
+/** Quién actuó; la reapertura suma el motivo que el servidor guardó. */
+function detalleDe(
+  usuario: { nombre: string } | null,
+  accion: string,
+  motivo: string | undefined,
+): string {
+  const actor = usuario?.nombre ?? HISTORIAL.sistema;
+  return accion === 'reabrir' && motivo !== undefined
+    ? `${actor}${HISTORIAL.separador}${motivo}`
+    : actor;
 }
 
 function tonoDe(accion: string, cancelacion: boolean): string {
@@ -62,6 +77,7 @@ export function EventoHistorial({
   etiquetaCfdi,
   entidad,
   etiquetaFactura = null,
+  motivo,
 }: EventoHistorialProps) {
   const cancelacion = esCancelacionDeFactura(entidad, accion);
   return (
@@ -79,7 +95,7 @@ export function EventoHistorial({
         <span className={estilos.detalle}>
           {cancelacion
             ? HISTORIAL.facturaCanceladaDetalle
-            : (usuario?.nombre ?? HISTORIAL.sistema)}
+            : detalleDe(usuario, accion, motivo)}
         </span>
         <span className={estilos.cuando}>{formatearInstante(createdAt)}</span>
       </div>

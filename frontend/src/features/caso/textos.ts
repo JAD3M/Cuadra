@@ -176,6 +176,8 @@ export const HISTORIAL = {
       : `La factura ${etiqueta} se marcó cancelada`,
   facturaCanceladaDetalle:
     'Cuadra no reabre la conciliación: hace falta revisarla',
+  /** Evento `reabrir` (5.7): título propio de la maqueta, no la etiqueta de la bitácora. */
+  reabierta: 'Reabierta',
   /** Fila derivada del estado del servidor: no es un evento real. */
   pendiente: {
     titulo: 'Esperando decisión',
@@ -239,4 +241,26 @@ export const DESCARTADO = {
   evento: 'Descartado',
   /** Sin dato del servidor no se inventa nada. */
   sinDato: '—',
+} as const;
+
+/** Reabrir una confirmación (5.7, maquetas 3 y 8). */
+export const REABRIR = {
+  accion: 'Reabrir confirmación',
+  ayuda: 'El caso vuelve a la bandeja como pendiente y queda en el historial.',
+  titulo: 'Reabrir confirmación',
+  motivoEtiqueta: 'Motivo de la reapertura (obligatorio)',
+  motivoEjemplo: 'Ej. confirmé el CFDI equivocado',
+  motivoObligatorio: 'El motivo es obligatorio para reabrir.',
+  motivoLargo: 'El motivo no puede pasar de 500 caracteres.',
+  confirmar: 'Reabrir confirmación',
+  reabriendo: 'Reabriendo…',
+  cancelar: 'Cancelar',
+  nota: 'Queda en la bitácora con tu nombre y el motivo.',
+  /** Región en vivo (solo lectores) mientras la reapertura viaja al servidor. */
+  enviando: 'Reabriendo la confirmación',
+  /** Su rol no tiene el permiso (por ejemplo, el auditor). */
+  soloLecturaRol: 'Solo lectura: tu rol no puede reabrir confirmaciones.',
+  /** Su rol lo tiene, pero el servidor dice que esta confirmación no es suya. */
+  soloAutorOAdmin:
+    'Solo quien confirmó la conciliación o un administrador puede reabrirla.',
 } as const;
