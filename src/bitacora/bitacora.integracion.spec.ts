@@ -215,6 +215,35 @@ describe('GET /conciliaciones/:id/historial (AU-10 a AU-14)', () => {
     );
   });
 
+  it('5.7: la confirmación reabierta sigue en el historial de la propuesta nueva del mismo movimiento, y la de otro movimiento no', async () => {
+    const vieja = await propuesta();
+    await confirmar(vieja.id).expect(200);
+    await request(entorno.app.getHttpServer())
+      .post(`/conciliaciones/${vieja.id}/reabrir`)
+      .set('Cookie', tokenAna)
+      .send({ motivo: 'Error de captura' })
+      .expect(200);
+    const nueva = await propuesta(A, {
+      movimientoId: vieja.movimientoId,
+      crear: false,
+    });
+    const ajena = await propuesta();
+    await confirmar(ajena.id).expect(200);
+    await request(entorno.app.getHttpServer())
+      .post(`/conciliaciones/${ajena.id}/reabrir`)
+      .set('Cookie', tokenAna)
+      .send({ motivo: 'Otro caso' })
+      .expect(200);
+
+    const res = await historial(nueva.id).expect(200);
+
+    expect(accionesDe(res)).toEqual(['crear', 'confirmar', 'reabrir']);
+    expect(eventosDe(res).every((e) => e.entidadId === vieja.id)).toBe(true);
+    expect(eventosDe(res)[2].datos).toMatchObject({
+      motivo: 'Error de captura',
+    });
+  });
+
   it('4.6: la cancelación de su factura aparece al final del historial de la decisión confirmada', async () => {
     const { id, cfdiId } = await propuesta();
     await confirmar(id).expect(200);
