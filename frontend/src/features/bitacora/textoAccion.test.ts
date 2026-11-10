@@ -12,6 +12,7 @@ describe('textoAccion', () => {
     ['desactivar_separacion', 'Separación de funciones cambiada'],
     ['descartar', 'Movimiento descartado'],
     ['deshacer_descarte', 'Descarte deshecho'],
+    ['reabrir', 'Confirmación reabierta'],
   ] as const)('%s se muestra como «%s»', (accion, texto) => {
     expect(textoAccion(accion)).toBe(texto);
   });
