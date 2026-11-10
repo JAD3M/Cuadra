@@ -6,6 +6,7 @@ import type { EstadoBandeja } from '../bandeja/dto/bandeja.dto';
 import { nivelDeConfianza } from '../conciliacion/evaluar-par';
 import type { CfdiResumenDto } from '../bandeja/dto/bandeja.dto';
 import type { PropuestaCasoDto, RespuestaCasoDto } from './dto/caso.dto';
+import type { ComentarioDto } from '../resolucion/dto/comentar.dto';
 
 /**
  * Una sola sentencia: movimiento, tolerancia de la empresa, propuestas
@@ -155,6 +156,10 @@ export class CasosService {
             'conciliaciones.reabrir',
           )
         : false;
+    const comentarios = await this.comentarios(companyId, movimientoId);
+    const puedeComentar =
+      propuestas.length > 0 &&
+      (await this.tienePermiso(companyId, userId, 'conciliaciones.comentar'));
     return {
       movimiento: {
         id: m.movimiento_id,
@@ -175,10 +180,59 @@ export class CasosService {
         : null,
       descarte,
       puedeReabrir,
+      comentarios,
+      puedeComentar,
       toleranciaMonto: m.tolerancia_monto,
       propuestas,
     };
   }
+  /** Historia 5.9: los comentarios de todas las decisiones del movimiento. */
+  private async comentarios(
+    companyId: string,
+    movimientoId: string,
+  ): Promise<ComentarioDto[]> {
+    const filas = await this.contexto.manager().query<
+      {
+        id: string;
+        decisionId: string;
+        texto: string;
+        por: string;
+        fecha: Date;
+      }[]
+    >(
+      `SELECT c.id, c.decision_id AS "decisionId", c.texto, u.nombre AS por,
+              c.created_at AS fecha
+         FROM decision_comentarios c
+         JOIN decisiones d ON d.id = c.decision_id AND d.company_id = c.company_id
+         JOIN users u ON u.id = c.autor_id
+        WHERE c.company_id = $1 AND d.movimiento_id = $2
+        ORDER BY c.created_at, c.id`,
+      [companyId, movimientoId],
+    );
+    return filas.map((f) => ({
+      id: f.id,
+      decisionId: f.decisionId,
+      texto: f.texto,
+      por: f.por,
+      fecha: new Date(f.fecha).toISOString(),
+    }));
+  }
+
+  private async tienePermiso(
+    companyId: string,
+    userId: string,
+    permiso: 'conciliaciones.comentar',
+  ): Promise<boolean> {
+    const roles = await this.contexto
+      .manager()
+      .query<{ rol: Rol }[]>(
+        `SELECT rol FROM user_company_roles WHERE user_id = $1 AND company_id = $2`,
+        [userId, companyId],
+      );
+    const conPermiso = rolesConPermiso(permiso);
+    return roles.some((fila) => conPermiso.includes(fila.rol));
+  }
+
   /**
    * Lo mismo que exigen `DescarteService.deshacer` y `ReabrirService`: un rol
    * con el permiso y, además, ser admin o quien hizo la acción original

@@ -133,6 +133,7 @@ export const ACCIONES_BITACORA = [
   'descartar',
   'deshacer_descarte',
   'reabrir',
+  'comentar',
 ] as const;
 export type AccionBitacora = (typeof ACCIONES_BITACORA)[number];
 

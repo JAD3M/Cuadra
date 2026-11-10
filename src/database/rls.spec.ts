@@ -28,6 +28,7 @@ const TABLAS_CON_RLS = [
   'sugerencias_ia',
   'movimientos_pendientes',
   'decisiones',
+  'decision_comentarios',
   'decision_lineas',
 ] as const;
 
@@ -411,6 +412,8 @@ describe('RLS de decisiones y decision_lineas (4.1)', () => {
     ['decisiones', 'DELETE FROM decisiones'],
     ['decision_lineas', 'DELETE FROM decision_lineas'],
     ['decisiones', 'TRUNCATE decisiones'],
+    ['decision_comentarios', 'DELETE FROM decision_comentarios'],
+    ['decision_comentarios', 'TRUNCATE decision_comentarios'],
   ])('cuadra_app no puede borrar %s (%s)', async (_tabla, sql) => {
     await expect(
       comoEmpresa(de(FERRETERIA), (qr) => qr.query(sql)),

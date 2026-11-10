@@ -193,7 +193,10 @@ describe('CAS-1 endpoint, acceso y validación del id', () => {
     await cambiarRol('auditor');
     try {
       const auditor = await obtener(m, await entorno.token(LUIS, FERRETERIA));
-      expect(auditor).toEqual(admin);
+      // El cuerpo es el mismo salvo lo que depende del rol: el auditor lee los
+      // comentarios pero no puede escribirlos (5.9).
+      expect(admin.puedeComentar).toBe(true);
+      expect(auditor).toEqual({ ...admin, puedeComentar: false });
       expect(auditor.propuestas).toHaveLength(1);
     } finally {
       await cambiarRol('contador');

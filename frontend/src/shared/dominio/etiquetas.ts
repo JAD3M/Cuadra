@@ -125,6 +125,7 @@ export const ETIQUETAS_ACCION_BITACORA: Record<AccionBitacora, string> = {
   descartar: 'Movimiento descartado',
   deshacer_descarte: 'Descarte deshecho',
   reabrir: 'Confirmación reabierta',
+  comentar: 'Comentario',
 };
 
 /**

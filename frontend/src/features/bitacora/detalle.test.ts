@@ -810,6 +810,19 @@ describe('detalleEvento: acciones de administración (historia 2.7)', () => {
     });
   });
 
+  describe('comentar', () => {
+    it('muestra lo que se comentó', () => {
+      expect(
+        admin('comentar', { comentarioId: 'c1', texto: 'No me convence' }),
+      ).toBe('comentario: No me convence');
+    });
+    it('mal formado da «—»', () => {
+      expect(admin('comentar', { comentarioId: 'c1' })).toBe('—');
+      expect(admin('comentar', { texto: '' })).toBe('—');
+      expect(admin('comentar', 'basura')).toBe('—');
+    });
+  });
+
   it('un rol desconocido se muestra tal cual vino, sin inventar etiqueta', () => {
     expect(admin('quitar_rol', { email: EMAIL, roles: ['contable'] })).toBe(
       `${EMAIL} · roles quitados: contable`,
