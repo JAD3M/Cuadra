@@ -3,6 +3,23 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 10 nov 2026
+
+- **Historia 5.6 de la v2: descartar un movimiento y deshacer el descarte.**
+  Documento `odd/tasks/v2-5-6-descartar-movimiento.md` (KAN-149), PR #112 a #114 en cadena.
+  Backend: `POST /movimientos/:id/descartar` (motivo obligatorio) y `POST
+  /movimientos/:id/deshacer-descarte`; migración con `decisiones.descartada_por_id` y
+  `descartada_at` (CHECK y FK) y las acciones `descartar` y `deshacer_descarte` en el CHECK de la
+  bitácora. `GET /casos/:id` trae `descarte { motivo, por, fecha, puedeDeshacer }`. Frontend:
+  formulario de descarte y tarjeta «Descartado» en el detalle del caso; etiquetas, tonos y detalle
+  en la bitácora. Mockups 3 y 8 (detalle, oscuro y claro) y 6 (bitácora), aprobados antes del
+  código. Decisiones mías, a confirmar: columnas propias para saber quién descartó en lugar de
+  reutilizar `confirmada_por_id` (A1) y `origen = manual` con huella de conjunto vacía (A2).
+  Desvíos: el CI de los PR 1 y 2 falló porque el espejo de las acciones de bitácora iba en el PR 3;
+  se movió al PR 1. La revisión nativa del backend (riesgo, resiliencia, fiabilidad) se aprobó con
+  tres avisos no bloqueantes (conciliar tras deshacer sin reintento ni prueba, sin prueba de
+  concurrencia, el `down` de la migración falla si ya hay datos).
+
 ### 5 nov 2026
 
 - **Historia 5.5 de la v2: el dueño desactiva la separación de funciones y la empresa lo ve.**
