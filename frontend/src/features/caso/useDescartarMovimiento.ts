@@ -20,12 +20,13 @@ export interface PeticionDeshacer {
 }
 
 /**
- * Mutación del descarte con las mismas guardas que `useResolverCaso`: un solo
- * vuelo a la vez, época de la activación y sin actualización optimista. La
- * pantalla cambia cuando el servidor respondió y el caso se volvió a pedir.
+ * Mutación del descarte (y de la reapertura, 5.7) con las mismas guardas que
+ * `useResolverCaso`: un solo vuelo a la vez, época de la activación y sin
+ * actualización optimista. La pantalla cambia cuando el servidor respondió y
+ * el caso se volvió a pedir.
  */
-function useMutacionDescarte<P extends { movimientoId: string }>(
-  enviar: (peticion: P) => Promise<RespuestaDescarte>,
+export function useMutacionDescarte<P, R = RespuestaDescarte>(
+  enviar: (peticion: P) => Promise<R>,
 ) {
   const cliente = useQueryClient();
   const epoca = useEpoca();

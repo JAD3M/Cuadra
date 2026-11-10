@@ -5,6 +5,7 @@ import type {
   RespuestaCaso,
   RespuestaDescarte,
   RespuestaHistorial,
+  RespuestaReabrir,
   RespuestaResolucion,
 } from '@/shared/api/contratos';
 import { MOTIVO_MAXIMO } from '@/shared/dominio';
@@ -19,6 +20,8 @@ import { crearHandlersBandeja } from '@/test/handlersBandeja';
 //  - `POST /conciliaciones/:id/confirmar|rechazar`: cambian a la vez el caso,
 //    el historial y las filas de la bandeja que comparte el almacén, con el
 //    orden de comprobaciones del servidor (400, 404, 409, 403).
+//  - `POST /conciliaciones/:id/reabrir`: la confirmación pasa a reabierta, el
+//    caso vuelve a `sugerencia` con una propuesta nueva y la fila a la bandeja.
 // El estado vive en memoria: `reiniciar()` lo devuelve al de arranque y la
 // preparación global de pruebas lo llama tras cada prueba.
 
@@ -39,7 +42,7 @@ export interface OpcionesCaso {
   conflicto?: boolean;
   /** Confirmar responde 403 (quien subió el CFDI no puede confirmarlo). */
   segregacion?: boolean;
-  /** Descartar y deshacer responden 403 (rol o persona sin permiso). */
+  /** Descartar, deshacer y reabrir responden 403 (rol o persona sin permiso). */
   prohibido?: boolean;
 }
 
@@ -194,7 +197,12 @@ export function crearHandlersCaso(
       const lista = eventosDe(id);
       return lista === undefined
         ? ERROR_NEST(404, 'Conciliacion no encontrada')
-        : HttpResponse.json({ datos: lista });
+        : HttpResponse.json({
+            // En el cable el motivo viaja dentro de `datos`.
+            datos: lista.map(({ motivo, ...evento }) =>
+              motivo === undefined ? evento : { ...evento, datos: { motivo } },
+            ),
+          });
     },
   );
 
@@ -394,8 +402,86 @@ export function crearHandlersCaso(
     },
   );
 
+  const reabrir = http.post(
+    '/api/conciliaciones/:conciliacionId/reabrir',
+    async ({ params, request }) => {
+      const id = String(params.conciliacionId);
+      if (!GUID.test(id)) {
+        return ERROR_NEST(400, 'Validation failed (uuid is expected)');
+      }
+      const cuerpo: unknown = await request.json().catch(() => undefined);
+      const motivo = motivoValido(cuerpo);
+      if (motivo === undefined) return ERROR_NEST(400, 'motivo invalido');
+      const encontrada = buscarPropuesta(id);
+      if (encontrada === undefined) {
+        return ERROR_NEST(404, 'Conciliacion no encontrada');
+      }
+      if (opciones.prohibido === true) {
+        return ERROR_NEST(403, 'acceso_denegado');
+      }
+      const { caso, propuesta } = encontrada;
+      if (opciones.conflicto === true || propuesta.estado !== 'confirmada') {
+        return ERROR_NEST(409, 'La conciliacion no esta confirmada');
+      }
+      // El motor regenera: la misma factura vuelve como propuesta nueva, y su
+      // historial trae la confirmación reabierta antes del evento de crear.
+      const nuevaId = idDe(9500);
+      const previos = eventosDe(id) ?? [];
+      eventos.set(nuevaId, [
+        ...previos,
+        {
+          id: `${id}-reabrir`,
+          accion: 'reabrir',
+          entidad: 'decisiones',
+          createdAt: INSTANTE,
+          usuario: { nombre: USUARIO.nombre },
+          motivo,
+        },
+        {
+          id: `${nuevaId}-1`,
+          accion: 'crear',
+          createdAt: INSTANTE,
+          usuario: null,
+        },
+      ]);
+      guardar(
+        {
+          ...caso,
+          estado: 'sugerencia',
+          puedeReabrir: false,
+          propuestas: [
+            {
+              ...propuesta,
+              conciliacionId: nuevaId,
+              estado: 'propuesta',
+              confirmadaAt: null,
+              confirmadaPor: null,
+              requiereRevision: false,
+            },
+          ],
+        },
+        'sugerencia',
+      );
+      const respuesta: RespuestaReabrir = {
+        id,
+        estado: 'reabierta',
+        movimientoId: caso.movimiento.id,
+        cfdiIds: [propuesta.cfdi.id],
+        motivo,
+      };
+      return HttpResponse.json(respuesta);
+    },
+  );
+
   return {
-    handlers: [detalle, historial, resolver, descartar, deshacerDescarte],
+    handlers: [
+      detalle,
+      historial,
+      reabrir,
+      resolver,
+      descartar,
+      deshacerDescarte,
+    ],
     /** Reemplaza los casos que sirve la ruta. */
     establecer(nuevos: readonly RespuestaCaso[]) {
       propios = new Map(nuevos.map((c) => [c.movimiento.id, c]));
@@ -436,6 +522,20 @@ export function descarteFalla(status: number) {
       ERROR_NEST(status, 'detalle del servidor'),
     ),
   ];
+}
+
+/** Manejador de `POST reabrir` que falla con `status`. */
+export function reabrirFalla(status: number) {
+  return http.post('/api/conciliaciones/:conciliacionId/reabrir', () =>
+    ERROR_NEST(status, 'detalle del servidor'),
+  );
+}
+
+/** Corta la conexión de `POST reabrir` (fallo de red). */
+export function reabrirRedDeFallo() {
+  return http.post('/api/conciliaciones/:conciliacionId/reabrir', () =>
+    HttpResponse.error(),
+  );
 }
 
 /** Manejador de `POST confirmar|rechazar` que falla con `status`. */

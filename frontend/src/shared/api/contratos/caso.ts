@@ -97,6 +97,11 @@ export const respuestaCaso = z
     propuestas: z.array(propuestaCaso),
     /** Solo un movimiento descartado lo trae; las respuestas viejas no. */
     descarte: descarteCaso.nullable().optional(),
+    /**
+     * Lo decide el servidor (5.7): conciliado y quien mira es admin o quien
+     * confirmó, con el permiso. Las respuestas viejas no lo traen: false.
+     */
+    puedeReabrir: z.boolean().default(false),
   })
   .superRefine((caso, ctx) => {
     const { estado, propuestas } = caso;
@@ -152,22 +157,47 @@ export const respuestaDescarte = z.object({
   motivo: z.string().nullable(),
 });
 
+/** `POST /conciliaciones/:id/reabrir`: la confirmación pasa a `reabierta`. */
+export const respuestaReabrir = z.object({
+  id: z.guid(),
+  estado: z.literal('reabierta' satisfies EstadoDecision),
+  movimientoId: z.guid(),
+  cfdiIds: z.array(z.guid()),
+  motivo: z.string(),
+});
+
+/** Motivo del evento si `datos` lo trae como texto; cualquier otra forma, nada. */
+function motivoDeDatos(datos: unknown): string | undefined {
+  if (datos === null || typeof datos !== 'object') return undefined;
+  const motivo = (datos as { motivo?: unknown }).motivo;
+  return typeof motivo === 'string' ? motivo : undefined;
+}
+
 /**
- * Historial de una conciliación. `datos` (el JSON crudo del evento), el
- * correo y la IP no se validan ni se exponen. Una acción desconocida pasa como
- * texto y se muestra tal cual.
+ * Historial de una conciliación. De `datos` (el JSON crudo del evento) solo se
+ * expone el `motivo` (la reapertura lo trae, 5.7); el resto, el correo y la IP
+ * no se validan ni se exponen. Una acción desconocida pasa como texto y se
+ * muestra tal cual.
  */
 export const respuestaHistorial = z.object({
   datos: z.array(
-    z.object({
-      id: texto,
-      accion: z.string(),
-      /** Dónde se escribió el evento; `cfdi` es la cancelación de una factura (4.6). */
-      entidad: z.string().optional(),
-      entidadId: z.string().optional(),
-      createdAt: z.iso.datetime(),
-      usuario: z.object({ nombre: texto }).nullable(),
-    }),
+    z
+      .object({
+        id: texto,
+        accion: z.string(),
+        /** Dónde se escribió el evento; `cfdi` es la cancelación de una factura (4.6). */
+        entidad: z.string().optional(),
+        entidadId: z.string().optional(),
+        createdAt: z.iso.datetime(),
+        usuario: z.object({ nombre: texto }).nullable(),
+        datos: z.unknown().optional(),
+      })
+      .transform(
+        ({ datos, ...evento }): typeof evento & { motivo?: string } => {
+          const motivo = motivoDeDatos(datos);
+          return motivo === undefined ? evento : { ...evento, motivo };
+        },
+      ),
   ),
 });
 
@@ -177,4 +207,5 @@ export type RespuestaCaso = z.infer<typeof respuestaCaso>;
 export type RespuestaResolucion = z.infer<typeof respuestaResolucion>;
 export type DescarteCaso = z.infer<typeof descarteCaso>;
 export type RespuestaDescarte = z.infer<typeof respuestaDescarte>;
+export type RespuestaReabrir = z.infer<typeof respuestaReabrir>;
 export type RespuestaHistorial = z.infer<typeof respuestaHistorial>;
