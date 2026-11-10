@@ -329,6 +329,13 @@ function detalleDeshacerDescarte(datos: Objeto): string {
   return `descarte deshecho · el movimiento vuelve a pendiente · motivo del descarte: ${motivo}`;
 }
 
+/** Reabrir una confirmación (5.7): el caso vuelve a pendiente y queda el motivo. */
+function detalleReabrir(datos: Objeto): string {
+  const motivo = texto(datos.motivo);
+  if (motivo === undefined) return SIN_DETALLE;
+  return `confirmación reabierta · el caso vuelve a pendiente · motivo: ${motivo}`;
+}
+
 /**
  * Detalle de un evento de la bitácora. `eliminar` y `cargar` no se emiten
  * hoy y no tienen redacción: dan «—», igual que cualquier `datos` nulo, que no
@@ -369,6 +376,8 @@ export function detalleEvento({
       return detalleDescartar(datos);
     case 'deshacer_descarte':
       return detalleDeshacerDescarte(datos);
+    case 'reabrir':
+      return detalleReabrir(datos);
     default:
       return SIN_DETALLE;
   }

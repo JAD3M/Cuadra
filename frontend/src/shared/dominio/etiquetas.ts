@@ -114,6 +114,7 @@ export const ETIQUETAS_ACCION_BITACORA: Record<AccionBitacora, string> = {
   desactivar_separacion: 'Separación de funciones cambiada',
   descartar: 'Movimiento descartado',
   deshacer_descarte: 'Descarte deshecho',
+  reabrir: 'Confirmación reabierta',
 };
 
 /**

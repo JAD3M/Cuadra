@@ -791,6 +791,25 @@ describe('detalleEvento: acciones de administración (historia 2.7)', () => {
     });
   });
 
+  describe('reabrir', () => {
+    const reabrir = (o: Record<string, unknown> = {}) => ({
+      antes: { estado: 'confirmada', requiereRevision: false },
+      despues: { estado: 'reabierta' },
+      motivo: 'confirmé el CFDI equivocado',
+      ...o,
+    });
+    it('dice que el caso vuelve a pendiente y el motivo', () => {
+      expect(admin('reabrir', reabrir())).toBe(
+        'confirmación reabierta · el caso vuelve a pendiente · motivo: confirmé el CFDI equivocado',
+      );
+    });
+    it('mal formado da «—»', () => {
+      expect(admin('reabrir', reabrir({ motivo: undefined }))).toBe('—');
+      expect(admin('reabrir', reabrir({ motivo: '' }))).toBe('—');
+      expect(admin('reabrir', 'basura')).toBe('—');
+    });
+  });
+
   it('un rol desconocido se muestra tal cual vino, sin inventar etiqueta', () => {
     expect(admin('quitar_rol', { email: EMAIL, roles: ['contable'] })).toBe(
       `${EMAIL} · roles quitados: contable`,

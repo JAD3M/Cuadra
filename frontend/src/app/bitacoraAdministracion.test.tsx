@@ -265,6 +265,7 @@ describe('bitácora de administración: filtros y vacío', () => {
       'Separación de funciones cambiada',
       'Movimiento descartado',
       'Descarte deshecho',
+      'Confirmación reabierta',
     ]);
   });
 
