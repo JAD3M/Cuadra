@@ -14,6 +14,7 @@ import { AvisoSoloLectura } from './components/AvisoSoloLectura';
 import { AvisoVarias } from './components/AvisoVarias';
 import { BannerResolucion } from './components/BannerResolucion';
 import { BloqueMovimiento } from './components/BloqueMovimiento';
+import { DescartarMovimiento } from './components/DescartarMovimiento';
 import { DetallePropuesta } from './components/DetallePropuesta';
 import { EncabezadoCaso } from './components/EncabezadoCaso';
 import { EnlaceBandeja } from './components/EnlaceBandeja';
@@ -24,13 +25,18 @@ import { ListaPropuestas } from './components/ListaPropuestas';
 import { PanelDecision } from './components/PanelDecision';
 import { TarjetaConciliado } from './components/TarjetaConciliado';
 import { etiquetasCanceladas, etiquetasPorCfdi } from './canceladas';
+import { TarjetaDescartado } from './components/TarjetaDescartado';
 import { TarjetaRequiereRevision } from './components/TarjetaRequiereRevision';
 import { TarjetaSinMatch } from './components/TarjetaSinMatch';
 import estilos from './CasoContenedor.module.css';
 import { clavesCaso } from './claves';
-import { clasificarErrorAccion } from './errores';
+import { clasificarErrorAccion, clasificarErrorDescarte } from './errores';
 import { PROPUESTAS, VOLVER_A_BANDEJA } from './textos';
 import { useCaso } from './useCaso';
+import {
+  useDescartarMovimiento,
+  useDeshacerDescarte,
+} from './useDescartarMovimiento';
 import { useHistorial } from './useHistorial';
 import { useResolverCaso } from './useResolverCaso';
 import {
@@ -72,7 +78,16 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
   const puedeResolver =
     sesion.status === 'ready' &&
     puede(sesion.contexto.capacidades, 'conciliaciones.resolver');
+  const puedeDescartar =
+    sesion.status === 'ready' &&
+    puede(sesion.contexto.capacidades, 'movimientos.descartar');
+  const rolPuedeDeshacer =
+    sesion.status === 'ready' &&
+    puede(sesion.contexto.capacidades, 'movimientos.deshacer_descarte');
+  const descartar = useDescartarMovimiento();
+  const deshacer = useDeshacerDescarte();
   const alertaRef = useRef<HTMLDivElement>(null);
+  const descartadoRef = useRef<HTMLElement>(null);
   const bannerRef = useRef<HTMLDivElement>(null);
   const descripcionRef = useRef<HTMLHeadingElement>(null);
   // Solo cuenta lo que se activó en la época vigente: lo de otra se ignora.
@@ -111,10 +126,45 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
       : null;
   const conAlerta = errorAccion !== null && errorAccion !== 'motivo_largo';
 
+  // Descartar y deshacer: lo que se activó en otra época se ignora, igual.
+  const descarteVigente =
+    descartar.variables !== undefined && descartar.variables.epoca === epoca;
+  const deshacerVigente =
+    deshacer.variables !== undefined && deshacer.variables.epoca === epoca;
+  const errorDescarte =
+    descartar.isError && descarteVigente
+      ? clasificarErrorDescarte(descartar.error)
+      : null;
+  const errorDeshacer =
+    deshacer.isError && deshacerVigente
+      ? clasificarErrorDescarte(deshacer.error)
+      : null;
+  // Tras un 409 o 404 los controles del descarte esperan a recargar.
+  const descarteBloqueado = [errorDescarte, errorDeshacer].some(
+    (e) => e === 'conflicto' || e === 'no_encontrado',
+  );
+  // El descarte salió bien y volver a pedir el caso falló: el caso es viejo.
+  const descarteDesactualizado =
+    consulta.isRefetchError &&
+    ((descartar.isSuccess && descarteVigente) ||
+      (deshacer.isSuccess && deshacerVigente));
+  const hayAlertaDescarte = errorDescarte !== null || errorDeshacer !== null;
+
   // Tras un fallo el foco va a la alerta; el 400 lo lleva el propio campo.
   useEffect(() => {
-    if (conAlerta) alertaRef.current?.focus();
-  }, [conAlerta, errorAccion]);
+    if (conAlerta || hayAlertaDescarte) alertaRef.current?.focus();
+  }, [conAlerta, errorAccion, hayAlertaDescarte, errorDescarte, errorDeshacer]);
+
+  // Descartar terminó: el formulario ya no está; el foco va a la tarjeta
+  // «Descartado». Al deshacer, a la descripción del movimiento.
+  const descartoOk = descartar.isSuccess && descarteVigente;
+  const deshizoOk = deshacer.isSuccess && deshacerVigente;
+  useEffect(() => {
+    if (descartoOk) descartadoRef.current?.focus();
+  }, [descartoOk, descartar.submittedAt]);
+  useEffect(() => {
+    if (deshizoOk) descripcionRef.current?.focus();
+  }, [deshizoOk, deshacer.submittedAt]);
 
   // Al terminar una resolución los controles ya no están o cambiaron: el foco
   // va una sola vez al banner.
@@ -128,6 +178,8 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
    */
   async function recargar() {
     resolucion.reset();
+    descartar.reset();
+    deshacer.reset();
     await cliente.invalidateQueries({ queryKey: clavesCaso.todas(epoca) });
     descripcionRef.current?.focus();
   }
@@ -157,6 +209,7 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
       : bannerDe(resuelta, desactualizado ? undefined : caso);
   // Solo un caso cerrado puede pedir revisión; el servidor sigue diciendo «conciliado».
   const enRevision = vista === 'conciliado' && caso.requiereRevision;
+  const descarte = caso.descarte ?? null;
   const conPropuestas = vista === 'sugerencia' || vista === 'varias';
 
   return (
@@ -167,12 +220,15 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
         regla={expandida?.regla ?? null}
         origen={expandida?.origen ?? null}
         descripcion={caso.movimiento.descripcion}
+        descartado={descarte !== null}
         descripcionRef={descripcionRef}
         avisos={
-          banner === null ? null : (
+          banner === null && !descarteDesactualizado ? null : (
             <>
-              <BannerResolucion ref={bannerRef} {...banner} />
-              {desactualizado ? (
+              {banner === null ? null : (
+                <BannerResolucion ref={bannerRef} {...banner} />
+              )}
+              {desactualizado || descarteDesactualizado ? (
                 <ErrorCaso
                   tipo="conexion"
                   onReintentar={() => void consulta.refetch()}
@@ -249,12 +305,59 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
               />
             </div>
           ) : null}
-          {vista === 'sin_match' ? (
-            <TarjetaSinMatch
-              regla={caso.sinMatch?.regla ?? null}
-              motivo={caso.sinMatch?.motivo ?? null}
-            />
+          {vista === 'sin_match' && descarte === null ? (
+            <>
+              <TarjetaSinMatch
+                regla={caso.sinMatch?.regla ?? null}
+                motivo={caso.sinMatch?.motivo ?? null}
+              />
+              {puedeDescartar ? (
+                <DescartarMovimiento
+                  enviando={descartar.isPending}
+                  deshabilitado={descarteBloqueado || descarteDesactualizado}
+                  onCambio={() => {
+                    if (descartar.isError) descartar.reset();
+                  }}
+                  alerta={
+                    errorDescarte === null ? null : (
+                      <AlertaAccion
+                        ref={alertaRef}
+                        tipo={errorDescarte}
+                        onRecargar={() => void recargar()}
+                      />
+                    )
+                  }
+                  onDescartar={(motivo) =>
+                    descartar.descartar({
+                      movimientoId: caso.movimiento.id,
+                      motivo,
+                    })
+                  }
+                />
+              ) : null}
+            </>
           ) : null}
+          {descarte === null ? null : (
+            <TarjetaDescartado
+              ref={descartadoRef}
+              descarte={descarte}
+              rolPuedeDeshacer={rolPuedeDeshacer}
+              enviando={deshacer.isPending}
+              deshabilitado={descarteBloqueado || descarteDesactualizado}
+              alerta={
+                errorDeshacer === null ? null : (
+                  <AlertaAccion
+                    ref={alertaRef}
+                    tipo={errorDeshacer}
+                    onRecargar={() => void recargar()}
+                  />
+                )
+              }
+              onDeshacer={() =>
+                deshacer.deshacer({ movimientoId: caso.movimiento.id })
+              }
+            />
+          )}
           {vista === 'conciliado' && expandida !== null ? (
             <>
               <DetallePropuesta
@@ -283,6 +386,15 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
           }
           etiquetasPorCfdi={etiquetasPorCfdi(expandida)}
           pendiente={caso.estado === 'sugerencia'}
+          descarte={
+            descarte === null
+              ? null
+              : {
+                  por: descarte.por,
+                  motivo: descarte.motivo,
+                  fecha: descarte.fecha,
+                }
+          }
           cargando={historial.isLoading}
           fallo={historial.isError && historial.data === undefined}
           onReintentar={() => void historial.refetch()}

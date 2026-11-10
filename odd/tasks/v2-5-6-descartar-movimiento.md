@@ -31,7 +31,7 @@ Entrega: `ask-on-risk`; cadena de PR si pasa de ~400 líneas (backend primero, f
   deshacer, servicio transaccional con candado y bitácora en la misma sentencia. Pruebas.
 - [x] T2 (S2 backend): caso de un descartado muestra motivo y quién lo descartó, sin propuestas.
 - [x] T3 (mockup, S8; aprobado por el usuario 2026-11-10; números 3, 8 y 6): pantalla de descartar y deshacer. Acordar con el usuario ANTES del código.
-- [ ] T4 (frontend): espejo, etiquetas/tonos/detalle de bitácora, acciones en el caso.
+- [x] T4 (frontend, dos escritores en paralelo A y B): espejo, etiquetas/tonos/detalle de bitácora, acciones en el caso.
 
 ## Log
 
@@ -45,3 +45,4 @@ Entrega: `ask-on-risk`; cadena de PR si pasa de ~400 líneas (backend primero, f
 - T3 publicada (2026-11-10, versión 148 del canvas): mockup 3 y 8 (Detalle oscuro y claro) con vistas nuevas `descartando`, `descarte_sin_motivo`, `descartado`, `descartado_ajeno` (botón «Descartar movimiento» en sin match, formulario con motivo obligatorio, tarjeta «Descartado» con motivo/quién/fecha y «Deshacer descarte» o aviso de permiso); mockup 6 (Bitácora) con «Movimiento descartado» y «Descarte deshecho». Bandeja sin cambios. Pendiente: aprobación del usuario antes del código del frontend.
 - T2 pendiente: `GET /casos/:id` devuelve `descarte { motivo, por, fecha, puedeDeshacer }` (puedeDeshacer calculado en el servidor: admin o quien descartó, y rol con permiso).
 - T2 hecha: `GET /casos/:id` suma `descarte { motivo, por, fecha, puedeDeshacer } | null` (join en la misma sentencia; `puedeDeshacer` = rol con permiso y admin o autor, calculado en el servidor). 4 pruebas nuevas; backend 1935 verdes. Risk: item 3 (campo aditivo en un contrato que el frontend consume; no rompe a nadie).
+- T4 hecha: ruta dos escritores en paralelo con superficies disjuntas (A espejo de bitácora, B detalle del caso); razón: dos unidades independientes de varios archivos. Frontend completo 4913 pruebas, typecheck, lint y prettier verdes. Desvíos: B no vio RED en las pruebas de página (escribió el componente antes); A tocó `bitacoraAdministracion.test.tsx` (fuera de su superficie, pinea el filtro de acciones). Risk: none (UI aditiva).

@@ -10,7 +10,11 @@ import {
   GLIFO_REQUIERE_REVISION,
 } from '@/shared/dominio/etiquetas';
 import { EstadoChip } from '@/shared/ui/EstadoChip';
-import { GLIFOS_ESTADO, VOLVER_A_BANDEJA } from '@/features/caso/textos';
+import {
+  DESCARTADO,
+  GLIFOS_ESTADO,
+  VOLVER_A_BANDEJA,
+} from '@/features/caso/textos';
 import { EnlaceBandeja } from './EnlaceBandeja';
 import estilos from './EncabezadoCaso.module.css';
 
@@ -24,6 +28,8 @@ export interface EncabezadoCasoProps {
   /** Origen de la propuesta expandida; `null` si el caso no tiene propuesta. */
   origen: OrigenConciliacion | null;
   descripcion: string;
+  /** Movimiento descartado: chip propio y sin chips de regla ni origen. */
+  descartado?: boolean;
   /** Banner y alertas de la resolución: entre el enlace de regreso y el título. */
   avisos?: ReactNode;
   /** Para enfocar la descripción tras recargar el caso. */
@@ -41,6 +47,7 @@ export function EncabezadoCaso({
   regla,
   origen,
   descripcion,
+  descartado = false,
   avisos,
   descripcionRef,
 }: EncabezadoCasoProps) {
@@ -50,7 +57,12 @@ export function EncabezadoCaso({
       {avisos}
       <header className={estilos.encabezado}>
         <div className={estilos.chips}>
-          {requiereRevision ? (
+          {descartado ? (
+            <EstadoChip tono="neutral">
+              <span aria-hidden="true">{DESCARTADO.glifo}</span>
+              {DESCARTADO.titulo}
+            </EstadoChip>
+          ) : requiereRevision ? (
             <EstadoChip tono="sin_match">
               <span aria-hidden="true">{GLIFO_REQUIERE_REVISION}</span>
               {ETIQUETA_REQUIERE_REVISION}
