@@ -822,6 +822,19 @@ Segunda historia de la épica 5 que ata FR-18, FR-19 y FR-31 (AD-4, AD-7, AD-19)
   reconfirmación es una decisión nueva con las mismas reglas. `GET /casos/:id` trae
   `puedeReabrir` (calculado en el servidor) y el historial de la propuesta nueva incluye los
   eventos de las confirmaciones reabiertas del mismo movimiento (mockups 3, 8 y 6).
+- Desde la 5.8 (AD-4, AD-19) un lote se reabre completo con `POST
+  /conciliaciones/lotes/:loteId/reabrir {motivo}` (el `loteId` es el que devuelve `POST
+  /conciliaciones/lotes`; motivo obligatorio, 400 sin él). En una sola transacción, con el candado
+  de empresa y los ids en orden ascendente (decisiones, CFDI, movimientos), todas las decisiones del
+  lote que sigan `confirmada` pasan a `reabierta` con el mismo efecto que reabrir un caso (5.7). La
+  respuesta es `{ loteId, reabiertas, omitidas: [{id, razon}] }`; se omiten las que ya no están
+  confirmadas (`ya_reabierta`, `reconfirmada`, `no_confirmada`), y si no queda ninguna por reabrir
+  sigue siendo 200. Queda una fila `reabrir` por caso, con el motivo y el `loteId` en `datos`. Un
+  admin reabre cualquier lote; otra persona solo uno que confirmó entero (si no, 403 más
+  `acceso_denegado`). 404 si el lote no existe en la empresa; 409 y nada cambia si algo no cuadra.
+  `conciliar()` corre una sola vez al terminar. La pantalla es el botón «Reabrir lote» del
+  resultado de «Confirmar en lote» (mockups 2 y 7); no hay una pantalla que liste lotes. Índice
+  parcial `ix_decisiones_company_lote` sobre `(company_id, lote_id)`.
 - Mismo permiso que confirmar un caso (`conciliaciones.resolver`): el auditor recibe 403. Un id
   en mayúsculas es el mismo id (se normaliza antes de validar).
 - Frontend (mockups 2 y 7): botón «Confirmar en lote» en la barra de filtros, barra con
