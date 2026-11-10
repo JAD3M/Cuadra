@@ -34,6 +34,6 @@ export class CasosController {
     @UsuarioActual() usuario: Sesion,
     @Param('movimientoId', new ParseUUIDPipe()) movimientoId: string,
   ): Promise<RespuestaCasoDto> {
-    return this.casos.obtener(usuario.companyId, movimientoId);
+    return this.casos.obtener(usuario.companyId, movimientoId, usuario.userId);
   }
 }
