@@ -98,6 +98,15 @@ export const RAZONES_OMISION_LOTE = [
 ] as const;
 export type RazonOmisionLote = (typeof RAZONES_OMISION_LOTE)[number];
 
+/** Por qué un caso de un lote se deja fuera al reabrir el lote (5.8); espejo del backend. */
+export const RAZONES_OMISION_REAPERTURA = [
+  'ya_reabierta',
+  'reconfirmada',
+  'no_confirmada',
+] as const;
+export type RazonOmisionReapertura =
+  (typeof RAZONES_OMISION_REAPERTURA)[number];
+
 /** Nivel de confianza de una propuesta del motor de reglas (AC6). */
 export const NIVELES_CONFIANZA = ['alta', 'media', 'baja'] as const;
 export type NivelConfianza = (typeof NIVELES_CONFIANZA)[number];
