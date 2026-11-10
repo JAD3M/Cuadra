@@ -306,7 +306,13 @@ describe('migración RetirarConciliaciones (4.3, AD-20 paso 4)', () => {
     expect(await existeTabla(completa, 'decisiones')).toBe(true);
     expect(await existeTabla(completa, 'decision_lineas')).toBe(true);
     const pendiente = await completa.driver.createSchemaBuilder().log();
-    expect(pendiente.upQueries.map((q) => q.query)).toEqual([]);
+    // Esta base se detiene en el retiro: lo que agregan migraciones posteriores
+    // a las entidades aparece como pendiente. La deriva con toda la secuencia
+    // la vigila esquema.spec.ts.
+    const posterior = /descartada_por_id|descartada_at|descarte_persona/;
+    expect(
+      pendiente.upQueries.map((q) => q.query).filter((q) => !posterior.test(q)),
+    ).toEqual([]);
   });
 
   it('el down recrea la tabla idéntica: columnas, CHECK, índices, FK, RLS FORCE, política y GRANTs', async () => {
