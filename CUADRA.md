@@ -922,6 +922,28 @@ persona con cada propuesta de la regla 1 que ya tenía `habria_cerrado`, y calcu
 migración con datos y los probes de concurrencia del verificador no se ejecutaron en vivo. El frontend
 de esta historia se escribió antes que sus pruebas (sin RED observado).
 
+**Medir PPD, parcialidades y comisiones (v2, historia 6.3), terminada el 11 nov 2026.**
+- `movimientos.clase` (`comision`, `parcialidad` o nula; `CLASES_MOVIMIENTO` en `tipos.ts` y su espejo, con
+  su CHECK `ck_movimientos_clase`). La asigna `clasificarMovimiento(descripcion, monto)` (función pura en
+  `src/bancos/clasificar-movimiento.ts`) al importar, tanto del CSV (`guardar-movimientos.ts`) como al
+  aceptar la vista previa de un PDF (`vista-previa.service.ts`). Solo mide: no toca el estado, la huella
+  ni la conciliación. Lo importado antes de la 6.3 queda en nulo (sin relleno).
+- Criterios iniciales (SUPUESTO: se afinan con PDFs reales), iguales para todo banco: `comision` = cargo
+  cuya descripción contiene «COMISION»; `parcialidad` = abono cuya descripción contiene «PARCIALIDAD»,
+  «PAGO PARCIAL» o «ABONO PARCIAL» (mayúsculas, sin acentos). El signo manda: un abono «comisión» es una
+  devolución y un cargo «parcialidad» es dinero que sale; ninguno se clasifica.
+- `fracciones_por_empresa()`: función SQL `SECURITY DEFINER` que solo devuelve conteos por empresa
+  (como `cargas_aceptadas_por_banco()`). `GET /plataforma/fracciones` (solo sesión de plataforma; 401 sin
+  sesión, 403 a cualquier sesión de empresa) devuelve por empresa facturas (total y PPD) y movimientos
+  (total, parcialidades, comisiones) con las tres fracciones a cuatro decimales (`null` sin denominador).
+  Se calcula por consulta cada vez; no se guarda nada. «Total de facturas» y «total de movimientos» son
+  todas las filas de la empresa.
+- La pantalla de estas fracciones es la historia 9.2 (necesita mockup, UX-DR9).
+
+**Pendientes (6.3):** los criterios de clase son un supuesto hasta ver PDFs reales; los movimientos viejos
+quedan sin clase, así que las fracciones de clase subestiman hasta que entre volumen nuevo; la prueba de
+`down()` de la migración con datos no se ejecutó en vivo.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

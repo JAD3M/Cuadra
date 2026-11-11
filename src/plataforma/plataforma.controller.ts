@@ -27,11 +27,13 @@ import type { UsuarioAutenticado } from '../auth/tipos';
 import { Scope, UsuarioActual } from '../common/decorators/decoradores';
 import { Limite } from '../limite/limite.decorator';
 import { BancosVistaPrevia } from './bancos-vista-previa.service';
+import { FraccionesPlataforma } from './fracciones-plataforma.service';
 import {
   BancoPlataformaDto,
   CambiarSeparacionDto,
   CrearEmpresaDto,
   EmpresaPlataformaDto,
+  FraccionesEmpresaDto,
   InvitacionEnviadaDto,
   InvitarAdminDto,
 } from './dto/plataforma.dto';
@@ -47,6 +49,7 @@ export class PlataformaController {
     private readonly empresas: EmpresasPlataforma,
     private readonly invitaciones: InvitacionesPlataforma,
     private readonly bancos: BancosVistaPrevia,
+    private readonly fracciones: FraccionesPlataforma,
   ) {}
 
   /**
@@ -169,6 +172,22 @@ export class PlataformaController {
   })
   listarBancos(): Promise<BancoPlataformaDto[]> {
     return this.bancos.listar();
+  }
+
+  @Get('fracciones')
+  @ApiCookieAuth()
+  @ApiOperation({
+    summary: 'Fracciones de PPD, parcialidades y comisiones por empresa',
+    description:
+      'Solo lectura (6.3, FR-69). Facturas PPD entre el total de facturas, y movimientos de clase `parcialidad` y `comision` entre el total de movimientos, por empresa. Se calcula por consulta cada vez; no se guarda nada. Los movimientos importados antes de la 6.3 no tienen clase.',
+  })
+  @ApiOkResponse({ type: [FraccionesEmpresaDto] })
+  @ApiUnauthorizedResponse({ description: 'Sin sesión o venció.' })
+  @ApiForbiddenResponse({
+    description: 'La sesión no es de plataforma. Queda en la bitácora.',
+  })
+  listarFracciones(): Promise<FraccionesEmpresaDto[]> {
+    return this.fracciones.listar();
   }
 
   @Post('bancos/:banco/levantar-vista-previa')

@@ -16,13 +16,13 @@ Rama: `feat/v2-6-3-clase-de-movimiento`. Entrega: un PR (cadena si pasa de ~400 
 - A2: «total de facturas» = todas las filas de `cfdi` de la empresa (cualquier estado y tipo). «Total de movimientos» = todas las filas de `movimientos` de la empresa.
 - A3: criterios iniciales, sobre la descripción en mayúsculas sin acentos: `comision` = cargo (monto < 0) cuya descripción contiene «COMISION»; `parcialidad` = abono (monto > 0) cuya descripción contiene «PARCIALIDAD», «PAGO PARCIAL» o «ABONO PARCIAL». Cualquier otro caso es nulo. Un movimiento no puede ser las dos.
 - A4: el reporte es `GET /plataforma/fracciones` (sesión de plataforma), con una función SQL `SECURITY DEFINER` que solo agrega por empresa, igual que `cargas_aceptadas_por_banco()`.
-- A5: `movimientos_pendientes` también lleva `clase` para que la vista previa la conserve al aceptar.
+- A5 (corregido al implementar): `movimientos_pendientes` NO lleva `clase`; al aceptar la vista previa la clase se calcula con la misma función pura sobre la descripción y el monto de cada fila en espera. Una columna menos y una sola fuente.
 
 ## Tasks
-- [ ] T1 (S6; inline; Risk item 1 y 2: migración y función SECURITY DEFINER): migración con `clase` en `movimientos` y `movimientos_pendientes` + CHECK, `CLASES_MOVIMIENTO` en `tipos.ts` y espejo, prueba de deriva, y función `fracciones_por_empresa()`.
-- [ ] T2 (S2; inline): `clasificarMovimiento` pura + pruebas + criterios documentados en el lector de BBVA y en los perfiles CSV.
-- [ ] T3 (S2; inline): guardar `clase` en los tres INSERT (CSV, pendientes del PDF, aceptar vista previa). La clase no toca estado ni huella.
-- [ ] T4 (S1, S3, S4, S5; inline; Risk item 2): servicio y `GET /plataforma/fracciones`, 403 para sesiones de empresa, pruebas contra Postgres real.
+- [x] T1 (hecha; Risk item 1 y 2; `down()` no probado con datos) (S6; inline): migración `1790721000000-ClaseDeMovimiento` con `clase` en `movimientos` + CHECK, `CLASES_MOVIMIENTO` en `tipos.ts` y espejo, prueba de deriva, y función `fracciones_por_empresa()`.
+- [x] T2 (hecha; RED: módulo inexistente; GREEN: 9 pruebas) (S2; inline): `clasificarMovimiento` pura + pruebas. Los criterios iniciales quedan documentados en la función (comunes a todo banco) y en `CUADRA.md`, no repetidos en cada lector: los CSV son perfiles de solo datos y el lector de BBVA solo entrega la descripción.
+- [x] T3 (hecha; RED: 2 pruebas fallaban; GREEN: 94 pruebas de estado de cuenta y vista previa) (S2; inline): guardar `clase` en los dos INSERT a `movimientos` (CSV y aceptar vista previa); el de `movimientos_pendientes` no cambia (A5). La clase no toca estado ni huella.
+- [x] T4 (hecha; RED: 5 de 5 fallan sin el endpoint; GREEN: 5 pruebas contra Postgres real; Risk item 2) (S1, S3, S4, S5; inline): servicio y `GET /plataforma/fracciones`, 403 para sesiones de empresa, pruebas contra Postgres real.
 - [ ] T5: notas de cierre (`CUADRA.md`, `docs/bitacora.md`) y repaso.
 
 ## Log

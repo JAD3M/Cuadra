@@ -334,6 +334,34 @@ describe('POST /cargas/:id/aceptar (T3)', () => {
     expect(encolar).toHaveBeenCalledWith(entorno.empresa(FERRETERIA));
   });
 
+  it('al aceptar guarda la clase de cada movimiento (6.3) sin cambiar su estado', async () => {
+    const cargaId = await subirPdf(LUIS, FERRETERIA);
+    // El PDF sintético no trae comisiones: la línea 1 (un cargo) se renombra.
+    await ds.query(
+      `UPDATE movimientos_pendientes SET descripcion = 'COMISION POR MANEJO'
+        WHERE carga_id = $1 AND linea_numero = 1`,
+      [cargaId],
+    );
+
+    await llamar('post', `/cargas/${cargaId}/aceptar`, LUIS, 200);
+
+    expect(
+      await filas<{
+        linea_numero: number;
+        clase: string | null;
+        estado: string;
+      }>(
+        ds,
+        `SELECT linea_numero, clase, estado FROM movimientos
+          WHERE carga_id = $1 ORDER BY linea_numero`,
+        [cargaId],
+      ),
+    ).toEqual([
+      { linea_numero: 1, clase: 'comision', estado: 'abierto' },
+      { linea_numero: 2, clase: null, estado: 'abierto' },
+    ]);
+  });
+
   it('mientras espera, la bandeja no ve nada y conciliar no encuentra nada; al aceptar, sí', async () => {
     jest.restoreAllMocks();
     const antes = await totalEnBandeja(LUIS, FERRETERIA);

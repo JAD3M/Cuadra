@@ -4,6 +4,7 @@ import { SesionesModule } from '../auth/sesiones.module';
 import { CorreoModule } from '../correo/correo.module';
 import { BancoVistaPrevia } from './banco-vista-previa.entity';
 import { BancosVistaPrevia } from './bancos-vista-previa.service';
+import { FraccionesPlataforma } from './fracciones-plataforma.service';
 import { BitacoraPlataforma } from './bitacora-plataforma.entity';
 import { EmpresasPlataforma } from './empresas-plataforma.service';
 import { InvitacionesPlataforma } from './invitaciones-plataforma.service';
@@ -36,6 +37,7 @@ import { RegistroPlataforma } from './registro-plataforma.service';
     EmpresasPlataforma,
     InvitacionesPlataforma,
     BancosVistaPrevia,
+    FraccionesPlataforma,
     RecuperacionPlataforma,
   ],
   exports: [RegistroPlataforma, RecuperacionPlataforma, BancosVistaPrevia],

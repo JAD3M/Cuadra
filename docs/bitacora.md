@@ -5,6 +5,14 @@
 
 ### 11 nov 2026
 
+- **Historia 6.3 (medir PPD, parcialidades y comisiones) terminada.** `movimientos.clase` con una función
+  pura `clasificarMovimiento` que corre al importar (CSV y aceptación de vista previa de PDF), y
+  `GET /plataforma/fracciones` con las tres fracciones por empresa, calculadas por consulta con una
+  función SQL `SECURITY DEFINER` que solo devuelve conteos. Supuestos: criterios de clase por palabra
+  clave en la descripción y por signo del monto (se afinan con PDFs reales); lo importado antes queda sin
+  clase. Sin pantalla: es la 9.2. Por qué en plataforma: el 403 a empresas lo da el scope, igual que
+  `/plataforma/bancos`. La tasa de desacuerdo (6.2) tampoco tiene endpoint: es la 9.1.
+
 - **6.2, pendiente resuelto en backend: `ids` vacío cuando viene `desmarcadas`.** El usuario eligió permitirlo.
   `POST /conciliaciones/lotes` ya no exige `ids` si `desmarcadas` trae alguna: el lote no confirma nada
   (`loteId: null`) y solo anota `desmarco`; vacíos los dos sigue dando 400. Contrato ampliado, no roto.

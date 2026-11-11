@@ -3,6 +3,7 @@ import { tomarCandadoDeConciliacion } from '../conciliacion/candado';
 import type { ResultadoDeFila } from '../cargas/carga.entity';
 import type { ResultadoDeProceso } from '../cargas/resultado-de-proceso';
 import { clasificarConHuella } from './clasificar-huellas';
+import { clasificarMovimiento } from './clasificar-movimiento';
 import {
   CODIGO_MONEDA_FALTANTE,
   EstadoDeCuentaRechazado,
@@ -110,8 +111,8 @@ export async function procesarEstadoDeCuenta(
     await manager.query(
       `INSERT INTO movimientos
          (company_id, carga_id, linea_numero, fecha, descripcion,
-          referencia, monto, banco, cuenta, estado, huella)
-       VALUES ($1, $2, $3, $4::date, $5, $6, $7::numeric, $8, $9, $10, $11)`,
+          referencia, monto, banco, cuenta, estado, huella, clase)
+       VALUES ($1, $2, $3, $4::date, $5, $6, $7::numeric, $8, $9, $10, $11, $12)`,
       [
         companyId,
         cargaId,
@@ -125,6 +126,8 @@ export async function procesarEstadoDeCuenta(
         cuenta,
         clase === 'dudoso' ? 'pendiente_revision' : 'abierto',
         huella,
+        // Solo para medir (6.3): no toca el estado ni la huella.
+        clasificarMovimiento(leido.descripcion, leido.monto),
       ],
     );
     nuevos += 1;
