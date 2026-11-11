@@ -270,8 +270,12 @@ describe('Confirmación en lote: confirmar (S2, S3, S6)', () => {
     await usuario.click(botonConfirmar());
 
     await screen.findByText('Lote confirmado: 2 propuestas.');
+    // R1B venía marcada y la persona la quitó: viaja como desmarcada (6.2).
     expect(pedidos.lotes).toEqual([
-      { ids: [propuestaDe(R1A), propuestaDe(R2), propuestaDe(R3)] },
+      {
+        ids: [propuestaDe(R1A), propuestaDe(R2), propuestaDe(R3)],
+        desmarcadas: [propuestaDe(R1B)],
+      },
     ]);
     expect(
       screen.getByText(
@@ -292,6 +296,34 @@ describe('Confirmación en lote: confirmar (S2, S3, S6)', () => {
     // Sale del lote y vuelve a pedir la lista.
     expect(screen.queryAllByRole('checkbox')).toEqual([]);
     await waitFor(() => expect(pedidos.listas).toBeGreaterThan(1));
+  });
+
+  it('quitar una marca y volver a ponerla no la manda como desmarcada', async () => {
+    const pedidos = montar();
+    const usuario = await abrir();
+    await usuario.click(casilla(/Movimiento 2,/));
+    await usuario.click(casilla(/Movimiento 2,/));
+
+    await usuario.click(botonConfirmar());
+
+    await waitFor(() => expect(pedidos.lotes).toHaveLength(1));
+    expect(pedidos.lotes[0]).toEqual({
+      ids: [propuestaDe(R1A), propuestaDe(R1B)],
+    });
+  });
+
+  it('marcar algo que no venía marcado y quitarlo después no cuenta como desmarcada', async () => {
+    const pedidos = montar();
+    const usuario = await abrir();
+    await usuario.click(casilla(/Movimiento 5,/)); // marca R2
+    await usuario.click(casilla(/Movimiento 5,/)); // la quita
+
+    await usuario.click(botonConfirmar());
+
+    await waitFor(() => expect(pedidos.lotes).toHaveLength(1));
+    expect(pedidos.lotes[0]).toEqual({
+      ids: [propuestaDe(R1A), propuestaDe(R1B)],
+    });
   });
 
   it('nunca manda la bloqueada ni lo que no estaba marcado', async () => {

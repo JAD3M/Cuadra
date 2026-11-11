@@ -21,6 +21,7 @@ import { opcionesDataSource } from '../../database/data-source';
 import { ENTIDADES } from '../../database/entidades';
 import { SnakeNamingStrategy } from '../../database/naming.strategy';
 import { ResolucionModule } from '../../resolucion/resolucion.module';
+import { SombraModule } from '../../sombra/sombra.module';
 import { COLA_SUGERENCIAS } from '../../sugerencias/cola-sugerencias';
 import { ProveedorSugerencia } from '../../sugerencias/proveedor-sugerencia';
 import { sembrar } from '../../database/seeds/seed';
@@ -138,6 +139,7 @@ export async function levantarAppDeCargas(
       BitacoraModule,
       CasosModule,
       ResolucionModule,
+      SombraModule,
     ],
   });
   if (opciones.proveedorSugerencia) {
