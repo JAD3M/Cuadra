@@ -890,6 +890,35 @@ propuestas habría cerrado sola:
 fila de `habria_cerrado`. Ninguna prueba cubre aún un movimiento con `banco` de varias empresas ni
 borrar decisiones (las FK `RESTRICT` lo impiden a propósito).
 
+**Modo sombra: qué hizo la persona después (v2, historia 6.2), terminada el 11 nov 2026.**
+Segunda historia de la épica 6 (FR-35; AD-10, AD-4, AD-12). Cuadra anota, sin cerrar nada, qué hizo la
+persona con cada propuesta de la regla 1 que ya tenía `habria_cerrado`, y calcula la tasa de desacuerdo:
+
+- `evidencia_sombra` suma `confirmo`, `rechazo`, `desmarco` y `reabrio` (migración `1790720000000`,
+  solo reescribe el CHECK; RLS y GRANTs no cambian). `EVENTOS_SOMBRA` y su espejo tienen los cinco.
+  Solo agregar: nunca se actualiza ni se borra una fila. Sin índice único nuevo (`desmarco` puede
+  repetirse).
+- Confirmar, rechazar, reabrir y reabrir un lote escriben su evento en la MISMA sentencia que el cambio
+  de estado (CTE `sombra`, con JOIN a `habria_cerrado`: otra regla, o una propuesta sin evidencia, no
+  anota nada). Dentro de un lote el SAVEPOINT también deshace la evidencia de la omitida. La hermana
+  `obsoleta` no es un rechazo humano y no se anota.
+- `POST /conciliaciones/lotes` acepta `desmarcadas` (opcional, mismas reglas que `ids`, sin mínimo): las
+  propuestas que venían marcadas y la persona quitó. Una id en `ids` y en `desmarcadas` da 400; las
+  desmarcadas sin evidencia, ya resueltas o de otra empresa se ignoran. El frontend las envía (sin cambio
+  visual). Solo viajan si el lote se envía con al menos una marcada.
+- `SombraService.tasaDesacuerdo(companyId)`: consulta sobre los eventos, nada guardado. Por decisión,
+  desacuerdo = `rechazo` o `reabrio`, o `desmarco` sin `confirmo`. `tasa = desacuerdos / tratadas`
+  (las que la persona tocó); sin endpoint ni pantalla todavía.
+- Decisiones mías, a confirmar: una desmarcada que sigue pendiente (o que se resolvió por una vía sin
+  evento, como descartar) cuenta como desacuerdo, el lado conservador; y al reabrir el motor re-propone
+  con una decisión nueva, que es otra propuesta más.
+- Revisado por un verificador independiente (alto riesgo: CHECK de una tabla con RLS y las sentencias
+  que cierran y reabren casos): sin blockers.
+
+**Pendientes (6.2):** la tasa aún no se ve en ninguna pantalla ni endpoint; la prueba de `down()` de la
+migración con datos y los probes de concurrencia del verificador no se ejecutaron en vivo. El frontend
+de esta historia se escribió antes que sus pruebas (sin RED observado).
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

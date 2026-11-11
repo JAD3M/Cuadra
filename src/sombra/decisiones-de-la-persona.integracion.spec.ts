@@ -203,6 +203,20 @@ describe('evidencia_sombra: lo que la persona hizo después (S1, S2)', () => {
     ]);
   });
 
+  it('una propuesta omitida del lote no deja confirmo (el SAVEPOINT también deshace la evidencia)', async () => {
+    const rechazada = await propuestaDeRegla1(A);
+    await post(`/conciliaciones/${rechazada}/rechazar`, tokenA, {
+      motivo: 'No corresponde',
+    }).expect(200);
+
+    const res = await post('/conciliaciones/lotes', tokenA, {
+      ids: [rechazada],
+    }).expect(200);
+
+    expect((res.body as { confirmadas: string[] }).confirmadas).toEqual([]);
+    expect((await eventos()).map((e) => e.evento)).toEqual(['rechazo']);
+  });
+
   it('una propuesta de otra regla no anota nada', async () => {
     const id = await propuestaDeOtraRegla(A);
 

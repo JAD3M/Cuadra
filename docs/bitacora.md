@@ -3,6 +3,18 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 11 nov 2026
+
+- **Historia 6.2 de la v2: registrar qué hizo la persona después.**
+  Documento `odd/tasks/v2-6-2-desacuerdo-sombra.md` (KAN-154), un solo PR con las notas de cierre dentro.
+  `evidencia_sombra` suma `confirmo`, `rechazo`, `desmarco` y `reabrio` (migración `1790720000000`, solo
+  el CHECK). Confirmar, rechazar, reabrir y reabrir un lote anotan su evento en la misma sentencia que el
+  cambio de estado, solo si la propuesta ya tenía `habria_cerrado`. `POST /conciliaciones/lotes` recibe
+  `desmarcadas` (campo opcional aprobado por el usuario) y el frontend lo envía. `SombraService`
+  calcula la tasa de desacuerdo con una consulta sobre los eventos, sin guardar nada. Decisiones mías, a
+  confirmar: una desmarcada pendiente cuenta como desacuerdo, y la re-propuesta tras reabrir es una
+  propuesta nueva. Verificador independiente: sin blockers.
+
 ### 10 nov 2026
 
 - **Historia 6.1 de la v2: registrar lo que Cuadra habría cerrado sola.**

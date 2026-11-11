@@ -31,7 +31,7 @@ Entrega: `ask-on-risk`; PR en cadena solo si pasa de ~400 líneas de código y e
 - [x] T3 (hecha; RED: 3 de 12 fallan sin el campo; GREEN: `desmarcadas` en `LoteDto`, 400 si una id va en ambas, `anotarDesmarcadas` en `confirmarLote`; 218 pruebas de sombra y resolucion) (S1, S3; backend, inline; Risk item 3: se agrega un campo opcional a un contrato que otros consumen, sin romper el actual): `desmarcadas` en `LoteDto` y registro de `desmarco` en `confirmarLote`.
 - [x] T4 (hecha; SIN RED observado: el código se escribió antes que las pruebas; 236 de bandeja y 5035 del frontend verdes; sin cambio visual) (A1; frontend, inline): `BandejaPage` calcula las desmarcadas contra `marcadasIniciales`, `useConfirmarLote` las envía; pruebas.
 - [x] T5 (hecha; RED: el módulo no existía, 8 de 8 fallan; GREEN: 8 pruebas con dos empresas; `SombraService.tasaDesacuerdo` + `SombraModule` en `AppModule` y en la app de pruebas) (S3-S6; backend, inline): servicio de tasa de desacuerdo como consulta sobre eventos; una prueba por caso con datos de dos empresas.
-- [ ] T6: notas de cierre en `CUADRA.md` y `docs/bitacora.md`, repaso en Engram, verificador independiente al final.
+- [x] T6 (verificador independiente sin blockers; notas en `CUADRA.md` y `docs/bitacora.md`; repaso en Engram): notas de cierre en `CUADRA.md` y `docs/bitacora.md`, repaso en Engram, verificador independiente al final.
 
 ## Log
 
@@ -43,3 +43,4 @@ Entrega: `ask-on-risk`; PR en cadena solo si pasa de ~400 líneas de código y e
 - Limitación conocida (A1): `desmarcadas` solo viaja si el lote se envía con al menos una marcada (`ids` exige 1). Si la persona desmarca todo y cancela, no queda evidencia.
 - Al reabrir, el motor re-propone con una decisión nueva (su propia `habria_cerrado`, sin tocar): la prueba de la tasa lo fija (propuestas 4, tratadas 3).
 - Backend completo: 2045 pruebas verdes; frontend: 5035; prettier de código limpio; lint sin errores en lo tocado.
+- Verificador independiente (en el sitio, sin `.env`): sin blockers, S1-S7 y A1-A7 cumplidos; 299 pruebas de sombra, resolución, esquema y RLS. Advisories: faltaba una prueba de omitida en lote (agregada), `down()` con datos sin ejecutar, `desmarcadas` no viaja si se desmarca todo, T4 sin RED.
