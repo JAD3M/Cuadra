@@ -8,8 +8,9 @@
 - **6.2, pendiente resuelto en backend: `ids` vacío cuando viene `desmarcadas`.** El usuario eligió permitirlo.
   `POST /conciliaciones/lotes` ya no exige `ids` si `desmarcadas` trae alguna: el lote no confirma nada
   (`loteId: null`) y solo anota `desmarco`; vacíos los dos sigue dando 400. Contrato ampliado, no roto.
-  Falta el frontend: con cero marcadas el botón está deshabilitado y «Cancelar» no envía nada, por lo
-  que la pantalla todavía no dispara ese caso.
+  Frontend (el usuario eligió «enviar al cancelar»): «Cancelar» manda `{ids: [], desmarcadas}` si la
+  persona quitó alguna marca inicial, sin cambio visual ni de mockup. Es best effort: cerrar la pestaña
+  o cambiar de filtro/página no envía nada.
 
 - **6.2, pendiente A7 resuelto: la desmarcada pendiente espera su resolución.** El usuario eligió que una
   propuesta desmarcada que sigue pendiente no entre en la tasa de desacuerdo hasta que se resuelva. Cuenta

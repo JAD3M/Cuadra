@@ -80,7 +80,25 @@ describe('useConfirmarLote (5.3)', () => {
     ]);
   });
 
-  it('sin ids no envía nada', () => {
+  it('sin ids pero con desmarcadas envía solo las desmarcadas (6.2)', async () => {
+    const pedidos = registrar();
+    const { result } = montar();
+    const cb = llamadas();
+    let envio = false;
+    act(() => {
+      envio = result.current.confirmar([], cb, [idDe(2)]);
+    });
+    expect(envio).toBe(true);
+    await waitFor(() => expect(cb.onExito).toHaveBeenCalledTimes(1));
+    expect(pedidos).toEqual([
+      {
+        ruta: '/api/conciliaciones/lotes',
+        cuerpo: JSON.stringify({ ids: [], desmarcadas: [idDe(2)] }),
+      },
+    ]);
+  });
+
+  it('sin ids ni desmarcadas no envía nada', () => {
     const pedidos = registrar();
     const { result } = montar();
     let envio = true;
