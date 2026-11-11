@@ -24,10 +24,12 @@ Entrega: `ask-on-risk`; un PR (menos de 400 líneas de código). Inicio 2026-11-
 
 ## Tasks
 
-- [ ] T1 (S1-S6, backend, inline; Risk item 2: tabla de dominio nueva con RLS y GRANTs, y el CTE central del motor): migración, entidad, registros, `EVENTOS_SOMBRA` en `tipos.ts` y espejo, CTE en `insertar`, pruebas.
-- [ ] T2 (cierre dentro del PR): notas en `CUADRA.md` y `docs/bitacora.md`, repaso en Engram.
+- [x] T1 (commit b46224f; S1-S6, backend, inline; Risk item 2: tabla de dominio nueva con RLS y GRANTs, y el CTE central del motor): migración, entidad, registros, `EVENTOS_SOMBRA` en `tipos.ts` y espejo, CTE en `insertar`, pruebas.
+- [x] T2 (cierre dentro del PR): notas en `CUADRA.md` y `docs/bitacora.md`, repaso en Engram.
 
 ## Log
 
 - L1 (2026-11-10): «ah si. es que ahi cerramos la epica 5 y seguimos con la 6 y empezamos con 6.1».
 - Mapa del explorador: regla 1 = `referencia_monto_exacto` (score 1.0); la ambigüedad de referencia ya se rechaza antes de crear la propuesta (`referencia_ambigua`); las propuestas se insertan con un CTE en `insertar` (`conciliacion.service.ts:240-295`) con `cabeceras ... ON CONFLICT DO NOTHING RETURNING`, ancla correcta para no duplicar evidencia; `insertarGrupos`, las sugerencias del LLM y el descarte no deben registrar; `movimientos.banco` existe y es nullable; no hay `src/sombra` ni prueba de arquitectura que lo impida; la última migración es `1790718000000`.
+- T1 hecha (inline, una unidad): migración 1790719000000 (`evidencia_sombra`: RLS FORCE, política, GRANT solo SELECT e INSERT, FK RESTRICT, CHECK de `evento` con `habria_cerrado`, índice único parcial por decisión), entidad en `src/sombra/`, `EVENTOS_SOMBRA` en `tipos.ts` y su espejo, CTE `sombra` en `insertar` (regla `referencia_monto_exacto` con `diferencia_monto = 0`, sobre `cabeceras` para no duplicar), registros (`entidades.ts`, `TABLAS_CON_RLS`, `TABLAS_DOMINIO`, regex de la migración 4.3, `TRUNCATE` de tolerancia, deriva 20 a 21). RED observado: la relación no existía. 13 pruebas nuevas (incluye atomicidad: si la evidencia falla, tampoco queda la propuesta). Backend 2025 y frontend 5032 verdes; 4 errores de lint de `plataforma` ya existían. Risk: item 2 (tabla de dominio nueva con RLS y GRANTs; toca la sentencia central del motor).
+- Verificador independiente (al cierre, en el sitio, sin copiar `.env`): sin blockers, S1 a S6 cumplidos; corrió 83 pruebas del motor y la suite completa. Pregunta de producto abierta: una re-propuesta tras reabrir crea una decisión nueva y vuelve a registrar `habria_cerrado` (el índice único es por decisión); los criterios dicen «cada propuesta», así que se dejó. Si la 6.2 calcula tasas por movimiento, hay que contar por movimiento y no por fila.
