@@ -13,7 +13,8 @@ const PROFUNDIDAD_MAXIMA = 32;
  * carácter llegaba a la base y la API respondía 500. Este pipe global corta
  * con un 400 antes de llegar a ella, en el cuerpo, la consulta y los
  * parámetros de la ruta, incluidos los textos anidados y los nombres de llave.
- * Va antes que el `ValidationPipe` (`configurarApp`).
+ * Va después del `ValidationPipe` (`configurarApp`): si un DTO ya rechaza el
+ * carácter con su propio mensaje, ese mensaje es el que sale.
  */
 @Injectable()
 export class SinNulosPipe implements PipeTransform {

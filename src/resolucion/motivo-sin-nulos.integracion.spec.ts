@@ -35,6 +35,12 @@ beforeAll(async () => {
 }, 60_000);
 
 afterAll(async () => {
+  // Las pruebas de migraciones deshacen el CHECK de la bitácora: no le dejan filas.
+  if (ds?.isInitialized) {
+    await ds.query(
+      'TRUNCATE cfdi, cargas, movimientos, decisiones, decision_lineas, bitacora CASCADE',
+    );
+  }
   await entorno?.cerrar();
 });
 

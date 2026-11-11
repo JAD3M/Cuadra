@@ -28,13 +28,14 @@ export function configurarApp(app: INestApplication): void {
   app.use(cookieParser());
 
   app.useGlobalPipes(
-    // Antes que la validación: ningún texto con U+0000 llega a la base.
-    new SinNulosPipe(),
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
     }),
+    // Después de la validación: un DTO con su propio mensaje (banco, cuenta,
+    // comentario) lo conserva; esto cubre el resto de los textos libres.
+    new SinNulosPipe(),
   );
 
   // CORS con el origen exacto y credenciales (AD-6). Nunca `*` ni el origen
