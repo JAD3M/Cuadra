@@ -1,7 +1,14 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator';
 import { COMENTARIO_MAXIMO } from '../../conciliacion/decision-comentario.entity';
+
+/**
+ * Postgres no guarda U+0000 en un `text` y lo rechaza con un error de la base
+ * (500). Se corta aquí con un 400 claro.
+ */
+// eslint-disable-next-line no-control-regex
+const SIN_NULOS = /^[^\u0000]*$/;
 
 /** Historia 5.9: un comentario vacío se rechaza con un mensaje claro (400). */
 export class ComentarDto {
@@ -17,6 +24,9 @@ export class ComentarDto {
   @IsNotEmpty({ message: 'El comentario no puede estar vacío' })
   @MaxLength(COMENTARIO_MAXIMO, {
     message: `El comentario no puede pasar de ${COMENTARIO_MAXIMO} caracteres`,
+  })
+  @Matches(SIN_NULOS, {
+    message: 'El comentario contiene caracteres no válidos',
   })
   texto: string;
 }
