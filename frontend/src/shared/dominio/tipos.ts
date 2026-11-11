@@ -74,6 +74,10 @@ export const EVENTOS_SOMBRA = [
 ] as const;
 export type EventoSombra = (typeof EVENTOS_SOMBRA)[number];
 
+/** Espejo del backend: clase de un movimiento importado (6.3). */
+export const CLASES_MOVIMIENTO = ['comision', 'parcialidad'] as const;
+export type ClaseMovimiento = (typeof CLASES_MOVIMIENTO)[number];
+
 export const REGLAS_SIN_MATCH = [
   'referencia_ambigua',
   'referencia_cfdi_ocupado',

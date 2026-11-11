@@ -310,7 +310,7 @@ describe('migración RetirarConciliaciones (4.3, AD-20 paso 4)', () => {
     // a las entidades aparece como pendiente. La deriva con toda la secuencia
     // la vigila esquema.spec.ts.
     const posterior =
-      /descartada_por_id|descartada_at|descarte_persona|ix_decisiones_company_lote|decision_comentarios|evidencia_sombra/;
+      /descartada_por_id|descartada_at|descarte_persona|ix_decisiones_company_lote|decision_comentarios|evidencia_sombra|ck_movimientos_clase|"clase"/;
     expect(
       pendiente.upQueries.map((q) => q.query).filter((q) => !posterior.test(q)),
     ).toEqual([]);

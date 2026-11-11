@@ -126,3 +126,57 @@ export class BancoPlataformaDto {
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   levantadaEn!: string | null;
 }
+
+export class ConteoFacturasDto {
+  @ApiProperty({ description: 'Todas las facturas de la empresa.' })
+  total!: number;
+
+  @ApiProperty({ description: 'Las facturas con método de pago PPD.' })
+  ppd!: number;
+}
+
+export class ConteoMovimientosDto {
+  @ApiProperty({ description: 'Todos los movimientos de la empresa.' })
+  total!: number;
+
+  @ApiProperty({ description: 'Movimientos de clase `parcialidad`.' })
+  parcialidades!: number;
+
+  @ApiProperty({ description: 'Movimientos de clase `comision`.' })
+  comisiones!: number;
+}
+
+export class FraccionesEmpresaDto {
+  @ApiProperty() companyId!: string;
+  @ApiProperty() razonSocial!: string;
+  @ApiProperty({ type: ConteoFacturasDto }) facturas!: ConteoFacturasDto;
+  @ApiProperty({ type: ConteoMovimientosDto })
+  movimientos!: ConteoMovimientosDto;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: '0.2500',
+    description:
+      'Facturas PPD entre el total de facturas, con cuatro decimales; null si la empresa no tiene facturas.',
+  })
+  fraccionPpd!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: '0.0100',
+    description:
+      'Movimientos de clase `parcialidad` entre el total de movimientos; null si no hay movimientos.',
+  })
+  fraccionParcialidades!: string | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: '0.0300',
+    description:
+      'Movimientos de clase `comision` entre el total de movimientos; null si no hay movimientos.',
+  })
+  fraccionComisiones!: string | null;
+}

@@ -148,6 +148,20 @@ describe('POST /cargas/estado-cuenta (CU-09)', () => {
       expect.objectContaining({ linea_numero: 5, monto: '0.0001' }),
       expect.objectContaining({ linea_numero: 6, monto: '123456789.1234' }),
     ]);
+    // Historia 6.3: solo la comisión de la línea 3 lleva clase.
+    expect(
+      await filas<{ linea_numero: number; clase: string | null }>(
+        ds,
+        `SELECT linea_numero, clase FROM movimientos WHERE carga_id = $1 ORDER BY linea_numero`,
+        [carga.id],
+      ),
+    ).toEqual([
+      { linea_numero: 2, clase: null },
+      { linea_numero: 3, clase: 'comision' },
+      { linea_numero: 4, clase: null },
+      { linea_numero: 5, clase: null },
+      { linea_numero: 6, clase: null },
+    ]);
   });
 
   it('1 fila malformada de 5: con_errores, 4 movimientos y la fila reportada con su línea', async () => {

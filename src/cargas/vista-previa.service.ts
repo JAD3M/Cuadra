@@ -1,3 +1,4 @@
+import { clasificarMovimiento } from '../bancos/clasificar-movimiento';
 import {
   ConflictException,
   Injectable,
@@ -55,6 +56,7 @@ interface FilaMovimiento {
 interface FilaEnEspera extends FilaMovimiento {
   linea_numero: number;
   cuenta: string | null;
+  descripcion: string;
 }
 
 interface FilaCargaBloqueada {
@@ -178,13 +180,13 @@ export class VistaPreviaService {
       await manager.query(
         `INSERT INTO movimientos
            (company_id, carga_id, linea_numero, fecha, descripcion,
-            referencia, monto, moneda, banco, cuenta, estado, huella)
+            referencia, monto, moneda, banco, cuenta, estado, huella, clase)
          SELECT p.company_id, p.carga_id, p.linea_numero, p.fecha,
                 p.descripcion, p.referencia, p.monto, p.moneda, p.banco,
-                p.cuenta, v.estado, v.huella
+                p.cuenta, v.estado, v.huella, v.clase
            FROM movimientos_pendientes p
-           JOIN unnest($3::int[], $4::text[], $5::text[])
-                AS v(linea_numero, estado, huella)
+           JOIN unnest($3::int[], $4::text[], $5::text[], $6::text[])
+                AS v(linea_numero, estado, huella, clase)
              ON v.linea_numero = p.linea_numero
           WHERE p.carga_id = $1 AND p.company_id = $2`,
         [
@@ -195,6 +197,10 @@ export class VistaPreviaService {
             f.clase === 'dudoso' ? 'pendiente_revision' : 'abierto',
           ),
           aImportar.map((f) => f.huella),
+          // Solo para medir (6.3): no toca el estado ni la huella.
+          aImportar.map((f) =>
+            clasificarMovimiento(f.fila.descripcion, f.fila.monto),
+          ),
         ],
       );
     }
@@ -301,7 +307,7 @@ export class VistaPreviaService {
   ): Promise<FilaEnEspera[]> {
     return manager.query<FilaEnEspera[]>(
       `SELECT linea_numero, to_char(fecha, 'YYYY-MM-DD') AS fecha,
-              monto::text AS monto, referencia, cuenta
+              monto::text AS monto, referencia, cuenta, descripcion
          FROM movimientos_pendientes
         WHERE carga_id = $1 AND company_id = $2
         ORDER BY linea_numero`,

@@ -98,6 +98,14 @@ export const EVENTOS_SOMBRA = [
 export type EventoSombra = (typeof EVENTOS_SOMBRA)[number];
 
 /**
+ * Historia 6.3 (FR-69). Clase de un movimiento importado: solo para medir
+ * cuántos son comisiones o parcialidades. Nula si no encaja en ninguna. La
+ * asigna `clasificarMovimiento` al importar y nunca cambia la conciliación.
+ */
+export const CLASES_MOVIMIENTO = ['comision', 'parcialidad'] as const;
+export type ClaseMovimiento = (typeof CLASES_MOVIMIENTO)[number];
+
+/**
  * Por qué un movimiento abierto no recibió propuesta (CU-13). Son códigos
  * estables: se guardan tal cual y nunca se renombran. Namespace aparte de
  * `ReglaConciliacion`, que nombra la regla de una propuesta.

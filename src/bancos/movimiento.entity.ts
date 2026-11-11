@@ -4,9 +4,11 @@ import { EntidadBase } from '../common/entities/base.entity';
 import { Carga } from '../cargas/carga.entity';
 import { Company } from '../companies/company.entity';
 import {
+  CLASES_MOVIMIENTO,
   ESTADOS_MOVIMIENTO,
   listaSql,
   REGLAS_SIN_MATCH,
+  type ClaseMovimiento,
   type EstadoMovimiento,
   type ReglaSinMatch,
 } from '../common/entities/tipos';
@@ -44,6 +46,10 @@ import {
 @Check(
   'ck_movimientos_sin_match_par',
   '(motivo_sin_match IS NULL) = (regla_sin_match IS NULL)',
+)
+@Check(
+  'ck_movimientos_clase',
+  `clase IS NULL OR clase IN (${listaSql(CLASES_MOVIMIENTO)})`,
 )
 @Check('ck_movimientos_monto_no_cero', 'monto <> 0')
 @Check('ck_movimientos_linea_numero', 'linea_numero >= 0')
@@ -115,6 +121,13 @@ export class Movimiento extends EntidadBase {
    */
   @Column({ type: 'varchar', length: 70, nullable: true })
   huella: string | null;
+
+  /**
+   * Historia 6.3: 'comision', 'parcialidad' o nula. Solo para medir; la
+   * escribe `clasificarMovimiento` al importar y ninguna regla la lee.
+   */
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  clase: ClaseMovimiento | null;
 
   /**
    * 'pendiente_revision': dudoso por huella repetida con otra referencia
