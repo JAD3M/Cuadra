@@ -27,6 +27,7 @@ const TABLAS_DOMINIO = [
   'decisiones',
   'decision_lineas',
   'decision_comentarios',
+  'evidencia_sombra',
 ] as const;
 
 const TODAS_LAS_TABLAS = [
