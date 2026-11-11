@@ -163,6 +163,16 @@ export class ReabrirService {
                   $10::inet, $11
              FROM reabierta r
            RETURNING id
+         ),
+         sombra AS (
+           INSERT INTO evidencia_sombra (company_id, banco, decision_id, evento, persona_id)
+           SELECT $1::uuid, m.banco, r.id, 'reabrio', $4::uuid
+             FROM reabierta r
+             JOIN evidencia_sombra h
+               ON h.decision_id = r.id AND h.company_id = $1
+              AND h.evento = 'habria_cerrado'
+             JOIN movimientos m ON m.id = $3 AND m.company_id = $1
+           RETURNING id
          )
          SELECT (SELECT count(*) FROM auditoria)::int AS auditoria,
                 (SELECT count(*) FROM cfdis)::int AS cfdis,
@@ -361,6 +371,16 @@ export class ReabrirService {
                   $8::inet, $9
              FROM reabiertas r
              JOIN decisiones d ON d.id = r.id AND d.company_id = $1
+           RETURNING id
+         ),
+         sombra AS (
+           INSERT INTO evidencia_sombra (company_id, banco, decision_id, evento, persona_id)
+           SELECT $1::uuid, m.banco, r.id, 'reabrio', $5::uuid
+             FROM reabiertas r
+             JOIN evidencia_sombra h
+               ON h.decision_id = r.id AND h.company_id = $1
+              AND h.evento = 'habria_cerrado'
+             JOIN movimientos m ON m.id = r.movimiento_id AND m.company_id = $1
            RETURNING id
          )
          SELECT (SELECT count(*) FROM reabiertas)::int AS reabiertas,

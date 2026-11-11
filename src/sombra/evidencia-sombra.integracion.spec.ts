@@ -6,6 +6,7 @@ import {
   levantarAppDeCargas,
   TRANSPORTES,
 } from '../cargas/testing/app-de-cargas';
+import { EVENTOS_SOMBRA } from '../common/entities/tipos';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
 import { filas, una } from '../database/testing/base-de-pruebas';
 
@@ -305,15 +306,28 @@ describe('evidencia_sombra: tabla de solo agregar (S3, S6)', () => {
     ]);
   });
 
-  it('el CHECK solo admite habria_cerrado en esta historia', async () => {
+  it('el CHECK admite los cinco eventos y rechaza cualquier otro', async () => {
     await movimiento(A);
     await factura(A);
     await servicio.conciliar(A);
     const [decision] = await decisiones();
 
+    expect([...EVENTOS_SOMBRA]).toEqual([
+      'habria_cerrado',
+      'confirmo',
+      'rechazo',
+      'desmarco',
+      'reabrio',
+    ]);
+    for (const evento of EVENTOS_SOMBRA.filter((e) => e !== 'habria_cerrado')) {
+      await ds.query(
+        `INSERT INTO evidencia_sombra (company_id, decision_id, evento) VALUES ($1,$2,$3)`,
+        [A, decision.id, evento],
+      );
+    }
     await expect(
       ds.query(
-        `INSERT INTO evidencia_sombra (company_id, decision_id, evento) VALUES ($1,$2,'confirmo')`,
+        `INSERT INTO evidencia_sombra (company_id, decision_id, evento) VALUES ($1,$2,'otro')`,
         [A, decision.id],
       ),
     ).rejects.toMatchObject({ code: '23514' });

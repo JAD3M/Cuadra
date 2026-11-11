@@ -83,12 +83,18 @@ export const ORIGENES_CONCILIACION = ['regla', 'llm', 'manual'] as const;
 export type OrigenConciliacion = (typeof ORIGENES_CONCILIACION)[number];
 
 /**
- * Qué anota `evidencia_sombra` (AD-10, solo agregar). La historia 6.1 solo
- * escribe 'habria_cerrado': una propuesta de la regla 1 exacta que Cuadra
- * habría cerrado sola. 'confirmo', 'rechazo', 'desmarco' y 'reabrio' los suma
- * la 6.2 junto con el CHECK de la tabla.
+ * Qué anota `evidencia_sombra` (AD-10, solo agregar). 'habria_cerrado' (6.1):
+ * una propuesta de la regla 1 exacta que Cuadra habría cerrado sola. Los otros
+ * cuatro (6.2) son lo que la persona hizo después con esa propuesta:
+ * 'confirmo', 'rechazo', 'desmarco' (en un lote) y 'reabrio'.
  */
-export const EVENTOS_SOMBRA = ['habria_cerrado'] as const;
+export const EVENTOS_SOMBRA = [
+  'habria_cerrado',
+  'confirmo',
+  'rechazo',
+  'desmarco',
+  'reabrio',
+] as const;
 export type EventoSombra = (typeof EVENTOS_SOMBRA)[number];
 
 /**

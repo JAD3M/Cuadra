@@ -79,6 +79,26 @@ export class LoteDto {
   @ArrayUnique()
   @IsUUID('all', { each: true })
   ids: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    maxItems: MAXIMO_LOTE,
+    description:
+      'Ids de las propuestas que venían marcadas y la persona desmarcó (hasta 500, sin repetir, ninguna también en `ids`). Solo se anotan como evidencia del modo sombra: no cambian el estado de nada.',
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    Array.isArray(value)
+      ? value.map((id: unknown) =>
+          typeof id === 'string' ? id.toLowerCase() : id,
+        )
+      : value,
+  )
+  @IsArray()
+  @ArrayMaxSize(MAXIMO_LOTE)
+  @ArrayUnique()
+  @IsUUID('all', { each: true })
+  desmarcadas?: string[];
 }
 
 export class OmisionDeLoteDto {

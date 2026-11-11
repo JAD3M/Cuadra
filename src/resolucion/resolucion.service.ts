@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -114,12 +115,20 @@ export class ResolucionService {
     companyId: string,
     ids: readonly string[],
     quien: ContextoDeConfirmacion,
+    desmarcadas: readonly string[] = [],
   ): Promise<LoteRespuestaDto> {
     const manager = this.contexto.manager();
     await tomarCandadoDeConciliacion(manager, companyId);
     // Defensa en profundidad: el DTO ya normaliza, pero aquí se compara contra los
     // ids que devuelve la base (siempre en minúsculas).
     const ordenados = [...new Set(ids.map((id) => id.toLowerCase()))].sort();
+    const sinMarca = [...new Set(desmarcadas.map((id) => id.toLowerCase()))];
+    if (sinMarca.some((id) => ordenados.includes(id))) {
+      throw new BadRequestException(
+        'Una propuesta no puede ir a la vez marcada y desmarcada',
+      );
+    }
+    await this.anotarDesmarcadas(companyId, sinMarca, quien);
     // AD-13: una sola lectura de la configuración para todo el lote.
     const separacion = await separacionActiva(manager, companyId);
     const choques = await this.marcadasQueChocan(companyId, ordenados);
@@ -338,6 +347,16 @@ export class ResolucionService {
                   $8::inet, $9
              FROM hermanas h
            RETURNING id
+         ),
+         sombra AS (
+           INSERT INTO evidencia_sombra (company_id, banco, decision_id, evento, persona_id)
+           SELECT $1::uuid, m.banco, o.id, 'confirmo', $3::uuid
+             FROM objetivo o
+             JOIN evidencia_sombra h
+               ON h.decision_id = o.id AND h.company_id = $1
+              AND h.evento = 'habria_cerrado'
+             JOIN movimientos m ON m.id = $4 AND m.company_id = $1
+           RETURNING id
          )
          SELECT (SELECT to_char(confirmada_at AT TIME ZONE 'UTC',
                                 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') FROM objetivo) AS "confirmadaAt",
@@ -394,6 +413,32 @@ export class ResolucionService {
       confirmadaAt: resultado.confirmadaAt,
       rechazadasAutomaticamente: resultado.hermanas,
     };
+  }
+
+  /**
+   * 6.2 (FR-35): anota `desmarco` por cada propuesta que la persona dejó sin
+   * marcar en el lote. Solo cuenta la que sigue en `propuesta` y ya tenía
+   * `habria_cerrado`; el resto (otra regla, ya resuelta, de otra empresa o
+   * inexistente) se ignora sin error. No cambia el estado de nada.
+   */
+  private async anotarDesmarcadas(
+    companyId: string,
+    desmarcadas: readonly string[],
+    quien: ContextoDeConfirmacion,
+  ): Promise<void> {
+    if (desmarcadas.length === 0) return;
+    await this.contexto.manager().query(
+      `INSERT INTO evidencia_sombra (company_id, banco, decision_id, evento, persona_id)
+       SELECT $1::uuid, m.banco, d.id, 'desmarco', $3::uuid
+         FROM decisiones d
+         JOIN evidencia_sombra h
+           ON h.decision_id = d.id AND h.company_id = $1
+          AND h.evento = 'habria_cerrado'
+         JOIN movimientos m ON m.id = d.movimiento_id AND m.company_id = $1
+        WHERE d.company_id = $1 AND d.id = ANY($2::uuid[])
+          AND d.estado = 'propuesta'`,
+      [companyId, desmarcadas, quien.userId],
+    );
   }
 
   /**
@@ -499,6 +544,16 @@ export class ResolucionService {
                     'diferenciaMonto', r.diferencia_monto::text),
                   $8::inet, $9
              FROM rechazada r
+           RETURNING id
+         ),
+         sombra AS (
+           INSERT INTO evidencia_sombra (company_id, banco, decision_id, evento, persona_id)
+           SELECT $1::uuid, m.banco, r.id, 'rechazo', $4::uuid
+             FROM rechazada r
+             JOIN evidencia_sombra h
+               ON h.decision_id = r.id AND h.company_id = $1
+              AND h.evento = 'habria_cerrado'
+             JOIN movimientos m ON m.id = $7 AND m.company_id = $1
            RETURNING id
          )
          SELECT r.motivo, (SELECT count(*) FROM auditoria)::int AS auditoria

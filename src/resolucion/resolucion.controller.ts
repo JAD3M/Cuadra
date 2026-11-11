@@ -45,7 +45,8 @@ export class ResolucionController {
   @Permiso('conciliaciones.resolver')
   @ApiOkResponse({ type: LoteRespuestaDto })
   @ApiBadRequestResponse({
-    description: 'ids vacío, repetido, con más de 500 o con un id inválido.',
+    description:
+      'ids vacío, repetido, con más de 500 o con un id inválido; o una id en ids y en desmarcadas a la vez.',
   })
   @ApiForbiddenResponse({
     description:
@@ -56,13 +57,18 @@ export class ResolucionController {
     @Body() cuerpo: LoteDto,
     @Req() solicitud: Request,
   ): Promise<LoteRespuestaDto> {
-    return this.resolucion.confirmarLote(usuario.companyId, cuerpo.ids, {
-      userId: usuario.userId,
-      ip: solicitud.ip,
-      userAgent: solicitud.headers['user-agent'],
-      metodo: solicitud.method,
-      ruta: solicitud.path,
-    });
+    return this.resolucion.confirmarLote(
+      usuario.companyId,
+      cuerpo.ids,
+      {
+        userId: usuario.userId,
+        ip: solicitud.ip,
+        userAgent: solicitud.headers['user-agent'],
+        metodo: solicitud.method,
+        ruta: solicitud.path,
+      },
+      cuerpo.desmarcadas ?? [],
+    );
   }
 
   @Post(':id/confirmar')

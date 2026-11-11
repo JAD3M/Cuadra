@@ -64,8 +64,14 @@ export type TipoDecision = (typeof TIPOS_DECISION)[number];
 export const ORIGENES_CONCILIACION = ['regla', 'llm', 'manual'] as const;
 export type OrigenConciliacion = (typeof ORIGENES_CONCILIACION)[number];
 
-/** Espejo del backend: lo que anota la evidencia del modo sombra (6.1). */
-export const EVENTOS_SOMBRA = ['habria_cerrado'] as const;
+/** Espejo del backend: lo que anota la evidencia del modo sombra (6.1, 6.2). */
+export const EVENTOS_SOMBRA = [
+  'habria_cerrado',
+  'confirmo',
+  'rechazo',
+  'desmarco',
+  'reabrio',
+] as const;
 export type EventoSombra = (typeof EVENTOS_SOMBRA)[number];
 
 export const REGLAS_SIN_MATCH = [

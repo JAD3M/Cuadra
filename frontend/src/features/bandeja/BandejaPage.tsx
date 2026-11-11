@@ -101,6 +101,10 @@ export function BandejaPage() {
   const sinSeparacion = useSeparacionDesactivada();
   const confirmarLote = useConfirmarLote();
   const [marcadas, setMarcadas] = useState<ReadonlySet<string> | null>(null);
+  // Lo que venía marcado al abrir el lote: sin esto no se sabe qué desmarcó la persona (6.2).
+  const [inicialesDelLote, setInicialesDelLote] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
   const [resultado, setResultado] = useState<ResultadoGuardado | null>(null);
   const [falloLote, setFalloLote] = useState<unknown>(null);
   const hayFalloLote = falloLote !== null;
@@ -125,6 +129,7 @@ export function BandejaPage() {
   /** Sale del lote y descarta lo marcado, el resultado y el aviso de error. */
   function salirDelLote() {
     setMarcadas(null);
+    setInicialesDelLote(new Set());
     setResultado(null);
     setFalloLote(null);
     setReapertura(null);
@@ -137,7 +142,9 @@ export function BandejaPage() {
     setFalloLote(null);
     setReapertura(null);
     setFalloReapertura(null);
-    setMarcadas(marcadasIniciales(data.datos));
+    const iniciales = marcadasIniciales(data.datos);
+    setInicialesDelLote(iniciales);
+    setMarcadas(iniciales);
   }
 
   function alternarMarca(id: string) {
@@ -153,6 +160,10 @@ export function BandejaPage() {
     if (!data || marcadas === null) return;
     // Lo que se manda es lo marcado, visible y que esta persona puede confirmar.
     const ids = [...marcadas].filter((id) => permitidas.has(id));
+    // Venían marcadas, siguen a la vista y la persona las quitó: solo evidencia.
+    const desmarcadas = [...inicialesDelLote].filter(
+      (id) => permitidas.has(id) && !marcadas.has(id),
+    );
     const visibles = new Map<
       string,
       { descripcion: string; referencia: string }
@@ -167,31 +178,35 @@ export function BandejaPage() {
       }
     }
     setFalloLote(null);
-    confirmarLote.confirmar(ids, {
-      onExito: (respuesta) => {
-        setResultado({
-          loteId: respuesta.loteId,
-          confirmadas: respuesta.confirmadas.length,
-          nombres: new Map(
-            respuesta.confirmadas.map((id) => [
-              id,
-              visibles.get(id) ?? {
-                descripcion: SIN_DATO,
-                referencia: SIN_DATO,
-              },
-            ]),
-          ),
-          omitidas: respuesta.omitidas.map((o) => ({
-            id: o.id,
-            razon: o.razon,
-            descripcion: visibles.get(o.id)?.descripcion ?? SIN_DATO,
-            referencia: visibles.get(o.id)?.referencia ?? SIN_DATO,
-          })),
-        });
-        setMarcadas(null);
+    confirmarLote.confirmar(
+      ids,
+      {
+        onExito: (respuesta) => {
+          setResultado({
+            loteId: respuesta.loteId,
+            confirmadas: respuesta.confirmadas.length,
+            nombres: new Map(
+              respuesta.confirmadas.map((id) => [
+                id,
+                visibles.get(id) ?? {
+                  descripcion: SIN_DATO,
+                  referencia: SIN_DATO,
+                },
+              ]),
+            ),
+            omitidas: respuesta.omitidas.map((o) => ({
+              id: o.id,
+              razon: o.razon,
+              descripcion: visibles.get(o.id)?.descripcion ?? SIN_DATO,
+              referencia: visibles.get(o.id)?.referencia ?? SIN_DATO,
+            })),
+          });
+          setMarcadas(null);
+        },
+        onFallo: (error) => setFalloLote(error ?? true),
       },
-      onFallo: (error) => setFalloLote(error ?? true),
-    });
+      desmarcadas,
+    );
   }
 
   function reabrir(motivo: string) {

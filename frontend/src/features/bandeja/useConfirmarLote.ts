@@ -7,6 +7,8 @@ import { useEpoca } from './useEpoca';
 
 interface VariablesLote {
   ids: readonly string[];
+  /** Propuestas que venían marcadas y la persona desmarcó (6.2); solo evidencia. */
+  desmarcadas: readonly string[];
   /** Época en la que se activó el lote: la guarda descarta las de otra. */
   epoca: number;
 }
@@ -35,10 +37,10 @@ export function useConfirmarLote() {
   }, [epoca]);
 
   const mutacion = useMutation({
-    mutationFn: ({ ids }: VariablesLote) =>
+    mutationFn: ({ ids, desmarcadas }: VariablesLote) =>
       api.fetch('/conciliaciones/lotes', {
         method: 'POST',
-        body: { ids },
+        body: desmarcadas.length > 0 ? { ids, desmarcadas } : { ids },
         schema: respuestaLote,
       }),
     onSettled: async (_datos, _error, variables) => {
@@ -51,11 +53,15 @@ export function useConfirmarLote() {
   const { mutate } = mutacion;
   /** Devuelve `false` si no envió nada (otro en vuelo, sin ids o sesión no lista). */
   const confirmar = useCallback(
-    (ids: readonly string[], llamadas: LlamadasDeLote): boolean => {
+    (
+      ids: readonly string[],
+      llamadas: LlamadasDeLote,
+      desmarcadas: readonly string[] = [],
+    ): boolean => {
       if (enVuelo.current || epoca === null || ids.length === 0) return false;
       enVuelo.current = true;
       mutate(
-        { ids, epoca },
+        { ids, desmarcadas, epoca },
         {
           onSuccess: (respuesta, variables) => {
             if (variables.epoca === epocaActual.current) {
