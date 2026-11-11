@@ -3,7 +3,9 @@ import {
   Controller,
   Get,
   type INestApplication,
+  Param,
   Post,
+  Query,
   Req,
 } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -39,6 +41,21 @@ class ControladorDePrueba {
   @Post('dto')
   dto(@Body() cuerpo: EntradaDto) {
     return cuerpo;
+  }
+
+  @Post('libre')
+  libre(@Body() cuerpo: unknown) {
+    return { cuerpo };
+  }
+
+  @Get('consulta')
+  consulta(@Query('q') q: string) {
+    return { q };
+  }
+
+  @Get('ruta/:valor')
+  ruta(@Param('valor') valor: string) {
+    return { valor };
   }
 }
 
@@ -185,6 +202,55 @@ describe('configurarApp', () => {
         .post('/prueba/dto')
         .send({ nombre: 'x' })
         .expect(201);
+    });
+  });
+
+  describe('caracteres nulos (U+0000)', () => {
+    // Postgres no guarda U+0000 en un `text` ni en un `jsonb`: sin esta barrera
+    // el error sale de la base como un 500.
+    const NUL = String.fromCharCode(0);
+    const mensaje = 'La petición contiene caracteres no válidos';
+
+    it.each([
+      ['en un campo del cuerpo', { nombre: `a${NUL}b` }],
+      ['en un campo anidado', { a: { b: [`x${NUL}`] } }],
+      ['en el nombre de una llave', { [`k${NUL}`]: 'x' }],
+    ])('%s da 400 y no llega al controlador', async (_donde, cuerpo) => {
+      app = await levantar(undefined);
+      const ruta = 'nombre' in cuerpo ? '/prueba/dto' : '/prueba/libre';
+      const res = await request(app.getHttpServer())
+        .post(ruta)
+        .send(cuerpo)
+        .expect(400);
+      expect(JSON.stringify(res.body)).toContain(mensaje);
+    });
+
+    it('en la consulta (?q=a%00b) da 400', async () => {
+      app = await levantar(undefined);
+      const res = await request(app.getHttpServer())
+        .get('/prueba/consulta?q=a%00b')
+        .expect(400);
+      expect(JSON.stringify(res.body)).toContain(mensaje);
+    });
+
+    it('en un parámetro de la ruta da 400', async () => {
+      app = await levantar(undefined);
+      await request(app.getHttpServer()).get('/prueba/ruta/a%00b').expect(400);
+    });
+
+    it('el texto normal pasa intacto: acentos, emoji, saltos de línea y símbolos', async () => {
+      app = await levantar(undefined);
+      const texto = "Ñandú ✓ 😀\nlínea 2\t<b>x</b> ' OR 1=1 --";
+      const res = await request(app.getHttpServer())
+        .post('/prueba/libre')
+        .send({ texto, lista: [1, true, null, { a: 'b' }] })
+        .expect(201);
+      expect(res.body).toEqual({
+        cuerpo: { texto, lista: [1, true, null, { a: 'b' }] },
+      });
+      await request(app.getHttpServer())
+        .get(`/prueba/consulta?q=${encodeURIComponent(texto)}`)
+        .expect(200);
     });
   });
 });

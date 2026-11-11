@@ -2,6 +2,7 @@ import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import type { Express } from 'express';
+import { SinNulosPipe } from './common/pipes/sin-nulos.pipe';
 import { interpretarTrustProxy } from './config/env.validation';
 
 /**
@@ -32,6 +33,9 @@ export function configurarApp(app: INestApplication): void {
       forbidNonWhitelisted: true,
       transform: true,
     }),
+    // Después de la validación: un DTO con su propio mensaje (banco, cuenta,
+    // comentario) lo conserva; esto cubre el resto de los textos libres.
+    new SinNulosPipe(),
   );
 
   // CORS con el origen exacto y credenciales (AD-6). Nunca `*` ni el origen
