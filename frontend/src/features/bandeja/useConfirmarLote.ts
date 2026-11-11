@@ -51,14 +51,23 @@ export function useConfirmarLote() {
   });
 
   const { mutate } = mutacion;
-  /** Devuelve `false` si no envió nada (otro en vuelo, sin ids o sesión no lista). */
+  /**
+   * Devuelve `false` si no envió nada (otro en vuelo, sesión no lista o nada
+   * que mandar). Sin `ids` solo se envía si hay `desmarcadas` (6.2).
+   */
   const confirmar = useCallback(
     (
       ids: readonly string[],
       llamadas: LlamadasDeLote,
       desmarcadas: readonly string[] = [],
     ): boolean => {
-      if (enVuelo.current || epoca === null || ids.length === 0) return false;
+      if (
+        enVuelo.current ||
+        epoca === null ||
+        (ids.length === 0 && desmarcadas.length === 0)
+      ) {
+        return false;
+      }
       enVuelo.current = true;
       mutate(
         { ids, desmarcadas, epoca },

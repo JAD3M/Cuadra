@@ -238,6 +238,22 @@ describe('Confirmación en lote: qué viene marcado (S1, S4)', () => {
     expect(pedidos.lotes).toEqual([]);
   });
 
+  it('«Cancelar» tras desmarcar todo manda solo las desmarcadas (6.2)', async () => {
+    const pedidos = montar();
+    const usuario = await abrir();
+    await usuario.click(casilla(/Movimiento 1,/));
+    await usuario.click(casilla(/Movimiento 2,/));
+
+    await usuario.click(screen.getByRole('button', { name: 'Cancelar' }));
+
+    expect(screen.queryAllByRole('checkbox')).toEqual([]);
+    await waitFor(() =>
+      expect(pedidos.lotes).toEqual([
+        { ids: [], desmarcadas: [propuestaDe(R1A), propuestaDe(R1B)] },
+      ]),
+    );
+  });
+
   it('cambiar de filtro cancela el lote', async () => {
     montar();
     const usuario = await abrir();

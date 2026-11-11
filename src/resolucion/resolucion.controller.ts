@@ -46,7 +46,7 @@ export class ResolucionController {
   @ApiOkResponse({ type: LoteRespuestaDto })
   @ApiBadRequestResponse({
     description:
-      'ids vacío, repetido, con más de 500 o con un id inválido; o una id en ids y en desmarcadas a la vez.',
+      'ids y desmarcadas vacíos a la vez, repetidos, con más de 500 o con un id inválido; o una id en ids y en desmarcadas a la vez.',
   })
   @ApiForbiddenResponse({
     description:

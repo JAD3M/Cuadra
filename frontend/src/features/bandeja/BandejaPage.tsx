@@ -136,6 +136,28 @@ export function BandejaPage() {
     setFalloReapertura(null);
   }
 
+  /** Venían marcadas, siguen a la vista y la persona las quitó: solo evidencia (6.2). */
+  function desmarcadasDelLote(actuales: ReadonlySet<string>): string[] {
+    return [...inicialesDelLote].filter(
+      (id) => permitidas.has(id) && !actuales.has(id),
+    );
+  }
+
+  /** Cancelar no confirma nada, pero anota lo que la persona desmarcó antes de salir. */
+  function cancelarLote() {
+    if (marcadas !== null && !confirmarLote.enviando) {
+      const desmarcadas = desmarcadasDelLote(marcadas);
+      if (desmarcadas.length > 0) {
+        confirmarLote.confirmar(
+          [],
+          { onExito: () => undefined, onFallo: () => undefined },
+          desmarcadas,
+        );
+      }
+    }
+    salirDelLote();
+  }
+
   function abrirLote() {
     if (!data) return;
     setResultado(null);
@@ -160,10 +182,7 @@ export function BandejaPage() {
     if (!data || marcadas === null) return;
     // Lo que se manda es lo marcado, visible y que esta persona puede confirmar.
     const ids = [...marcadas].filter((id) => permitidas.has(id));
-    // Venían marcadas, siguen a la vista y la persona las quitó: solo evidencia.
-    const desmarcadas = [...inicialesDelLote].filter(
-      (id) => permitidas.has(id) && !marcadas.has(id),
-    );
+    const desmarcadas = desmarcadasDelLote(marcadas);
     const visibles = new Map<
       string,
       { descripcion: string; referencia: string }
@@ -304,7 +323,7 @@ export function BandejaPage() {
             total={conCasilla}
             enviando={confirmarLote.enviando}
             onConfirmar={confirmar}
-            onCancelar={salirDelLote}
+            onCancelar={cancelarLote}
           />
         ) : null}
         {resultado ? (
