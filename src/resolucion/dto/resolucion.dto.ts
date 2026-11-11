@@ -2,7 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   ArrayMaxSize,
-  ArrayMinSize,
   ArrayUnique,
   IsArray,
   IsOptional,
@@ -62,7 +61,7 @@ export class LoteDto {
     type: [String],
     maxItems: MAXIMO_LOTE,
     description:
-      'Ids de las propuestas que la persona dejó marcadas (1 a 500, sin repetir). El lote no pide motivo.',
+      'Ids de las propuestas que la persona dejó marcadas (hasta 500, sin repetir; pueden ir vacías solo si viene `desmarcadas` con alguna). El lote no pide motivo.',
   })
   // Un uuid en mayúsculas es el mismo id: se normaliza antes de validar para que
   // `ArrayUnique` lo vea repetido y la regla de choques compare lo mismo que la base.
@@ -74,7 +73,6 @@ export class LoteDto {
       : value,
   )
   @IsArray()
-  @ArrayMinSize(1)
   @ArrayMaxSize(MAXIMO_LOTE)
   @ArrayUnique()
   @IsUUID('all', { each: true })
@@ -84,7 +82,7 @@ export class LoteDto {
     type: [String],
     maxItems: MAXIMO_LOTE,
     description:
-      'Ids de las propuestas que venían marcadas y la persona desmarcó (hasta 500, sin repetir, ninguna también en `ids`). Solo se anotan como evidencia del modo sombra: no cambian el estado de nada.',
+      'Ids de las propuestas que venían marcadas y la persona desmarcó (hasta 500, sin repetir, ninguna también en `ids`). Solo se anotan como evidencia del modo sombra: no cambian el estado de nada. Con `ids` vacío el lote no confirma nada y solo anota esto.',
   })
   @IsOptional()
   @Transform(({ value }: { value: unknown }) =>

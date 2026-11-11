@@ -123,6 +123,11 @@ export class ResolucionService {
     // ids que devuelve la base (siempre en minúsculas).
     const ordenados = [...new Set(ids.map((id) => id.toLowerCase()))].sort();
     const sinMarca = [...new Set(desmarcadas.map((id) => id.toLowerCase()))];
+    if (ordenados.length === 0 && sinMarca.length === 0) {
+      throw new BadRequestException(
+        'El lote necesita al menos una propuesta marcada o desmarcada',
+      );
+    }
     if (sinMarca.some((id) => ordenados.includes(id))) {
       throw new BadRequestException(
         'Una propuesta no puede ir a la vez marcada y desmarcada',

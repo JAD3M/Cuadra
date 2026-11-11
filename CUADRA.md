@@ -905,7 +905,9 @@ persona con cada propuesta de la regla 1 que ya tenía `habria_cerrado`, y calcu
 - `POST /conciliaciones/lotes` acepta `desmarcadas` (opcional, mismas reglas que `ids`, sin mínimo): las
   propuestas que venían marcadas y la persona quitó. Una id en `ids` y en `desmarcadas` da 400; las
   desmarcadas sin evidencia, ya resueltas o de otra empresa se ignoran. El frontend las envía (sin cambio
-  visual). Solo viajan si el lote se envía con al menos una marcada.
+  visual). `ids` puede ir vacío si viene `desmarcadas` con alguna (el lote no confirma nada y solo anota
+  la evidencia); vacíos los dos da 400. El botón del frontend sigue deshabilitado con cero marcadas, así
+  que ese caso aún no se dispara desde la pantalla.
 - `SombraService.tasaDesacuerdo(companyId)`: consulta sobre los eventos, nada guardado. Por decisión,
   desacuerdo = `rechazo` o `reabrio`, o `desmarco` ya resuelta de otra forma (la decisión salió de
   `propuesta` o su movimiento ya no está abierto) y sin `confirmo`. Una desmarcada que sigue pendiente

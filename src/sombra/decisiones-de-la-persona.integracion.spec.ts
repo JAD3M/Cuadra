@@ -343,6 +343,27 @@ describe('evidencia_sombra: desmarcar en un lote (S1, A1, A2)', () => {
     expect(await eventos(B)).toEqual([]);
   });
 
+  it('con ids vacío y desmarcadas solo anota desmarco y no confirma nada', async () => {
+    const id = await propuestaDeRegla1(A);
+
+    const res = await lote(tokenA, { ids: [], desmarcadas: [id] }).expect(200);
+
+    expect(res.body).toEqual({ loteId: null, confirmadas: [], omitidas: [] });
+    expect((await eventos()).map((e) => e.evento)).toEqual(['desmarco']);
+    const { estado } = await una<{ estado: string }>(
+      ds,
+      `SELECT estado FROM decisiones WHERE id = $1`,
+      [id],
+    );
+    expect(estado).toBe('propuesta');
+  });
+
+  it('con ids vacío y sin desmarcadas (o vacías) sigue dando 400', async () => {
+    await lote(tokenA, { ids: [] }).expect(400);
+    await lote(tokenA, { ids: [], desmarcadas: [] }).expect(400);
+    expect(await eventos()).toEqual([]);
+  });
+
   it('sin el campo desmarcadas el lote funciona igual que antes', async () => {
     const id = await propuestaDeRegla1(A);
 
