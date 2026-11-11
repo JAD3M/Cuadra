@@ -63,6 +63,8 @@ function caso(o: Partial<RespuestaCaso> = {}): RespuestaCaso {
     requiereRevision: false,
     propuestas: [propuestaCaso(1)],
     puedeReabrir: false,
+    comentarios: [],
+    puedeComentar: false,
     ...o,
   };
 }

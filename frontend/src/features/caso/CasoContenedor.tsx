@@ -23,6 +23,7 @@ import { ErrorCaso } from './components/ErrorCaso';
 import { EstadoCargaCaso } from './components/EstadoCargaCaso';
 import { Historial } from './components/Historial';
 import { ListaPropuestas } from './components/ListaPropuestas';
+import { ComentariosCaso } from './components/ComentariosCaso';
 import { ReabrirConfirmacion } from './components/ReabrirConfirmacion';
 import { PanelDecision } from './components/PanelDecision';
 import { TarjetaConciliado } from './components/TarjetaConciliado';
@@ -40,12 +41,14 @@ import {
   useDeshacerDescarte,
 } from './useDescartarMovimiento';
 import { useHistorial } from './useHistorial';
+import { useComentarDecision } from './useComentarDecision';
 import { useReabrirConfirmacion } from './useReabrirConfirmacion';
 import { useResolverCaso } from './useResolverCaso';
 import {
   bannerDe,
   derivarVista,
   historialIdDe,
+  decisionAComentar,
   propuestaSeleccionada,
   vistaDeLectura,
   type ResolucionVigente,
@@ -92,8 +95,10 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
     puede(sesion.contexto.capacidades, 'conciliaciones.reabrir');
   const descartar = useDescartarMovimiento();
   const reabrir = useReabrirConfirmacion();
+  const comentar = useComentarDecision();
   const deshacer = useDeshacerDescarte();
   const alertaRef = useRef<HTMLDivElement>(null);
+  const alertaComentarRef = useRef<HTMLDivElement>(null);
   const descartadoRef = useRef<HTMLElement>(null);
   const bannerRef = useRef<HTMLDivElement>(null);
   const descripcionRef = useRef<HTMLHeadingElement>(null);
@@ -171,6 +176,15 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
   const reabrirDesactualizado =
     consulta.isRefetchError && reabrir.isSuccess && reabrirVigente;
 
+  // Comentar: igual, lo de otra época se ignora. Un fallo no bloquea el
+  // formulario: el texto se conserva y se puede reintentar.
+  const comentarVigente =
+    comentar.variables !== undefined && comentar.variables.epoca === epoca;
+  const errorComentar =
+    comentar.isError && comentarVigente
+      ? clasificarErrorDescarte(comentar.error)
+      : null;
+
   // Tras un fallo el foco va a la alerta; el 400 lo lleva el propio campo.
   useEffect(() => {
     if (conAlerta || hayAlertaDescarte || errorReabrir !== null) {
@@ -184,6 +198,9 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
     errorDeshacer,
     errorReabrir,
   ]);
+  useEffect(() => {
+    if (errorComentar !== null) alertaComentarRef.current?.focus();
+  }, [errorComentar, comentar.submittedAt]);
 
   // Descartar terminó: el formulario ya no está; el foco va a la tarjeta
   // «Descartado». Al deshacer, a la descripción del movimiento.
@@ -211,6 +228,7 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
     descartar.reset();
     deshacer.reset();
     reabrir.reset();
+    comentar.reset();
     await cliente.invalidateQueries({ queryKey: clavesCaso.todas(epoca) });
     descripcionRef.current?.focus();
   }
@@ -241,6 +259,7 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
   // Solo un caso cerrado puede pedir revisión; el servidor sigue diciendo «conciliado».
   const enRevision = vista === 'conciliado' && caso.requiereRevision;
   const descarte = caso.descarte ?? null;
+  const decisionComentada = decisionAComentar(caso.propuestas);
   const conPropuestas = vista === 'sugerencia' || vista === 'varias';
 
   return (
@@ -446,6 +465,30 @@ export function CasoContenedor({ movimientoId }: CasoContenedorProps) {
               )}
             </>
           ) : null}
+          {decisionComentada === null ? null : (
+            <ComentariosCaso
+              key={decisionComentada}
+              comentarios={caso.comentarios}
+              puedeComentar={caso.puedeComentar}
+              enviando={comentar.isPending}
+              enviado={comentar.isSuccess && comentarVigente}
+              onCambio={() => {
+                if (comentar.isError) comentar.reset();
+              }}
+              alerta={
+                errorComentar === null ? null : (
+                  <AlertaAccion
+                    ref={alertaComentarRef}
+                    tipo={errorComentar}
+                    onRecargar={() => void recargar()}
+                  />
+                )
+              }
+              onComentar={(texto) =>
+                comentar.comentar({ decisionId: decisionComentada, texto })
+              }
+            />
+          )}
         </div>
         <Historial
           eventos={historial.data?.datos ?? []}

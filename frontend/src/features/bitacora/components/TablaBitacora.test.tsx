@@ -225,6 +225,21 @@ describe('TablaBitacora: detalle', () => {
     ).toBeInTheDocument();
   });
 
+  it('un comentario con HTML se pinta como texto en la bitácora, nunca como marcado', () => {
+    const texto = '<img src=x onerror=alert(1)><script>alert(2)</script>';
+    const { container } = montar(
+      validar([
+        eventoDeBitacora(1, {
+          accion: 'comentar',
+          entidad: 'decisiones',
+          datos: { comentarioId: 'c1', texto },
+        }),
+      ]),
+    );
+    expect(container.querySelector('img, script')).toBeNull();
+    expect(screen.getByText(`comentario: ${texto}`)).toBeInTheDocument();
+  });
+
   it('datos nulos dan «—» sin romper la tabla', () => {
     montar(validar([eventoDeBitacora(1, { datos: null })]));
     expect(celdas(filas()[0] as HTMLElement)[4]).toBe('—');

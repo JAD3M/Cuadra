@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   respuestaCaso,
+  respuestaComentario,
   respuestaDescarte,
   respuestaHistorial,
   respuestaReabrir,
@@ -55,6 +56,8 @@ const caso = (o: Record<string, unknown> = {}) => ({
   toleranciaMonto: '0.5000',
   requiereRevision: false,
   propuestas: [propuesta(1)],
+  comentarios: [],
+  puedeComentar: false,
   ...o,
 });
 
@@ -510,6 +513,8 @@ describe('puedeReabrir del caso (5.7)', () => {
     toleranciaMonto: '0.5000',
     requiereRevision: false,
     propuestas: [],
+    comentarios: [],
+    puedeComentar: false,
     ...o,
   });
 
@@ -582,5 +587,106 @@ describe('respuestaHistorial: motivo de la reapertura (5.7)', () => {
       undefined,
       undefined,
     ]);
+  });
+});
+
+describe('comentarios del caso (5.9)', () => {
+  const comentario = (o: Record<string, unknown> = {}) => ({
+    id: G(300),
+    decisionId: G(101),
+    texto: 'No me convence: parece de otra obra.',
+    por: 'Jorge Tapia',
+    fecha: '2026-10-05T16:40:00.000Z',
+    ...o,
+  });
+  const sinCampo = (campo: string) => {
+    const resto: Record<string, unknown> = { ...caso() };
+    delete resto[campo];
+    return resto;
+  };
+
+  it('acepta comentarios y puedeComentar tal como los manda el servidor', () => {
+    const r = respuestaCaso.parse(
+      caso({ comentarios: [comentario()], puedeComentar: true }),
+    );
+    expect(r.puedeComentar).toBe(true);
+    expect(r.comentarios).toEqual([comentario()]);
+  });
+
+  it('rechaza una respuesta sin comentarios', () => {
+    expect(respuestaCaso.safeParse(sinCampo('comentarios')).success).toBe(
+      false,
+    );
+  });
+
+  it('rechaza una respuesta sin puedeComentar', () => {
+    expect(respuestaCaso.safeParse(sinCampo('puedeComentar')).success).toBe(
+      false,
+    );
+  });
+
+  it('rechaza un puedeComentar que no es booleano', () => {
+    expect(respuestaCaso.safeParse(caso({ puedeComentar: 'si' })).success).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    ['sin texto', { texto: undefined }],
+    ['sin autor', { por: undefined }],
+    ['con fecha que no es ISO', { fecha: 'ayer' }],
+    ['con una decisión que no es uuid', { decisionId: 'x' }],
+  ])('rechaza un comentario %s', (_nombre, cambio) => {
+    expect(
+      respuestaCaso.safeParse(caso({ comentarios: [comentario(cambio)] }))
+        .success,
+    ).toBe(false);
+  });
+});
+
+describe('respuestaComentario: POST comentarios (5.9)', () => {
+  const base = {
+    id: G(300),
+    decisionId: G(101),
+    texto: 'Lo reviso con el cliente.',
+    por: 'Luis Reyes',
+    fecha: '2026-10-06T09:05:00.000Z',
+  };
+
+  it('acepta la respuesta del servidor', () => {
+    expect(respuestaComentario.parse(base)).toEqual(base);
+  });
+
+  it('rechaza una respuesta sin texto', () => {
+    const sinTexto: Record<string, unknown> = { ...base };
+    delete sinTexto.texto;
+    expect(respuestaComentario.safeParse(sinTexto).success).toBe(false);
+  });
+});
+
+describe('respuestaHistorial: texto del comentario (5.9)', () => {
+  const evento = (datos: unknown) => ({
+    id: G(901),
+    entidad: 'decisiones',
+    entidadId: G(101),
+    accion: 'comentar',
+    createdAt: '2026-10-06T10:00:00.000Z',
+    usuario: { nombre: 'Luis Reyes' },
+    datos,
+  });
+
+  it('expone el texto del comentario y descarta el resto de datos', () => {
+    const r = respuestaHistorial.parse({
+      datos: [
+        evento({ comentarioId: G(300), texto: 'Revisar con el cliente' }),
+      ],
+    });
+    expect(r.datos[0]?.texto).toBe('Revisar con el cliente');
+    expect(r.datos[0]).not.toHaveProperty('datos');
+  });
+
+  it('un texto que no es cadena no se expone', () => {
+    const r = respuestaHistorial.parse({ datos: [evento({ texto: 7 })] });
+    expect(r.datos[0]).not.toHaveProperty('texto');
   });
 });

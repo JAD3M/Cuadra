@@ -1,0 +1,71 @@
+.lista {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.comentario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding-block: var(--space-14);
+  border-block-start: 1px solid var(--color-border-subtle);
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-16);
+}
+
+.autor {
+  font-size: var(--text-base);
+}
+
+.fecha {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.texto {
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.vacio {
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+}
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding-block-start: var(--space-16);
+  border-block-start: 1px solid var(--color-border-subtle);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-12) var(--space-16);
+}
+
+/* Botón de 52 px (maqueta); el Button base mide 44 px. */
+.boton {
+  min-block-size: 52px;
+  padding-inline: var(--space-24);
+}
+
+.ayuda {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}

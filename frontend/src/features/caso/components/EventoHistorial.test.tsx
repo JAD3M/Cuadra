@@ -106,4 +106,35 @@ describe('EventoHistorial: reapertura (5.7)', () => {
     expect(screen.getByText('Ana')).toBeInTheDocument();
     expect(screen.queryByText(/no debería verse/)).toBeNull();
   });
+
+  it('un comentario se titula «Comentario» y trae autor y texto como detalle', () => {
+    dibujar({
+      accion: 'comentar',
+      usuario: { nombre: 'Jorge Tapia' },
+      texto: 'No me convence: parece de otra obra.',
+    });
+    expect(screen.getByText('Comentario')).toBeInTheDocument();
+    expect(
+      screen.getByText('Jorge Tapia · No me convence: parece de otra obra.'),
+    ).toBeInTheDocument();
+  });
+
+  it('un comentario sin texto muestra solo al autor', () => {
+    dibujar({ accion: 'comentar', usuario: { nombre: 'Jorge Tapia' } });
+    expect(screen.getByText('Comentario')).toBeInTheDocument();
+    expect(screen.getByText('Jorge Tapia')).toBeInTheDocument();
+  });
+
+  it('un comentario con HTML se pinta como texto, nunca como marcado', () => {
+    const carga = '<img src=x onerror=alert(1)><script>alert(2)</script>';
+    const { container } = dibujar({
+      accion: 'comentar',
+      usuario: { nombre: 'Jorge <b>Tapia</b>' },
+      texto: carga,
+    });
+    expect(
+      screen.getByText(`Jorge <b>Tapia</b> · ${carga}`),
+    ).toBeInTheDocument();
+    expect(container.querySelector('img, script, b')).toBeNull();
+  });
 });

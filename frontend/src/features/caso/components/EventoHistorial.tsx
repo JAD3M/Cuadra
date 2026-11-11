@@ -27,6 +27,8 @@ export interface EventoHistorialProps {
   etiquetaFactura?: string | null;
   /** Motivo que el servidor guardó en el evento (la reapertura lo trae). */
   motivo?: string;
+  /** Texto del comentario que el servidor guardó en el evento `comentar` (5.9). */
+  texto?: string;
 }
 
 function esCancelacionDeFactura(entidad: string | undefined, accion: string) {
@@ -46,16 +48,19 @@ function tituloDe(accion: string, etiquetaCfdi: string | null): string {
     : `${ETIQUETAS_ACCION_BITACORA.crear} ${etiquetaCfdi}`;
 }
 
-/** Quién actuó; la reapertura suma el motivo que el servidor guardó. */
+/** Quién actuó; la reapertura suma el motivo y el comentario, su texto. */
 function detalleDe(
   usuario: { nombre: string } | null,
   accion: string,
   motivo: string | undefined,
+  texto: string | undefined,
 ): string {
   const actor = usuario?.nombre ?? HISTORIAL.sistema;
-  return accion === 'reabrir' && motivo !== undefined
-    ? `${actor}${HISTORIAL.separador}${motivo}`
-    : actor;
+  const detalle =
+    accion === 'reabrir' ? motivo : accion === 'comentar' ? texto : undefined;
+  return detalle === undefined
+    ? actor
+    : `${actor}${HISTORIAL.separador}${detalle}`;
 }
 
 function tonoDe(accion: string, cancelacion: boolean): string {
@@ -63,6 +68,7 @@ function tonoDe(accion: string, cancelacion: boolean): string {
   if (accion === ACCION_CREAR) return estilos.propuesta ?? '';
   if (accion === ACCION_CONFIRMAR) return estilos.confirmada ?? '';
   if (accion === ACCION_RECHAZAR) return estilos.rechazada ?? '';
+  if (accion === 'comentar') return estilos.comentario ?? '';
   return estilos.neutro ?? '';
 }
 
@@ -78,6 +84,7 @@ export function EventoHistorial({
   entidad,
   etiquetaFactura = null,
   motivo,
+  texto,
 }: EventoHistorialProps) {
   const cancelacion = esCancelacionDeFactura(entidad, accion);
   return (
@@ -95,7 +102,7 @@ export function EventoHistorial({
         <span className={estilos.detalle}>
           {cancelacion
             ? HISTORIAL.facturaCanceladaDetalle
-            : detalleDe(usuario, accion, motivo)}
+            : detalleDe(usuario, accion, motivo, texto)}
         </span>
         <span className={estilos.cuando}>{formatearInstante(createdAt)}</span>
       </div>
