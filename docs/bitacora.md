@@ -5,6 +5,21 @@
 
 ### 10 nov 2026
 
+- **Historia 6.1 de la v2: registrar lo que Cuadra habría cerrado sola.**
+  Documento `odd/tasks/v2-6-1-evidencia-sombra.md` (KAN-153), un solo PR (las notas de cierre van
+  dentro, proceso nuevo desde la 6.1). Primera historia de la épica 6. Tabla `evidencia_sombra` (clase 1,
+  solo agregar, RLS con FORCE, `SELECT` e `INSERT` para `cuadra_app`; migración `1790719000000`) y el CTE
+  `sombra` en `ConciliacionService.insertar`: una propuesta de la regla 1 con diferencia exactamente
+  cero anota `habria_cerrado` con empresa, banco, decisión y fecha, en la misma sentencia que la
+  propuesta (si la evidencia falla, no queda la propuesta). Las reglas 2 y 3, los depósitos con varias
+  facturas, el LLM y los descartes no registran, y re-correr el motor no duplica. `EVENTOS_SOMBRA` en
+  `tipos.ts` y su espejo, con la prueba de deriva (20 a 21 listas). Sin pantallas. Decisiones mías, a
+  confirmar: «sin tolerancia» es diferencia cero, y solo entra `habria_cerrado` (los otros cuatro eventos
+  llegan con la 6.2). Una re-propuesta tras reabrir es una decisión nueva y vuelve a registrar; si la 6.2
+  mide por movimiento, hay que contar por movimiento. Verificador independiente: sin blockers.
+  Hallazgo del proceso: el verificador de la 5.9 quedó en lectura estática porque se le denegó copiar el
+  `.env`; esta vez corrió en el sitio y sí ejecutó las pruebas.
+
 - **Historia 5.9 de la v2: dejar un comentario sobre una confirmación ajena.**
   Documento `odd/tasks/v2-5-9-comentar-confirmacion.md` (KAN-152), PR #123 y #124 en cadena, más el
   PR #125 que salió de la revisión de inyecciones. Backend: tabla `decision_comentarios` (clase 1,

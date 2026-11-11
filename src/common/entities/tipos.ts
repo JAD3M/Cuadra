@@ -83,6 +83,15 @@ export const ORIGENES_CONCILIACION = ['regla', 'llm', 'manual'] as const;
 export type OrigenConciliacion = (typeof ORIGENES_CONCILIACION)[number];
 
 /**
+ * Qué anota `evidencia_sombra` (AD-10, solo agregar). La historia 6.1 solo
+ * escribe 'habria_cerrado': una propuesta de la regla 1 exacta que Cuadra
+ * habría cerrado sola. 'confirmo', 'rechazo', 'desmarco' y 'reabrio' los suma
+ * la 6.2 junto con el CHECK de la tabla.
+ */
+export const EVENTOS_SOMBRA = ['habria_cerrado'] as const;
+export type EventoSombra = (typeof EVENTOS_SOMBRA)[number];
+
+/**
  * Por qué un movimiento abierto no recibió propuesta (CU-13). Son códigos
  * estables: se guardan tal cual y nunca se renombran. Namespace aparte de
  * `ReglaConciliacion`, que nombra la regla de una propuesta.

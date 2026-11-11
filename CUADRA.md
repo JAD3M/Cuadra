@@ -862,6 +862,34 @@ Segunda historia de la épica 5 que ata FR-18, FR-19 y FR-31 (AD-4, AD-7, AD-19)
 bitácora); reabrir un lote es la 5.7. El lote no abarca varias páginas: un mes grande se hace en
 varias tandas.
 
+**Modo sombra: lo que Cuadra habría cerrado sola (v2, historia 6.1), terminada el 10 nov 2026.**
+Primera historia de la épica 6 (FR-34, FR-38; AD-2, AD-3, AD-10). Cuadra anota, sin cerrar nada, qué
+propuestas habría cerrado sola:
+
+- Tabla `evidencia_sombra` (clase 1, solo agregar: `company_id`, RLS con FORCE y política;
+  `cuadra_app` solo tiene `SELECT` e `INSERT`; FK `RESTRICT`; migración `1790719000000`). Columnas:
+  `banco` (nulo si el movimiento no lo trae), `decision_id`, `evento`, `persona_id` (nulo en
+  `habria_cerrado`; la 6.2 lo llena) y la fecha (`created_at`). El CHECK de `evento` coincide con
+  `EVENTOS_SOMBRA` (`tipos.ts` y su espejo), que hoy solo tiene `habria_cerrado`; `confirmo`, `rechazo`,
+  `desmarco` y `reabrio` llegan con la 6.2. Un índice único parcial evita registrar dos veces
+  `habria_cerrado` para la misma decisión.
+- El motor la escribe en la MISMA sentencia que la propuesta (`ConciliacionService.insertar`, CTE
+  `sombra`): solo cuando la regla es `referencia_monto_exacto` y la diferencia es exactamente cero. Una
+  propuesta de la regla 1 con diferencia dentro de la tolerancia, las reglas 2 y 3, un depósito con
+  varias facturas (`suma_grupo`), las sugerencias del LLM y los descartes no registran. Sale de las
+  filas que el `INSERT` de decisiones realmente creó, así que re-correr el motor no duplica evidencia.
+  Si la evidencia falla, tampoco queda la propuesta. No cambia el estado de nada.
+- Sin interruptor por empresa: el registro empieza con la migración (fase 2a). No hay pantalla ni
+  endpoint de lectura todavía.
+- Decisiones mías, a confirmar: «sin tolerancia» es diferencia cero, y una re-propuesta tras reabrir
+  (decisión nueva) vuelve a registrar `habria_cerrado`.
+- Revisado por un verificador independiente (alto riesgo: tabla de dominio nueva y la sentencia central
+  del motor): sin blockers.
+
+**Pendientes (6.1):** si la 6.2 calcula la tasa por movimiento, hay que contar por movimiento y no por
+fila de `habria_cerrado`. Ninguna prueba cubre aún un movimiento con `banco` de varias empresas ni
+borrar decisiones (las FK `RESTRICT` lo impiden a propósito).
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

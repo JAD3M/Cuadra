@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TransaccionEmpresa } from '../database/transaccion-empresa';
+import type { EventoSombra } from '../common/entities/tipos';
 import { tomarCandadoDeConciliacion } from './candado';
 import {
   proponerGrupos,
@@ -11,11 +12,15 @@ import {
   type MovimientoAbierto,
   type ParExistente,
   type Propuesta,
+  REGLA_REFERENCIA_MONTO_EXACTO,
   type SinMatch,
 } from './evaluar-par';
 import { ProveedorTolerancia } from './tolerancia';
 
 const TAMANO_LOTE = 500;
+
+/** Lo que la regla 1 exacta anota en `evidencia_sombra` (6.1). */
+const EVENTO_HABRIA_CERRADO: EventoSombra = 'habria_cerrado';
 
 type Manager = Parameters<Parameters<TransaccionEmpresa['ejecutar']>[1]>[0];
 
@@ -233,6 +238,11 @@ export class ConciliacionService {
    * que ON CONFLICT descarta no salen de RETURNING, así que re-correr no
    * audita nada. Corre dentro del candado advisory y de la transacción de la
    * corrida. El autor es el sistema (`user_id` NULL).
+   *
+   * Modo sombra (6.1, AD-10): una propuesta de la regla 1 con diferencia exacta
+   * (cero) anota `habria_cerrado` en `evidencia_sombra` en esta misma sentencia,
+   * para no perder evidencia. Sale de `cabeceras`, así que un par que ON
+   * CONFLICT descarta no se anota dos veces. No cambia el estado de nada.
    */
   private async insertar(
     manager: Manager,
@@ -275,6 +285,14 @@ export class ConciliacionService {
            FROM fuente f
            JOIN cabeceras c ON c.id = f.id
          RETURNING decision_id
+       ),
+       sombra AS (
+         INSERT INTO evidencia_sombra (company_id, banco, decision_id, evento)
+         SELECT $1, m.banco, c.id, $3
+           FROM cabeceras c
+           JOIN movimientos m ON m.id = c.movimiento_id AND m.company_id = $1
+          WHERE c.regla = $4 AND c.diferencia_monto = 0
+         RETURNING decision_id
        )
        INSERT INTO bitacora (company_id, user_id, entidad, entidad_id, accion, datos)
        SELECT $1, NULL, 'decisiones', c.id, 'crear',
@@ -289,7 +307,12 @@ export class ConciliacionService {
          FROM cabeceras c
          JOIN fuente f ON f.id = c.id
        RETURNING id`,
-      [companyId, JSON.stringify(filas)],
+      [
+        companyId,
+        JSON.stringify(filas),
+        EVENTO_HABRIA_CERRADO,
+        REGLA_REFERENCIA_MONTO_EXACTO,
+      ],
     );
     return auditadas.length;
   }
