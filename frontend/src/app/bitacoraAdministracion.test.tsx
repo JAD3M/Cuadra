@@ -266,6 +266,7 @@ describe('bitácora de administración: filtros y vacío', () => {
       'Movimiento descartado',
       'Descarte deshecho',
       'Confirmación reabierta',
+      'Comentario',
     ]);
   });
 

@@ -26,6 +26,7 @@ const TABLAS_DOMINIO = [
   'movimientos_pendientes',
   'decisiones',
   'decision_lineas',
+  'decision_comentarios',
 ] as const;
 
 const TODAS_LAS_TABLAS = [

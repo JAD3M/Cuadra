@@ -30,4 +30,5 @@ export const ACCIONES_ADMINISTRACION = [
   'descartar',
   'deshacer_descarte',
   'reabrir',
+  'comentar',
 ] as const satisfies readonly AccionBitacora[];

@@ -286,7 +286,9 @@ describe('PUT /empresa/tolerancia: efecto y bitácora', () => {
     ]);
 
     // La siguiente corrida ya usa la nueva tolerancia y conserva la diferencia real.
-    await ds.query('TRUNCATE decisiones, decision_lineas');
+    await ds.query(
+      'TRUNCATE decisiones, decision_lineas, decision_comentarios',
+    );
     await servicio.conciliar(A);
     expect(await propuestas()).toEqual([
       {

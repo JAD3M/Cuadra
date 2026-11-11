@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ComentarioDto } from '../../resolucion/dto/comentar.dto';
 import {
   ESTADOS_MOVIMIENTO,
   type EstadoMovimiento,
@@ -146,6 +147,17 @@ export class RespuestaCasoDto {
       'true si el caso está conciliado y quien consulta puede reabrir la confirmación: admin o quien la confirmó, con rol que tenga el permiso. El servidor lo decide.',
   })
   puedeReabrir: boolean;
+  @ApiProperty({
+    type: [ComentarioDto],
+    description:
+      'Historia 5.9: comentarios de las decisiones del movimiento, del más antiguo al más reciente.',
+  })
+  comentarios: ComentarioDto[];
+  @ApiProperty({
+    description:
+      'true si el caso tiene una decisión y el rol de quien consulta tiene el permiso de comentar (el auditor no). El servidor lo decide.',
+  })
+  puedeComentar: boolean;
   @ApiProperty({
     example: '0.5000',
     description: 'Tolerancia de monto de la empresa, texto decimal.',

@@ -10,6 +10,7 @@ import { Sesion } from '../auth/sesion.entity';
 import { Cfdi } from '../cfdi/cfdi.entity';
 import { Company } from '../companies/company.entity';
 import { Decision } from '../conciliacion/decision.entity';
+import { DecisionComentario } from '../conciliacion/decision-comentario.entity';
 import { DecisionLinea } from '../conciliacion/decision-linea.entity';
 import { Movimiento } from '../bancos/movimiento.entity';
 import { MovimientoPendiente } from '../bancos/movimiento-pendiente.entity';
@@ -31,6 +32,7 @@ export const ENTIDADES = [
   MovimientoPendiente,
   Decision,
   DecisionLinea,
+  DecisionComentario,
   Bitacora,
   SugerenciaIa,
   Sesion,

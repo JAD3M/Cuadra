@@ -336,6 +336,13 @@ function detalleReabrir(datos: Objeto): string {
   return `confirmación reabierta · el caso vuelve a pendiente · motivo: ${motivo}`;
 }
 
+/** Comentar una decisión (5.9): no cambia nada, solo queda lo que se dijo. */
+function detalleComentar(datos: Objeto): string {
+  const comentario = texto(datos.texto);
+  if (comentario === undefined) return SIN_DETALLE;
+  return `comentario: ${comentario}`;
+}
+
 /**
  * Detalle de un evento de la bitácora. `eliminar` y `cargar` no se emiten
  * hoy y no tienen redacción: dan «—», igual que cualquier `datos` nulo, que no
@@ -378,6 +385,8 @@ export function detalleEvento({
       return detalleDeshacerDescarte(datos);
     case 'reabrir':
       return detalleReabrir(datos);
+    case 'comentar':
+      return detalleComentar(datos);
     default:
       return SIN_DETALLE;
   }
