@@ -601,7 +601,7 @@ sigue leyendo y escribiendo `conciliaciones` (eso es la 4.2):
   Cada fila de `conciliaciones` nace como decisión con el mismo `id` y una
   línea; es idempotente y falla si los conteos no coinciden.
 
-**Pendientes (4.1):** `decision_comentarios` entra con la 5.9. La FK compuesta de
+**Pendientes (4.1):** `decision_comentarios` entró con la 5.9. La FK compuesta de
 AD-4 no incluye `company_id`: solo el dueño del esquema podría cruzar empresas
 (RLS cubre al rol de la app); cerrarlo exige enmendar el spine.
 
@@ -835,6 +835,20 @@ Segunda historia de la épica 5 que ata FR-18, FR-19 y FR-31 (AD-4, AD-7, AD-19)
   `conciliar()` corre una sola vez al terminar. La pantalla es el botón «Reabrir lote» del
   resultado de «Confirmar en lote» (mockups 2 y 7); no hay una pantalla que liste lotes. Índice
   parcial `ix_decisiones_company_lote` sobre `(company_id, lote_id)`.
+- Desde la 5.9 (AD-4, AD-7, AD-11, FR-68) se deja un comentario con `POST
+  /conciliaciones/:id/comentarios {texto}` (permiso `conciliaciones.comentar`: admin, contador y
+  revisor; el auditor recibe 403 más `acceso_denegado`). El texto se recorta, no puede quedar vacío
+  (400 «El comentario no puede estar vacío») ni pasar de 1000 caracteres ni traer U+0000; 404 si la
+  decisión no existe en la empresa o es un descarte. Se guarda en `decision_comentarios` (clase 1, solo
+  agregar: `cuadra_app` tiene `SELECT` e `INSERT`, FK `RESTRICT`) junto con la fila `comentar` de la
+  bitácora, en una sola sentencia; no cambia la decisión, las facturas ni el movimiento, y no se edita
+  ni se borra. Quien está de acuerdo reabre con la 5.7. `GET /casos/:id` trae `comentarios` (del más
+  antiguo al más reciente, de todas las decisiones del movimiento) y `puedeComentar`. La pantalla es la
+  tarjeta «Comentarios» del detalle (mockups 3 y 8) y el evento «Comentario» del historial; la bitácora
+  muestra la acción «Comentario» (mockup 6). El texto se pinta siempre como texto.
+- Cualquier texto con U+0000 (cuerpo, consulta o ruta) da 400 «La petición contiene caracteres no
+  válidos» (`SinNulosPipe`, global, después de la validación del DTO). Antes Postgres lo rechazaba y la
+  API respondía 500.
 - Mismo permiso que confirmar un caso (`conciliaciones.resolver`): el auditor recibe 403. Un id
   en mayúsculas es el mismo id (se normaliza antes de validar).
 - Frontend (mockups 2 y 7): botón «Confirmar en lote» en la barra de filtros, barra con

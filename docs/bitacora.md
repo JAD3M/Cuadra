@@ -5,6 +5,32 @@
 
 ### 10 nov 2026
 
+- **Historia 5.9 de la v2: dejar un comentario sobre una confirmación ajena.**
+  Documento `odd/tasks/v2-5-9-comentar-confirmacion.md` (KAN-152), PR #123 y #124 en cadena, más el
+  PR #125 que salió de la revisión de inyecciones. Backend: tabla `decision_comentarios` (clase 1,
+  solo agregar: `company_id`, RLS con FORCE, política, `SELECT` e `INSERT` para `cuadra_app`, FK
+  `RESTRICT`, CHECK de 1 a 1000 caracteres; migración `1790718000000`) y acción `comentar` en el
+  CHECK de la bitácora. `POST /conciliaciones/:id/comentarios {texto}` (permiso
+  `conciliaciones.comentar`: admin, contador y revisor) guarda el comentario y la fila de bitácora en
+  una sola sentencia y no toca la decisión, las facturas ni el movimiento; 400 «El comentario no puede
+  estar vacío», 403 al auditor con acceso denegado, 404 si no existe en la empresa o no es una
+  conciliación. `GET /casos/:id` suma `comentarios` y `puedeComentar` (lo decide el servidor).
+  Frontend: tarjeta «Comentarios» en el detalle (lista, formulario con contador 0 / 1000, nota de solo
+  lectura para el auditor) y evento «Comentario» en el historial; mockups 3, 8 y 6 aprobados antes del
+  código. Textos que el mockup no definía y quedan a confirmar: «El comentario no puede pasar de 1000
+  caracteres.», «Comentando…» y «Enviando el comentario».
+  Revisión de inyecciones (pedida por el usuario): SQL, HTML y script, plantillas y campos falsificados
+  quedan guardados y devueltos literales, y el frontend los pinta como texto en la tarjeta, el
+  historial y la bitácora (pruebas en los tres). Hallazgo real: un carácter nulo (U+0000) hacía
+  fallar a Postgres con un 500, también en el `motivo` de reabrir, descartar y rechazar. Se corrigió
+  en el comentario y, de raíz, con un pipe global que da 400 a cualquier texto con ese carácter (PR
+  #125); corre después del `ValidationPipe` para no pisar los mensajes de `banco` y `cuenta`.
+  Decisiones mías, a confirmar: se puede comentar una decisión en cualquier estado, no solo una
+  confirmada (A2), y el comentario se hace sobre la confirmada o, si no hay, sobre la primera
+  propuesta. Pendientes: cabeceras de seguridad (`helmet`, `X-Content-Type-Options: nosniff`) para toda
+  la API, ticket aparte; el verificador independiente no pudo correr sus probes (se le denegó copiar el
+  `.env`), así que su informe fue de lectura; los comentarios no tienen límite de cantidad ni de ritmo.
+
 - **Historia 5.8 de la v2: reabrir un lote completo.**
   Documento `odd/tasks/v2-5-8-reabrir-lote.md` (KAN-151), PR #120 y #121 en cadena. Backend:
   `POST /conciliaciones/lotes/:loteId/reabrir` (motivo obligatorio) reabre en una sola transacción
