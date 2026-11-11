@@ -19,6 +19,8 @@ export interface EventoDeHistorial {
   usuario: { nombre: string } | null;
   /** Motivo guardado en el evento (la reapertura lo trae). */
   motivo?: string;
+  /** Texto del comentario (el evento `comentar` lo trae). */
+  texto?: string;
 }
 
 export interface HistorialProps {
@@ -89,6 +91,7 @@ export function Historial({
               etiquetaCfdi={etiquetaCfdi}
               entidad={evento.entidad}
               motivo={evento.motivo}
+              texto={evento.texto}
               etiquetaFactura={
                 evento.entidadId === undefined
                   ? null

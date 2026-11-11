@@ -264,3 +264,23 @@ export const REABRIR = {
   soloAutorOAdmin:
     'Solo quien confirmó la conciliación o un administrador puede reabrirla.',
 } as const;
+
+/** Comentarios sobre las decisiones del caso (5.9, maquetas 3, 8 y 6). */
+export const COMENTARIOS = {
+  titulo: 'Comentarios',
+  vacio: 'Aún no hay comentarios en este caso.',
+  etiqueta: 'Dejar un comentario',
+  ejemplo: 'Ej. este CFDI parece de otra obra',
+  obligatorio: 'El comentario no puede estar vacío.',
+  /** Más de 1000 caracteres: el servidor también lo rechaza. */
+  largo: 'El comentario no puede pasar de 1000 caracteres.',
+  accion: 'Comentar',
+  /** Mientras el botón espera al servidor. */
+  comentando: 'Comentando…',
+  ayuda:
+    'No cambia el caso ni lo reabre. Si estás de acuerdo con un comentario, reabre la confirmación.',
+  /** Su rol no tiene el permiso (por ejemplo, el auditor). */
+  soloLectura: 'Solo lectura: tu rol no puede dejar comentarios.',
+  /** Región en vivo (solo lectores) mientras el comentario viaja al servidor. */
+  enviando: 'Enviando el comentario',
+} as const;

@@ -20,6 +20,8 @@ export interface CampoMotivoProps {
   mensajeError?: string;
   /** El error se anuncia como alerta (descarte, motivo obligatorio). */
   anunciarError?: boolean;
+  /** Límite que muestra el contador; por omisión el del motivo (500). */
+  maximo?: number;
 }
 
 /**
@@ -37,6 +39,7 @@ export function CampoMotivo({
   ejemplo = DECISION.motivoEjemplo,
   mensajeError = DECISION.motivoLargo,
   anunciarError = false,
+  maximo = MOTIVO_MAXIMO,
 }: CampoMotivoProps) {
   const id = useId();
   const ayuda = `${id}-ayuda`;
@@ -68,7 +71,7 @@ export function CampoMotivo({
         <span
           className={`${estilos.contador} ${invalido ? estilos.contadorPeligro : ''}`}
         >
-          {DECISION.contador(contarCaracteres(valor), MOTIVO_MAXIMO)}
+          {DECISION.contador(contarCaracteres(valor), maximo)}
         </span>
       </div>
     </div>

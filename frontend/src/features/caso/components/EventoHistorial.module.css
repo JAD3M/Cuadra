@@ -24,6 +24,11 @@
   background: var(--color-danger);
 }
 
+/* Comentario (5.9): el azul de las maquetas, el de «propuesta». */
+.comentario {
+  background: var(--estado-sugerencia-accent);
+}
+
 /* Cancelación de una factura (4.6): el ámbar de «requiere revisión». */
 .revision {
   background: var(--estado-sin-match-accent);

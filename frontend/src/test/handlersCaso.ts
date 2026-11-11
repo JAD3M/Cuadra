@@ -3,6 +3,7 @@ import type {
   FilaBandeja,
   PropuestaCaso,
   RespuestaCaso,
+  RespuestaComentario,
   RespuestaDescarte,
   RespuestaHistorial,
   RespuestaReabrir,
@@ -20,6 +21,8 @@ import { crearHandlersBandeja } from '@/test/handlersBandeja';
 //  - `POST /conciliaciones/:id/confirmar|rechazar`: cambian a la vez el caso,
 //    el historial y las filas de la bandeja que comparte el almacén, con el
 //    orden de comprobaciones del servidor (400, 404, 409, 403).
+//  - `POST /conciliaciones/:id/comentarios`: agrega el comentario al caso y
+//    su evento `comentar` al historial (400, 404, 403).
 //  - `POST /conciliaciones/:id/reabrir`: la confirmación pasa a reabierta, el
 //    caso vuelve a `sugerencia` con una propuesta nueva y la fila a la bandeja.
 // El estado vive en memoria: `reiniciar()` lo devuelve al de arranque y la
@@ -29,7 +32,7 @@ const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const INSTANTE = '2026-10-05T10:00:00.000Z';
 const INSTANTE_CREACION = '2026-09-16T09:14:00.000Z';
 
-const ERROR_NEST = (status: number, mensaje: string) =>
+const ERROR_NEST = (status: number, mensaje: string | string[]) =>
   HttpResponse.json(
     { statusCode: status, error: 'Error', message: mensaje },
     { status },
@@ -42,7 +45,7 @@ export interface OpcionesCaso {
   conflicto?: boolean;
   /** Confirmar responde 403 (quien subió el CFDI no puede confirmarlo). */
   segregacion?: boolean;
-  /** Descartar, deshacer y reabrir responden 403 (rol o persona sin permiso). */
+  /** Descartar, deshacer, reabrir y comentar responden 403 (rol o persona sin permiso). */
   prohibido?: boolean;
 }
 
@@ -198,9 +201,17 @@ export function crearHandlersCaso(
       return lista === undefined
         ? ERROR_NEST(404, 'Conciliacion no encontrada')
         : HttpResponse.json({
-            // En el cable el motivo viaja dentro de `datos`.
-            datos: lista.map(({ motivo, ...evento }) =>
-              motivo === undefined ? evento : { ...evento, datos: { motivo } },
+            // En el cable el motivo y el texto viajan dentro de `datos`.
+            datos: lista.map(({ motivo, texto, ...evento }) =>
+              motivo === undefined && texto === undefined
+                ? evento
+                : {
+                    ...evento,
+                    datos: {
+                      ...(motivo === undefined ? {} : { motivo }),
+                      ...(texto === undefined ? {} : { texto }),
+                    },
+                  },
             ),
           });
     },
@@ -473,10 +484,65 @@ export function crearHandlersCaso(
     },
   );
 
+  const comentar = http.post(
+    '/api/conciliaciones/:conciliacionId/comentarios',
+    async ({ params, request }) => {
+      const id = String(params.conciliacionId);
+      if (!GUID.test(id)) {
+        return ERROR_NEST(400, 'Validation failed (uuid is expected)');
+      }
+      const cuerpo: unknown = await request.json().catch(() => undefined);
+      const crudo =
+        cuerpo !== null && typeof cuerpo === 'object' && 'texto' in cuerpo
+          ? (cuerpo as { texto: unknown }).texto
+          : undefined;
+      const texto = typeof crudo === 'string' ? crudo.trim() : '';
+      if (texto === '') {
+        return ERROR_NEST(400, ['El comentario no puede estar vacío']);
+      }
+      if (Array.from(texto).length > 1000) {
+        return ERROR_NEST(400, [
+          'El comentario no puede pasar de 1000 caracteres',
+        ]);
+      }
+      const encontrada = buscarPropuesta(id);
+      if (encontrada === undefined) {
+        return ERROR_NEST(404, 'Conciliacion no encontrada');
+      }
+      if (opciones.prohibido === true) {
+        return ERROR_NEST(403, 'acceso_denegado');
+      }
+      const { caso } = encontrada;
+      const respuesta: RespuestaComentario = {
+        id: idDe(9800 + caso.comentarios.length),
+        decisionId: id,
+        texto,
+        por: USUARIO.nombre,
+        fecha: INSTANTE,
+      };
+      guardar(
+        { ...caso, comentarios: [...caso.comentarios, respuesta] },
+        caso.estado,
+      );
+      const lista = eventosDe(id) ?? [];
+      lista.push({
+        id: `${id}-c${lista.length + 1}`,
+        accion: 'comentar',
+        entidad: 'decisiones',
+        createdAt: INSTANTE,
+        usuario: { nombre: USUARIO.nombre },
+        texto,
+      });
+      eventos.set(id, lista);
+      return HttpResponse.json(respuesta, { status: 201 });
+    },
+  );
+
   return {
     handlers: [
       detalle,
       historial,
+      comentar,
       reabrir,
       resolver,
       descartar,
@@ -534,6 +600,20 @@ export function reabrirFalla(status: number) {
 /** Corta la conexión de `POST reabrir` (fallo de red). */
 export function reabrirRedDeFallo() {
   return http.post('/api/conciliaciones/:conciliacionId/reabrir', () =>
+    HttpResponse.error(),
+  );
+}
+
+/** Manejador de `POST comentarios` que falla con `status`. */
+export function comentarFalla(status: number) {
+  return http.post('/api/conciliaciones/:conciliacionId/comentarios', () =>
+    ERROR_NEST(status, 'detalle del servidor'),
+  );
+}
+
+/** Corta la conexión de `POST comentarios` (fallo de red). */
+export function comentarRedDeFallo() {
+  return http.post('/api/conciliaciones/:conciliacionId/comentarios', () =>
     HttpResponse.error(),
   );
 }

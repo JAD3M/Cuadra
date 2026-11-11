@@ -128,6 +128,7 @@ describe('CasoPage: una sugerencia de la IA nunca viene marcada (4.7)', () => {
     const espia = espiarSolicitudes();
     const caso = servir(
       casoSugerencia({
+        puedeComentar: true,
         propuestas: [
           propuestaCaso(1, {
             origen: 'llm',

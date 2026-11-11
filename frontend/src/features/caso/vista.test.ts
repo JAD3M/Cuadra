@@ -9,6 +9,7 @@ import {
 } from '@/test/fixturesCaso';
 import {
   bannerDe,
+  decisionAComentar,
   derivarVista,
   historialIdDe,
   propuestaSeleccionada,
@@ -226,5 +227,28 @@ describe('historialIdDe (R5/B5)', () => {
     expect(historialIdDe(confirmar(0), propuestas, primera)).toBe(
       primera?.conciliacionId,
     );
+  });
+});
+
+describe('decisionAComentar (5.9)', () => {
+  const p = (conciliacionId: string, estado: string) => ({
+    conciliacionId,
+    estado,
+  });
+
+  it('prefiere la propuesta confirmada', () => {
+    expect(decisionAComentar([p('a', 'propuesta'), p('b', 'confirmada')])).toBe(
+      'b',
+    );
+  });
+
+  it('sin confirmada toma la primera', () => {
+    expect(decisionAComentar([p('a', 'propuesta'), p('b', 'propuesta')])).toBe(
+      'a',
+    );
+  });
+
+  it('sin propuestas no hay a quién comentar', () => {
+    expect(decisionAComentar([])).toBeNull();
   });
 });

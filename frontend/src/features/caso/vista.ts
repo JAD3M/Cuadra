@@ -158,3 +158,16 @@ export function historialIdDe(
   }
   return seleccionada?.conciliacionId ?? null;
 }
+
+/**
+ * La decisión que se comenta (5.9): la propuesta confirmada si el caso la
+ * tiene; si no, la primera, que es la mejor del servidor. Sin propuestas,
+ * `null`: no hay a quién comentar.
+ */
+export function decisionAComentar<
+  T extends { conciliacionId: string; estado: string },
+>(propuestas: readonly T[]): string | null {
+  const elegida =
+    propuestas.find((p) => p.estado === 'confirmada') ?? propuestas[0];
+  return elegida?.conciliacionId ?? null;
+}

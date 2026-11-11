@@ -76,6 +76,18 @@ export const descarteCaso = z.object({
 });
 
 /**
+ * Un comentario sobre una decisión del caso (5.9). Solo se agrega: no se edita
+ * ni se borra. `por` es el nombre de quien comentó; `fecha`, un instante ISO.
+ */
+export const comentarioCaso = z.object({
+  id: z.guid(),
+  decisionId: z.guid(),
+  texto,
+  por: z.string(),
+  fecha: z.iso.datetime(),
+});
+
+/**
  * La coherencia entre el estado derivado y las propuestas protege la regla de
  * que el cliente no decide: una respuesta incoherente es un `ContratoError`.
  */
@@ -102,6 +114,10 @@ export const respuestaCaso = z
      * confirmó, con el permiso. Las respuestas viejas no lo traen: false.
      */
     puedeReabrir: z.boolean().default(false),
+    /** Comentarios de las decisiones del caso, del más antiguo al más reciente (5.9). */
+    comentarios: z.array(comentarioCaso),
+    /** Lo decide el servidor (5.9): rol con el permiso y el caso con propuestas. */
+    puedeComentar: z.boolean(),
   })
   .superRefine((caso, ctx) => {
     const { estado, propuestas } = caso;
@@ -166,6 +182,9 @@ export const respuestaReabrir = z.object({
   motivo: z.string(),
 });
 
+/** `POST /conciliaciones/:id/comentarios`: el comentario guardado. */
+export const respuestaComentario = comentarioCaso;
+
 /** Motivo del evento si `datos` lo trae como texto; cualquier otra forma, nada. */
 function motivoDeDatos(datos: unknown): string | undefined {
   if (datos === null || typeof datos !== 'object') return undefined;
@@ -173,9 +192,17 @@ function motivoDeDatos(datos: unknown): string | undefined {
   return typeof motivo === 'string' ? motivo : undefined;
 }
 
+/** Texto del evento `comentar` si `datos` lo trae como cadena; otra forma, nada. */
+function textoDeDatos(datos: unknown): string | undefined {
+  if (datos === null || typeof datos !== 'object') return undefined;
+  const valor = (datos as { texto?: unknown }).texto;
+  return typeof valor === 'string' ? valor : undefined;
+}
+
 /**
  * Historial de una conciliación. De `datos` (el JSON crudo del evento) solo se
- * expone el `motivo` (la reapertura lo trae, 5.7); el resto, el correo y la IP
+ * exponen el `motivo` (la reapertura lo trae, 5.7) y el `texto` (el comentario,
+ * 5.9); el resto, el correo y la IP
  * no se validan ni se exponen. Una acción desconocida pasa como texto y se
  * muestra tal cual.
  */
@@ -193,9 +220,17 @@ export const respuestaHistorial = z.object({
         datos: z.unknown().optional(),
       })
       .transform(
-        ({ datos, ...evento }): typeof evento & { motivo?: string } => {
+        ({
+          datos,
+          ...evento
+        }): typeof evento & { motivo?: string; texto?: string } => {
           const motivo = motivoDeDatos(datos);
-          return motivo === undefined ? evento : { ...evento, motivo };
+          const comentario = textoDeDatos(datos);
+          return {
+            ...evento,
+            ...(motivo === undefined ? {} : { motivo }),
+            ...(comentario === undefined ? {} : { texto: comentario }),
+          };
         },
       ),
   ),
@@ -207,5 +242,7 @@ export type RespuestaCaso = z.infer<typeof respuestaCaso>;
 export type RespuestaResolucion = z.infer<typeof respuestaResolucion>;
 export type DescarteCaso = z.infer<typeof descarteCaso>;
 export type RespuestaDescarte = z.infer<typeof respuestaDescarte>;
+export type ComentarioCaso = z.infer<typeof comentarioCaso>;
+export type RespuestaComentario = z.infer<typeof respuestaComentario>;
 export type RespuestaReabrir = z.infer<typeof respuestaReabrir>;
 export type RespuestaHistorial = z.infer<typeof respuestaHistorial>;
