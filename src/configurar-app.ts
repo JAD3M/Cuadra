@@ -2,6 +2,7 @@ import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import type { Express } from 'express';
+import { SinNulosPipe } from './common/pipes/sin-nulos.pipe';
 import { interpretarTrustProxy } from './config/env.validation';
 
 /**
@@ -27,6 +28,8 @@ export function configurarApp(app: INestApplication): void {
   app.use(cookieParser());
 
   app.useGlobalPipes(
+    // Antes que la validación: ningún texto con U+0000 llega a la base.
+    new SinNulosPipe(),
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
