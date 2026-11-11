@@ -907,11 +907,12 @@ persona con cada propuesta de la regla 1 que ya tenía `habria_cerrado`, y calcu
   desmarcadas sin evidencia, ya resueltas o de otra empresa se ignoran. El frontend las envía (sin cambio
   visual). Solo viajan si el lote se envía con al menos una marcada.
 - `SombraService.tasaDesacuerdo(companyId)`: consulta sobre los eventos, nada guardado. Por decisión,
-  desacuerdo = `rechazo` o `reabrio`, o `desmarco` sin `confirmo`. `tasa = desacuerdos / tratadas`
-  (las que la persona tocó); sin endpoint ni pantalla todavía.
-- Decisiones mías, a confirmar: una desmarcada que sigue pendiente (o que se resolvió por una vía sin
-  evento, como descartar) cuenta como desacuerdo, el lado conservador; y al reabrir el motor re-propone
-  con una decisión nueva, que es otra propuesta más.
+  desacuerdo = `rechazo` o `reabrio`, o `desmarco` ya resuelta de otra forma (la decisión salió de
+  `propuesta` o su movimiento ya no está abierto) y sin `confirmo`. Una desmarcada que sigue pendiente
+  no entra en la tasa hasta que se resuelva (decisión del usuario, 11 nov). `tasa = desacuerdos /
+  tratadas`; sin endpoint ni pantalla todavía.
+- Al reabrir, el motor re-propone con una decisión nueva, que es otra propuesta más (decisión mía, a
+  confirmar).
 - Revisado por un verificador independiente (alto riesgo: CHECK de una tabla con RLS y las sentencias
   que cierran y reabren casos): sin blockers.
 

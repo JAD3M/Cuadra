@@ -153,18 +153,47 @@ describe('tasa de desacuerdo del modo sombra (S3-S6)', () => {
   it('desmarcar y resolver de otra forma sí es desacuerdo (S3)', async () => {
     const rechazada = await nueva(A);
     const otra = await nueva(A);
-    const sinConfirmar = await nueva(A);
-    await lote(tokenA, [otra], [rechazada, sinConfirmar]);
+    const descartada = await nueva(A);
+    await lote(tokenA, [otra], [rechazada, descartada]);
     await post(`/conciliaciones/${rechazada}/rechazar`, tokenA, {
       motivo: 'No corresponde',
     }).expect(200);
+    // La persona resolvió el movimiento por otra vía (descartarlo), sin tocar
+    // la propuesta ni dejar un evento.
+    await ds.query(
+      `UPDATE movimientos SET estado = 'descartado'
+        WHERE id = (SELECT movimiento_id FROM decisiones WHERE id = $1)`,
+      [descartada],
+    );
 
-    // `rechazada` (desmarcó y rechazó) y `sinConfirmar` (desmarcó y no la
-    // confirmó: la resolvió por otra vía o sigue sin resolver) cuentan.
     expect(await sombra.tasaDesacuerdo(A)).toMatchObject({
+      propuestas: 3,
       tratadas: 3,
       desacuerdos: 2,
       tasa: '0.6667',
+    });
+  });
+
+  it('desmarcar y dejarla pendiente no entra en la tasa hasta que se resuelva (A7)', async () => {
+    const pendiente = await nueva(A);
+    const otra = await nueva(A);
+    await lote(tokenA, [otra], [pendiente]);
+
+    expect(await sombra.tasaDesacuerdo(A)).toMatchObject({
+      propuestas: 2,
+      tratadas: 1,
+      desacuerdos: 0,
+      tasa: '0.0000',
+    });
+
+    await post(`/conciliaciones/${pendiente}/rechazar`, tokenA, {
+      motivo: 'No corresponde',
+    }).expect(200);
+
+    expect(await sombra.tasaDesacuerdo(A)).toMatchObject({
+      tratadas: 2,
+      desacuerdos: 1,
+      tasa: '0.5000',
     });
   });
 
