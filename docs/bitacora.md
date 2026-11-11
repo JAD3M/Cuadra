@@ -5,15 +5,20 @@
 
 ### 11 nov 2026
 
+- **6.2, pendiente A7 resuelto: la desmarcada pendiente espera su resolución.** El usuario eligió que una
+  propuesta desmarcada que sigue pendiente no entre en la tasa de desacuerdo hasta que se resuelva. Cuenta
+  como desacuerdo si salió de `propuesta` o su movimiento ya no está abierto (rechazo, descarte, a mano) y
+  no se confirmó; si se confirmó, no cuenta. Cambio solo en `SombraService.tasaDesacuerdo`, con pruebas.
+
 - **Historia 6.2 de la v2: registrar qué hizo la persona después.**
   Documento `odd/tasks/v2-6-2-desacuerdo-sombra.md` (KAN-154), un solo PR con las notas de cierre dentro.
   `evidencia_sombra` suma `confirmo`, `rechazo`, `desmarco` y `reabrio` (migración `1790720000000`, solo
   el CHECK). Confirmar, rechazar, reabrir y reabrir un lote anotan su evento en la misma sentencia que el
   cambio de estado, solo si la propuesta ya tenía `habria_cerrado`. `POST /conciliaciones/lotes` recibe
   `desmarcadas` (campo opcional aprobado por el usuario) y el frontend lo envía. `SombraService`
-  calcula la tasa de desacuerdo con una consulta sobre los eventos, sin guardar nada. Decisiones mías, a
-  confirmar: una desmarcada pendiente cuenta como desacuerdo, y la re-propuesta tras reabrir es una
-  propuesta nueva. Verificador independiente: sin blockers.
+  calcula la tasa de desacuerdo con una consulta sobre los eventos, sin guardar nada. Decisión mía, a
+  confirmar: la re-propuesta tras reabrir es una propuesta nueva (la desmarcada pendiente se resolvió
+  después: ver arriba). Verificador independiente: sin blockers.
 
 ### 10 nov 2026
 
