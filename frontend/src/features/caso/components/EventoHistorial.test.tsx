@@ -124,4 +124,17 @@ describe('EventoHistorial: reapertura (5.7)', () => {
     expect(screen.getByText('Comentario')).toBeInTheDocument();
     expect(screen.getByText('Jorge Tapia')).toBeInTheDocument();
   });
+
+  it('un comentario con HTML se pinta como texto, nunca como marcado', () => {
+    const carga = '<img src=x onerror=alert(1)><script>alert(2)</script>';
+    const { container } = dibujar({
+      accion: 'comentar',
+      usuario: { nombre: 'Jorge <b>Tapia</b>' },
+      texto: carga,
+    });
+    expect(
+      screen.getByText(`Jorge <b>Tapia</b> · ${carga}`),
+    ).toBeInTheDocument();
+    expect(container.querySelector('img, script, b')).toBeNull();
+  });
 });

@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter, RouterProvider } from 'react-router';
@@ -335,5 +335,68 @@ describe('CasoPage: comentarios (5.9)', () => {
     await within(tarjeta()).findByRole('alert');
     await usuario.type(campo, 'b');
     expect(within(tarjeta()).queryByRole('alert')).toBeNull();
+  });
+
+  it.each([
+    ['<img src=x onerror="alert(document.cookie)">'],
+    ['<script>window.__xss = 1</script>'],
+    ['<a href="javascript:alert(1)">pulsa</a>'],
+    ['"><svg onload=alert(1)>'],
+    ["' OR 1=1; DROP TABLE decision_comentarios; --"],
+  ])(
+    'un comentario hostil (%s) se pinta como texto, nunca como marcado',
+    async (carga) => {
+      montar(
+        servir(
+          casoSugerencia({
+            puedeComentar: true,
+            comentarios: [{ ...COMENTARIOS[0]!, texto: carga }],
+          }),
+        ).movimiento.id,
+      );
+      await screen.findByRole('heading', { name: 'Comentarios' });
+      const item = within(tarjeta()).getAllByRole('listitem')[0]!;
+      expect(within(item).getByText(carga)).toBeInTheDocument();
+      expect(
+        item.querySelector('img, script, svg, a, iframe, object, embed'),
+      ).toBeNull();
+      expect(document.querySelector('script:not([src])')).toBeNull();
+      expect((window as unknown as { __xss?: number }).__xss).toBeUndefined();
+    },
+  );
+
+  it('el texto que se escribe viaja tal cual al servidor y no se interpreta en el navegador', async () => {
+    const usuario = userEvent.setup();
+    const { id, decisionId } = sugerenciaComentable();
+    const recibidos: unknown[] = [];
+    servidor.use(
+      http.post(
+        `/api/conciliaciones/${decisionId}/comentarios`,
+        async ({ request }) => {
+          recibidos.push(await request.json());
+          return HttpResponse.json(
+            {
+              id: idDe(9100),
+              decisionId,
+              texto: 'ok',
+              por: 'Ana Mendoza',
+              fecha: '2026-10-06T09:05:00.000Z',
+            },
+            { status: 201 },
+          );
+        },
+      ),
+    );
+    montar(id);
+    const carga = "<img src=x onerror=alert(1)> ' OR 1=1 --";
+    const campo = await screen.findByRole('textbox', {
+      name: 'Dejar un comentario',
+    });
+    await usuario.click(campo);
+    await usuario.paste(carga);
+    expect(campo).toHaveValue(carga);
+    await usuario.click(screen.getByRole('button', { name: 'Comentar' }));
+    await waitFor(() => expect(recibidos).toEqual([{ texto: carga }]));
+    expect(tarjeta().querySelector('img')).toBeNull();
   });
 });
