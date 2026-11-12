@@ -1,10 +1,19 @@
-import { dinero, type Dinero } from '../../common/dinero';
+import { type Dinero } from '../../common/dinero';
 import {
   CODIGO_MONEDA_NO_MXN,
   EstadoDeCuentaRechazado,
   MENSAJE_MONEDA_NO_MXN,
   type MovimientoLeido,
 } from '../lector-estado-cuenta';
+import {
+  aDinero,
+  IMPORTE,
+  MESES,
+  type EstadoCuentaLeido,
+  type LineaNoLeida,
+} from './lector-comun';
+
+export type { EstadoCuentaLeido, LineaNoLeida };
 
 /**
  * Lector puro de BBVA (AD-8): recibe el texto ya extraído del PDF y devuelve
@@ -17,35 +26,6 @@ import {
  * peor que no conciliar).
  */
 
-export interface LineaNoLeida {
-  /** Línea del texto extraído, desde 1. */
-  linea: number;
-  texto: string;
-}
-
-export interface EstadoCuentaLeido {
-  saldoInicial: string;
-  saldoFinal: string;
-  movimientos: MovimientoLeido[];
-  lineasNoLeidas: LineaNoLeida[];
-}
-
-const MESES: Record<string, number> = {
-  ENE: 1,
-  FEB: 2,
-  MAR: 3,
-  ABR: 4,
-  MAY: 5,
-  JUN: 6,
-  JUL: 7,
-  AGO: 8,
-  SEP: 9,
-  OCT: 10,
-  NOV: 11,
-  DIC: 12,
-};
-
-const IMPORTE = String.raw`-?\d{1,3}(?:,\d{3})*\.\d{2}|-?\d+\.\d{2}`;
 const PERIODO =
   /^Periodo\s+DEL\s+(\d{2})\/(\d{2})\/(\d{4})\s+AL\s+(\d{2})\/(\d{2})\/(\d{4})$/i;
 const MONEDA = /^Moneda\s+(\S+)$/i;
@@ -190,8 +170,4 @@ function fechaDelMovimiento(
     return null;
   }
   return `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-}
-
-function aDinero(texto: string): Dinero {
-  return dinero(texto.replace(/,/g, ''));
 }

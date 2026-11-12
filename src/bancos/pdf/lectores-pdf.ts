@@ -1,4 +1,6 @@
-import { leerEstadoCuentaBbva, type EstadoCuentaLeido } from './lector-bbva';
+import { leerEstadoCuentaBanorte } from './lector-banorte';
+import { leerEstadoCuentaBbva } from './lector-bbva';
+import type { EstadoCuentaLeido } from './lector-comun';
 
 /**
  * Registro de bancos con lector de PDF (AD-8): agregar un banco es una
@@ -6,6 +8,7 @@ import { leerEstadoCuentaBbva, type EstadoCuentaLeido } from './lector-bbva';
  */
 const LECTORES = new Map<string, (texto: string) => EstadoCuentaLeido>([
   ['bbva', leerEstadoCuentaBbva],
+  ['banorte', leerEstadoCuentaBanorte],
 ]);
 
 export const BANCOS_PDF: readonly string[] = [...LECTORES.keys()];
