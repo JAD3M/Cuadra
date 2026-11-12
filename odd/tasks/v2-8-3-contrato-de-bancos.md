@@ -19,8 +19,8 @@ Rama: `feat/v2-8-3-contrato-de-bancos`. Entrega: cadena de PR (backend, frontend
 ## Tasks
 - [x] T1 (S1,S2; inline): helper de PDFs por banco, prueba de contrato sobre `BANCOS_PDF` y HTTP de saldos que no cuadran en los tres.
 - [x] T2 (S3; inline): saldos `null`, servicio sin cuadre automático, sin auto-aceptar, `cuadreAutomatico` en la respuesta.
-- [ ] T3 (S4; inline): `bancosPdf` en `GET /auth/contexto` y la pantalla lo usa.
-- [ ] T4 (S5; inline): prueba de punta a punta con los tres bancos.
+- [~] T3 (backend listo; falta frontend) (S4; inline): `bancosPdf` en `GET /auth/contexto` y la pantalla lo usa.
+- [x] T4 (S5; inline): prueba de punta a punta con los tres bancos.
 - [ ] T5: notas de cierre (`CUADRA.md`, `docs/bitacora.md`).
 
 ## Log
