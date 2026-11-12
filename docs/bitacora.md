@@ -5,6 +5,14 @@
 
 ### 12 nov 2026
 
+- **Historia 7.5 (lista de verificación manual del demo) terminada.** `docs/verificacion-demo.md`: tres
+  recorridos con la pantalla real (alta y equipo, conciliar el mes, revisión), cada paso con qué hacer, qué se
+  debe ver y qué revisar si falla; una sección de temas claro y oscuro con la revisión de montos; y un registro
+  para anotar fecha, quién la corrió y qué falló. Usa los archivos de `ejemplos/bbva/` (7.1) y las personas del
+  seed. Solo documentación. Los CFDI del juego son de la Ferretería del seed, así que el recorrido B usa esa
+  empresa; el A crea otra e invita ahí al revisor y a la auditora del C. Aún no se ha corrido en el navegador:
+  la primera corrida es su verificación.
+
 - **Helper común de los recorridos de punta a punta.** Los arranques de UJ-1, UJ-2 y UJ-3 repetían unas 170
   líneas (app con Postgres y Redis reales, dueño de la plataforma, correo simulado, alta de empresa, aceptar
   invitaciones y limpieza). Ahora viven en `src/testing/recorrido-de-pruebas.ts` (`levantarRecorrido`); cada

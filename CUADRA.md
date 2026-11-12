@@ -1003,7 +1003,17 @@ no un archivo real que alguien meta también al generador.
 - «Editarla» no tiene endpoint: lo único que cambia una confirmación es reabrirla.
 - El CI no cambió; el spec entra en la lista blanca de `arquitectura.spec.ts` (siembra y limpia al dueño).
 - Pendiente (épica 9): ampliar esta prueba con la verificación de la muestra mensual.
-- Falta para la 7.5: la lista de verificación manual del demo.
+
+**Lista de verificación manual del demo (v2, historia 7.5), terminada el 12 nov 2026.**
+- `docs/verificacion-demo.md`: preparación del entorno (1.7), personas del seed y tres recorridos con la pantalla
+  real: A. alta y equipo (el dueño crea una empresa e invita a su administrador; Ana invita a un revisor y a una
+  auditora), B. conciliar el mes en Ferretería con `ejemplos/bbva/` (PDF que no cuadra, CFDI, vista previa,
+  bandeja, lote, reabrir, descartar, aislamiento) y C. revisión (revisor y auditora). Cada paso dice qué hacer,
+  qué se debe ver y qué revisar si falla. Incluye la revisión de una pantalla de cada flujo en los dos temas con
+  la comprobación de montos, y un registro de corridas.
+- Es documentación: sin código ni pruebas nuevas. Todavía no se ha corrido en el navegador.
+- Pendiente (épica 9): sumar el paso de la verificación de la muestra mensual al recorrido C.
+- Falta de la épica 7: la 7.6 (Playwright), opcional.
 
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
