@@ -13,6 +13,7 @@ import {
   CODIGO_PDF_REQUIERE_CONTRASENA,
   EstadoDeCuentaRechazado,
   MENSAJE_LINEAS_NO_LEIDAS,
+  MENSAJE_SIN_SALDOS,
   MENSAJE_SIN_MOVIMIENTOS,
   MENSAJE_SALDOS_NO_CUADRAN,
   validarEstadoDeCuenta,
@@ -272,23 +273,42 @@ export class CargasService {
       movimientosLeidos: leido.movimientos.length,
       lineasNoLeidas: noLeidas.length,
     };
-    const cuadre = cuadrarSaldos({
-      saldoInicial: leido.saldoInicial,
-      saldoFinal: leido.saldoFinal,
-      montos: leido.movimientos.map((m) => m.monto),
-    });
-    if (!cuadre.cuadra) {
+    const { saldoInicial, saldoFinal } = leido;
+    // Historia 8.3 [SUPUESTO]: sin ningún saldo no hay cuadre automático y
+    // decide una persona en la vista previa; con uno solo no hay cuadre
+    // posible, así que se rechaza como un PDF sin saldos.
+    const cuadreAutomatico = saldoInicial !== null && saldoFinal !== null;
+    if ((saldoInicial === null) !== (saldoFinal === null)) {
       await registrarRechazoDePdf(this.transaccion, {
         ...rechazo,
         ...conteos,
-        motivo: CODIGO_SALDOS_NO_CUADRAN,
+        motivo: 'pdf_no_reconocido',
       });
-      throw rechazoDePdf(CODIGO_SALDOS_NO_CUADRAN, MENSAJE_SALDOS_NO_CUADRAN, {
-        saldoFinal: leido.saldoFinal,
-        saldoEsperado: cuadre.saldoEsperado,
-        diferencia: cuadre.diferencia,
-        lineasNoLeidas: noLeidas,
+      throw comoBadRequest(new EstadoDeCuentaRechazado(MENSAJE_SIN_SALDOS));
+    }
+    if (saldoInicial !== null && saldoFinal !== null) {
+      const cuadre = cuadrarSaldos({
+        saldoInicial,
+        saldoFinal,
+        montos: leido.movimientos.map((m) => m.monto),
       });
+      if (!cuadre.cuadra) {
+        await registrarRechazoDePdf(this.transaccion, {
+          ...rechazo,
+          ...conteos,
+          motivo: CODIGO_SALDOS_NO_CUADRAN,
+        });
+        throw rechazoDePdf(
+          CODIGO_SALDOS_NO_CUADRAN,
+          MENSAJE_SALDOS_NO_CUADRAN,
+          {
+            saldoFinal,
+            saldoEsperado: cuadre.saldoEsperado,
+            diferencia: cuadre.diferencia,
+            lineasNoLeidas: noLeidas,
+          },
+        );
+      }
     }
     if (noLeidas.length > 0) {
       await registrarRechazoDePdf(this.transaccion, {
@@ -363,13 +383,15 @@ export class CargasService {
         idBanco,
         leido.movimientos,
       );
-      await guardarSaldosDeCarga(
-        manager,
-        companyId,
-        carga.id,
-        leido.saldoInicial,
-        leido.saldoFinal,
-      );
+      if (saldoInicial !== null && saldoFinal !== null) {
+        await guardarSaldosDeCarga(
+          manager,
+          companyId,
+          carga.id,
+          saldoInicial,
+          saldoFinal,
+        );
+      }
       await registrarCargar(
         manager,
         companyId,
@@ -378,7 +400,11 @@ export class CargasService {
       );
       // El cuadre ya pasó. Con el banco levantado no se espera al contador:
       // misma aceptación, misma transacción, solo marcada en la bitácora.
-      if (await this.bancosLevantados.estaLevantado(idBanco)) {
+      // Sin cuadre automático nunca se acepta sola: decide una persona.
+      if (
+        cuadreAutomatico &&
+        (await this.bancosLevantados.estaLevantado(idBanco))
+      ) {
         const aceptada = await this.vistaPrevia.aceptar(
           companyId,
           carga.id,
@@ -390,8 +416,9 @@ export class CargasService {
     }
     return {
       banco: idBanco,
-      saldoInicial: leido.saldoInicial,
-      saldoFinal: leido.saldoFinal,
+      saldoInicial,
+      saldoFinal,
+      cuadreAutomatico,
       movimientosLeidos: leido.movimientos.length,
       lineasNoLeidas: 0,
       cargaId: carga.id,

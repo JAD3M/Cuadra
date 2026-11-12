@@ -65,8 +65,8 @@ describe('ejemplos de BBVA: el PDF que cuadra (S1, S5)', () => {
     const leido = await pdf(PDF_CUADRA);
     expect(
       cuadrarSaldos({
-        saldoInicial: leido.saldoInicial,
-        saldoFinal: leido.saldoFinal,
+        saldoInicial: leido.saldoInicial!,
+        saldoFinal: leido.saldoFinal!,
         montos: leido.movimientos.map((m) => m.monto),
       }),
     ).toEqual({ cuadra: true });
@@ -79,8 +79,8 @@ describe('ejemplos de BBVA: el PDF que no cuadra (S3)', () => {
 
     expect(leido.movimientos).toHaveLength(8);
     const resultado = cuadrarSaldos({
-      saldoInicial: leido.saldoInicial,
-      saldoFinal: leido.saldoFinal,
+      saldoInicial: leido.saldoInicial!,
+      saldoFinal: leido.saldoFinal!,
       montos: leido.movimientos.map((m) => m.monto),
     });
     if (resultado.cuadra) throw new Error('el PDF debía no cuadrar');
