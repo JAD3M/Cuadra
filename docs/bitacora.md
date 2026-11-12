@@ -5,6 +5,12 @@
 
 ### 11 nov 2026
 
+- **Historia 7.2 (recorrido UJ-2) terminada.** Una sola prueba encadenada por HTTP, sin tocar código de
+  producción ni el CI. Ya había pruebas sueltas de cada paso (empresa, invitaciones, roles); lo nuevo es el
+  recorrido completo y verificar el menú de cuentas recién creadas al aceptar. El «menú» no es un endpoint:
+  es `capacidades` de `/auth/contexto`. Para quitar el rol de un administrador que está en dos empresas hace
+  falta otra administradora en la primera (no se puede dejar sin administrador); su sesión vieja recibe 401.
+
 - **Historia 7.1 (archivos de ejemplo del demo) terminada.** Carpeta nueva `ejemplos/bbva/` con un mes de
   Ferretería: dos PDF de BBVA (uno cuadra y otro no), su CSV equivalente y nueve CFDI, todos sintéticos y
   listados en un manifiesto. Decisión: carpeta y generador propios en vez de ampliar la demo CU-18, que
