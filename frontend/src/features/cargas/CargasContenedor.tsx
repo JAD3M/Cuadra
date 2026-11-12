@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import {
-  BANCO_PDF_BBVA,
+  BANCO_PDF_POR_DEFECTO,
   TIPO_CFDI,
   TIPO_ESTADO_CUENTA,
   puede,
@@ -122,6 +122,7 @@ function CargasConAcceso() {
   const [archivosCfdi, setArchivosCfdi] = useState<File[]>([]);
   const [archivoCsv, setArchivoCsv] = useState<File | null>(null);
   const [banco, setBanco] = useState('');
+  const [bancoPdf, setBancoPdf] = useState<string>(BANCO_PDF_POR_DEFECTO);
   const [cuenta, setCuenta] = useState('');
   const [perfilElegido, setPerfilElegido] = useState<string | null>(null);
   const regionCfdi = useRef<HTMLDivElement>(null);
@@ -248,7 +249,7 @@ function CargasConAcceso() {
 
   function leerPdf(archivo: File) {
     const enviada = leer(
-      { archivo, banco: BANCO_PDF_BBVA },
+      { archivo, banco: bancoPdf },
       {
         // El PDF se queda elegido: no se importó nada y se puede volver a leer.
         onSuccess: (datos) => {
@@ -359,6 +360,8 @@ function CargasConAcceso() {
           }
           onSeleccionar={esPdf ? setArchivoPdf : setArchivoCsv}
           onBanco={setBanco}
+          bancoPdf={bancoPdf}
+          onBancoPdf={setBancoPdf}
           onCuenta={setCuenta}
           onPerfil={setPerfilElegido}
           onSubir={esPdf ? leerPdf : subirEstadoCuenta}

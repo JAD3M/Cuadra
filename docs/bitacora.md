@@ -5,6 +5,12 @@
 
 ### 12 nov 2026
 
+- **Historia 8.1 (leer un PDF de Banorte) terminada.** Lector puro de la cuenta empresarial, registrado junto al
+  de BBVA y con el mismo cuadre, vista previa y rechazos; el tipo del resultado y los helpers comunes pasaron a
+  `lector-comun.ts`. Sin migración. El selector de Banco del frontend suma Banorte y el mockup 4 se actualizó
+  (botón «PDF», alerta sin nombre de banco). El layout es sintético [SUPUESTO] porque Banorte no ofrece un
+  estado de cuenta empresarial de muestra: hay que validarlo con uno real anonimizado.
+
 - **Historia 7.5 (lista de verificación manual del demo) terminada.** `docs/verificacion-demo.md`: tres
   recorridos con la pantalla real (alta y equipo, conciliar el mes, revisión), cada paso con qué hacer, qué se
   debe ver y qué revisar si falla; una sección de temas claro y oscuro con la revisión de montos; y un registro

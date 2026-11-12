@@ -1015,6 +1015,20 @@ no un archivo real que alguien meta también al generador.
 - Pendiente (épica 9): sumar el paso de la verificación de la muestra mensual al recorrido C.
 - Falta de la épica 7: la 7.6 (Playwright), opcional.
 
+**Leer un PDF de Banorte (v2, historia 8.1), terminada el 12 nov 2026.**
+- `src/bancos/pdf/lector-banorte.ts`: lector puro de la cuenta empresarial (`texto → saldos, movimientos y líneas
+  no leídas`), registrado en `lectores-pdf.ts`. Pasa por el mismo cuadre, la misma vista previa y los mismos
+  rechazos que BBVA (moneda, escaneado, 10 MB); un PDF que no es el diseño empresarial de Banorte se rechaza con
+  un mensaje claro. `lector-comun.ts` guarda el tipo del resultado y los helpers que comparten los lectores.
+- Sin migración: el contador de cargas revisadas se calcula por consulta y por banco, así que el de Banorte es
+  independiente del de BBVA, y `movimientos.clase` la asigna `clasificarMovimiento`, común a todos los bancos.
+- Frontend: el selector de Banco de la tarjeta de PDF ahora trae BBVA y Banorte y manda el elegido. El mockup
+  «4 · Cargas (admin y contador)» cambió: «PDF» en el botón, la alerta de formato sin nombre de banco y la opción
+  Banorte.
+- **El layout de Banorte es sintético [SUPUESTO]**: no hay un estado de cuenta empresarial real en el repositorio
+  (Banorte no publica uno de muestra). Falta validarlo y afinar la clasificación de comisiones y parcialidades con
+  un PDF real anonimizado.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

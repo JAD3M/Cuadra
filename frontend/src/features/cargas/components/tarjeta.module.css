@@ -85,7 +85,7 @@
   font-size: var(--text-sm);
 }
 
-/* Selector de formato CSV | PDF BBVA (Cargas.dc.html: .seg). Solo tokens de rol. */
+/* Selector de formato CSV | PDF (Cargas.dc.html: .seg). Solo tokens de rol. */
 .modos {
   display: inline-flex;
   align-self: flex-start;

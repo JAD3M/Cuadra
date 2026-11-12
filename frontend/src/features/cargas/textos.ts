@@ -225,7 +225,7 @@ export const TEXTO_MONEDA_NO_MXN = {
 export const FORMATO_ESTADO_CUENTA = {
   grupo: 'Formato del estado de cuenta',
   csv: 'CSV',
-  pdf: 'PDF BBVA',
+  pdf: 'PDF',
 } as const;
 
 /** Modo PDF de la tarjeta: solo lectura, no se importa nada (historia 3.2). */
@@ -275,7 +275,7 @@ export const TEXTO_PDF_SIN_TEXTO = {
 /** PDF con un formato que el lector del banco no reconoce. */
 export const TEXTO_PDF_ILEGIBLE = {
   titulo: 'No se pudo leer el PDF',
-  detalle: 'No reconocimos el formato del estado de cuenta BBVA.',
+  detalle: 'No reconocimos el formato del estado de cuenta.',
 } as const;
 
 /** CFDI en una moneda que Cuadra no concilia (mockup 2026-10-27). */

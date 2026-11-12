@@ -50,6 +50,9 @@ export interface TarjetaEstadoCuentaProps {
   /** Cada elección REEMPLAZA al archivo anterior (M16). */
   onSeleccionar: (archivo: File | null) => void;
   onBanco: (banco: string) => void;
+  /** El banco del PDF (`id` de `BANCOS_PDF`); el CSV usa `banco`, texto libre. */
+  bancoPdf: string;
+  onBancoPdf: (banco: string) => void;
   onCuenta: (cuenta: string) => void;
   onPerfil: (id: string) => void;
   onReintentarPerfiles: () => void;
@@ -94,6 +97,8 @@ export function TarjetaEstadoCuenta({
   subiendo,
   onSeleccionar,
   onBanco,
+  bancoPdf,
+  onBancoPdf,
   onCuenta,
   onPerfil,
   onReintentarPerfiles,
@@ -139,13 +144,13 @@ export function TarjetaEstadoCuenta({
             <label htmlFor={idBanco} className={campos.etiqueta}>
               {TARJETA_ESTADO_CUENTA.banco}
             </label>
-            {/* Lista fija: el lector de PDF existe solo para estos bancos. */}
+            {/* Lista fija: el lector de PDF existe solo para estos bancos (espejo del backend). */}
             <select
               id={idBanco}
               className={campos.control}
-              value={BANCOS_PDF[0].id}
+              value={bancoPdf}
               disabled={inactiva}
-              onChange={() => undefined}
+              onChange={(e) => onBancoPdf(e.target.value)}
             >
               {BANCOS_PDF.map((banco) => (
                 <option key={banco.id} value={banco.id}>

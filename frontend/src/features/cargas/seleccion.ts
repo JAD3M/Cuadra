@@ -34,7 +34,7 @@ export const REGLAS_ESTADO_CUENTA: ReglasSeleccion = {
   maxBytesPorArchivo: LIMITES_CARGA.estadoCuenta.maxBytesPorArchivo,
 };
 
-/** El PDF de BBVA (historia 3.2): un solo `.pdf` de hasta 10 MB. */
+/** El PDF de un banco con lector (historia 3.2): un solo `.pdf` de hasta 10 MB. */
 export const REGLAS_ESTADO_CUENTA_PDF: ReglasSeleccion = {
   extension: LIMITES_CARGA.estadoCuentaPdf.extension,
   maxBytesPorArchivo: LIMITES_CARGA.estadoCuentaPdf.maxBytesPorArchivo,
