@@ -38,15 +38,16 @@ const f = (ruta: string, contenido: string): ArchivoFuente => ({
 });
 
 describe('arquitectura: escritura de tablas de identidad (clase 2)', () => {
-  it('solo los módulos de identidad y las dos excepciones escriben la clase 2', () => {
+  it('solo los módulos de identidad y las excepciones nombradas escriben la clase 2', () => {
     const fuentes = leerFuentes();
     expect(fuentes.length).toBeGreaterThan(10);
     expect(buscarEscriturasIdentidad(fuentes)).toEqual([]);
   });
 
-  it('las excepciones nombradas son exactamente dos archivos de infraestructura', () => {
+  it('las excepciones nombradas son exactamente tres archivos de infraestructura', () => {
     expect([...EXCEPCIONES_IDENTIDAD].sort()).toEqual([
       'database/seeds/seed.ts',
+      'testing/recorrido-de-pruebas.ts',
       'testing/sesion-de-pruebas.ts',
     ]);
   });

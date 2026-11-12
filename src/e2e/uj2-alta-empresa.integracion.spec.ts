@@ -1,35 +1,10 @@
-import { type INestApplication, Logger } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { Test } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import type { Redis } from 'ioredis';
-import type { App } from 'supertest/types';
-import { DataSource } from 'typeorm';
-import { AuthModule } from '../auth/auth.module';
-import { PasswordHasher } from '../auth/password';
 import { permisosDeRoles } from '../auth/permisos/matriz';
-import { validateEnv } from '../config/env.validation';
-import { configurarApp } from '../configurar-app';
-import { CorreoSimulado } from '../correo/correo-simulado';
-import { ProveedorCorreo } from '../correo/proveedor-correo';
-import { opcionesDataSource } from '../database/data-source';
-import { ENTIDADES } from '../database/entidades';
-import { SnakeNamingStrategy } from '../database/naming.strategy';
-import { sembrar } from '../database/seeds/seed';
-import {
-  crearBaseDePruebas,
-  urlAppDePruebas,
-  urlDePruebas,
-} from '../database/testing/base-de-pruebas';
-import { CLIENTE_REDIS } from '../redis/cliente-redis';
-import { limpiarLimites } from '../testing/limites-de-pruebas';
-import { cookieDe } from '../testing/sesion-de-pruebas';
-import request from '../testing/supertest-con-origen';
-import { UsuariosModule } from '../usuarios/usuarios.module';
 import type { Rol } from '../common/entities/tipos';
-
-const PREFIJO_LIMITE = 'cuadra_test_uj2';
-process.env.COLA_PREFIJO = PREFIJO_LIMITE;
+import {
+  levantarRecorrido,
+  type Recorrido,
+} from '../testing/recorrido-de-pruebas';
+import { cookieDe } from '../testing/sesion-de-pruebas';
 
 /**
  * Historia 7.2 (FR-70, AD-18). UJ-2, «Carlos deja lista su empresa», de punta a
@@ -45,102 +20,27 @@ const DOMINIO = 'uj2.test';
 const RFC_A = 'UJD240101AB1';
 const RFC_B = 'UJD240202BC2';
 
-let app: INestApplication<App>;
-let ds: DataSource;
-let correo: CorreoSimulado;
+let r: Recorrido;
 let cookieDueno: string;
 
 beforeAll(async () => {
-  const url = urlDePruebas();
-  await crearBaseDePruebas(url);
-  ds = await new DataSource({ ...opcionesDataSource, url }).initialize();
-  await ds.runMigrations();
-  await sembrar(ds);
-  // No hay ruta para sembrar al dueño de la plataforma.
-  const hash = await new PasswordHasher().hashear(PASSWORD_DUENO);
-  await ds.query(
-    `INSERT INTO plataforma_usuarios (correo, password_hash)
-     VALUES ($1, $2) ON CONFLICT (correo) DO UPDATE SET password_hash = $2, activo = true`,
-    [CORREO_DUENO, hash],
-  );
-
-  const modulo = await Test.createTestingModule({
-    imports: [
-      ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
-      TypeOrmModule.forRoot({
-        type: 'postgres',
-        url: urlAppDePruebas(),
-        entities: ENTIDADES,
-        namingStrategy: new SnakeNamingStrategy(),
-      }),
-      AuthModule,
-      UsuariosModule,
-    ],
-  }).compile();
-  app = modulo.createNestApplication();
-  configurarApp(app);
-  await app.listen(0);
-  correo = app.get(ProveedorCorreo, { strict: false });
-  await limpiarLimites(app.get<Redis>(CLIENTE_REDIS), PREFIJO_LIMITE);
-  jest.spyOn(Logger.prototype, 'error').mockImplementation();
+  r = await levantarRecorrido({
+    prefijo: 'cuadra_test_uj2',
+    dominio: DOMINIO,
+    rfcs: [RFC_A, RFC_B],
+    correoDueno: CORREO_DUENO,
+    passwordDueno: PASSWORD_DUENO,
+    password: PASSWORD,
+  });
 }, 60_000);
 
 afterAll(async () => {
-  jest.restoreAllMocks();
-  if (app) await limpiarLimites(app.get<Redis>(CLIENTE_REDIS), PREFIJO_LIMITE);
-  await app?.close();
-  if (ds?.isInitialized) {
-    // Las bitácoras son de solo agregar para cuadra_app; el dueño limpia.
-    const empresas = `(SELECT id FROM companies WHERE rfc = ANY($1))`;
-    const rfcs = [[RFC_A, RFC_B]];
-    const personas = `(SELECT id FROM users WHERE email LIKE '%@${DOMINIO}')`;
-    await ds.query(`DELETE FROM sesiones WHERE user_id IN ${personas}`);
-    await ds.query(
-      `DELETE FROM sesiones WHERE plataforma_usuario_id IS NOT NULL`,
-    );
-    await ds.query(
-      `DELETE FROM user_company_roles WHERE company_id IN ${empresas} OR user_id IN ${personas}`,
-      rfcs,
-    );
-    await ds.query(
-      `DELETE FROM invitaciones WHERE company_id IN ${empresas}`,
-      rfcs,
-    );
-    await ds.query(
-      `DELETE FROM bitacora WHERE company_id IN ${empresas}`,
-      rfcs,
-    );
-    await ds.query(`DELETE FROM users WHERE email LIKE '%@${DOMINIO}'`);
-    await ds.query(`DELETE FROM bitacora_plataforma`);
-    await ds.query(`DELETE FROM companies WHERE rfc = ANY($1)`, rfcs);
-    await ds.query(`DELETE FROM plataforma_usuarios WHERE correo = $1`, [
-      CORREO_DUENO,
-    ]);
-    await ds.destroy();
-  }
+  await r?.cerrar();
 });
 
-const http = () => request(app.getHttpServer());
-
-/** Token del último correo enviado a `para`, leído del enlace del correo simulado. */
-function tokenDe(para: string): string {
-  const mensaje = correo.ultimoPara(para);
-  const m = /\/invitacion\/([A-Za-z0-9_-]+)/.exec(mensaje?.texto ?? '');
-  if (!m) throw new Error(`No hubo correo con enlace para ${para}`);
-  return m[1];
-}
-
-async function aceptar(
-  para: string,
-  nombre: string,
-): Promise<{ cookie: string; cuentaNueva: boolean; companyId: string }> {
-  const res = await http()
-    .post(`/auth/invitaciones/${tokenDe(para)}/aceptar`)
-    .send({ nombre, password: PASSWORD })
-    .expect(200);
-  const cuerpo = res.body as { cuentaNueva: boolean; companyId: string };
-  return { cookie: cookieDe(res), ...cuerpo };
-}
+const http = () => r.http();
+const tokenDe = (para: string) => r.tokenDe(para);
+const aceptar = (para: string, nombre: string) => r.aceptar(para, nombre);
 
 interface Contexto {
   empresa: { id: string; rfc: string };

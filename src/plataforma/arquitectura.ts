@@ -73,6 +73,12 @@ const INSERT_EN_DUENOS = /\binsert\s+into\s+"?plataforma_usuarios\b/i;
 const ESCRITURA_POR_REPOSITORIO = /\.(save|insert|upsert)\s*\(/;
 
 /**
+ * Infraestructura de pruebas que inserta un dueño a propósito: los recorridos
+ * de punta a punta no tienen ruta para sembrarlo (7.2 a 7.4).
+ */
+export const EXCEPCIONES_DUENOS = ['testing/recorrido-de-pruebas.ts'] as const;
+
+/**
  * Historia 1.3. Rutas (relativas a `src/`) del código de producto que escribe
  * un dueño en `plataforma_usuarios`: SQL `INSERT INTO` o escritura por
  * repositorio de la entidad. Excluye specs y migraciones, y no cuenta
@@ -85,7 +91,8 @@ export function buscarEscritoresDeDuenos(
     .filter(
       (a) =>
         !a.ruta.endsWith('.spec.ts') &&
-        !a.ruta.startsWith('database/migrations/'),
+        !a.ruta.startsWith('database/migrations/') &&
+        !(EXCEPCIONES_DUENOS as readonly string[]).includes(a.ruta),
     )
     .filter((a) => {
       const codigo = sinComentarios(a.contenido);
@@ -138,6 +145,8 @@ export const EXCEPCIONES_IDENTIDAD = [
   'database/seeds/seed.ts',
   // Abre una sesión directa para las pruebas de integración.
   'testing/sesion-de-pruebas.ts',
+  // Arranque y limpieza de los recorridos de punta a punta (7.2 a 7.4).
+  'testing/recorrido-de-pruebas.ts',
 ] as const;
 
 const METODOS_ESCRITURA = 'save|insert|update|delete|remove|softDelete|upsert';
