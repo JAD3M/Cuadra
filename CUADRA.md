@@ -982,6 +982,18 @@ no un archivo real que alguien meta también al generador.
   una `*.spec.ts` más, con su prefijo de Redis y su limpieza.
 - Falta para la 7.3: el recorrido de la conciliación del mes (UJ-1).
 
+**Recorrido de punta a punta UJ-1 (v2, historia 7.3), terminada el 12 nov 2026.**
+- `src/e2e/uj1-conciliar-el-mes.integracion.spec.ts`: «Marisol concilia el mes» por HTTP, con Postgres (RLS) y
+  Redis reales y el juego de `ejemplos/bbva`; la empresa se crea como en la 7.2 (dueño, invitaciones). El PDF que no cuadra se rechaza completo (`saldos_no_cuadran`, nada
+  queda); el que cuadra entra al aceptar la vista previa. Con los nueve CFDI, la bandeja ordena por confianza
+  (1.0, 0.6, 0.5, 0.4), el depósito de dos facturas es una sola propuesta (que Ana desmarca del lote), los dos sin
+  pareja traen su razón y la factura en dólares queda con `monedaNoSoportada`. Luis ve la separación de funciones
+  y su lote no confirma nada; el lote de Ana deja un solo `lote_id`. Descartar con motivo saca el movimiento de la
+  bandeja y deshacer lo devuelve. Reabrir el lote devuelve el caso a la bandeja y la bitácora conserva quién
+  (y cuándo). La sesión de una empresa no ve la otra. `afterAll` limpia y comprueba que no quedan datos.
+- El CI no cambió: la prueba es una `*.spec.ts` más del job `pruebas`.
+- Falta para la 7.4: el recorrido del revisor (UJ-3).
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**
