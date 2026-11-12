@@ -5,6 +5,13 @@
 
 ### 12 nov 2026
 
+- **Historia 8.2 (leer un PDF de Santander, incluso con contraseña) terminada.** Lector puro de Santander y campo
+  opcional `contrasena` en la lectura de PDF: abre el archivo en memoria y no se guarda ni se registra (hay pruebas
+  que lo comprueban contra respuesta, base y registros). Un PDF protegido sin contraseña ahora responde
+  `pdf_requiere_contrasena` en vez de `pdf_ilegible`. El frontend suma Santander y el campo de contraseña, que solo
+  aparece cuando el servidor la pide; el mockup 4 se actualizó antes. El layout y la protección con contraseña de
+  Santander son supuestos: hay que validarlos con un estado de cuenta real anonimizado.
+
 - **Historia 8.1 (leer un PDF de Banorte) terminada.** Lector puro de la cuenta empresarial, registrado junto al
   de BBVA y con el mismo cuadre, vista previa y rechazos; el tipo del resultado y los helpers comunes pasaron a
   `lector-comun.ts`. Sin migración. El selector de Banco del frontend suma Banorte y el mockup 4 se actualizó

@@ -23,8 +23,8 @@ Rama: `feat/v2-8-2-lector-pdf-santander`. Entrega: cadena de 2 PR (backend, fron
 - [x] T1 (S2,S3,S4; inline): extractor con contraseña y los dos códigos de rechazo.
 - [x] T2 (S1,S5,S6; inline): `lector-santander.ts`, registro, fixture sintético y pruebas del lector.
 - [x] T3 (S2,S3,S4,S7; inline): campo `contrasena` en el endpoint, HTTP con PDF cifrado y sin cifrar, y la contraseña ausente de bitácora, respuestas y registros.
-- [ ] T4 (S2,S3,S4; inline): frontend: opción Santander, campo de contraseña, textos.
-- [ ] T5: notas de cierre (`CUADRA.md`, `docs/bitacora.md`).
+- [x] T4 (S2,S3,S4; inline): frontend: opción Santander, campo de contraseña, textos. Mockup 4 actualizado antes. RED observado (9 fallos) antes de implementar. Frontend: 311 archivos, 5051 pruebas en verde.
+- [x] T5: notas de cierre (`CUADRA.md`, `docs/bitacora.md`).
 
 ## Log
 - L1 (2026-11-12): «si arranca con esa. pero quiero que me expliques un poco eso de que si trae contraseña» y, tras la explicación, «si esta bien.» (historia 8.2 según la lista de historias).

@@ -550,6 +550,44 @@ export function lecturaPdfRechazada(
   );
 }
 
+/**
+ * `POST /cargas/estado-cuenta/pdf` de un PDF protegido (historia 8.2): sin
+ * contraseña pide una (`pdf_requiere_contrasena`), con una distinta de
+ * `clave` la rechaza (`pdf_contrasena_incorrecta`) y con `clave` lee el PDF.
+ * `recibidas` guarda la contraseña de cada petición (`null` si no vino).
+ */
+export function lecturaPdfProtegida(
+  clave: string,
+  recibidas: Array<string | null> = [],
+) {
+  return http.post('/api/cargas/estado-cuenta/pdf', async ({ request }) => {
+    const valor = (await request.formData()).get('contrasena');
+    const contrasena = typeof valor === 'string' ? valor : null;
+    recibidas.push(contrasena);
+    if (contrasena === null) {
+      return HttpResponse.json(
+        {
+          statusCode: 400,
+          message: 'texto del servidor',
+          error: 'pdf_requiere_contrasena',
+        },
+        { status: 400 },
+      );
+    }
+    if (contrasena !== clave) {
+      return HttpResponse.json(
+        {
+          statusCode: 400,
+          message: 'texto del servidor',
+          error: 'pdf_contrasena_incorrecta',
+        },
+        { status: 400 },
+      );
+    }
+    return HttpResponse.json(LECTURA_PDF);
+  });
+}
+
 /** `POST /cargas/estado-cuenta/pdf` responde 200 con un cuerpo fuera de contrato. */
 export function lecturaPdfFueraDeContrato() {
   return http.post('/api/cargas/estado-cuenta/pdf', () =>

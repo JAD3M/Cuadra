@@ -28,6 +28,9 @@ const BASE: TarjetaEstadoCuentaProps = {
   onBanco: () => undefined,
   bancoPdf: 'bbva',
   onBancoPdf: () => undefined,
+  pideContrasena: false,
+  contrasena: '',
+  onContrasena: () => undefined,
   onCuenta: () => undefined,
   onPerfil: () => undefined,
   onReintentarPerfiles: () => undefined,
@@ -82,7 +85,7 @@ describe('TarjetaEstadoCuenta: selector de formato', () => {
 });
 
 describe('TarjetaEstadoCuenta: modo PDF', () => {
-  it('oculta Cuenta y Perfil; Banco es un select con BBVA y Banorte', () => {
+  it('oculta Cuenta y Perfil; Banco es un select con BBVA, Banorte y Santander', () => {
     montarPdf();
     expect(screen.queryByLabelText('Cuenta')).not.toBeInTheDocument();
     expect(
@@ -94,7 +97,7 @@ describe('TarjetaEstadoCuenta: modo PDF', () => {
       within(banco)
         .getAllByRole('option')
         .map((o) => o.textContent),
-    ).toEqual(['BBVA', 'Banorte']);
+    ).toEqual(['BBVA', 'Banorte', 'Santander']);
   });
 
   it('muestra el banco elegido y avisa al cambiarlo', async () => {
@@ -205,6 +208,42 @@ describe('TarjetaEstadoCuenta: modo PDF', () => {
     });
     expect(screen.getByText('resultado de prueba')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('alerta de prueba');
+  });
+});
+
+describe('TarjetaEstadoCuenta: contraseña del PDF (historia 8.2)', () => {
+  it('sin pedirla, no hay campo de contraseña', () => {
+    montarPdf();
+    expect(
+      screen.queryByLabelText('Contraseña del PDF'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('al pedirla, muestra un campo de contraseña con su ayuda y avisa al escribir', async () => {
+    const onContrasena = vi.fn();
+    montarPdf({ pideContrasena: true, onContrasena });
+    const campo = screen.getByLabelText('Contraseña del PDF');
+    expect(campo).toHaveAttribute('type', 'password');
+    expect(campo).toHaveAttribute('autocomplete', 'off');
+    expect(campo).toHaveAccessibleDescription(
+      'Se usa solo para abrir el archivo. No se guarda.',
+    );
+    await usuario().type(campo, 'a');
+    expect(onContrasena).toHaveBeenCalledWith('a');
+  });
+
+  it('muestra la contraseña que lleva el contenedor y se apaga con el rol de solo lectura', () => {
+    montarPdf({ pideContrasena: true, contrasena: 'abc', deshabilitada: true });
+    const campo = screen.getByLabelText('Contraseña del PDF');
+    expect(campo).toHaveValue('abc');
+    expect(campo).toBeDisabled();
+  });
+
+  it('en modo CSV nunca se muestra', () => {
+    render(<TarjetaEstadoCuenta {...BASE} modo="csv" pideContrasena={true} />);
+    expect(
+      screen.queryByLabelText('Contraseña del PDF'),
+    ).not.toBeInTheDocument();
   });
 });
 

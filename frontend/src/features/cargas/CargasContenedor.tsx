@@ -113,6 +113,10 @@ function CargasConAcceso() {
   } | null>(null);
   const [modo, setModo] = useState<ModoEstadoCuenta>('csv');
   const [archivoPdf, setArchivoPdf] = useState<File | null>(null);
+  // Historia 8.2: el servidor pidió la contraseña de un PDF protegido. Vive
+  // solo aquí, en memoria: no se persiste ni se escribe en ningún lado.
+  const [pideContrasena, setPideContrasena] = useState(false);
+  const [contrasena, setContrasena] = useState('');
   // Lo último que se leyó de un PDF; se descarta si es de otra sesión.
   const [lectura, setLectura] = useState<{
     datos: RespuestaLecturaPdf;
@@ -205,7 +209,14 @@ function CargasConAcceso() {
    */
   function registrarFallo(error: unknown, tipo: TipoCarga, pdf = false) {
     const clase = clasificarErrorSubida(error);
-    if (clase === null || epoca === null) return;
+    // Pedir la contraseña (8.2) no es un fallo: no tiene alerta.
+    if (
+      clase === null ||
+      clase.clase === 'pdf_requiere_contrasena' ||
+      epoca === null
+    ) {
+      return;
+    }
     setFallo({ tipo, pdf, clase, epoca });
   }
 
@@ -247,15 +258,46 @@ function CargasConAcceso() {
     }
   }
 
+  /** Otro archivo u otro banco: la contraseña de antes ya no vale. */
+  function olvidarContrasena() {
+    setPideContrasena(false);
+    setContrasena('');
+  }
+
+  function elegirArchivoPdf(archivo: File | null) {
+    olvidarContrasena();
+    setArchivoPdf(archivo);
+  }
+
+  function elegirBancoPdf(id: string) {
+    olvidarContrasena();
+    setBancoPdf(id);
+  }
+
   function leerPdf(archivo: File) {
     const enviada = leer(
-      { archivo, banco: bancoPdf },
+      {
+        archivo,
+        banco: bancoPdf,
+        ...(pideContrasena && contrasena !== '' ? { contrasena } : {}),
+      },
       {
         // El PDF se queda elegido: no se importó nada y se puede volver a leer.
         onSuccess: (datos) => {
+          olvidarContrasena();
           if (epoca !== null) setLectura({ datos, epoca });
         },
-        onError: (error) => registrarFallo(error, TIPO_ESTADO_CUENTA, true),
+        onError: (error) => {
+          const clase = clasificarErrorSubida(error)?.clase;
+          if (clase === 'pdf_requiere_contrasena') {
+            // Pedir la contraseña no es un fallo: la tarjeta lo avisa y
+            // muestra el campo; no hay alerta de error.
+            setPideContrasena(true);
+            return;
+          }
+          if (clase === 'pdf_contrasena_incorrecta') setPideContrasena(true);
+          registrarFallo(error, TIPO_ESTADO_CUENTA, true);
+        },
       },
     );
     if (enviada) {
@@ -358,10 +400,13 @@ function CargasConAcceso() {
                   false,
                 )
           }
-          onSeleccionar={esPdf ? setArchivoPdf : setArchivoCsv}
+          onSeleccionar={esPdf ? elegirArchivoPdf : setArchivoCsv}
           onBanco={setBanco}
           bancoPdf={bancoPdf}
-          onBancoPdf={setBancoPdf}
+          onBancoPdf={elegirBancoPdf}
+          pideContrasena={pideContrasena}
+          contrasena={contrasena}
+          onContrasena={setContrasena}
           onCuenta={setCuenta}
           onPerfil={setPerfilElegido}
           onSubir={esPdf ? leerPdf : subirEstadoCuenta}

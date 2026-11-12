@@ -56,6 +56,9 @@ function montar({
         onBanco={setBanco}
         bancoPdf="bbva"
         onBancoPdf={() => undefined}
+        pideContrasena={false}
+        contrasena=""
+        onContrasena={() => undefined}
         onCuenta={setCuenta}
         onPerfil={(id) => {
           alPerfil(id);
@@ -84,6 +87,9 @@ const PROPS_BASE = {
   onBanco: () => undefined,
   bancoPdf: 'bbva',
   onBancoPdf: () => undefined,
+  pideContrasena: false,
+  contrasena: '',
+  onContrasena: () => undefined,
   onCuenta: () => undefined,
   onPerfil: () => undefined,
   onReintentarPerfiles: () => undefined,

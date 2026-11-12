@@ -17,6 +17,9 @@ export const CODIGO_MONEDA_NO_MXN = 'moneda_no_mxn';
 /** Códigos `error` del 400 de la lectura de un PDF (historia 3.2). */
 export const CODIGO_PDF_SIN_TEXTO = 'pdf_sin_texto';
 export const CODIGO_PDF_ILEGIBLE = 'pdf_ilegible';
+/** Códigos `error` del 400 de un PDF protegido (historia 8.2). */
+export const CODIGO_PDF_REQUIERE_CONTRASENA = 'pdf_requiere_contrasena';
+export const CODIGO_PDF_CONTRASENA_INCORRECTA = 'pdf_contrasena_incorrecta';
 /** Códigos `error` de los rechazos de la historia 3.3. */
 export const CODIGO_SALDOS_NO_CUADRAN = 'saldos_no_cuadran';
 export const CODIGO_LINEAS_NO_LEIDAS = 'lineas_no_leidas';
@@ -31,6 +34,10 @@ export type ClaseErrorSubida =
   | { clase: 'pdf_sin_texto' }
   /** 400 `pdf_ilegible`: el PDF no tiene el formato del banco (historia 3.2). */
   | { clase: 'pdf_ilegible' }
+  /** 400 `pdf_requiere_contrasena`: el PDF está protegido (historia 8.2). */
+  | { clase: 'pdf_requiere_contrasena' }
+  /** 400 `pdf_contrasena_incorrecta`: la contraseña no abre el PDF (historia 8.2). */
+  | { clase: 'pdf_contrasena_incorrecta' }
   /** 400 `saldos_no_cuadran` (historia 3.3): `mensaje` es el del servidor. */
   | {
       clase: 'pdf_saldos_no_cuadran';
@@ -116,6 +123,12 @@ export function clasificarErrorSubida(error: unknown): ClaseErrorSubida | null {
         }
         if (error.error === CODIGO_PDF_ILEGIBLE) {
           return { clase: 'pdf_ilegible' };
+        }
+        if (error.error === CODIGO_PDF_REQUIERE_CONTRASENA) {
+          return { clase: 'pdf_requiere_contrasena' };
+        }
+        if (error.error === CODIGO_PDF_CONTRASENA_INCORRECTA) {
+          return { clase: 'pdf_contrasena_incorrecta' };
         }
         // class-validator puede devolver varios mensajes (M8).
         const detalle = error.mensajes.join(' ').trim();

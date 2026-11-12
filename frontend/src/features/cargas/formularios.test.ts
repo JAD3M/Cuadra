@@ -2,7 +2,11 @@ import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { api } from '@/shared/api';
 import { servidor } from '@/test/servidor';
-import { construirFormCfdi, construirFormEstadoCuenta } from './formularios';
+import {
+  construirFormCfdi,
+  construirFormEstadoCuenta,
+  construirFormLecturaPdf,
+} from './formularios';
 
 type Parte = [campo: string, valor: string];
 
@@ -87,5 +91,44 @@ describe('construirFormEstadoCuenta', () => {
       perfil: null,
     });
     expect([...form.keys()]).toEqual(['archivo']);
+  });
+});
+
+describe('construirFormLecturaPdf', () => {
+  const archivo = new File(['%PDF-1.4'], 'estado.pdf');
+
+  it('manda archivo y banco, y la contraseña solo si la hay', async () => {
+    expect(
+      await recibirPartes(
+        construirFormLecturaPdf({ archivo, banco: 'santander' }),
+      ),
+    ).toEqual([
+      ['archivo', 'archivo:estado.pdf'],
+      ['banco', 'santander'],
+    ]);
+    expect(
+      await recibirPartes(
+        construirFormLecturaPdf({
+          archivo,
+          banco: 'santander',
+          contrasena: ' con espacios ',
+        }),
+      ),
+    ).toEqual([
+      ['archivo', 'archivo:estado.pdf'],
+      ['banco', 'santander'],
+      ['contrasena', ' con espacios '],
+    ]);
+  });
+
+  it('una contraseña vacía no se manda', async () => {
+    expect(
+      await recibirPartes(
+        construirFormLecturaPdf({ archivo, banco: 'bbva', contrasena: '' }),
+      ),
+    ).toEqual([
+      ['archivo', 'archivo:estado.pdf'],
+      ['banco', 'bbva'],
+    ]);
   });
 });

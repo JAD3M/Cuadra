@@ -1,4 +1,4 @@
-import { useId, type ReactNode, type Ref } from 'react';
+import { useEffect, useId, useRef, type ReactNode, type Ref } from 'react';
 import {
   REGLAS_ESTADO_CUENTA,
   REGLAS_ESTADO_CUENTA_PDF,
@@ -53,6 +53,10 @@ export interface TarjetaEstadoCuentaProps {
   /** El banco del PDF (`id` de `BANCOS_PDF`); el CSV usa `banco`, texto libre. */
   bancoPdf: string;
   onBancoPdf: (banco: string) => void;
+  /** El servidor pidió la contraseña de un PDF protegido (historia 8.2). */
+  pideContrasena: boolean;
+  contrasena: string;
+  onContrasena: (contrasena: string) => void;
   onCuenta: (cuenta: string) => void;
   onPerfil: (id: string) => void;
   onReintentarPerfiles: () => void;
@@ -99,6 +103,9 @@ export function TarjetaEstadoCuenta({
   onBanco,
   bancoPdf,
   onBancoPdf,
+  pideContrasena,
+  contrasena,
+  onContrasena,
   onCuenta,
   onPerfil,
   onReintentarPerfiles,
@@ -109,11 +116,20 @@ export function TarjetaEstadoCuenta({
 }: TarjetaEstadoCuentaProps) {
   const idTitulo = useId();
   const idBanco = useId();
+  const idContrasena = useId();
+  const idContrasenaAyuda = `${idContrasena}-ayuda`;
+  const campoContrasena = useRef<HTMLInputElement>(null);
   const inactiva = deshabilitada || subiendo;
   const esPdf = modo === 'pdf';
   const reglas = esPdf ? REGLAS_ESTADO_CUENTA_PDF : REGLAS_ESTADO_CUENTA;
   const evaluados = evaluarSeleccion(archivo === null ? [] : [archivo], reglas);
   const aceptado = evaluados[0]?.motivo === null ? archivo : null;
+  const pedirContrasena = esPdf && pideContrasena;
+
+  // El foco pasa al campo en cuanto el servidor pide la contraseña.
+  useEffect(() => {
+    if (pedirContrasena) campoContrasena.current?.focus();
+  }, [pedirContrasena]);
 
   return (
     <section className={estilos.tarjeta} aria-labelledby={idTitulo}>
@@ -140,25 +156,49 @@ export function TarjetaEstadoCuenta({
       </div>
       <div className={estilos.rejilla}>
         {esPdf ? (
-          <div className={`${campos.campo} ${estilos.ancha}`}>
-            <label htmlFor={idBanco} className={campos.etiqueta}>
-              {TARJETA_ESTADO_CUENTA.banco}
-            </label>
-            {/* Lista fija: el lector de PDF existe solo para estos bancos (espejo del backend). */}
-            <select
-              id={idBanco}
-              className={campos.control}
-              value={bancoPdf}
-              disabled={inactiva}
-              onChange={(e) => onBancoPdf(e.target.value)}
-            >
-              {BANCOS_PDF.map((banco) => (
-                <option key={banco.id} value={banco.id}>
-                  {banco.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
+          <>
+            <div className={`${campos.campo} ${estilos.ancha}`}>
+              <label htmlFor={idBanco} className={campos.etiqueta}>
+                {TARJETA_ESTADO_CUENTA.banco}
+              </label>
+              {/* Lista fija: el lector de PDF existe solo para estos bancos (espejo del backend). */}
+              <select
+                id={idBanco}
+                className={campos.control}
+                value={bancoPdf}
+                disabled={inactiva}
+                onChange={(e) => onBancoPdf(e.target.value)}
+              >
+                {BANCOS_PDF.map((banco) => (
+                  <option key={banco.id} value={banco.id}>
+                    {banco.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {pedirContrasena ? (
+              <div className={`${campos.campo} ${estilos.ancha}`}>
+                <label htmlFor={idContrasena} className={campos.etiqueta}>
+                  {TARJETA_ESTADO_CUENTA_PDF.contrasena}
+                </label>
+                <input
+                  ref={campoContrasena}
+                  id={idContrasena}
+                  type="password"
+                  autoComplete="off"
+                  className={campos.control}
+                  value={contrasena}
+                  maxLength={LIMITES_CARGA.estadoCuentaPdf.maxContrasena}
+                  disabled={inactiva}
+                  aria-describedby={idContrasenaAyuda}
+                  onChange={(e) => onContrasena(e.target.value)}
+                />
+                <p id={idContrasenaAyuda} className={campos.ayuda}>
+                  {TARJETA_ESTADO_CUENTA_PDF.contrasenaAyuda}
+                </p>
+              </div>
+            ) : null}
+          </>
         ) : (
           <>
             <div className={campos.campo}>
@@ -194,7 +234,14 @@ export function TarjetaEstadoCuenta({
       </div>
       {esPdf ? (
         <div role="status">
-          <AvisoYaExistia frases={[TARJETA_ESTADO_CUENTA_PDF.soloLectura]} />
+          <AvisoYaExistia
+            frases={[
+              TARJETA_ESTADO_CUENTA_PDF.soloLectura,
+              ...(pedirContrasena
+                ? [TARJETA_ESTADO_CUENTA_PDF.pideContrasena]
+                : []),
+            ]}
+          />
         </div>
       ) : null}
       <div className={estilos.elegir}>
