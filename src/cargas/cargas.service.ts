@@ -33,7 +33,7 @@ import {
 import { registrarCargar } from './registrar-carga';
 import { VistaPreviaService } from './vista-previa.service';
 import { BancosVistaPrevia } from '../plataforma/bancos-vista-previa.service';
-import type { LineaNoLeida } from '../bancos/pdf/lector-bbva';
+import type { LineaNoLeida } from '../bancos/pdf/lector-comun';
 import {
   aEstado,
   type EstadoDeCarga,
