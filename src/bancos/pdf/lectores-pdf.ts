@@ -1,5 +1,6 @@
 import { leerEstadoCuentaBanorte } from './lector-banorte';
 import { leerEstadoCuentaBbva } from './lector-bbva';
+import { leerEstadoCuentaSantander } from './lector-santander';
 import type { EstadoCuentaLeido } from './lector-comun';
 
 /**
@@ -9,6 +10,7 @@ import type { EstadoCuentaLeido } from './lector-comun';
 const LECTORES = new Map<string, (texto: string) => EstadoCuentaLeido>([
   ['bbva', leerEstadoCuentaBbva],
   ['banorte', leerEstadoCuentaBanorte],
+  ['santander', leerEstadoCuentaSantander],
 ]);
 
 export const BANCOS_PDF: readonly string[] = [...LECTORES.keys()];

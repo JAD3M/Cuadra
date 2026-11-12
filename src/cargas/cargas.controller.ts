@@ -149,6 +149,7 @@ export class CargasController {
       properties: {
         [CAMPO_ESTADO_CUENTA]: { type: 'string', format: 'binary' },
         banco: { type: 'string', example: 'bbva', maxLength: 32 },
+        contrasena: { type: 'string', maxLength: 128, writeOnly: true },
       },
     },
   })
@@ -156,13 +157,14 @@ export class CargasController {
   cargarEstadoCuentaPdf(
     @UsuarioActual() usuario: Sesion,
     @UploadedFiles() [archivo]: ArchivoSubido[],
-    @Body() { banco }: LecturaPdfDto,
+    @Body() { banco, contrasena }: LecturaPdfDto,
   ): Promise<RespuestaLecturaPdfDto> {
     return this.cargas.guardarEstadoCuentaPdf(
       usuario.companyId,
       usuario.userId,
       archivo,
       banco,
+      contrasena,
     );
   }
 

@@ -45,8 +45,16 @@ export const CODIGO_PDF_SIN_TEXTO = 'pdf_sin_texto';
 /** Mensaje compartido por el adaptador y por el guard de la subida. */
 export const MENSAJE_PDF_ILEGIBLE =
   'No pudimos leer el PDF. Descárgalo de nuevo desde el portal del banco y vuelve a subirlo.';
-/** Bytes que no son un PDF legible (corrupto, truncado, protegido). */
+/** Bytes que no son un PDF legible (corrupto o truncado). */
 export const CODIGO_PDF_ILEGIBLE = 'pdf_ilegible';
+/** Historia 8.2. PDF protegido y la petición no trajo contraseña. */
+export const CODIGO_PDF_REQUIERE_CONTRASENA = 'pdf_requiere_contrasena';
+export const MENSAJE_PDF_REQUIERE_CONTRASENA =
+  'Este PDF está protegido con contraseña. Escríbela para poder leerlo.';
+/** Historia 8.2. PDF protegido y la contraseña no lo abre. */
+export const CODIGO_PDF_CONTRASENA_INCORRECTA = 'pdf_contrasena_incorrecta';
+export const MENSAJE_PDF_CONTRASENA_INCORRECTA =
+  'La contraseña no es correcta. Revísala y vuelve a intentar. No se guardó nada.';
 
 /** Historia 3.3. Los saldos del PDF no cuadran con la suma de sus movimientos. */
 export const CODIGO_SALDOS_NO_CUADRAN = 'saldos_no_cuadran';

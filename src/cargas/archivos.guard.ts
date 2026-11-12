@@ -241,7 +241,7 @@ export const EstadoDeCuentaPdfGuard = ArchivosGuard({
   // LIMIT_FILE_SIZE, 400) salta antes que el de la petición (413), como se
   // pidió, y la memoria sigue acotada a ~11 MB.
   maxBytesPorPeticion: MAX_BYTES_ESTADO_CUENTA + MB,
-  // banco.
-  maxCamposDeTexto: 1,
+  // banco y, opcional, la contraseña de un PDF protegido (historia 8.2).
+  maxCamposDeTexto: 2,
   firma: '%PDF-',
 });

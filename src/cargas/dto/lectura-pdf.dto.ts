@@ -1,7 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import type { EstadoCarga } from '../../common/entities/tipos';
-import { IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 
 /** Campo de texto del multipart de la lectura de PDF (historia 3.2). */
 export class LecturaPdfDto {
@@ -16,6 +22,23 @@ export class LecturaPdfDto {
   @MaxLength(32)
   @Matches(/^[^\0]*$/, { message: 'banco no puede traer bytes nulos' })
   banco!: string;
+
+  /**
+   * Contraseña de un PDF protegido (historia 8.2). Solo abre el archivo: vive
+   * en memoria durante la petición y nunca se guarda ni se registra. No se
+   * recorta: una contraseña puede llevar espacios. Vacía = no se mandó.
+   */
+  @ApiPropertyOptional({ maxLength: 128, writeOnly: true })
+  @Transform(({ value }: { value: unknown }) =>
+    value === '' ? undefined : value,
+  )
+  @IsOptional()
+  @IsString({ message: 'La contraseña del PDF debe ser texto' })
+  @MaxLength(128, { message: 'La contraseña del PDF es demasiado larga' })
+  @Matches(/^[^\0]*$/, {
+    message: 'La contraseña del PDF trae caracteres no válidos',
+  })
+  contrasena?: string;
 }
 
 /** Lo que responde la lectura de un PDF que cuadra: ya quedó guardado. */
