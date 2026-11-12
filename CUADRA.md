@@ -918,9 +918,10 @@ persona con cada propuesta de la regla 1 que ya tenía `habria_cerrado`, y calcu
 - Revisado por un verificador independiente (alto riesgo: CHECK de una tabla con RLS y las sentencias
   que cierran y reabren casos): sin blockers.
 
-**Pendientes (6.2):** la tasa aún no se ve en ninguna pantalla ni endpoint; la prueba de `down()` de la
-migración con datos y los probes de concurrencia del verificador no se ejecutaron en vivo. El frontend
-de esta historia se escribió antes que sus pruebas (sin RED observado).
+**Pendientes (6.2):** la tasa aún no se ve en ninguna pantalla ni endpoint (historia 9.1); los probes de
+concurrencia del verificador no se ejecutaron en vivo. El frontend de esta historia se escribió antes que
+sus pruebas (sin RED observado). El `down()` con datos ya se prueba (`down-con-datos.migracion.spec.ts`):
+con eventos de la persona falla a propósito y no deja nada a medias.
 
 **Medir PPD, parcialidades y comisiones (v2, historia 6.3), terminada el 11 nov 2026.**
 - `movimientos.clase` (`comision`, `parcialidad` o nula; `CLASES_MOVIMIENTO` en `tipos.ts` y su espejo, con
@@ -941,8 +942,8 @@ de esta historia se escribió antes que sus pruebas (sin RED observado).
 - La pantalla de estas fracciones es la historia 9.2 (necesita mockup, UX-DR9).
 
 **Pendientes (6.3):** los criterios de clase son un supuesto hasta ver PDFs reales; los movimientos viejos
-quedan sin clase, así que las fracciones de clase subestiman hasta que entre volumen nuevo; la prueba de
-`down()` de la migración con datos no se ejecutó en vivo.
+quedan sin clase, así que las fracciones de clase subestiman hasta que entre volumen nuevo. Su `down()`
+con datos ya se prueba: quita la columna y la función sin perder movimientos ni facturas.
 
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
