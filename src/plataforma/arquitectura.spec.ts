@@ -54,6 +54,11 @@ const LISTA_BLANCA: ListaBlanca = {
     'plataforma_usuarios',
     'bitacora_plataforma',
   ],
+  // Fixture: inserta al dueño y limpia su rastro para el recorrido UJ-1 (7.3).
+  'e2e/uj1-conciliar-el-mes.integracion.spec.ts': [
+    'plataforma_usuarios',
+    'bitacora_plataforma',
+  ],
 };
 
 const RAIZ_SRC = join(__dirname, '..');
