@@ -1,57 +1,15 @@
-import { type INestApplication, Logger } from '@nestjs/common';
-import { getQueueToken } from '@nestjs/bullmq';
-import { ConfigModule } from '@nestjs/config';
-import { Test } from '@nestjs/testing';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import type { Queue } from 'bullmq';
-import { readFileSync } from 'fs';
-import type { Redis } from 'ioredis';
-import { join } from 'path';
-import type { App } from 'supertest/types';
-import { DataSource } from 'typeorm';
-import { AuthModule } from '../auth/auth.module';
-import { PasswordHasher } from '../auth/password';
+import type { DataSource } from 'typeorm';
 import { permisosDeRoles } from '../auth/permisos/matriz';
-import { BandejaModule } from '../bandeja/bandeja.module';
-import { BitacoraModule } from '../bitacora/bitacora.module';
-import { CargasModule } from '../cargas/cargas.module';
-import { COLA_CARGAS } from '../cargas/cola-cargas';
-import type { EstadoDeCarga } from '../cargas/estado-de-carga';
-import { CasosModule } from '../casos/casos.module';
-import { ColasModule } from '../colas/colas.module';
-import { CompaniesModule } from '../companies/companies.module';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
-import { validateEnv } from '../config/env.validation';
-import { configurarApp } from '../configurar-app';
-import { CorreoSimulado } from '../correo/correo-simulado';
-import { ProveedorCorreo } from '../correo/proveedor-correo';
-import { ContextoEmpresaModule } from '../database/contexto-empresa.module';
-import { opcionesDataSource } from '../database/data-source';
-import { ENTIDADES } from '../database/entidades';
-import { SnakeNamingStrategy } from '../database/naming.strategy';
-import { sembrar } from '../database/seeds/seed';
+import { filas } from '../database/testing/base-de-pruebas';
 import {
-  crearBaseDePruebas,
-  filas,
-  urlAppDePruebas,
-  urlDePruebas,
-} from '../database/testing/base-de-pruebas';
-import { CLIENTE_REDIS } from '../redis/cliente-redis';
-import { ResolucionModule } from '../resolucion/resolucion.module';
-import { SombraModule } from '../sombra/sombra.module';
-import { UsuariosModule } from '../usuarios/usuarios.module';
-import { COLA_SUGERENCIAS } from '../sugerencias/cola-sugerencias';
-import { limpiarLimites } from '../testing/limites-de-pruebas';
-import { cookieDe } from '../testing/sesion-de-pruebas';
-import request from '../testing/supertest-con-origen';
-import { nombreDeCfdi, PDF_CUADRA } from '../../scripts/ejemplos/generar';
-import { RFC_EMPRESA } from '../../scripts/demo/formatos';
+  cfdiDeEjemploPara,
+  leerEjemplo as leer,
+  levantarRecorrido,
+  type Recorrido,
+} from '../testing/recorrido-de-pruebas';
+import { PDF_CUADRA } from '../../scripts/ejemplos/generar';
 import { FACTURAS } from '../../scripts/ejemplos/juego';
-
-const PREFIJO_LIMITE = 'cuadra_test_uj3';
-process.env.COLA_PREFIJO = PREFIJO_LIMITE;
-process.env.COLA_INTENTOS = '5';
-process.env.COLA_ESPERA_MS = '20';
 
 /**
  * Historia 7.4 (FR-70, AD-18, AD-11). UJ-3, «Pedro controla que el mes sea
@@ -67,177 +25,41 @@ jest.setTimeout(120_000);
 
 const CORREO_DUENO = 'dueno-uj3@cuadra.test';
 const PASSWORD_DUENO = 'una-contraseña-larga-123';
-const PASSWORD = 'contraseña-nueva-segura';
 const DOMINIO = 'uj3.test';
 const RFC_A = 'UJT240101AB1';
-const RFC_B = 'UJU240202BC2';
 const CORREO_ADMIN = `admin@${DOMINIO}`;
 const CORREO_CONTADORA = `contadora@${DOMINIO}`;
 const CORREO_REVISOR = `revisor@${DOMINIO}`;
 const CORREO_AUDITORA = `auditora@${DOMINIO}`;
 
-const RAIZ = join(__dirname, '..', '..');
-const leer = (ruta: string) => readFileSync(join(RAIZ, ruta));
-
-/**
- * Los CFDI del juego salen a nombre del RFC de la Ferretería del seed y el
- * motor solo concilia los emitidos por la empresa de la sesión. Esta empresa se
- * crea con su propio RFC, así que el emisor se reescribe en memoria; los
- * archivos del repositorio no cambian.
- */
-const cfdiDeLaEmpresa = (folio: string) =>
-  Buffer.from(
-    leer(nombreDeCfdi(folio))
-      .toString('utf8')
-      .replaceAll(`Rfc="${RFC_EMPRESA.fdb}"`, `Rfc="${RFC_A}"`),
-  );
-
-let app: INestApplication<App>;
+let r: Recorrido;
 let ds: DataSource;
-let correo: CorreoSimulado;
 let A: string;
 let tokenLuis: string;
 let tokenAna: string;
 let tokenRevisor: string;
 let tokenAuditora: string;
 
-const http = () => request(app.getHttpServer());
-
-const TABLAS_DE_DOMINIO =
-  'cfdi, cargas, movimientos, movimientos_pendientes, decisiones, decision_lineas, evidencia_sombra';
+const http = () => r.http();
+const cfdiDeLaEmpresa = (folio: string) => cfdiDeEjemploPara(RFC_A, folio);
+const aceptar = async (para: string, nombre: string) =>
+  (await r.aceptar(para, nombre)).cookie;
 
 beforeAll(async () => {
-  const url = urlDePruebas();
-  await crearBaseDePruebas(url);
-  ds = await new DataSource({ ...opcionesDataSource, url }).initialize();
-  await ds.runMigrations();
-  await sembrar(ds);
-  await ds.query(`TRUNCATE ${TABLAS_DE_DOMINIO} CASCADE`);
-  // No hay ruta para sembrar al dueño de la plataforma.
-  const hash = await new PasswordHasher().hashear(PASSWORD_DUENO);
-  await ds.query(
-    `INSERT INTO plataforma_usuarios (correo, password_hash)
-     VALUES ($1, $2) ON CONFLICT (correo) DO UPDATE SET password_hash = $2, activo = true`,
-    [CORREO_DUENO, hash],
-  );
-
-  delete process.env.ANTHROPIC_API_KEY;
-  process.env.LLM_HABILITADO = 'false';
-  const modulo = await Test.createTestingModule({
-    imports: [
-      ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
-      TypeOrmModule.forRoot({
-        type: 'postgres',
-        url: urlAppDePruebas(),
-        entities: ENTIDADES,
-        namingStrategy: new SnakeNamingStrategy(),
-      }),
-      ContextoEmpresaModule,
-      ColasModule,
-      AuthModule,
-      CargasModule,
-      CompaniesModule,
-      BandejaModule,
-      BitacoraModule,
-      CasosModule,
-      ResolucionModule,
-      SombraModule,
-      UsuariosModule,
-    ],
-  }).compile();
-  // Jobs de una corrida anterior apuntan a cargas que ya se truncaron.
-  await modulo
-    .get<Queue>(getQueueToken(COLA_CARGAS))
-    .obliterate({ force: true });
-  await modulo
-    .get<Queue>(getQueueToken(COLA_SUGERENCIAS))
-    .obliterate({ force: true });
-  app = modulo.createNestApplication();
-  configurarApp(app);
-  await app.listen(0);
-  correo = app.get(ProveedorCorreo, { strict: false });
-  await limpiarLimites(app.get<Redis>(CLIENTE_REDIS), PREFIJO_LIMITE);
-  jest.spyOn(Logger.prototype, 'error').mockImplementation();
+  r = await levantarRecorrido({
+    prefijo: 'cuadra_test_uj3',
+    dominio: DOMINIO,
+    rfcs: [RFC_A],
+    correoDueno: CORREO_DUENO,
+    passwordDueno: PASSWORD_DUENO,
+    conDominio: true,
+  });
+  ({ ds } = r);
 }, 60_000);
 
 afterAll(async () => {
-  jest.restoreAllMocks();
-  if (app) await limpiarLimites(app.get<Redis>(CLIENTE_REDIS), PREFIJO_LIMITE);
-  await app?.close();
-  if (ds?.isInitialized) {
-    // Las bitácoras son de solo agregar para cuadra_app; el dueño limpia.
-    await ds.query(`TRUNCATE ${TABLAS_DE_DOMINIO} CASCADE`);
-    const empresas = `(SELECT id FROM companies WHERE rfc = ANY($1))`;
-    const rfcs = [[RFC_A, RFC_B]];
-    const personas = `(SELECT id FROM users WHERE email LIKE '%@${DOMINIO}')`;
-    await ds.query(`DELETE FROM sesiones WHERE user_id IN ${personas}`);
-    await ds.query(
-      `DELETE FROM sesiones WHERE plataforma_usuario_id IS NOT NULL`,
-    );
-    await ds.query(
-      `DELETE FROM user_company_roles WHERE company_id IN ${empresas} OR user_id IN ${personas}`,
-      rfcs,
-    );
-    await ds.query(
-      `DELETE FROM invitaciones WHERE company_id IN ${empresas}`,
-      rfcs,
-    );
-    await ds.query(
-      `DELETE FROM bitacora WHERE company_id IN ${empresas}`,
-      rfcs,
-    );
-    await ds.query(`DELETE FROM users WHERE email LIKE '%@${DOMINIO}'`);
-    await ds.query(`DELETE FROM bitacora_plataforma`);
-    await ds.query(`DELETE FROM companies WHERE rfc = ANY($1)`, rfcs);
-    await ds.query(`DELETE FROM plataforma_usuarios WHERE correo = $1`, [
-      CORREO_DUENO,
-    ]);
-    // No deja datos entre ejecuciones.
-    const [{ n }] = await filas<{ n: string }>(
-      ds,
-      `SELECT (SELECT count(*) FROM companies WHERE rfc = ANY($1))
-            + (SELECT count(*) FROM users WHERE email LIKE '%@${DOMINIO}')
-            + (SELECT count(*) FROM movimientos) + (SELECT count(*) FROM cfdi)
-            + (SELECT count(*) FROM cargas) + (SELECT count(*) FROM decisiones) AS n`,
-      rfcs,
-    );
-    expect(Number(n)).toBe(0);
-    await ds.destroy();
-  }
+  await r?.cerrar();
 });
-
-/** Token del último correo enviado a `para`, leído del enlace del correo simulado. */
-function tokenDe(para: string): string {
-  const mensaje = correo.ultimoPara(para);
-  const m = /\/invitacion\/([A-Za-z0-9_-]+)/.exec(mensaje?.texto ?? '');
-  if (!m) throw new Error(`No hubo correo con enlace para ${para}`);
-  return m[1];
-}
-
-async function aceptar(para: string, nombre: string): Promise<string> {
-  const res = await http()
-    .post(`/auth/invitaciones/${tokenDe(para)}/aceptar`)
-    .send({ nombre, password: PASSWORD })
-    .expect(200);
-  return cookieDe(res);
-}
-
-/** Sondea la carga hasta que termina, o truena a los 20 s. */
-async function esperarFin(token: string, id: string): Promise<EstadoDeCarga> {
-  const limite = Date.now() + 20_000;
-  for (;;) {
-    const res = await http()
-      .get(`/cargas/${id}`)
-      .set('Cookie', token)
-      .expect(200);
-    const carga = res.body as EstadoDeCarga;
-    if (['procesada', 'con_errores', 'fallida'].includes(carga.estado)) {
-      return carga;
-    }
-    if (Date.now() > limite) throw new Error(`La carga ${id} sigue en curso`);
-    await new Promise((r) => setTimeout(r, 50));
-  }
-}
 
 const PERMISOS_DE_SECCION = ['bandeja.ver', 'bitacora.ver'];
 
@@ -286,21 +108,13 @@ describe('UJ-3: Pedro controla que el mes sea confiable (FR-70)', () => {
   let movimientoConfirmado: string;
 
   it('una empresa con un mes conciliado: se crea como en 7.2 y la administradora confirma lo del mes', async () => {
-    const login = await http()
-      .post('/plataforma/auth/login')
-      .send({ email: CORREO_DUENO, password: PASSWORD_DUENO })
-      .expect(200);
-    const creada = await http()
-      .post('/plataforma/empresas')
-      .set('Cookie', cookieDe(login))
-      .send({ razonSocial: 'Empresa del control SA de CV', rfc: RFC_A })
-      .expect(201);
-    A = (creada.body as { id: string }).id;
-    await http()
-      .post(`/plataforma/empresas/${A}/invitaciones`)
-      .set('Cookie', cookieDe(login))
-      .send({ email: CORREO_ADMIN })
-      .expect(201);
+    const cookieDueno = await r.iniciarDueno();
+    A = await r.crearEmpresa(
+      cookieDueno,
+      'Empresa del control SA de CV',
+      RFC_A,
+      CORREO_ADMIN,
+    );
     tokenAna = await aceptar(CORREO_ADMIN, 'Ana, administradora');
     for (const [email, rol] of [
       [CORREO_CONTADORA, 'contador'],
@@ -333,8 +147,8 @@ describe('UJ-3: Pedro controla que el mes sea confiable (FR-70)', () => {
       cfdi.attach('archivos', cfdiDeLaEmpresa(f.folio), `${f.folio}.xml`);
     }
     const subida = await cfdi.expect(202);
-    await esperarFin(tokenLuis, (subida.body as { id: string }).id);
-    await app.get(ConciliacionService).conciliar(A);
+    await r.esperarFin(tokenLuis, (subida.body as { id: string }).id);
+    await r.app.get(ConciliacionService).conciliar(A);
 
     // La administradora confirma la regla 1: una confirmación ajena para el revisor.
     const sug = await bandeja(tokenAna, ['sugerencia']);

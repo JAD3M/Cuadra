@@ -49,18 +49,9 @@ const LISTA_BLANCA: ListaBlanca = {
   'database/email-normalizado.spec.ts': ['bitacora_plataforma'],
   // Fixture que inserta un dueño para probar la sesión de plataforma.
   'auth/auth.integracion.spec.ts': ['plataforma_usuarios'],
-  // Fixture: inserta al dueño y limpia su rastro para el recorrido UJ-2 (7.2).
-  'e2e/uj2-alta-empresa.integracion.spec.ts': [
-    'plataforma_usuarios',
-    'bitacora_plataforma',
-  ],
-  // Fixture: inserta al dueño y limpia su rastro para el recorrido UJ-1 (7.3).
-  'e2e/uj1-conciliar-el-mes.integracion.spec.ts': [
-    'plataforma_usuarios',
-    'bitacora_plataforma',
-  ],
-  // Fixture: inserta al dueño y limpia su rastro para el recorrido UJ-3 (7.4).
-  'e2e/uj3-controlar-el-mes.integracion.spec.ts': [
+  // Helper de los recorridos de punta a punta (7.2 a 7.4): inserta al dueño y
+  // limpia su rastro.
+  'testing/recorrido-de-pruebas.ts': [
     'plataforma_usuarios',
     'bitacora_plataforma',
   ],

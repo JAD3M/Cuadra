@@ -5,6 +5,13 @@
 
 ### 12 nov 2026
 
+- **Helper común de los recorridos de punta a punta.** Los arranques de UJ-1, UJ-2 y UJ-3 repetían unas 170
+  líneas (app con Postgres y Redis reales, dueño de la plataforma, correo simulado, alta de empresa, aceptar
+  invitaciones y limpieza). Ahora viven en `src/testing/recorrido-de-pruebas.ts` (`levantarRecorrido`); cada
+  recorrido solo pone sus pasos. La lista blanca de `arquitectura.spec.ts` pasó de tres entradas a una (el
+  helper), y el helper quedó como excepción nombrada en las guardas de identidad (`EXCEPCIONES_IDENTIDAD`) y de
+  dueños (`EXCEPCIONES_DUENOS`), como ya lo era `sesion-de-pruebas.ts`. Sin cambios de comportamiento: la prueba de control de UJ-1 y UJ-3 detecta lo mismo que antes.
+
 - **Historia 7.4 (recorrido UJ-3) terminada.** Una sola prueba encadenada por HTTP
   (`src/e2e/uj3-controlar-el-mes.integracion.spec.ts`), sin tocar código de producción ni el CI. Misma base que
   la 7.3 (empresa creada como en la 7.2, juego de la 7.1, CFDI re-emitidos con el RFC de la empresa); el mes lo

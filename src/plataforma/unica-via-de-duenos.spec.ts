@@ -1,11 +1,16 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
-import { type ArchivoFuente, buscarEscritoresDeDuenos } from './arquitectura';
+import {
+  type ArchivoFuente,
+  buscarEscritoresDeDuenos,
+  EXCEPCIONES_DUENOS,
+} from './arquitectura';
 
 /**
  * Historia 1.3: no existe otra vía para crear dueños. En el código de
- * producto (sin specs ni migraciones) solo `plataforma/sembrar-dueno.ts`
- * escribe en `plataforma_usuarios`.
+ * producto (sin specs, migraciones ni la excepción nombrada de las pruebas de
+ * punta a punta) solo `plataforma/sembrar-dueno.ts` escribe en
+ * `plataforma_usuarios`.
  */
 
 const UNICA_VIA = 'plataforma/sembrar-dueno.ts';
@@ -34,6 +39,12 @@ describe('historia 1.3: la única vía para crear dueños', () => {
     const fuentes = leerFuentes();
     expect(fuentes.some((f) => f.ruta === UNICA_VIA)).toBe(true);
     expect(buscarEscritoresDeDuenos(fuentes)).toEqual([UNICA_VIA]);
+  });
+
+  it('la única excepción es el arranque de los recorridos de punta a punta', () => {
+    expect([...EXCEPCIONES_DUENOS]).toEqual([
+      'testing/recorrido-de-pruebas.ts',
+    ]);
   });
 
   describe('buscarEscritoresDeDuenos (fixtures)', () => {
