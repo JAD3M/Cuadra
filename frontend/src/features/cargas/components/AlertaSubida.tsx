@@ -12,6 +12,7 @@ import {
   TITULO_PDF_SALDOS_NO_CUADRAN,
   TITULO_PDF_SIN_MOVIMIENTOS,
   TEXTO_MONEDA_NO_MXN,
+  TEXTO_PDF_CONTRASENA_INCORRECTA,
   TEXTO_PDF_ILEGIBLE,
   TEXTO_PDF_SIN_TEXTO,
 } from '@/features/cargas/textos';
@@ -30,6 +31,8 @@ export type FalloSubida =
   | { clase: 'pdf_sin_texto' }
   /** 400 `pdf_ilegible`: el PDF no tiene el formato del banco. */
   | { clase: 'pdf_ilegible' }
+  /** 400 `pdf_contrasena_incorrecta`: la contraseña no abre el PDF (historia 8.2). */
+  | { clase: 'pdf_contrasena_incorrecta' }
   /** 400 `saldos_no_cuadran`: `mensaje` es el del servidor; los montos, cadenas. */
   | {
       clase: 'pdf_saldos_no_cuadran';
@@ -82,6 +85,8 @@ export function AlertaSubida({ fallo, onReintentar, ref }: AlertaSubidaProps) {
       return <AlertaError ref={ref} {...TEXTO_PDF_SIN_TEXTO} />;
     case 'pdf_ilegible':
       return <AlertaError ref={ref} {...TEXTO_PDF_ILEGIBLE} />;
+    case 'pdf_contrasena_incorrecta':
+      return <AlertaError ref={ref} {...TEXTO_PDF_CONTRASENA_INCORRECTA} />;
     case 'pdf_saldos_no_cuadran':
       return (
         <AlertaError

@@ -13,6 +13,7 @@ import {
 import { almacenes } from '@/test/handlers';
 import {
   LECTURA_PDF,
+  lecturaPdfProtegida,
   lecturaPdfRechazada,
   subidaFalla,
   subidaRedDeFallo,
@@ -101,6 +102,91 @@ describe('CargasContenedor: lectura de PDF', () => {
     expect(almacenes.cargas.subidas()[0]?.campos).toEqual([
       ['banco', 'banorte'],
     ]);
+  });
+
+  describe('PDF protegido con contraseña (historia 8.2)', () => {
+    const CAMPO = () => screen.getByLabelText('Contraseña del PDF');
+
+    it('un PDF sin protección nunca pide la contraseña', async () => {
+      montar();
+      const u = await entrarAPdf();
+      await u.upload(screen.getByLabelText('Elegir archivo'), pdf());
+      await u.click(botonLeer());
+      await within(tarjeta()).findByText(/movimientos leídos/);
+      expect(
+        screen.queryByLabelText('Contraseña del PDF'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('si el servidor la pide, aparece el campo y no una alerta de error', async () => {
+      const recibidas: Array<string | null> = [];
+      servidor.use(lecturaPdfProtegida('clave-buena', recibidas));
+      montar();
+      const u = await entrarAPdf();
+      await u.upload(screen.getByLabelText('Elegir archivo'), pdf());
+      await u.click(botonLeer());
+      expect(
+        await within(tarjeta()).findByText(
+          'Este PDF está protegido con contraseña. Escríbela para poder leerlo.',
+        ),
+      ).toBeInTheDocument();
+      expect(CAMPO()).toHaveValue('');
+      await waitFor(() => expect(CAMPO()).toHaveFocus());
+      expect(within(tarjeta()).queryByRole('alert')).not.toBeInTheDocument();
+      expect(recibidas).toEqual([null]);
+    });
+
+    it('con la contraseña correcta lee el PDF y el campo desaparece', async () => {
+      const recibidas: Array<string | null> = [];
+      servidor.use(lecturaPdfProtegida('clave buena', recibidas));
+      montar();
+      const u = await entrarAPdf();
+      await u.upload(screen.getByLabelText('Elegir archivo'), pdf());
+      await u.click(botonLeer());
+      await u.type(
+        await screen.findByLabelText('Contraseña del PDF'),
+        'clave buena',
+      );
+      await u.click(botonLeer());
+      await within(tarjeta()).findByText(/movimientos leídos/);
+      expect(recibidas).toEqual([null, 'clave buena']);
+      expect(
+        screen.queryByLabelText('Contraseña del PDF'),
+      ).not.toBeInTheDocument();
+    });
+
+    it('con una contraseña incorrecta muestra su alerta, deja el campo y no lee nada', async () => {
+      servidor.use(lecturaPdfProtegida('clave-buena'));
+      montar();
+      const u = await entrarAPdf();
+      await u.upload(screen.getByLabelText('Elegir archivo'), pdf());
+      await u.click(botonLeer());
+      await u.type(await screen.findByLabelText('Contraseña del PDF'), 'mala');
+      await u.click(botonLeer());
+      const alerta = await within(tarjeta()).findByRole('alert');
+      expect(alerta).toHaveTextContent('No se pudo abrir el PDF');
+      expect(alerta).toHaveTextContent(
+        'La contraseña no es correcta. Revísala y vuelve a intentar. No se guardó nada.',
+      );
+      expect(alerta).not.toHaveTextContent('texto del servidor');
+      expect(CAMPO()).toBeInTheDocument();
+      expect(
+        within(tarjeta()).queryByText(/movimientos leídos/),
+      ).not.toBeInTheDocument();
+    });
+
+    it('cambiar el archivo olvida la contraseña y esconde el campo', async () => {
+      servidor.use(lecturaPdfProtegida('clave-buena'));
+      montar();
+      const u = await entrarAPdf();
+      await u.upload(screen.getByLabelText('Elegir archivo'), pdf());
+      await u.click(botonLeer());
+      await u.type(await screen.findByLabelText('Contraseña del PDF'), 'algo');
+      await u.upload(screen.getByLabelText('Elegir archivo'), pdf('otro.pdf'));
+      expect(
+        screen.queryByLabelText('Contraseña del PDF'),
+      ).not.toBeInTheDocument();
+    });
   });
 
   it('mientras lee: «Leyendo…», texto y barra del mockup, y todo apagado', async () => {

@@ -67,6 +67,7 @@ export type ModoEstadoCuenta = 'csv' | 'pdf';
 export const BANCOS_PDF = [
   { id: 'bbva', nombre: 'BBVA' },
   { id: 'banorte', nombre: 'Banorte' },
+  { id: 'santander', nombre: 'Santander' },
 ] as const;
 /** El banco con el que arranca el selector de PDF. */
 export const BANCO_PDF_POR_DEFECTO = BANCOS_PDF[0].id;
@@ -94,5 +95,7 @@ export const LIMITES_CARGA = {
   estadoCuentaPdf: {
     extension: '.pdf',
     maxBytesPorArchivo: 10 * MB,
+    /** Espejo de `LecturaPdfDto.contrasena` (historia 8.2). */
+    maxContrasena: 128,
   },
 } as const;

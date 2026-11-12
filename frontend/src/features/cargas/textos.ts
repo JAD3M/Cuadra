@@ -233,6 +233,18 @@ export const TARJETA_ESTADO_CUENTA_PDF = {
   limites: 'Solo .pdf · un archivo · hasta 10 MB',
   leer: 'Leer estado de cuenta',
   soloLectura: 'Solo lectura: no se importó nada.',
+  /** Historia 8.2: campo que aparece cuando el servidor pide la contraseña. */
+  contrasena: 'Contraseña del PDF',
+  contrasenaAyuda: 'Se usa solo para abrir el archivo. No se guarda.',
+  pideContrasena:
+    'Este PDF está protegido con contraseña. Escríbela para poder leerlo.',
+} as const;
+
+/** La contraseña no abre el PDF (historia 8.2); el texto es del frontend. */
+export const TEXTO_PDF_CONTRASENA_INCORRECTA = {
+  titulo: 'No se pudo abrir el PDF',
+  detalle:
+    'La contraseña no es correcta. Revísala y vuelve a intentar. No se guardó nada.',
 } as const;
 
 export const LEYENDO = 'Leyendo…';

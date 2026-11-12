@@ -13,6 +13,8 @@ export interface PeticionLecturaPdf {
   archivo: File;
   /** El id del banco (`bbva`). */
   banco: string;
+  /** Solo de un PDF protegido (historia 8.2): viaja en memoria, no se guarda. */
+  contrasena?: string;
 }
 
 type VariablesLectura = PeticionLecturaPdf & {

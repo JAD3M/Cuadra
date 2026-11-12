@@ -1029,6 +1029,22 @@ no un archivo real que alguien meta también al generador.
   (Banorte no publica uno de muestra). Falta validarlo y afinar la clasificación de comisiones y parcialidades con
   un PDF real anonimizado.
 
+**Leer un PDF de Santander, incluso con contraseña (v2, historia 8.2), terminada el 12 nov 2026.**
+- `src/bancos/pdf/lector-santander.ts`: lector puro de la cuenta empresarial, registrado en `lectores-pdf.ts`; mismo
+  cuadre, vista previa y rechazos que los otros bancos. Sin migración: Santander tiene su propio conteo de cargas.
+- Contraseña: `POST /cargas/estado-cuenta/pdf` acepta un campo opcional `contrasena` (hasta 128 caracteres, sin
+  recortar). `extraerTextoPdf(buffer, contrasena?)` la pasa a `unpdf` y solo vive en memoria: no se guarda, no sale
+  en la respuesta, la bitácora ni los registros. Un PDF protegido sin contraseña responde 400 `pdf_requiere_contrasena`
+  (antes caía en `pdf_ilegible`) y con una incorrecta 400 `pdf_contrasena_incorrecta`; ninguno crea carga. Pedir la
+  contraseña no deja bitácora (es el primer paso normal); la incorrecta sí, con su motivo y sin la contraseña. Un PDF
+  sin protección ignora la contraseña que sobre.
+- Frontend: el select de Banco suma Santander; el campo «Contraseña del PDF» solo aparece cuando el servidor la pide,
+  se olvida al cambiar de archivo o de banco y tras leer. Mockup «4 · Cargas (admin y contador)» actualizado
+  (Santander, el campo y dos estados nuevos: «pdf_pide_contrasena» y «pdf_contrasena_incorrecta»).
+- **Supuestos [SUPUESTO]**: el layout de Santander es sintético (no hay un PDF real) y que Santander proteja sus PDF
+  con contraseña sale de una guía, no de un archivo real. Los fixtures `santander-sintetico.pdf` y
+  `santander-protegido-sintetico.pdf` (contraseña de prueba `clave-prueba`) no traen datos reales.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

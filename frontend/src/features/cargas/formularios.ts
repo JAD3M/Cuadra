@@ -36,12 +36,17 @@ export interface DatosLecturaPdf {
   archivo: File;
   /** El id del banco que lee el PDF (`bbva`). */
   banco: string;
+  /** Solo de un PDF protegido (historia 8.2); se manda tal cual, sin recortar. */
+  contrasena?: string;
 }
 
-/** Lectura de PDF: `archivo` y `banco`, nada más. */
+/** Lectura de PDF: `archivo`, `banco` y, si hay una, la `contrasena`. */
 export function construirFormLecturaPdf(datos: DatosLecturaPdf): FormData {
   const form = new FormData();
   form.append('archivo', datos.archivo);
   form.append('banco', datos.banco);
+  if (datos.contrasena !== undefined && datos.contrasena !== '') {
+    form.append('contrasena', datos.contrasena);
+  }
   return form;
 }

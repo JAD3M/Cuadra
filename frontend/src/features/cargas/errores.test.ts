@@ -280,6 +280,19 @@ describe('clasificarErrorSubida: lectura de PDF (historia 3.2)', () => {
     ).toEqual({ clase: 'pdf_ilegible' });
   });
 
+  it('un 400 pdf_requiere_contrasena y pdf_contrasena_incorrecta son sus clases', () => {
+    expect(
+      clasificarErrorSubida(
+        new ApiError(400, 'pdf_requiere_contrasena', ['texto del servidor']),
+      ),
+    ).toEqual({ clase: 'pdf_requiere_contrasena' });
+    expect(
+      clasificarErrorSubida(
+        new ApiError(400, 'pdf_contrasena_incorrecta', ['texto del servidor']),
+      ),
+    ).toEqual({ clase: 'pdf_contrasena_incorrecta' });
+  });
+
   it('los textos son del frontend, no del servidor', () => {
     expect(TEXTO_PDF_SIN_TEXTO).toEqual({
       titulo: 'No se pudo leer el PDF',
