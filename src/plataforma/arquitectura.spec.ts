@@ -49,6 +49,11 @@ const LISTA_BLANCA: ListaBlanca = {
   'database/email-normalizado.spec.ts': ['bitacora_plataforma'],
   // Fixture que inserta un dueño para probar la sesión de plataforma.
   'auth/auth.integracion.spec.ts': ['plataforma_usuarios'],
+  // Fixture: inserta al dueño y limpia su rastro para el recorrido UJ-2 (7.2).
+  'e2e/uj2-alta-empresa.integracion.spec.ts': [
+    'plataforma_usuarios',
+    'bitacora_plataforma',
+  ],
 };
 
 const RAIZ_SRC = join(__dirname, '..');

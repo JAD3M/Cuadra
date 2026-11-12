@@ -967,6 +967,21 @@ con datos ya se prueba: quita la columna y la función sin perder movimientos ni
 PDF real); el manifiesto lo genera el mismo generador, así que la guarda atrapa archivos agregados a mano,
 no un archivo real que alguien meta también al generador.
 
+**Recorrido de punta a punta UJ-2 (v2, historia 7.2), terminada el 11 nov 2026.**
+- `src/e2e/uj2-alta-empresa.integracion.spec.ts`: «Carlos deja lista su empresa» por HTTP, con la API,
+  Postgres y Redis reales (la app corre como `cuadra_app`, sujeta a RLS) y el correo simulado. Un solo
+  recorrido encadenado: el dueño inicia sesión, crea la empresa (RFC) e invita a Carlos, que acepta leyendo
+  el enlace del correo simulado; Carlos invita a una contadora, un revisor y una auditora y el «menú» de
+  cada quien (`capacidades` de `GET /auth/contexto`) es exactamente `permisosDeRoles([rol])` y ninguna ve
+  la administración de usuarios (403); reenviar una invitación deja el enlace anterior en `reemplazada`
+  (410 al aceptar) y el nuevo funciona; el único administrador no pierde su rol (409); y a un administrador
+  de dos empresas al que otro administrador le quita el rol de una se le cierra esa sesión (401 en la
+  siguiente petición) y conserva la otra.
+- No hay un endpoint de menú: el menú es `capacidades` y el frontend lo traduce a su navegación.
+- El CI no cambió: el job `pruebas` ya corre `npm test` con Postgres y Redis como servicios y la prueba es
+  una `*.spec.ts` más, con su prefijo de Redis y su limpieza.
+- Falta para la 7.3: el recorrido de la conciliación del mes (UJ-1).
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**
