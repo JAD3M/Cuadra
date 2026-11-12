@@ -5,6 +5,12 @@
 
 ### 11 nov 2026
 
+- **Prueba de `down()` con datos (pendiente de 6.2 y 6.3).** `src/database/down-con-datos.migracion.spec.ts`
+  corre en una base propia: migra todo, siembra movimientos, una factura PPD, una decisión y evidencia, y
+  deshace de una en una. 6.3: la columna y la función se van sin perder movimientos ni facturas, y al
+  volver a subir la clase queda en nulo. 6.2: con eventos `desmarco` el `down` falla (23514) y no deja
+  nada a medias; sin ellos deshace y vuelve a subir con el CHECK ancho. No encontró defectos.
+
 - **Historia 6.3 (medir PPD, parcialidades y comisiones) terminada.** `movimientos.clase` con una función
   pura `clasificarMovimiento` que corre al importar (CSV y aceptación de vista previa de PDF), y
   `GET /plataforma/fracciones` con las tres fracciones por empresa, calculadas por consulta con una
