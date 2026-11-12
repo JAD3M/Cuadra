@@ -945,6 +945,28 @@ con eventos de la persona falla a propósito y no deja nada a medias.
 quedan sin clase, así que las fracciones de clase subestiman hasta que entre volumen nuevo. Su `down()`
 con datos ya se prueba: quita la columna y la función sin perder movimientos ni facturas.
 
+**Archivos de ejemplo de BBVA (v2, historia 7.1), terminada el 11 nov 2026.**
+- `ejemplos/bbva/`: septiembre de 2026 de Ferretería, todo sintético. Un PDF de BBVA que cuadra (8
+  movimientos, saldo de 10,000.00 a 18,650.00), el mismo con el saldo final alterado en 100.00 (se rechaza
+  completo), el CSV equivalente (perfil `cuadra`) y nueve CFDI. `ejemplos/MANIFIESTO.json` marca cada
+  archivo como `sintetico` o `publico`; `ejemplos/LEEME.md` cuenta el caso de cada movimiento y
+  `ejemplos/COMO-ANONIMIZAR.md` explica cómo preparar un estado real (que nunca se sube).
+- Los genera `npm run ejemplos:generar` (`scripts/ejemplos/`, mismas piezas que la demo CU-18); la tabla
+  `scripts/ejemplos/juego.ts` es la única fuente y declara lo que el motor debe producir. La demo CU-18
+  (`demo/`) no cambió; `CfdiDemo` ganó un `cancelado` opcional.
+- Casos que produce al cargarse completo: regla 1, regla 2, regla 3, un depósito que cubre varias facturas
+  (`suma_grupo`), un depósito ambiguo (dos facturas iguales), uno que apunta a una factura cancelada, una
+  comisión (clase `comision`) y un pago a proveedor; más una factura en dólares y el PDF que no cuadra.
+- Guardas: `src/ejemplos/ejemplos-bbva.spec.ts` (lector y cuadre sobre los PDF, CSV igual al PDF, lista
+  cerrada de RFC, sin cadenas largas de dígitos, lo commiteado es lo generado y todo archivo en el
+  manifiesto como sintético o público) y `.gitignore` (`/ejemplos/real/`, `*.real.*`).
+  `ejemplos-bbva.integracion.spec.ts` carga el juego por HTTP con Postgres real.
+- Los PDF de Banorte y Santander llegan en la épica 8.
+
+**Pendientes (7.1):** el layout del PDF sigue siendo el sintético acordado en la 3.2 (falta validarlo con un
+PDF real); el manifiesto lo genera el mismo generador, así que la guarda atrapa archivos agregados a mano,
+no un archivo real que alguien meta también al generador.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

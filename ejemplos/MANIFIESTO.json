@@ -1,0 +1,53 @@
+{
+  "aviso": "Todo lo de esta carpeta es sintético o público. Un estado de cuenta real nunca se sube al repositorio: ver ejemplos/COMO-ANONIMIZAR.md.",
+  "archivos": [
+    {
+      "ruta": "bbva/cfdi/fdb-A-5001.xml",
+      "origen": "sintetico"
+    },
+    {
+      "ruta": "bbva/cfdi/fdb-A-5002.xml",
+      "origen": "sintetico"
+    },
+    {
+      "ruta": "bbva/cfdi/fdb-A-5003.xml",
+      "origen": "sintetico"
+    },
+    {
+      "ruta": "bbva/cfdi/fdb-A-5004.xml",
+      "origen": "sintetico"
+    },
+    {
+      "ruta": "bbva/cfdi/fdb-A-5005.xml",
+      "origen": "sintetico"
+    },
+    {
+      "ruta": "bbva/cfdi/fdb-A-5006.xml",
+      "origen": "sintetico"
+    },
+    {
+      "ruta": "bbva/cfdi/fdb-A-5007.xml",
+      "origen": "sintetico"
+    },
+    {
+      "ruta": "bbva/cfdi/fdb-A-5008.xml",
+      "origen": "sintetico"
+    },
+    {
+      "ruta": "bbva/cfdi/fdb-A-5009.xml",
+      "origen": "sintetico"
+    },
+    {
+      "ruta": "bbva/estado-cuenta-septiembre-2026-no-cuadra.pdf",
+      "origen": "sintetico"
+    },
+    {
+      "ruta": "bbva/estado-cuenta-septiembre-2026.csv",
+      "origen": "sintetico"
+    },
+    {
+      "ruta": "bbva/estado-cuenta-septiembre-2026.pdf",
+      "origen": "sintetico"
+    }
+  ]
+}

@@ -20,10 +20,10 @@ Rama: `feat/v2-7-1-archivos-de-ejemplo`. Entrega: un PR (cadena si pasa de ~400 
 - A6: se incluye también una factura en dólares (insumo de la 7.3).
 
 ## Tasks
-- [ ] T1 (S1, S2, S3; inline): tabla del juego, generador, archivos generados (PDF que cuadra, PDF que no cuadra, CFDI, CSV equivalente) y `MANIFIESTO.json`.
-- [ ] T2 (S1, S5; inline): pruebas del lector de BBVA y del cuadre sobre los PDF; CSV equivalente al PDF; deriva.
-- [ ] T3 (S3; inline): prueba de punta a punta que carga el juego por HTTP y verifica un caso de cada tipo.
-- [ ] T4 (S4, S6; inline): guía `ejemplos/COMO-ANONIMIZAR.md`, `.gitignore` y guarda del manifiesto.
+- [x] T1 (hecha; sin RED: son datos generados, los valida T2) (S1, S2, S3; inline): tabla del juego, generador, archivos generados (PDF que cuadra, PDF que no cuadra, CFDI, CSV equivalente) y `MANIFIESTO.json`.
+- [x] T2 (hecha; GREEN: 13 pruebas; RED observado solo en la guarda de dígitos y en `.gitignore`) (S1, S5; inline): pruebas del lector de BBVA y del cuadre sobre los PDF; CSV equivalente al PDF; deriva.
+- [x] T3 (hecha; GREEN: 3 pruebas contra Postgres real; una mutación de control la hizo fallar) (S3; inline): prueba de punta a punta que carga el juego por HTTP y verifica un caso de cada tipo.
+- [x] T4 (hecha; RED: la prueba de `.gitignore` fallaba antes de agregar las reglas) (S4, S6; inline): guía `ejemplos/COMO-ANONIMIZAR.md`, `.gitignore` y guarda del manifiesto.
 - [ ] T5: notas de cierre (`CUADRA.md`, `docs/bitacora.md`) y repaso.
 
 ## Log
