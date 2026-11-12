@@ -3,6 +3,19 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 12 nov 2026
+
+- **Historia 7.3 (recorrido UJ-1) terminada.** Una sola prueba encadenada por HTTP
+  (`src/e2e/uj1-conciliar-el-mes.integracion.spec.ts`), sin tocar código de producción ni el CI. Usa el juego de
+  ejemplo de la 7.1 y la empresa se crea como en la 7.2: el dueño la da de alta (y a una segunda, para el
+  aislamiento) e invita a su administradora, que invita a la contadora. La contadora sube; la administradora
+  confirma, porque quien sube no puede confirmar. Los CFDI del juego salen a nombre del RFC de la Ferretería del
+  seed y el motor solo concilia los de la empresa, así que la prueba reescribe el emisor en memoria. Prueba de
+  control: tres roturas de producción (separación de funciones, orden de confianza, rastro de «reabrir») hacen
+  fallar el recorrido.
+  La «nota moneda no soportada» es `monedaNoSoportada: true` en los resultados de la carga de CFDI.
+  Con el juego de 7.1 la regla 1 tiene una sola propuesta, así que el lote de la regla 1 lleva una decisión.
+
 ### 11 nov 2026
 
 - **Historia 7.2 (recorrido UJ-2) terminada.** Una sola prueba encadenada por HTTP, sin tocar código de
