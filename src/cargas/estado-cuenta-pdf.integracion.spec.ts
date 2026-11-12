@@ -159,6 +159,7 @@ describe('POST /cargas/estado-cuenta/pdf (historia 3.2)', () => {
         banco: 'bbva',
         saldoInicial: '10000.00',
         saldoFinal: '11250.50',
+        cuadreAutomatico: true,
         movimientosLeidos: 2,
         lineasNoLeidas: 0,
         cargaId: expect.any(String) as unknown,
