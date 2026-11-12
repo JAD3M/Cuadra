@@ -10,6 +10,7 @@ import {
   CODIGO_LINEAS_NO_LEIDAS,
   CODIGO_SIN_MOVIMIENTOS,
   CODIGO_SALDOS_NO_CUADRAN,
+  CODIGO_PDF_REQUIERE_CONTRASENA,
   EstadoDeCuentaRechazado,
   MENSAJE_LINEAS_NO_LEIDAS,
   MENSAJE_SIN_MOVIMIENTOS,
@@ -226,13 +227,14 @@ export class CargasService {
    * la vista previa de ese banco (historia 3.6): entonces, ya guardado y
    * cuadrado, se acepta solo, por el mismo camino que usa el contador
    * (`VistaPreviaService.aceptar`). Nunca se guarda ni se registra el
-   * contenido del archivo.
+   * contenido del archivo ni la contraseña de un PDF protegido (historia 8.2).
    */
   async guardarEstadoCuentaPdf(
     companyId: string,
     userId: string,
     archivo: ArchivoSubido,
     banco: string,
+    contrasena?: string,
   ): Promise<RespuestaLecturaPdfDto> {
     const lector = lectorPdfDe(banco);
     if (!lector) {
@@ -249,15 +251,18 @@ export class CargasService {
     };
     let leido: ReturnType<typeof lector>;
     try {
-      leido = lector(await extraerTextoPdf(archivo.buffer));
+      leido = lector(await extraerTextoPdf(archivo.buffer, contrasena));
     } catch (error) {
       if (error instanceof EstadoDeCuentaRechazado) {
-        // Los rechazos sin código (periodo o saldos no encontrados) también
-        // se registran, con un motivo genérico.
-        await registrarRechazoDePdf(this.transaccion, {
-          ...rechazo,
-          motivo: error.codigo ?? 'pdf_no_reconocido',
-        });
+        // Pedir la contraseña es el primer paso normal de un PDF protegido,
+        // no un rechazo: no deja bitácora. Los rechazos sin código (periodo
+        // o saldos no encontrados) sí, con un motivo genérico.
+        if (error.codigo !== CODIGO_PDF_REQUIERE_CONTRASENA) {
+          await registrarRechazoDePdf(this.transaccion, {
+            ...rechazo,
+            motivo: error.codigo ?? 'pdf_no_reconocido',
+          });
+        }
       }
       throw comoBadRequest(error);
     }
