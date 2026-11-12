@@ -34,6 +34,8 @@ export interface CfdiDemo {
   moneda: 'MXN' | 'USD';
   tipoCambio?: string;
   metodoPago: 'PUE' | 'PPD';
+  /** 7.1: el XML trae `Estatus="Cancelado"` (Cuadra no consulta al SAT). */
+  cancelado?: boolean;
 }
 
 export interface MovimientoDemo {
@@ -105,13 +107,13 @@ const cliente = (rfc: string, nombre: string): ClienteDemo => ({
   nombre: `Cliente ${nombre} (sintético)`,
   alias: `CLIENTE ${nombre.toUpperCase()}`,
 });
-const ALFA = cliente('CAL010101AB1', 'Alfa');
-const BETA = cliente('CBE020202BC2', 'Beta');
-const GAMA = cliente('CGA030303CD3', 'Gama');
-const DELTA = cliente('CDE040404DE4', 'Delta');
-const EPSILON = cliente('CEP050505EF5', 'Epsilon');
-const ZETA = cliente('CZE060606FG6', 'Zeta');
-const ETA = cliente('CET070707GH7', 'Eta');
+export const ALFA = cliente('CAL010101AB1', 'Alfa');
+export const BETA = cliente('CBE020202BC2', 'Beta');
+export const GAMA = cliente('CGA030303CD3', 'Gama');
+export const DELTA = cliente('CDE040404DE4', 'Delta');
+export const EPSILON = cliente('CEP050505EF5', 'Epsilon');
+export const ZETA = cliente('CZE060606FG6', 'Zeta');
+export const ETA = cliente('CET070707GH7', 'Eta');
 const CLIENTES: readonly ClienteDemo[] = [
   PUBLICO,
   ALFA,

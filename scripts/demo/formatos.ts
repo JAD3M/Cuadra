@@ -124,6 +124,7 @@ export function escribirCfdi(c: CfdiDemo): string {
     attr('TipoDeComprobante', 'I'),
     attr('Exportacion', '01'),
     attr('MetodoPago', c.metodoPago),
+    ...(c.cancelado ? [attr('Estatus', 'Cancelado')] : []),
     attr('LugarExpedicion', '62740'),
     attr('Sello', 'SINTETICO'),
     attr('NoCertificado', 'SINTETICO'),

@@ -5,6 +5,13 @@
 
 ### 11 nov 2026
 
+- **Historia 7.1 (archivos de ejemplo del demo) terminada.** Carpeta nueva `ejemplos/bbva/` con un mes de
+  Ferretería: dos PDF de BBVA (uno cuadra y otro no), su CSV equivalente y nueve CFDI, todos sintéticos y
+  listados en un manifiesto. Decisión: carpeta y generador propios en vez de ampliar la demo CU-18, que
+  tiene su runner y sus pruebas de motor; se reutilizaron sus escritores y el PDF sintético. Hallazgo: el
+  PDF no pasa la guarda de «números largos» porque su tabla de bytes lleva desplazamientos de 10 dígitos,
+  así que esa guarda mira el texto extraído. El motor produjo todos los casos declarados sin ajustar datos.
+
 - **Prueba de `down()` con datos (pendiente de 6.2 y 6.3).** `src/database/down-con-datos.migracion.spec.ts`
   corre en una base propia: migra todo, siembra movimientos, una factura PPD, una decisión y evidencia, y
   deshace de una en una. 6.3: la columna y la función se van sin perder movimientos ni facturas, y al
