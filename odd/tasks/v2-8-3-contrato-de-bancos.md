@@ -19,9 +19,11 @@ Rama: `feat/v2-8-3-contrato-de-bancos`. Entrega: cadena de PR (backend, frontend
 ## Tasks
 - [x] T1 (S1,S2; inline): helper de PDFs por banco, prueba de contrato sobre `BANCOS_PDF` y HTTP de saldos que no cuadran en los tres.
 - [x] T2 (S3; inline): saldos `null`, servicio sin cuadre automático, sin auto-aceptar, `cuadreAutomatico` en la respuesta.
-- [~] T3 (backend listo; falta frontend) (S4; inline): `bancosPdf` en `GET /auth/contexto` y la pantalla lo usa.
+- [x] T3 (S4; inline): `GET /bancos/pdf` (junto a `GET /bancos/perfiles`, no en `/auth/contexto`: `auth` no debe depender de `bancos`) y la pantalla lo usa con `useBancosPdf`. Mockup 4 actualizado antes.
 - [x] T4 (S5; inline): prueba de punta a punta con los tres bancos.
-- [ ] T5: notas de cierre (`CUADRA.md`, `docs/bitacora.md`).
+- [x] T5: notas de cierre (`CUADRA.md`, `docs/bitacora.md`).
 
 ## Log
 - L1 (2026-11-12): «si seguimos con esa» (historia 8.3 según la lista de historias).
+- L2 (2026-11-12): decisión: la lista va en `GET /bancos/pdf` y no en `GET /auth/contexto`, para que `auth` no dependa de `bancos`; sigue el precedente de `GET /bancos/perfiles`. El usuario aprobó actualizar el mockup 4 con tres estados nuevos (bancos cargando, error al cargar bancos y PDF sin cuadre automático).
+- L3 (2026-11-12): backend: 119 suites, 2181 pruebas (2 specs viejos ajustados por el campo nuevo `cuadreAutomatico`). T1 y T4 fijan comportamiento existente (sin RED posible); las mutaciones a mano en lectores se detectaron. T2 y T3: RED observado antes de implementar. Frontend: 312 archivos, 5065 pruebas.

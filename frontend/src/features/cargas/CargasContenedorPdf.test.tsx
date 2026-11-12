@@ -13,7 +13,9 @@ import {
 import { almacenes } from '@/test/handlers';
 import {
   LECTURA_PDF,
+  bancosPdfFalla,
   lecturaPdfProtegida,
+  lecturaPdfSinSaldos,
   lecturaPdfRechazada,
   subidaFalla,
   subidaRedDeFallo,
@@ -102,6 +104,65 @@ describe('CargasContenedor: lectura de PDF', () => {
     expect(almacenes.cargas.subidas()[0]?.campos).toEqual([
       ['banco', 'banorte'],
     ]);
+  });
+
+  describe('bancos del backend (historia 8.3)', () => {
+    it('el select ofrece BBVA, Banorte y Santander tal como los sirve la API', async () => {
+      montar();
+      const u = await entrarAPdf();
+      const banco = screen.getByLabelText('Banco');
+      await waitFor(() =>
+        expect(
+          within(banco)
+            .getAllByRole('option')
+            .map((o) => o.textContent),
+        ).toEqual(['BBVA', 'Banorte', 'Santander']),
+      );
+      await u.selectOptions(banco, 'santander');
+      await u.upload(screen.getByLabelText('Elegir archivo'), pdf());
+      await u.click(botonLeer());
+      await within(tarjeta()).findByText(/movimientos leídos/);
+      expect(almacenes.cargas.subidas()[0]?.campos).toEqual([
+        ['banco', 'santander'],
+      ]);
+    });
+
+    it('si la lista falla, el select queda apagado y Reintentar la vuelve a pedir', async () => {
+      servidor.use(bancosPdfFalla(500));
+      montar();
+      const u = await entrarAPdf();
+      expect(
+        await within(tarjeta()).findByText('No se pudieron cargar los bancos.'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByLabelText('Banco', { selector: 'select' }),
+      ).toBeDisabled();
+      expect(botonLeer()).toBeDisabled();
+      servidor.resetHandlers();
+      await u.click(
+        within(tarjeta()).getByRole('button', { name: 'Reintentar' }),
+      );
+      await waitFor(() =>
+        expect(
+          within(screen.getByLabelText('Banco')).getAllByRole('option'),
+        ).toHaveLength(3),
+      );
+      expect(screen.getByLabelText('Banco')).toBeEnabled();
+    });
+
+    it('un PDF sin saldos no dice que cuadran: pide revisar la vista previa', async () => {
+      servidor.use(lecturaPdfSinSaldos());
+      montar();
+      const u = await entrarAPdf();
+      await u.upload(screen.getByLabelText('Elegir archivo'), pdf());
+      await u.click(botonLeer());
+      const resultado =
+        await within(tarjeta()).findByText(/movimientos leídos/);
+      expect(resultado).toHaveTextContent(
+        '14 movimientos leídos. Este PDF no trae saldos, así que Cuadra no pudo cuadrarlos sola. Revisa la vista previa antes de aceptar.',
+      );
+      expect(resultado).not.toHaveTextContent('Los saldos cuadran');
+    });
   });
 
   describe('PDF protegido con contraseña (historia 8.2)', () => {

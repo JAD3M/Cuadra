@@ -60,17 +60,16 @@ export const PERFIL_POR_DEFECTO = 'cuadra';
 export type ModoEstadoCuenta = 'csv' | 'pdf';
 
 /**
- * Bancos con lector de PDF (historia 3.2). No hay endpoint que los liste: es
- * un espejo de `src/bancos/pdf/lectores-pdf.ts`. El `id` es lo que espera el
- * POST (`banco`); el `nombre` es lo que ve la persona.
+ * Cómo se llama cada banco con lector de PDF, solo para rotularlo en otras
+ * pantallas (vista previa, plataforma). El selector de Cargas NO lo usa: toma
+ * la lista de `GET /bancos/pdf` (historia 8.3, UX-DR4). Un id que no esté aquí
+ * se muestra en mayúsculas.
  */
-export const BANCOS_PDF = [
-  { id: 'bbva', nombre: 'BBVA' },
-  { id: 'banorte', nombre: 'Banorte' },
-  { id: 'santander', nombre: 'Santander' },
-] as const;
-/** El banco con el que arranca el selector de PDF. */
-export const BANCO_PDF_POR_DEFECTO = BANCOS_PDF[0].id;
+export const NOMBRES_DE_BANCO: Readonly<Record<string, string>> = {
+  bbva: 'BBVA',
+  banorte: 'Banorte',
+  santander: 'Santander',
+};
 
 const MB = 1024 * 1024;
 

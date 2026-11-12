@@ -1,7 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import {
-  BANCO_PDF_POR_DEFECTO,
   TIPO_CFDI,
   TIPO_ESTADO_CUENTA,
   puede,
@@ -32,6 +31,7 @@ import {
   REGLAS_ESTADO_CUENTA_PDF,
   evaluarSeleccion,
 } from './seleccion';
+import { useBancosPdf } from './useBancosPdf';
 import { usePerfiles } from './usePerfiles';
 import { usePollingCargas, type PanelSubida } from './usePollingCargas';
 import { useLeerEstadoCuentaPdf } from './useLeerEstadoCuentaPdf';
@@ -126,7 +126,9 @@ function CargasConAcceso() {
   const [archivosCfdi, setArchivosCfdi] = useState<File[]>([]);
   const [archivoCsv, setArchivoCsv] = useState<File | null>(null);
   const [banco, setBanco] = useState('');
-  const [bancoPdf, setBancoPdf] = useState<string>(BANCO_PDF_POR_DEFECTO);
+  // Historia 8.3: la lista sale del backend; `''` = aún no se eligió ninguno.
+  const bancosPdf = useBancosPdf();
+  const [bancoElegido, setBancoPdf] = useState('');
   const [cuenta, setCuenta] = useState('');
   const [perfilElegido, setPerfilElegido] = useState<string | null>(null);
   const regionCfdi = useRef<HTMLDivElement>(null);
@@ -145,6 +147,9 @@ function CargasConAcceso() {
   const subiendoCsv = isPending && variables?.tipo === TIPO_ESTADO_CUENTA;
   const esPdf = modo === 'pdf';
   const perfil = perfilVigente(perfiles.data, perfilElegido);
+  const bancoPdf = bancosPdf.data?.some((b) => b.id === bancoElegido)
+    ? bancoElegido
+    : (bancosPdf.data?.[0]?.id ?? '');
 
   const vista = vistaHistorial(lista);
   const vistaPanel = derivarPanel({
@@ -179,6 +184,7 @@ function CargasConAcceso() {
       estado={lectura.datos.estado}
       saldoInicial={lectura.datos.saldoInicial}
       saldoFinal={lectura.datos.saldoFinal}
+      cuadreAutomatico={lectura.datos.cuadreAutomatico}
       cargaId={lectura.datos.cargaId}
     />
   ) : null;
@@ -402,6 +408,9 @@ function CargasConAcceso() {
           }
           onSeleccionar={esPdf ? elegirArchivoPdf : setArchivoCsv}
           onBanco={setBanco}
+          bancos={bancosPdf.data}
+          bancosFallo={bancosPdf.isError}
+          onReintentarBancos={() => void bancosPdf.refetch()}
           bancoPdf={bancoPdf}
           onBancoPdf={elegirBancoPdf}
           pideContrasena={pideContrasena}

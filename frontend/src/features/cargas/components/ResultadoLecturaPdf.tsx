@@ -16,8 +16,10 @@ import estilos from './resultado.module.css';
 export interface ResultadoLecturaPdfProps {
   movimientosLeidos: number;
   /** Decimal en cadena, tal como lo envía la API. Nunca un `number`. */
-  saldoInicial: string;
-  saldoFinal: string;
+  saldoInicial: string | null;
+  saldoFinal: string | null;
+  /** `false`: el PDF no trae saldos y no hubo cuadre automático (historia 8.3). */
+  cuadreAutomatico: boolean;
   /** Estado de la carga guardada, tal como lo manda el servidor. */
   estado: EstadoCarga;
   /** Id de la carga guardada: a dónde lleva «Revisar vista previa». */
@@ -25,8 +27,10 @@ export interface ResultadoLecturaPdfProps {
 }
 
 /** Un saldo con miles y dos decimales, sin `$` (como el mockup); sin pasar por flotante. */
-const saldo = (valor: string): string =>
-  formatearMonto(valor, { moneda: false })?.texto ?? SIN_DATO;
+const saldo = (valor: string | null): string =>
+  valor === null
+    ? SIN_DATO
+    : (formatearMonto(valor, { moneda: false })?.texto ?? SIN_DATO);
 
 /**
  * Un PDF que cuadró y quedó guardado (historia 3.3): los movimientos leídos,
@@ -38,6 +42,7 @@ export function ResultadoLecturaPdf({
   movimientosLeidos,
   saldoInicial,
   saldoFinal,
+  cuadreAutomatico,
   estado,
   cargaId,
 }: ResultadoLecturaPdfProps) {
@@ -45,7 +50,10 @@ export function ResultadoLecturaPdf({
     <div className={estilos.caja}>
       <p className={estilos.resumen}>
         <span className={estilos.cifra}>{movimientosLeidos}</span>{' '}
-        {RESUMEN_LECTURA_PDF.movimientos} {RESUMEN_LECTURA_PDF.cuadran}
+        {RESUMEN_LECTURA_PDF.movimientos}{' '}
+        {cuadreAutomatico
+          ? RESUMEN_LECTURA_PDF.cuadran
+          : RESUMEN_LECTURA_PDF.sinCuadre}
       </p>
       <dl className={estilos.saldos}>
         <div className={estilos.saldoFila}>

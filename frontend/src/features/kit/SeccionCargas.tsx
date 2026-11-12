@@ -189,6 +189,13 @@ function Csv({
       onBanco={SIN_ACCION}
       bancoPdf="bbva"
       onBancoPdf={SIN_ACCION}
+      bancos={[
+        { id: 'bbva', nombre: 'BBVA' },
+        { id: 'banorte', nombre: 'Banorte' },
+        { id: 'santander', nombre: 'Santander' },
+      ]}
+      bancosFallo={false}
+      onReintentarBancos={SIN_ACCION}
       pideContrasena={false}
       contrasena=""
       onContrasena={SIN_ACCION}

@@ -5,6 +5,7 @@ import {
   evaluarSeleccion,
 } from '@/features/cargas/seleccion';
 import {
+  REINTENTAR,
   ELEGIR_ARCHIVO,
   FORMATO_ESTADO_CUENTA,
   LEYENDO,
@@ -14,11 +15,7 @@ import {
   TARJETA_ESTADO_CUENTA,
   TARJETA_ESTADO_CUENTA_PDF,
 } from '@/features/cargas/textos';
-import {
-  BANCOS_PDF,
-  LIMITES_CARGA,
-  type ModoEstadoCuenta,
-} from '@/shared/dominio';
+import { LIMITES_CARGA, type ModoEstadoCuenta } from '@/shared/dominio';
 import { Button } from '@/shared/ui/Button';
 import { AvisoYaExistia } from './AvisoYaExistia';
 import { CampoCuenta } from './CampoCuenta';
@@ -50,7 +47,12 @@ export interface TarjetaEstadoCuentaProps {
   /** Cada elección REEMPLAZA al archivo anterior (M16). */
   onSeleccionar: (archivo: File | null) => void;
   onBanco: (banco: string) => void;
-  /** El banco del PDF (`id` de `BANCOS_PDF`); el CSV usa `banco`, texto libre. */
+  /** El banco del PDF (`id` de `GET /bancos/pdf`); el CSV usa `banco`, texto libre. */
+  /** Los bancos con lector de PDF, de `GET /bancos/pdf`; `undefined` mientras cargan o si falló. */
+  bancos: readonly { id: string; nombre: string }[] | undefined;
+  /** La lista de bancos falló: el select queda apagado con aviso y Reintentar. */
+  bancosFallo: boolean;
+  onReintentarBancos: () => void;
   bancoPdf: string;
   onBancoPdf: (banco: string) => void;
   /** El servidor pidió la contraseña de un PDF protegido (historia 8.2). */
@@ -101,6 +103,9 @@ export function TarjetaEstadoCuenta({
   subiendo,
   onSeleccionar,
   onBanco,
+  bancos,
+  bancosFallo,
+  onReintentarBancos,
   bancoPdf,
   onBancoPdf,
   pideContrasena,
@@ -161,20 +166,38 @@ export function TarjetaEstadoCuenta({
               <label htmlFor={idBanco} className={campos.etiqueta}>
                 {TARJETA_ESTADO_CUENTA.banco}
               </label>
-              {/* Lista fija: el lector de PDF existe solo para estos bancos (espejo del backend). */}
               <select
                 id={idBanco}
                 className={campos.control}
                 value={bancoPdf}
-                disabled={inactiva}
+                disabled={inactiva || bancos === undefined}
                 onChange={(e) => onBancoPdf(e.target.value)}
               >
-                {BANCOS_PDF.map((banco) => (
-                  <option key={banco.id} value={banco.id}>
-                    {banco.nombre}
+                {bancos === undefined ? (
+                  <option value="">
+                    {TARJETA_ESTADO_CUENTA_PDF.cargandoBancos}
                   </option>
-                ))}
+                ) : (
+                  bancos.map((banco) => (
+                    <option key={banco.id} value={banco.id}>
+                      {banco.nombre}
+                    </option>
+                  ))
+                )}
               </select>
+              {bancosFallo ? (
+                <span className={campos.errorPerfiles}>
+                  {TARJETA_ESTADO_CUENTA_PDF.errorBancos}
+                  <button
+                    type="button"
+                    className={campos.enlace}
+                    disabled={deshabilitada}
+                    onClick={onReintentarBancos}
+                  >
+                    {REINTENTAR}
+                  </button>
+                </span>
+              ) : null}
             </div>
             {pedirContrasena ? (
               <div className={`${campos.campo} ${estilos.ancha}`}>
@@ -267,7 +290,9 @@ export function TarjetaEstadoCuenta({
         </span>
         <Button
           tono="sin_match"
-          disabled={inactiva || aceptado === null}
+          disabled={
+            inactiva || aceptado === null || (esPdf && bancos === undefined)
+          }
           onClick={() => {
             if (aceptado !== null) onSubir(aceptado);
           }}

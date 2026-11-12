@@ -122,8 +122,11 @@ export const respuestaCarga = detalleCarga.extend({ yaExistia: z.boolean() });
  */
 export const respuestaLecturaPdf = z.object({
   banco: texto,
-  saldoInicial: montoDecimal,
-  saldoFinal: montoDecimal,
+  /** `null` si el PDF no trae saldos: sin cuadre automático (historia 8.3). */
+  saldoInicial: montoDecimal.nullable(),
+  saldoFinal: montoDecimal.nullable(),
+  /** `false`: no hubo cuadre de saldos y solo una persona revisa la vista previa. */
+  cuadreAutomatico: z.boolean(),
   movimientosLeidos: contador,
   lineasNoLeidas: contador,
   cargaId: z.guid(),
@@ -205,6 +208,9 @@ export const cuerpoLineasNoLeidas = z
   .object({ lineasNoLeidas: z.array(lineaNoLeida).catch([]) })
   .catch({ lineasNoLeidas: [] });
 
+/** `GET /bancos/pdf` (historia 8.3): los bancos con lector de PDF, sin envoltorio. */
+export const bancosPdf = z.array(z.object({ id: texto, nombre: texto }));
+
 /** `GET /bancos/perfiles`: un arreglo sin envoltorio. */
 export const perfilesBancarios = z.array(
   z.object({ id: texto, nombre: texto }),
@@ -225,3 +231,4 @@ export type RespuestaDecisionVistaPrevia = z.infer<
   typeof respuestaDecisionVistaPrevia
 >;
 export type PerfilBancario = z.infer<typeof perfilesBancarios>[number];
+export type BancoPdf = z.infer<typeof bancosPdf>[number];

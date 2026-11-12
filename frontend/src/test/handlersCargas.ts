@@ -6,14 +6,18 @@ import type {
   RespuestaCarga,
 } from '@/shared/api/contratos';
 import {
-  BANCOS_PDF,
   LIMITES_CARGA,
   PERFIL_POR_DEFECTO,
   TIPO_CFDI,
   TIPO_ESTADO_CUENTA,
   type EstadoCarga,
 } from '@/shared/dominio';
-import { LISTA_DE_VEINTE, PERFILES, hace } from '@/test/fixturesCargas';
+import {
+  BANCOS_PDF_API,
+  LISTA_DE_VEINTE,
+  PERFILES,
+  hace,
+} from '@/test/fixturesCargas';
 
 // Manejadores de las cargas (CU-24) con las reglas del backend:
 //  - `GET /cargas`: las 20 más recientes, más nueva primero, `{ datos }`.
@@ -40,6 +44,7 @@ export const LECTURA_PDF = {
   cargaId: '0192a3f4-0000-7000-8000-0000000000c1',
   estado: 'pendiente_vista_previa',
   yaExistia: false,
+  cuadreAutomatico: true,
 } as const;
 
 const GUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -152,6 +157,10 @@ export function crearHandlersCargas(
       ? ERROR_NEST(404, 'Not Found')
       : HttpResponse.json(encontrada);
   });
+
+  const listaDeBancosPdf = http.get('/api/bancos/pdf', () =>
+    HttpResponse.json(BANCOS_PDF_API),
+  );
 
   const listaDePerfiles = http.get('/api/bancos/perfiles', async () => {
     await compuertas.perfiles;
@@ -299,7 +308,7 @@ export function crearHandlersCargas(
         );
       }
       const banco = recibida.campos.find(([n]) => n === 'banco')?.[1] ?? '';
-      if (!BANCOS_PDF.some((b) => b.id === banco)) {
+      if (!BANCOS_PDF_API.some((b) => b.id === banco)) {
         return ERROR_NEST(400, 'Banco desconocido');
       }
       return HttpResponse.json(LECTURA_PDF);
@@ -311,6 +320,7 @@ export function crearHandlersCargas(
       lista,
       detalle,
       listaDePerfiles,
+      listaDeBancosPdf,
       subirCfdi,
       subirEstadoCuenta,
       leerPdf,
@@ -405,6 +415,13 @@ export function listaRedDeFallo() {
 /** Manejador de `GET /cargas/:id` que falla con `status`. */
 export function detalleFalla(status: number) {
   return http.get('/api/cargas/:id', () =>
+    ERROR_NEST(status, 'detalle del servidor'),
+  );
+}
+
+/** Manejador de `GET /bancos/pdf` que falla con `status`. */
+export function bancosPdfFalla(status: number) {
+  return http.get('/api/bancos/pdf', () =>
     ERROR_NEST(status, 'detalle del servidor'),
   );
 }
@@ -586,6 +603,18 @@ export function lecturaPdfProtegida(
     }
     return HttpResponse.json(LECTURA_PDF);
   });
+}
+
+/** `POST /cargas/estado-cuenta/pdf` de un PDF sin saldos: sin cuadre automático (historia 8.3). */
+export function lecturaPdfSinSaldos() {
+  return http.post('/api/cargas/estado-cuenta/pdf', () =>
+    HttpResponse.json({
+      ...LECTURA_PDF,
+      saldoInicial: null,
+      saldoFinal: null,
+      cuadreAutomatico: false,
+    }),
+  );
 }
 
 /** `POST /cargas/estado-cuenta/pdf` responde 200 con un cuerpo fuera de contrato. */

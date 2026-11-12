@@ -1,7 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, ContratoError, NetworkError } from '@/shared/api';
-import { BANCO_PDF_POR_DEFECTO } from '@/shared/dominio';
 import { almacenes } from '@/test/handlers';
 import { crearCompuerta } from '@/test/compuerta';
 import {
@@ -32,7 +31,7 @@ function montar(epoca: () => number = () => 1) {
   });
   const leer = () =>
     hook.result.current.leer(
-      { archivo: pdf(), banco: BANCO_PDF_POR_DEFECTO },
+      { archivo: pdf(), banco: 'bbva' },
       { onSuccess: alExito, onError: alFallar },
     );
   return { invalidar, alExito, alFallar, leer, ...hook };
