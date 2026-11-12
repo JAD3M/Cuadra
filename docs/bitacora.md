@@ -5,6 +5,16 @@
 
 ### 12 nov 2026
 
+- **Historia 7.4 (recorrido UJ-3) terminada.** Una sola prueba encadenada por HTTP
+  (`src/e2e/uj3-controlar-el-mes.integracion.spec.ts`), sin tocar código de producción ni el CI. Misma base que
+  la 7.3 (empresa creada como en la 7.2, juego de la 7.1, CFDI re-emitidos con el RFC de la empresa); el mes lo
+  concilia la administradora. El menú del revisor es `capacidades` (solo `bandeja.ver` y `bitacora.ver`); su
+  bandeja trae las 3 sugerencias y los 2 sin pareja con candidatos y explicación; reabrir una confirmación
+  ajena, sola o por lote, da 403 y deja dos accesos denegados; su comentario sale en el detalle y en la
+  bitácora sin cambiar el estado; la auditora ve bandeja y bitácora y todas las acciones le dan 403. «Editarla»
+  no tiene endpoint, así que se prueba con reabrir. Prueba de control con tres roturas de producción.
+  Queda diferido (épica 9) ampliarla con la verificación de la muestra.
+
 - **Historia 7.3 (recorrido UJ-1) terminada.** Una sola prueba encadenada por HTTP
   (`src/e2e/uj1-conciliar-el-mes.integracion.spec.ts`), sin tocar código de producción ni el CI. Usa el juego de
   ejemplo de la 7.1 y la empresa se crea como en la 7.2: el dueño la da de alta (y a una segunda, para el
