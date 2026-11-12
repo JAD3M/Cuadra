@@ -992,7 +992,18 @@ no un archivo real que alguien meta también al generador.
   bandeja y deshacer lo devuelve. Reabrir el lote devuelve el caso a la bandeja y la bitácora conserva quién
   (y cuándo). La sesión de una empresa no ve la otra. `afterAll` limpia y comprueba que no quedan datos.
 - El CI no cambió: la prueba es una `*.spec.ts` más del job `pruebas`.
-- Falta para la 7.4: el recorrido del revisor (UJ-3).
+
+**Recorrido de punta a punta UJ-3 (v2, historia 7.4), terminada el 12 nov 2026.**
+- `src/e2e/uj3-controlar-el-mes.integracion.spec.ts`: «Pedro controla que el mes sea confiable» por HTTP, con
+  Postgres (RLS) y Redis reales. Empresa creada como en la 7.2 y mes conciliado con el juego de `ejemplos/bbva`
+  (la administradora confirma la regla 1). El revisor: menú solo con bandeja y bitácora (`capacidades`); bandeja
+  con lo pendiente, sus candidatos y su explicación; reabrir una confirmación ajena (sola o por lote) da 403 y
+  deja un acceso denegado cada vez; su comentario sale en el detalle y en la bitácora sin cambiar el estado. La
+  auditora ve bandeja y bitácora y cada acción le da 403.
+- «Editarla» no tiene endpoint: lo único que cambia una confirmación es reabrirla.
+- El CI no cambió; el spec entra en la lista blanca de `arquitectura.spec.ts` (siembra y limpia al dueño).
+- Pendiente (épica 9): ampliar esta prueba con la verificación de la muestra mensual.
+- Falta para la 7.5: la lista de verificación manual del demo.
 
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
