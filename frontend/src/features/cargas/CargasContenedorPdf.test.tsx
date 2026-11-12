@@ -23,7 +23,7 @@ import { envolturaCargas } from '@/test/montarCargas';
 import { servidor } from '@/test/servidor';
 import { CargasContenedor } from './CargasContenedor';
 
-// Historia 3.2: el modo «PDF BBVA» de la tarjeta de estado de cuenta lee el
+// Historia 3.2: el modo «PDF» de la tarjeta de estado de cuenta lee el
 // PDF y muestra qué se leyó; no importa nada ni toca el historial.
 
 function sesionConRoles(roles: string[]): SessionState {
@@ -57,7 +57,7 @@ const botonLeer = () =>
   screen.getByRole('button', { name: 'Leer estado de cuenta' });
 
 async function entrarAPdf(u = usuario()) {
-  await u.click(screen.getByRole('button', { name: 'PDF BBVA' }));
+  await u.click(screen.getByRole('button', { name: 'PDF' }));
   return u;
 }
 
@@ -91,6 +91,18 @@ describe('CargasContenedor: lectura de PDF', () => {
     expect(within(tarjeta()).getByText('estado-sep-2026.pdf')).toBeVisible();
   });
 
+  it('con Banorte elegido, manda banorte al servidor', async () => {
+    montar();
+    const u = await entrarAPdf();
+    await u.selectOptions(screen.getByLabelText('Banco'), 'banorte');
+    await u.upload(screen.getByLabelText('Elegir archivo'), pdf());
+    await u.click(botonLeer());
+    await within(tarjeta()).findByText(/movimientos leídos/);
+    expect(almacenes.cargas.subidas()[0]?.campos).toEqual([
+      ['banco', 'banorte'],
+    ]);
+  });
+
   it('mientras lee: «Leyendo…», texto y barra del mockup, y todo apagado', async () => {
     const compuerta = crearCompuerta();
     almacenes.cargas.compuertas({ subida: compuerta.promesa });
@@ -120,7 +132,7 @@ describe('CargasContenedor: lectura de PDF', () => {
     ],
     [
       'pdf_ilegible',
-      'No reconocimos el formato del estado de cuenta BBVA.',
+      'No reconocimos el formato del estado de cuenta.',
       'No se pudo leer el PDF',
     ],
     [
@@ -252,7 +264,7 @@ describe('CargasContenedor: lectura de PDF', () => {
     expect(screen.queryByText(/movimientos leídos/)).not.toBeInTheDocument();
     expect(screen.queryByText('estado-sep-2026.pdf')).not.toBeInTheDocument();
 
-    await u.click(screen.getByRole('button', { name: 'PDF BBVA' }));
+    await u.click(screen.getByRole('button', { name: 'PDF' }));
     expect(screen.getByText(/movimientos leídos/)).toBeInTheDocument();
   });
 

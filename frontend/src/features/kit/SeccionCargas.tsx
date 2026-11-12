@@ -187,6 +187,8 @@ function Csv({
       alerta={alerta}
       onSeleccionar={SIN_ACCION}
       onBanco={SIN_ACCION}
+      bancoPdf="bbva"
+      onBancoPdf={SIN_ACCION}
       onCuenta={SIN_ACCION}
       onPerfil={SIN_ACCION}
       onReintentarPerfiles={SIN_ACCION}

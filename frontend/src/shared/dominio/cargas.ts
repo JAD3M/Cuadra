@@ -64,8 +64,12 @@ export type ModoEstadoCuenta = 'csv' | 'pdf';
  * un espejo de `src/bancos/pdf/lectores-pdf.ts`. El `id` es lo que espera el
  * POST (`banco`); el `nombre` es lo que ve la persona.
  */
-export const BANCOS_PDF = [{ id: 'bbva', nombre: 'BBVA' }] as const;
-export const BANCO_PDF_BBVA = BANCOS_PDF[0].id;
+export const BANCOS_PDF = [
+  { id: 'bbva', nombre: 'BBVA' },
+  { id: 'banorte', nombre: 'Banorte' },
+] as const;
+/** El banco con el que arranca el selector de PDF. */
+export const BANCO_PDF_POR_DEFECTO = BANCOS_PDF[0].id;
 
 const MB = 1024 * 1024;
 

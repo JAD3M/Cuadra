@@ -130,7 +130,7 @@ describe('AlertaSubida', () => {
     const alerta = screen.getByRole('alert');
     expect(alerta).toHaveTextContent('No se pudo leer el PDF');
     expect(alerta).toHaveTextContent(
-      'No reconocimos el formato del estado de cuenta BBVA.',
+      'No reconocimos el formato del estado de cuenta.',
     );
   });
 });

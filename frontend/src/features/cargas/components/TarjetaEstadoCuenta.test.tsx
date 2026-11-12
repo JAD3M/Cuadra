@@ -54,6 +54,8 @@ function montar({
         regionRef={regionRef}
         onSeleccionar={setArchivo}
         onBanco={setBanco}
+        bancoPdf="bbva"
+        onBancoPdf={() => undefined}
         onCuenta={setCuenta}
         onPerfil={(id) => {
           alPerfil(id);
@@ -80,6 +82,8 @@ const PROPS_BASE = {
   subiendo: false,
   onSeleccionar: () => undefined,
   onBanco: () => undefined,
+  bancoPdf: 'bbva',
+  onBancoPdf: () => undefined,
   onCuenta: () => undefined,
   onPerfil: () => undefined,
   onReintentarPerfiles: () => undefined,

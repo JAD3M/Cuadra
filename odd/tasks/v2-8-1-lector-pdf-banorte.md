@@ -22,8 +22,9 @@ Rama: `feat/v2-8-1-lector-pdf-banorte`. Entrega: PR en cadena si pasa de 400 lí
 ## Tasks
 - [x] T1 (S1,S7; inline): tipos comunes + `lector-banorte.ts` + pruebas unitarias.
 - [x] T2 (S2,S3,S4,S5,S6; inline): registro en `lectores-pdf.ts`, fixture sintético y LEEME, integración HTTP, ajustes a pruebas que asumen un solo banco.
-- [ ] T3 (S8; inline): selector de banco en el frontend, tras leer el mockup.
-- [ ] T4: notas de cierre (`CUADRA.md`, `docs/bitacora.md`).
+- [x] T3 (S8; inline): selector de banco en el frontend. Mockup 4 actualizado antes (botón «PDF», alerta sin banco, opción Banorte), con el visto bueno del usuario. RED observado en la tarjeta; la prueba del contenedor se escribió después del código.
+- [x] T4: notas de cierre (`CUADRA.md`, `docs/bitacora.md`).
 
 ## Log
 - L1 (2026-11-12): «arranca con eso» (historia 8.1 según la lista de historias) y «arranca con el sintético de mientras. todavia incluso me falta el de BBVA y ahora de el banorte para conseguirlo».
+- L2 (2026-11-12): «si, hay que actualizar el mockup» (textos «PDF BBVA» y «...estado de cuenta BBVA.» pasan a ser neutros).

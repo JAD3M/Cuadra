@@ -26,6 +26,8 @@ const BASE: TarjetaEstadoCuentaProps = {
   subiendo: false,
   onSeleccionar: () => undefined,
   onBanco: () => undefined,
+  bancoPdf: 'bbva',
+  onBancoPdf: () => undefined,
   onCuenta: () => undefined,
   onPerfil: () => undefined,
   onReintentarPerfiles: () => undefined,
@@ -47,14 +49,15 @@ describe('TarjetaEstadoCuenta: selector de formato', () => {
       'aria-pressed',
       'true',
     );
-    expect(
-      within(grupo).getByRole('button', { name: 'PDF BBVA' }),
-    ).toHaveAttribute('aria-pressed', 'false');
+    expect(within(grupo).getByRole('button', { name: 'PDF' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
   });
 
-  it('en modo PDF el botón PDF BBVA queda activo', () => {
+  it('en modo PDF el botón PDF queda activo', () => {
     montarPdf();
-    expect(screen.getByRole('button', { name: 'PDF BBVA' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'PDF' })).toHaveAttribute(
       'aria-pressed',
       'true',
     );
@@ -67,19 +70,19 @@ describe('TarjetaEstadoCuenta: selector de formato', () => {
   it('elegir un formato avisa al contenedor', async () => {
     const onModo = vi.fn();
     render(<TarjetaEstadoCuenta {...BASE} onModo={onModo} />);
-    await usuario().click(screen.getByRole('button', { name: 'PDF BBVA' }));
+    await usuario().click(screen.getByRole('button', { name: 'PDF' }));
     expect(onModo).toHaveBeenCalledWith('pdf');
   });
 
   it('mientras se lee, el selector queda apagado', () => {
     montarPdf({ subiendo: true });
     expect(screen.getByRole('button', { name: 'CSV' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'PDF BBVA' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'PDF' })).toBeDisabled();
   });
 });
 
 describe('TarjetaEstadoCuenta: modo PDF', () => {
-  it('oculta Cuenta y Perfil; Banco es un select fijo con BBVA', () => {
+  it('oculta Cuenta y Perfil; Banco es un select con BBVA y Banorte', () => {
     montarPdf();
     expect(screen.queryByLabelText('Cuenta')).not.toBeInTheDocument();
     expect(
@@ -87,10 +90,20 @@ describe('TarjetaEstadoCuenta: modo PDF', () => {
     ).not.toBeInTheDocument();
     const banco = screen.getByRole('combobox', { name: 'Banco' });
     expect(banco).toHaveValue('bbva');
-    expect(within(banco).getAllByRole('option')).toHaveLength(1);
     expect(
-      within(banco).getByRole('option', { name: 'BBVA' }),
-    ).toBeInTheDocument();
+      within(banco)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['BBVA', 'Banorte']);
+  });
+
+  it('muestra el banco elegido y avisa al cambiarlo', async () => {
+    const onBancoPdf = vi.fn();
+    montarPdf({ bancoPdf: 'banorte', onBancoPdf });
+    const banco = screen.getByRole('combobox', { name: 'Banco' });
+    expect(banco).toHaveValue('banorte');
+    await usuario().selectOptions(banco, 'bbva');
+    expect(onBancoPdf).toHaveBeenCalledWith('bbva');
   });
 
   it('acepta solo .pdf, con la ayuda del mockup', () => {

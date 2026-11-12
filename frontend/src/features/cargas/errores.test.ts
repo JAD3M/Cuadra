@@ -288,7 +288,7 @@ describe('clasificarErrorSubida: lectura de PDF (historia 3.2)', () => {
     });
     expect(TEXTO_PDF_ILEGIBLE).toEqual({
       titulo: 'No se pudo leer el PDF',
-      detalle: 'No reconocimos el formato del estado de cuenta BBVA.',
+      detalle: 'No reconocimos el formato del estado de cuenta.',
     });
   });
 
