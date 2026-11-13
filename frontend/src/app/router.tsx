@@ -34,6 +34,12 @@ import {
   TITULO_DOCUMENTO as TITULO_DOCUMENTO_TOLERANCIA,
   TITULO_PAGINA as TITULO_TOLERANCIA,
 } from '@/features/tolerancia/textos';
+import {
+  subtituloPagina as subtituloMedicion,
+  TITULO_DOCUMENTO as TITULO_DOCUMENTO_MEDICION,
+  TITULO_PAGINA as TITULO_MEDICION,
+} from '@/features/medicion/textos';
+import { MedicionPage } from '@/features/medicion/MedicionPage';
 import { TolerPage } from '@/features/tolerancia/TolerPage';
 import {
   SUBTITULO_PAGINA as SUBTITULO_USUARIOS,
@@ -161,6 +167,15 @@ export const rutas: RouteObject[] = [
                   titulo: TITULO_TOLERANCIA,
                   subtituloConEmpresa: subtituloPagina,
                   tituloDocumento: TITULO_DOCUMENTO_TOLERANCIA,
+                } satisfies ManejadorRuta,
+              },
+              {
+                path: '/medicion',
+                element: <MedicionPage />,
+                handle: {
+                  titulo: TITULO_MEDICION,
+                  subtituloConEmpresa: subtituloMedicion,
+                  tituloDocumento: TITULO_DOCUMENTO_MEDICION,
                 } satisfies ManejadorRuta,
               },
               {

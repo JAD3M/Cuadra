@@ -48,14 +48,14 @@ function conRoles(roles: string[]) {
 const menu = () => screen.getByRole('navigation');
 
 describe('flujos de usuarios: menú y pantalla (2.3)', () => {
-  it('el administrador ve «Usuarios» después de Tolerancia y entra a la pantalla', async () => {
+  it('el administrador ve «Usuarios» al final del menú, después de Medición, y entra a la pantalla', async () => {
     montarApp('/bandeja');
     await entrarALaApp();
     const enlaces = within(menu())
       .getAllByRole('link')
       .map((e) => e.textContent?.trim());
     expect(enlaces.at(-1)).toBe('Usuarios');
-    expect(enlaces.indexOf('Usuarios')).toBe(enlaces.indexOf('Tolerancia') + 1);
+    expect(enlaces.indexOf('Usuarios')).toBe(enlaces.indexOf('Medición') + 1);
 
     await userEvent
       .setup()
