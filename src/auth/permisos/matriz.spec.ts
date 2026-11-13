@@ -41,6 +41,8 @@ describe('matriz de permisos (FR-53)', () => {
     expect(rolesConPermiso('cargas.ver')).toEqual(['admin', 'contador']);
     expect(rolesConPermiso('tolerancia.ver')).toEqual(['admin', 'contador']);
     expect(rolesConPermiso('usuarios.ver')).toEqual(['admin']);
+    // Historia 9.1: la medición es solo del administrador.
+    expect(rolesConPermiso('medicion.ver')).toEqual(['admin']);
   });
 
   it('acciones: el auditor nunca tiene una acción que cambie algo', () => {

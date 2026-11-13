@@ -16,6 +16,8 @@ export const PERMISOS = [
   'tolerancia.ver',
   'bitacora.ver',
   'usuarios.ver',
+  // Historia 9.1: la medición de la empresa.
+  'medicion.ver',
   // Acciones.
   'cargas.cargar',
   'conciliaciones.resolver',
@@ -59,6 +61,7 @@ export const MATRIZ_PERMISOS: Record<Permiso, readonly Rol[]> = {
   'tolerancia.ver': ['admin', 'contador'],
   'bitacora.ver': ['admin', 'contador', 'revisor', 'auditor'],
   'usuarios.ver': ['admin'],
+  'medicion.ver': ['admin'],
   'cargas.cargar': ['admin', 'contador'],
   'conciliaciones.resolver': ['admin', 'contador', 'revisor'],
   'movimientos.descartar': ['admin', 'contador', 'revisor'],
