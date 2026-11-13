@@ -252,6 +252,7 @@ describe('guardas en el árbol de rutas', () => {
       '/cargas',
       '/cargas/:cargaId/vista-previa',
       '/tolerancia',
+      '/medicion',
       '/bitacora',
       '/usuarios',
     ]);

@@ -1066,6 +1066,22 @@ no un archivo real que alguien meta también al generador.
   sube el PDF del mes de 7.1, acepta la vista previa, sube los CFDI y verifica las mismas propuestas en el mismo
   orden. Los PDF de Banorte y Santander siguen siendo sintéticos [SUPUESTO].
 
+**Ver la tasa de desacuerdo de mi empresa (v2, historia 9.1), terminada el 12 nov 2026.**
+- Backend: permiso nuevo `medicion.ver` (solo `admin`, en la matriz y en su espejo del frontend, mismo orden) y
+  `GET /medicion/desacuerdo` en `SombraModule`, que expone `SombraService.tasaDesacuerdo` (la definición de la 6.2) para
+  la empresa de la sesión: `{propuestas, tratadas, desacuerdos, tasa}` con la tasa como texto de cuatro decimales y
+  `null` mientras no haya propuestas tratadas. Se calcula en cada consulta; no se guarda nada. Contador, revisor y
+  auditor reciben 403; la administración de otra empresa solo ve la suya.
+- Frontend: sección «Medición» en el menú (entre Tolerancia y Usuarios, solo con `medicion.ver`) y ruta `/medicion`. La
+  tasa se muestra como porcentaje con dos decimales desplazando la coma sobre el texto (`0.0400` -> `4.00 %`), con las
+  tres cifras (propuestas hechas, tratadas por el equipo, con desacuerdo) y una tarjeta «Cómo se cuenta». Sin propuestas
+  dice «Todavía no hay datos»; con propuestas pero ninguna tratada, «Todavía no hay propuestas tratadas»: nunca un
+  0 % que afirme un acuerdo no medido. Un 0.00 % solo sale si hay propuestas tratadas y ninguna en desacuerdo. La ruta
+  directa sin el permiso muestra «No tienes permiso para esta acción.» y no pide la medición.
+- Mockup nuevo: «19 · Medición (admin)» (solo tema oscuro, como Tolerancia), acordado con el usuario antes de escribir
+  la pantalla. Los otros tableros no muestran la entrada «Medición» en su menú.
+- Pendiente: la 9.2 (el dueño ve la tasa por banco y empresa, y las fracciones de PPD).
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

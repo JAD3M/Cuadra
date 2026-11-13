@@ -3,12 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { ELEMENTOS_NAV, elementoActivo, elementosVisibles } from './navegacion';
 
 describe('configuración de navegación', () => {
-  it('define los cinco elementos en orden', () => {
+  it('define los seis elementos en orden', () => {
     expect(ELEMENTOS_NAV.map((e) => e.etiqueta)).toEqual([
       'Bandeja',
       'Cargas',
       'Bitácora',
       'Tolerancia',
+      'Medición',
       'Usuarios',
     ]);
   });
@@ -20,6 +21,7 @@ describe('configuración de navegación', () => {
     ['/cargas', 'Cargas'],
     ['/bitacora', 'Bitácora'],
     ['/tolerancia', 'Tolerancia'],
+    ['/medicion', 'Medición'],
     ['/usuarios', 'Usuarios'],
   ])('%s activa %s', (ruta, etiqueta) => {
     expect(elementoActivo(ruta)?.etiqueta).toBe(etiqueta);
@@ -38,6 +40,7 @@ describe('configuración de navegación', () => {
       ['cargas', 'cargas.ver'],
       ['bitacora', 'bitacora.ver'],
       ['tolerancia', 'tolerancia.ver'],
+      ['medicion', 'medicion.ver'],
       ['usuarios', 'usuarios.ver'],
     ]);
   });

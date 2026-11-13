@@ -5,6 +5,12 @@
 
 ### 12 nov 2026
 
+- **Historia 9.1 (ver la tasa de desacuerdo de mi empresa) terminada.** `GET /medicion/desacuerdo` y el permiso
+  `medicion.ver` (solo admin) exponen la tasa de la 6.2, que se calcula por consulta en cada petición. La pantalla
+  «Medición» muestra la tasa, tres cifras y cómo se cuenta, y en vez de un cero engañoso dice cuándo aún no hay datos o
+  no hay propuestas tratadas. El mockup 19 se creó y se acordó antes del código. Dos pruebas viejas del menú y de la
+  tabla de rutas se ajustaron por la entrada nueva.
+
 - **Historia 8.3 (los tres bancos cumplen el mismo contrato) terminada.** Prueba de contrato sobre los tres
   lectores y rechazo idéntico por HTTP; un PDF sin saldos queda «sin cuadre automático» y exige una persona
   (`cuadreAutomatico: false`, nunca se acepta solo); `GET /bancos/pdf` y la tarjeta de cargas toman los bancos del
