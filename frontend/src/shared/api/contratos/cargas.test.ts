@@ -4,6 +4,7 @@ import { ESTADOS_CARGA } from '@/shared/dominio';
 import {
   cuerpoRechazarCarga,
   detalleCarga,
+  bancosPdf,
   perfilesBancarios,
   respuestaCarga,
   respuestaDecisionVistaPrevia,
@@ -359,6 +360,7 @@ describe('respuestaLecturaPdf (historia 3.2)', () => {
     cargaId: G(7),
     estado: 'pendiente_vista_previa',
     yaExistia: false,
+    cuadreAutomatico: true,
   };
 
   it('exige la carga guardada, su estado y si ya existía (historia 3.3)', () => {
@@ -381,6 +383,24 @@ describe('respuestaLecturaPdf (historia 3.2)', () => {
       saldoFinal: '12345678901234567.89',
     });
     expect(grande.saldoFinal).toBe('12345678901234567.89');
+  });
+
+  it('sin saldos (historia 8.3): ambos null y sin cuadre automático', () => {
+    const r = respuestaLecturaPdf.parse({
+      ...lectura,
+      saldoInicial: null,
+      saldoFinal: null,
+      cuadreAutomatico: false,
+    });
+    expect(r.saldoInicial).toBeNull();
+    expect(r.saldoFinal).toBeNull();
+    expect(r.cuadreAutomatico).toBe(false);
+  });
+
+  it('exige decir si hubo cuadre automático', () => {
+    expect(() =>
+      respuestaLecturaPdf.parse({ ...lectura, cuadreAutomatico: undefined }),
+    ).toThrow();
   });
 
   it('un saldo numérico, vacío o con separadores falla', () => {
@@ -568,5 +588,20 @@ describe('motivo del rechazo (3.7)', () => {
   it('cuerpoRechazarCarga pide un motivo de texto', () => {
     expect(cuerpoRechazarCarga.safeParse({ motivo: 'x' }).success).toBe(true);
     expect(cuerpoRechazarCarga.safeParse({ motivo: 3 }).success).toBe(false);
+  });
+});
+
+describe('bancosPdf (historia 8.3)', () => {
+  it('es un arreglo de {id, nombre} sin envoltorio', () => {
+    const lista = [
+      { id: 'bbva', nombre: 'BBVA' },
+      { id: 'banorte', nombre: 'Banorte' },
+    ];
+    expect(bancosPdf.parse(lista)).toEqual(lista);
+  });
+
+  it('un banco sin nombre o sin id falla', () => {
+    expect(() => bancosPdf.parse([{ id: 'bbva' }])).toThrow();
+    expect(() => bancosPdf.parse([{ nombre: 'BBVA' }])).toThrow();
   });
 });

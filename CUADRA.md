@@ -1045,6 +1045,27 @@ no un archivo real que alguien meta también al generador.
   con contraseña sale de una guía, no de un archivo real. Los fixtures `santander-sintetico.pdf` y
   `santander-protegido-sintetico.pdf` (contraseña de prueba `clave-prueba`) no traen datos reales.
 
+**Los tres bancos cumplen el mismo contrato (v2, historia 8.3), terminada el 12 nov 2026.**
+- Contrato: `src/bancos/pdf/contrato-lectores.spec.ts` recorre `BANCOS_PDF` y exige la misma forma de datos, la
+  misma normalización de un mismo mes, el mismo rechazo de moneda y que ningún lector importe el cuadre (solo
+  `cargas.service.ts` llama a `cuadrarSaldos`). Un banco nuevo debe entrar a `src/testing/estados-de-cuenta-de-prueba.ts`
+  o la prueba falla. `estado-cuenta-pdf-contrato.integracion.spec.ts` comprueba por HTTP que un PDF que no cuadra se
+  rechaza completo y con el mismo cuerpo en los tres bancos.
+- **Sin cuadre automático [SUPUESTO]:** si un lector devuelve los dos saldos en `null`, la carga omite el cuadre,
+  queda `pendiente_vista_previa` aunque la vista previa del banco esté levantada y la respuesta trae
+  `cuadreAutomatico: false`; con un solo saldo se rechaza. Los tres lectores actuales siguen exigiendo los saldos
+  (sin saldo inicial no se deduce el signo del primer movimiento), así que el camino se probó con un lector de prueba.
+  Una carga sin saldos aceptada por una persona no cuenta para `cargas_aceptadas_por_banco()` (usa
+  `saldo_inicial IS NOT NULL`).
+- Lista de bancos (UX-DR4): `GET /bancos/pdf` (permiso `cargas.cargar`) sale del registro de lectores, que ahora
+  guarda el nombre; la tarjeta de cargas lo pide con `useBancosPdf` (select apagado con «Cargando…» y, si falla,
+  «No se pudieron cargar los bancos.» con Reintentar). `NOMBRES_DE_BANCO` queda solo para rotular la vista previa y
+  la plataforma. Mockup «4 · Cargas (admin y contador)» actualizado con tres estados nuevos: `pdf_sin_cuadre`,
+  `pdf_bancos_cargando` y `pdf_bancos_error`.
+- Puerta de salida de la fase 2b: `src/e2e/tres-bancos-un-mes.integracion.spec.ts` da de alta una empresa por banco,
+  sube el PDF del mes de 7.1, acepta la vista previa, sube los CFDI y verifica las mismas propuestas en el mismo
+  orden. Los PDF de Banorte y Santander siguen siendo sintéticos [SUPUESTO].
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

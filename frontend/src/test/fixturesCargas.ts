@@ -146,6 +146,13 @@ export function respuestaYaExistia(estado: EstadoCarga, n = 1): RespuestaCarga {
   return { ...base, yaExistia: true };
 }
 
+/** `GET /bancos/pdf`: los bancos con lector de PDF, en el orden del backend. */
+export const BANCOS_PDF_API = [
+  { id: 'bbva', nombre: 'BBVA' },
+  { id: 'banorte', nombre: 'Banorte' },
+  { id: 'santander', nombre: 'Santander' },
+] as const;
+
 /** `GET /bancos/perfiles`: un arreglo sin envoltorio, en orden del backend. */
 export const PERFILES: readonly PerfilBancario[] = [
   { id: 'cuadra', nombre: 'Cuadra' },

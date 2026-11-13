@@ -5,6 +5,13 @@
 
 ### 12 nov 2026
 
+- **Historia 8.3 (los tres bancos cumplen el mismo contrato) terminada.** Prueba de contrato sobre los tres
+  lectores y rechazo idéntico por HTTP; un PDF sin saldos queda «sin cuadre automático» y exige una persona
+  (`cuadreAutomatico: false`, nunca se acepta solo); `GET /bancos/pdf` y la tarjeta de cargas toman los bancos del
+  backend; y una prueba de punta a punta hace que BBVA, Banorte y Santander carguen, cuadren y concilien el mes de
+  ejemplo. El mockup 4 se actualizó antes. Los lectores de Banorte y Santander y el camino sin saldos siguen siendo
+  supuestos hasta tener PDF reales anonimizados.
+
 - **Historia 8.2 (leer un PDF de Santander, incluso con contraseña) terminada.** Lector puro de Santander y campo
   opcional `contrasena` en la lectura de PDF: abre el archivo en memoria y no se guarda ni se registra (hay pruebas
   que lo comprueban contra respuesta, base y registros). Un PDF protegido sin contraseña ahora responde

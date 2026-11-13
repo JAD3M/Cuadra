@@ -2,7 +2,7 @@ import { createRef, useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { PERFILES } from '@/test/fixturesCargas';
+import { BANCOS_PDF_API, PERFILES } from '@/test/fixturesCargas';
 import { TarjetaEstadoCuenta } from './TarjetaEstadoCuenta';
 
 const MB = 1024 * 1024;
@@ -54,6 +54,9 @@ function montar({
         regionRef={regionRef}
         onSeleccionar={setArchivo}
         onBanco={setBanco}
+        bancos={BANCOS_PDF_API}
+        bancosFallo={false}
+        onReintentarBancos={() => undefined}
         bancoPdf="bbva"
         onBancoPdf={() => undefined}
         pideContrasena={false}
@@ -85,6 +88,9 @@ const PROPS_BASE = {
   subiendo: false,
   onSeleccionar: () => undefined,
   onBanco: () => undefined,
+  bancos: BANCOS_PDF_API,
+  bancosFallo: false,
+  onReintentarBancos: () => undefined,
   bancoPdf: 'bbva',
   onBancoPdf: () => undefined,
   pideContrasena: false,

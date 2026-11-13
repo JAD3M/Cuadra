@@ -1,5 +1,5 @@
 import type { ConteoClases } from '@/shared/dominio';
-import { BANCOS_PDF } from '@/shared/dominio';
+import { NOMBRES_DE_BANCO } from '@/shared/dominio';
 import { RESUMEN } from '@/features/vista-previa/textos';
 import { saldoVista } from '@/features/vista-previa/dinero';
 import { AvisoInformativo } from './AvisoInformativo';
@@ -19,7 +19,7 @@ export interface ResumenLecturaProps {
 }
 
 const nombreDeBanco = (id: string): string =>
-  BANCOS_PDF.find((b) => b.id === id)?.nombre ?? id.toUpperCase();
+  NOMBRES_DE_BANCO[id] ?? id.toUpperCase();
 
 /**
  * Lo que Cuadra leyó: archivo y banco, cuántos movimientos y los dos saldos.

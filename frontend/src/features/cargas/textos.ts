@@ -234,6 +234,9 @@ export const TARJETA_ESTADO_CUENTA_PDF = {
   leer: 'Leer estado de cuenta',
   soloLectura: 'Solo lectura: no se importó nada.',
   /** Historia 8.2: campo que aparece cuando el servidor pide la contraseña. */
+  /** Historia 8.3: el select de banco se llena desde el backend. */
+  cargandoBancos: 'Cargando…',
+  errorBancos: 'No se pudieron cargar los bancos.',
   contrasena: 'Contraseña del PDF',
   contrasenaAyuda: 'Se usa solo para abrir el archivo. No se guarda.',
   pideContrasena:
@@ -262,6 +265,9 @@ export const RECHAZO_ESTADO_CUENTA_PDF = {
 export const RESUMEN_LECTURA_PDF = {
   movimientos: 'movimientos leídos.',
   cuadran: 'Los saldos cuadran.',
+  /** Historia 8.3: el PDF no trae saldos, así que no hubo cuadre automático. */
+  sinCuadre:
+    'Este PDF no trae saldos, así que Cuadra no pudo cuadrarlos sola. Revisa la vista previa antes de aceptar.',
   espera: 'Los movimientos quedan en espera: todavía no entran a conciliación.',
 } as const;
 export const SALDO_INICIAL = 'Saldo inicial';

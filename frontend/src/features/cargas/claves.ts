@@ -14,6 +14,8 @@ export const clavesCargas = {
   detalle: (epoca: EpocaBandeja, id: string) =>
     ['cargas', epoca, 'detalle', id] as const,
   perfiles: (epoca: EpocaBandeja) => ['cargas', epoca, 'perfiles'] as const,
+  /** `GET /bancos/pdf` (historia 8.3). */
+  bancosPdf: (epoca: EpocaBandeja) => ['cargas', epoca, 'bancos-pdf'] as const,
   /** `GET /cargas/:id/vista-previa` (historia 3.4). */
   vistaPrevia: (epoca: EpocaBandeja, id: string) =>
     ['cargas', epoca, 'vista-previa', id] as const,

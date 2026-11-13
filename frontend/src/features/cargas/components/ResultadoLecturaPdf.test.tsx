@@ -9,6 +9,7 @@ const LECTURA = {
   saldoFinal: '11250.50',
   estado: 'pendiente_vista_previa',
   cargaId: '0192a3f4-0000-7000-8000-0000000000c1',
+  cuadreAutomatico: true,
 } as const;
 
 const montar = (props: Parameters<typeof ResultadoLecturaPdf>[0]) =>
@@ -17,6 +18,31 @@ const montar = (props: Parameters<typeof ResultadoLecturaPdf>[0]) =>
       <ResultadoLecturaPdf {...props} />
     </MemoryRouter>,
   );
+
+describe('ResultadoLecturaPdf sin cuadre automático (historia 8.3)', () => {
+  const SIN_SALDOS = {
+    ...LECTURA,
+    saldoInicial: null,
+    saldoFinal: null,
+    cuadreAutomatico: false,
+  } as const;
+
+  it('no afirma que los saldos cuadran: dice que no los trae y que se revise', () => {
+    const { container } = montar(SIN_SALDOS);
+    expect(container).toHaveTextContent(
+      '14 movimientos leídos. Este PDF no trae saldos, así que Cuadra no pudo cuadrarlos sola. Revisa la vista previa antes de aceptar.',
+    );
+    expect(container).not.toHaveTextContent('Los saldos cuadran');
+  });
+
+  it('los dos saldos van «—» y el enlace a la vista previa sigue', () => {
+    montar(SIN_SALDOS);
+    expect(screen.getAllByText('—')).toHaveLength(2);
+    expect(
+      screen.getByRole('link', { name: 'Revisar vista previa' }),
+    ).toBeInTheDocument();
+  });
+});
 
 describe('ResultadoLecturaPdf (PDF guardado, historia 3.3)', () => {
   it('dice cuántos movimientos se leyeron y que los saldos cuadran', () => {

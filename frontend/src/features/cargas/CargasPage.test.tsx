@@ -112,14 +112,17 @@ describe('CargasPage: historial', () => {
     expect(screen.queryByRole('button', { name: 'Reintentar' })).toBeNull();
   });
 
-  it('ninguna fila del historial pide el detalle: solo se pide la lista y los perfiles (2.5, 13.1)', async () => {
+  it('ninguna fila del historial pide el detalle: solo se piden la lista, los perfiles y los bancos (2.5, 13.1, 8.3)', async () => {
     const espia = espiarSolicitudes();
     montar();
     await screen.findByRole('table');
-    // Control positivo: la lista y los perfiles sí se pidieron, una vez.
+    // Control positivo: la lista, los perfiles y los bancos sí se pidieron, una vez.
     await waitFor(() => expect(espia.cuantas('GET', '/api/cargas')).toBe(1));
     await waitFor(() =>
       expect(espia.cuantas('GET', '/api/bancos/perfiles')).toBe(1),
+    );
+    await waitFor(() =>
+      expect(espia.cuantas('GET', '/api/bancos/pdf')).toBe(1),
     );
     for (const fila of screen.getAllByRole('row').slice(1)) {
       await userEvent.click(fila);
@@ -128,7 +131,11 @@ describe('CargasPage: historial', () => {
     expect(screen.queryByRole('link')).toBeNull();
     expect(
       espia.solicitudes.map((s) => `${s.metodo} ${s.ruta}`).sort(),
-    ).toEqual(['GET /api/bancos/perfiles', 'GET /api/cargas']);
+    ).toEqual([
+      'GET /api/bancos/pdf',
+      'GET /api/bancos/perfiles',
+      'GET /api/cargas',
+    ]);
     espia.detener();
   });
 });

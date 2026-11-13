@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { PERFILES } from '@/test/fixturesCargas';
+import { BANCOS_PDF_API, PERFILES } from '@/test/fixturesCargas';
 import {
   TarjetaEstadoCuenta,
   type TarjetaEstadoCuentaProps,
@@ -26,6 +26,9 @@ const BASE: TarjetaEstadoCuentaProps = {
   subiendo: false,
   onSeleccionar: () => undefined,
   onBanco: () => undefined,
+  bancos: BANCOS_PDF_API,
+  bancosFallo: false,
+  onReintentarBancos: () => undefined,
   bancoPdf: 'bbva',
   onBancoPdf: () => undefined,
   pideContrasena: false,
@@ -208,6 +211,45 @@ describe('TarjetaEstadoCuenta: modo PDF', () => {
     });
     expect(screen.getByText('resultado de prueba')).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('alerta de prueba');
+  });
+});
+
+describe('TarjetaEstadoCuenta: bancos del backend (historia 8.3)', () => {
+  it('las opciones salen de la lista que llega, no de una copia en la pantalla', () => {
+    montarPdf({
+      bancos: [
+        { id: 'uno', nombre: 'Banco Uno' },
+        { id: 'dos', nombre: 'Banco Dos' },
+      ],
+      bancoPdf: 'dos',
+    });
+    const banco = screen.getByRole('combobox', { name: 'Banco' });
+    expect(
+      within(banco)
+        .getAllByRole('option')
+        .map((o) => o.textContent),
+    ).toEqual(['Banco Uno', 'Banco Dos']);
+    expect(banco).toHaveValue('dos');
+  });
+
+  it('mientras carga, el select va apagado con «Cargando…»', () => {
+    montarPdf({ bancos: undefined });
+    const banco = screen.getByRole('combobox', { name: 'Banco' });
+    expect(banco).toBeDisabled();
+    expect(
+      within(banco).getByRole('option', { name: 'Cargando…' }),
+    ).toBeInTheDocument();
+  });
+
+  it('si falla, el select queda apagado y ofrece Reintentar', async () => {
+    const onReintentarBancos = vi.fn();
+    montarPdf({ bancos: undefined, bancosFallo: true, onReintentarBancos });
+    expect(screen.getByRole('combobox', { name: 'Banco' })).toBeDisabled();
+    expect(
+      screen.getByText('No se pudieron cargar los bancos.'),
+    ).toBeInTheDocument();
+    await usuario().click(screen.getByRole('button', { name: 'Reintentar' }));
+    expect(onReintentarBancos).toHaveBeenCalledTimes(1);
   });
 });
 
