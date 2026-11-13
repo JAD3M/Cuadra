@@ -44,8 +44,13 @@ export class LecturaPdfDto {
 /** Lo que responde la lectura de un PDF que cuadra: ya quedó guardado. */
 export class RespuestaLecturaPdfDto {
   @ApiProperty({ example: 'bbva' }) banco!: string;
-  @ApiProperty({ example: '10000.00' }) saldoInicial!: string;
-  @ApiProperty({ example: '11250.50' }) saldoFinal!: string;
+  /** `null` si el PDF no trae saldos: sin cuadre automático (historia 8.3). */
+  @ApiProperty({ example: '10000.00', nullable: true })
+  saldoInicial!: string | null;
+  @ApiProperty({ example: '11250.50', nullable: true })
+  saldoFinal!: string | null;
+  /** `false`: el PDF no trae saldos y solo una persona lo revisa en la vista previa. */
+  @ApiProperty({ example: true }) cuadreAutomatico!: boolean;
   @ApiProperty({ example: 2 }) movimientosLeidos!: number;
   /** Siempre 0 aquí: con una línea no leída el PDF se rechaza (400). */
   @ApiProperty({ example: 0 }) lineasNoLeidas!: number;

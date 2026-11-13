@@ -47,6 +47,9 @@ export const MENSAJE_PDF_ILEGIBLE =
   'No pudimos leer el PDF. Descárgalo de nuevo desde el portal del banco y vuelve a subirlo.';
 /** Bytes que no son un PDF legible (corrupto o truncado). */
 export const CODIGO_PDF_ILEGIBLE = 'pdf_ilegible';
+/** Faltan el periodo o los saldos del PDF: sin código, se registra como `pdf_no_reconocido`. */
+export const MENSAJE_SIN_SALDOS =
+  'No encontramos el periodo o los saldos del estado de cuenta. Descarga el PDF de nuevo desde el portal del banco y vuelve a subirlo.';
 /** Historia 8.2. PDF protegido y la petición no trajo contraseña. */
 export const CODIGO_PDF_REQUIERE_CONTRASENA = 'pdf_requiere_contrasena';
 export const MENSAJE_PDF_REQUIERE_CONTRASENA =

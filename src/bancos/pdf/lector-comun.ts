@@ -13,8 +13,13 @@ export interface LineaNoLeida {
 }
 
 export interface EstadoCuentaLeido {
-  saldoInicial: string;
-  saldoFinal: string;
+  /**
+   * `null` en ambos saldos: el PDF del banco no los trae y no hay cuadre
+   * automático (historia 8.3, [SUPUESTO]): una persona revisa la vista previa.
+   * Con solo uno de los dos no hay cuadre posible y se rechaza.
+   */
+  saldoInicial: string | null;
+  saldoFinal: string | null;
   movimientos: MovimientoLeido[];
   lineasNoLeidas: LineaNoLeida[];
 }

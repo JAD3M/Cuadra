@@ -3,6 +3,7 @@ import {
   CODIGO_MONEDA_NO_MXN,
   EstadoDeCuentaRechazado,
   MENSAJE_MONEDA_NO_MXN,
+  MENSAJE_SIN_SALDOS,
   type MovimientoLeido,
 } from '../lector-estado-cuenta';
 import {
@@ -88,9 +89,7 @@ export function leerEstadoCuentaBbva(texto: string): EstadoCuentaLeido {
     );
   }
   if (!periodo || saldoInicial === null || saldoFinal === null) {
-    throw new EstadoDeCuentaRechazado(
-      'No encontramos el periodo o los saldos del estado de cuenta. Descarga el PDF de nuevo desde el portal del banco y vuelve a subirlo.',
-    );
+    throw new EstadoDeCuentaRechazado(MENSAJE_SIN_SALDOS);
   }
 
   const inicial = aDinero(saldoInicial);

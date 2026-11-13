@@ -89,6 +89,7 @@ describe('POST /cargas/estado-cuenta/pdf con Banorte (historia 8.1)', () => {
       banco: 'banorte',
       saldoInicial: '10000.00',
       saldoFinal: '11250.50',
+      cuadreAutomatico: true,
       movimientosLeidos: 2,
       lineasNoLeidas: 0,
       cargaId: expect.any(String) as unknown,
