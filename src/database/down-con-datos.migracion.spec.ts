@@ -19,6 +19,7 @@ import { opcionesDataSource } from './data-source';
 
 jest.setTimeout(120_000);
 
+const MIGRACION_DESACUERDO = 'DesacuerdoPorEmpresaYBanco1790722000000';
 const MIGRACION_CLASE = 'ClaseDeMovimiento1790721000000';
 const MIGRACION_EVENTOS = 'EventosDeLaPersonaEnSombra1790720000000';
 
@@ -170,12 +171,30 @@ async function contar(tabla: string): Promise<number> {
 
 describe('down() con datos', () => {
   it('antes de deshacer, la base está al día con los datos sembrados', async () => {
-    expect(await ultima()).toBe(MIGRACION_CLASE);
+    expect(await ultima()).toBe(MIGRACION_DESACUERDO);
     expect(await existeColumnaClase()).toBe(true);
     expect(await existeFuncion()).toBe(true);
     expect(await contar('movimientos')).toBe(2);
     expect(await contar('cfdi')).toBe(1);
     expect(await contar('evidencia_sombra')).toBe(2);
+  });
+
+  it('9.2: deshacer quita solo la función y no toca la evidencia ni los movimientos', async () => {
+    const existeDesacuerdo = async () =>
+      (
+        await filas(
+          ds,
+          `SELECT 1 FROM pg_proc WHERE proname = 'desacuerdo_por_empresa_y_banco'`,
+        )
+      ).length === 1;
+    expect(await existeDesacuerdo()).toBe(true);
+
+    await ds.undoLastMigration();
+
+    expect(await ultima()).toBe(MIGRACION_CLASE);
+    expect(await existeDesacuerdo()).toBe(false);
+    expect(await contar('evidencia_sombra')).toBe(2);
+    expect(await contar('movimientos')).toBe(2);
   });
 
   it('6.3: deshacer quita la columna y la función sin perder movimientos ni facturas, y subir de nuevo deja la clase en nulo', async () => {
@@ -189,7 +208,7 @@ describe('down() con datos', () => {
 
     await ds.runMigrations();
 
-    expect(await ultima()).toBe(MIGRACION_CLASE);
+    expect(await ultima()).toBe(MIGRACION_DESACUERDO);
     expect(await existeColumnaClase()).toBe(true);
     expect(await existeFuncion()).toBe(true);
     expect(await contar('movimientos')).toBe(2);
@@ -208,6 +227,7 @@ describe('down() con datos', () => {
   });
 
   it('6.2: con eventos de la persona el down falla y no deja nada a medias', async () => {
+    await ds.undoLastMigration(); // 9.2
     await ds.undoLastMigration(); // 6.3, otra vez
     expect(await ultima()).toBe(MIGRACION_EVENTOS);
 
@@ -254,7 +274,7 @@ describe('down() con datos', () => {
     expect(await contar('evidencia_sombra')).toBe(1);
 
     await ds.runMigrations();
-    expect(await ultima()).toBe(MIGRACION_CLASE);
+    expect(await ultima()).toBe(MIGRACION_DESACUERDO);
     expect(
       (
         await una<{ def: string }>(
