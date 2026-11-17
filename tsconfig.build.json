@@ -9,6 +9,8 @@
     "demo",
     "src/demo",
     "**/*.spec.ts",
-    "src/database/testing"
+    "src/database/testing",
+    "src/testing",
+    "src/cargas/testing"
   ]
 }
