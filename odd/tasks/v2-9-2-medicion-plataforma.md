@@ -23,7 +23,7 @@ Rama: `feat/v2-9-2-medicion-plataforma`. Entrega: cadena de PR (backend, fronten
 - [x] T1 (S1,S3,S4; inline): migración con `desacuerdo_por_empresa_y_banco()`, servicio, `GET /plataforma/desacuerdo`, pruebas (agregados, 403 de empresa, equivalencia con 6.2).
 - [x] T2 (S6): mockup de la pantalla del dueño (medición) en el lienzo, acordado con el usuario.
 - [x] T3 (S1,S2,S3,S5; inline): frontend: sección del dueño, contrato, hook, página.
-- [ ] T4: notas de cierre (`CUADRA.md`, `docs/bitacora.md`, Jira, repaso).
+- [x] T4: notas de cierre (`CUADRA.md`, `docs/bitacora.md`). Quedan: Jira y el repaso, que se hacen al integrar los PR.
 
 ## Log
 - L1 (2026-11-17): «continuemos donde lo dejamos» (siguiente historia según la lista: 9.2).
