@@ -4,9 +4,13 @@ import {
   Outlet,
   type RouteObject,
 } from 'react-router';
+import { MedicionPlataformaPage } from '@/features/plataforma/MedicionPlataformaPage';
 import { PlataformaLoginPage } from '@/features/plataforma/PlataformaLoginPage';
 import { PlataformaPage } from '@/features/plataforma/PlataformaPage';
-import { TEXTOS_PLATAFORMA } from '@/features/plataforma/textos';
+import {
+  TEXTOS_MEDICION_PLATAFORMA,
+  TEXTOS_PLATAFORMA,
+} from '@/features/plataforma/textos';
 import { SesionPlataformaProvider } from '@/shared/sesion/plataforma';
 import { EmpresaPage } from '@/features/auth/EmpresaPage';
 import { LoginPage } from '@/features/auth/LoginPage';
@@ -225,6 +229,11 @@ export const rutas: RouteObject[] = [
                 path: '/plataforma',
                 element: <PlataformaPage />,
                 handle: titulo(TEXTOS_PLATAFORMA.tituloEmpresas),
+              },
+              {
+                path: '/plataforma/medicion',
+                element: <MedicionPlataformaPage />,
+                handle: titulo(TEXTOS_MEDICION_PLATAFORMA.titulo),
               },
             ],
           },

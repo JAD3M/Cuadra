@@ -136,3 +136,49 @@ export const TEXTOS_SEPARACION = {
   yaEstabaTitulo: 'La separación de funciones ya estaba en ese estado.',
   yaEstabaDetalle: 'No se cambió nada.',
 } as const;
+
+/** Medición de la plataforma (mockup `PlataformaMedicion.dc.html`, historia 9.2). */
+export const TEXTOS_MEDICION_PLATAFORMA = {
+  navegacion: 'Secciones de la plataforma',
+  pestanaEmpresas: 'Empresas y bancos',
+  pestanaMedicion: 'Medición',
+  titulo: 'Medición',
+  descripcion:
+    'Cuánto no está de acuerdo cada equipo con Cuadra y qué tan frecuentes son los casos difíciles. Solo conteos y porcentajes: aquí no se ve ningún movimiento ni factura de ninguna empresa.',
+  cargando: 'Cargando la medición',
+  errorTitulo: 'No se pudo conectar con el servidor.',
+  errorDetalle: 'Revisa tu conexión e inténtalo de nuevo.',
+  reintentar: 'Reintentar',
+  desacuerdoTitulo: 'Tasa de desacuerdo',
+  desacuerdoDescripcion:
+    'Por empresa y por banco, con la definición del modo sombra. Se calcula cada vez que abres esta pantalla; no es un número guardado.',
+  desacuerdoTabla: 'Tasa de desacuerdo por empresa y banco',
+  sinDatosTitulo: 'Todavía no hay datos',
+  sinDatosDetalle:
+    'Cuando alguna empresa tenga propuestas de la regla 1, aquí verás su tasa. Una empresa sin propuestas no aparece.',
+  columnaEmpresa: 'Empresa',
+  columnaBanco: 'Banco',
+  columnaPropuestas: 'Propuestas',
+  columnaTratadas: 'Tratadas (muestra)',
+  columnaDesacuerdos: 'Con desacuerdo',
+  columnaTasa: 'Tasa',
+  sinBanco: 'Sin banco',
+  sinTasa: '—',
+  sinTasaTitulo: 'Todavía no hay propuestas tratadas',
+  notaTasa:
+    'La tasa son los desacuerdos entre las propuestas tratadas. Con pocas tratadas, un porcentaje alto dice poco: mira siempre la columna de tratadas. Un guion significa que aún no hay ninguna tratada.',
+  fraccionesTitulo: 'Casos difíciles por empresa',
+  fraccionesDescripcion:
+    'Qué parte de sus facturas son PPD (pago en parcialidades o diferido: se liquida en partes y exige su complemento de pago) y qué parte de sus movimientos son parcialidades o comisiones. Cada porcentaje trae el conteo del que sale.',
+  fraccionesTabla: 'Fracciones de PPD, parcialidades y comisiones por empresa',
+  columnaPpd: 'Facturas PPD',
+  columnaPpdExplicacion: 'pago en parcialidades o diferido',
+  columnaParcialidades: 'Parcialidades',
+  columnaComisiones: 'Comisiones',
+  sinFacturas: 'Sin facturas',
+  sinMovimientos: 'Sin movimientos',
+  deFacturas: (n: number, de: number) => `${n} de ${de} facturas`,
+  deMovimientos: (n: number, de: number) => `${n} de ${de} movimientos`,
+  notaFracciones:
+    'Los movimientos importados antes de que Cuadra los clasificara no tienen clase y cuentan como ni parcialidad ni comisión.',
+} as const;

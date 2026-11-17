@@ -114,6 +114,46 @@ export function sembrarBancosPlataforma(
   bancosSimulados.push(...bancos.map((b) => ({ ...b })));
 }
 
+export interface DesacuerdoSimulado {
+  companyId: string;
+  razonSocial: string;
+  banco: string | null;
+  propuestas: number;
+  tratadas: number;
+  desacuerdos: number;
+  tasa: string | null;
+}
+
+export interface FraccionesSimuladas {
+  companyId: string;
+  razonSocial: string;
+  facturas: { total: number; ppd: number };
+  movimientos: { total: number; parcialidades: number; comisiones: number };
+  fraccionPpd: string | null;
+  fraccionParcialidades: string | null;
+  fraccionComisiones: string | null;
+}
+
+/** Filas que devuelven `GET /plataforma/desacuerdo` y `/plataforma/fracciones`. */
+const desacuerdoSimulado: DesacuerdoSimulado[] = [];
+const fraccionesSimuladas: FraccionesSimuladas[] = [];
+
+/** Deja en el servidor simulado estas filas de desacuerdo (y nada más). */
+export function sembrarDesacuerdoPlataforma(
+  filas: readonly DesacuerdoSimulado[],
+): void {
+  desacuerdoSimulado.length = 0;
+  desacuerdoSimulado.push(...filas);
+}
+
+/** Deja en el servidor simulado estas fracciones (y nada más). */
+export function sembrarFraccionesPlataforma(
+  filas: readonly FraccionesSimuladas[],
+): void {
+  fraccionesSimuladas.length = 0;
+  fraccionesSimuladas.push(...filas);
+}
+
 let contador = 0;
 
 export function crearHandlersPlataforma() {
@@ -191,6 +231,16 @@ export function crearHandlersPlataforma() {
         ? HttpResponse.json(bancosSimulados.map((b) => ({ ...b })))
         : rechazoDeSesion(),
     ),
+    http.get('/api/plataforma/desacuerdo', () =>
+      haySesionPlataforma()
+        ? HttpResponse.json(desacuerdoSimulado.map((f) => ({ ...f })))
+        : rechazoDeSesion(),
+    ),
+    http.get('/api/plataforma/fracciones', () =>
+      haySesionPlataforma()
+        ? HttpResponse.json(fraccionesSimuladas.map((f) => ({ ...f })))
+        : rechazoDeSesion(),
+    ),
     // Como el backend: 404 si no existe, 422 si faltan cargas aceptadas, 409 si
     // ya estaba levantado, 201 con el banco ya levantado.
     http.post(
@@ -222,6 +272,8 @@ export function usarHandlersPlataforma(): void {
   empresasSimuladas.length = 0;
   bancosSimulados.length = 0;
   levantamientosRecibidos.length = 0;
+  desacuerdoSimulado.length = 0;
+  fraccionesSimuladas.length = 0;
   servidor.use(...crearHandlersPlataforma());
 }
 
@@ -326,5 +378,26 @@ export function levantarVistaPreviaRedDeFallo() {
     http.post('/api/plataforma/bancos/:banco/levantar-vista-previa', () =>
       HttpResponse.error(),
     ),
+  );
+}
+
+/** `GET /plataforma/desacuerdo` responde `status`. */
+export function desacuerdoPlataformaFalla(status: number) {
+  servidor.use(
+    http.get('/api/plataforma/desacuerdo', () => cuerpoDeError(status)),
+  );
+}
+
+/** `GET /plataforma/fracciones` responde `status`. */
+export function fraccionesPlataformaFalla(status: number) {
+  servidor.use(
+    http.get('/api/plataforma/fracciones', () => cuerpoDeError(status)),
+  );
+}
+
+/** `GET /plataforma/desacuerdo` falla en la red. */
+export function desacuerdoPlataformaRedDeFallo() {
+  servidor.use(
+    http.get('/api/plataforma/desacuerdo', () => HttpResponse.error()),
   );
 }

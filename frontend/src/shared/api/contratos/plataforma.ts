@@ -83,6 +83,51 @@ export const bancoPlataforma = z.object({
 
 export const listaBancosPlataforma = z.array(bancoPlataforma);
 
+/**
+ * Fila de `GET /plataforma/desacuerdo` (historia 9.2): una por empresa y banco.
+ * `tasa` es un decimal en texto ("0.0400"), nunca un número; `null` si la
+ * empresa no tiene propuestas tratadas. `banco` es `null` si no se conoce.
+ */
+export const desacuerdoPlataforma = z.object({
+  companyId: id,
+  razonSocial: texto,
+  banco: texto.nullable(),
+  // Conteos de propuestas, no dinero.
+  // eslint-disable-next-line no-restricted-syntax
+  propuestas: z.number().int().nonnegative(),
+  // eslint-disable-next-line no-restricted-syntax
+  tratadas: z.number().int().nonnegative(),
+  // eslint-disable-next-line no-restricted-syntax
+  desacuerdos: z.number().int().nonnegative(),
+  tasa: z.string().nullable(),
+});
+
+export const listaDesacuerdoPlataforma = z.array(desacuerdoPlataforma);
+
+/** Conteo de facturas o movimientos; no dinero. */
+// eslint-disable-next-line no-restricted-syntax
+const conteo = z.number().int().nonnegative();
+
+/**
+ * Fila de `GET /plataforma/fracciones` (historia 9.2): una por empresa, con los
+ * conteos y las tres fracciones en texto; `null` si el total es 0.
+ */
+export const fraccionesPlataforma = z.object({
+  companyId: id,
+  razonSocial: texto,
+  facturas: z.object({ total: conteo, ppd: conteo }),
+  movimientos: z.object({
+    total: conteo,
+    parcialidades: conteo,
+    comisiones: conteo,
+  }),
+  fraccionPpd: z.string().nullable(),
+  fraccionParcialidades: z.string().nullable(),
+  fraccionComisiones: z.string().nullable(),
+});
+
+export const listaFraccionesPlataforma = z.array(fraccionesPlataforma);
+
 export type UsuarioPlataforma = z.infer<typeof usuarioPlataforma>;
 export type RespuestaSesionPlataforma = z.infer<
   typeof respuestaSesionPlataforma
@@ -94,3 +139,5 @@ export type SolicitudCambiarSeparacion = z.infer<
   typeof solicitudCambiarSeparacion
 >;
 export type BancoPlataforma = z.infer<typeof bancoPlataforma>;
+export type DesacuerdoPlataforma = z.infer<typeof desacuerdoPlataforma>;
+export type FraccionesPlataforma = z.infer<typeof fraccionesPlataforma>;
