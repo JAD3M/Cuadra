@@ -1082,6 +1082,28 @@ no un archivo real que alguien meta también al generador.
   la pantalla. Los otros tableros no muestran la entrada «Medición» en su menú.
 - Pendiente: la 9.2 (el dueño ve la tasa por banco y empresa, y las fracciones de PPD).
 
+**El dueño ve la tasa por banco y empresa, y las fracciones de PPD (v2, historia 9.2), terminada el 17 nov 2026
+(pendiente de integrar a `master`).**
+- Backend: la función SQL `desacuerdo_por_empresa_y_banco()` (migración `1790722000000`, `SECURITY DEFINER`, mismo
+  patrón que `fracciones_por_empresa()`) cruza empresas y devuelve **solo conteos** por empresa y banco: propuestas,
+  tratadas y desacuerdos; nunca ids de decisión, montos ni RFC. `GET /plataforma/desacuerdo` (sesión `plataforma`; una
+  sesión de empresa recibe 403) suma la razón social y la tasa como texto de cuatro decimales (`null` sin tratadas).
+  Una empresa sin propuestas no aparece. Las fracciones de PPD, parcialidades y comisiones ya salían de
+  `GET /plataforma/fracciones` (6.3). Una prueba exige que la suma por empresa sea igual a
+  `SombraService.tasaDesacuerdo` (6.2): la definición de desacuerdo vive en dos consultas SQL y esa prueba evita que se
+  desincronicen. El `down` de la migración quita solo la función.
+- Frontend: la cabecera del dueño ahora tiene pestañas, «Empresas y bancos» (`/plataforma`) y «Medición»
+  (`/plataforma/medicion`), sobre un marco compartido (`MarcoPlataforma`). La pantalla muestra la tabla de desacuerdo
+  (con «Tratadas (muestra)» para que un porcentaje alto con pocos casos no engañe; «—» y no 0 % si no hay tratadas) y los
+  casos difíciles por empresa, cada porcentaje con su conteo («10 de 40 facturas»). Estados: cargando, error con
+  «Reintentar» y sin datos. Un 401 o 403 termina la sesión de plataforma.
+- Mockups: «20 · Plataforma: medición» y «21 · Plataforma: medición (tema claro)», acordados antes del código. Los
+  tableros 10 y 11 ahora llevan las pestañas.
+- Decisión: AD-5 solo cubre acciones de plataforma que escriben. Esta lectura agregada entre empresas, sin bitácora de
+  empresa y sin filas de dominio, **extiende** AD-5; el spine no se enmendó (queda pendiente decidir si se anota allí).
+- Pendiente: el número de la historia en Jira (KAN) no se pudo verificar desde la sesión; hay que pasarla a
+  Finalizado al integrar.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**

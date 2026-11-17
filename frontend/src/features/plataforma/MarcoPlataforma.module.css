@@ -1,0 +1,22 @@
+/* Marco de la pantalla interna de Plataforma.dc.html. Solo tokens de rol. */
+.pagina {
+  min-block-size: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-ground);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+}
+
+.principal {
+  flex-grow: 1;
+  inline-size: 100%;
+  max-inline-size: 1120px;
+  box-sizing: border-box;
+  margin-inline: auto;
+  padding: var(--space-48) var(--space-32);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-32);
+  min-inline-size: 0;
+}

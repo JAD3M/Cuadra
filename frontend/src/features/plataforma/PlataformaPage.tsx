@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ApiError, mensajeDeError } from '@/shared/api';
 import { normalizarRfc } from '@/shared/dominio';
-import {
-  useAccionesPlataforma,
-  useSesionPlataforma,
-} from '@/shared/sesion/plataforma';
-import { ControlTema } from '@/shared/tema';
+import { useAccionesPlataforma } from '@/shared/sesion/plataforma';
 import { AlertaError } from '@/shared/ui/AlertaError';
 import { Button } from '@/shared/ui/Button';
 import { AvisoEmpresaCreada } from './components/AvisoEmpresaCreada';
@@ -16,7 +12,6 @@ import {
   EmpresasPlataforma,
   type FilaEmpresaPlataforma,
 } from './components/EmpresasPlataforma';
-import { EncabezadoPlataforma } from './components/EncabezadoPlataforma';
 import {
   FormularioCrearEmpresa,
   type ValoresCrearEmpresa,
@@ -32,6 +27,7 @@ import {
   describirFalloSeparacion,
   type FalloSeparacion,
 } from './mensajesSeparacion';
+import { MarcoPlataforma } from './MarcoPlataforma';
 import { nombreDeBanco } from './nombreDeBanco';
 import estilos from './PlataformaPage.module.css';
 import {
@@ -53,10 +49,8 @@ import { esFinDeSesion, useEmpresasPlataforma } from './useEmpresasPlataforma';
  * API; el RFC se normaliza aquí solo por comodidad y el servidor decide.
  */
 export function PlataformaPage() {
-  const sesion = useSesionPlataforma();
-  const { cerrarSesion, terminar } = useAccionesPlataforma();
+  const { terminar } = useAccionesPlataforma();
   const empresas = useEmpresasPlataforma();
-  const [cerrando, setCerrando] = useState(false);
   const crear = useCrearEmpresaPlataforma();
   const [formAbierto, setFormAbierto] = useState(false);
   const [creada, setCreada] = useState<string | null>(null);
@@ -239,8 +233,6 @@ export function PlataformaPage() {
     if (finDeSesion) terminar();
   }, [finDeSesion, terminar]);
 
-  if (sesion.status !== 'ready') return null;
-
   const fallo =
     empresas.isError && !finDeSesion ? mensajeDeError(empresas.error) : null;
 
@@ -248,149 +240,134 @@ export function PlataformaPage() {
     bancos.isError && !finDeSesion ? mensajeDeError(bancos.error) : null;
 
   return (
-    <div className={estilos.pagina}>
-      <EncabezadoPlataforma
-        correo={sesion.usuario.correo}
-        controlTema={<ControlTema />}
-        cerrando={cerrando}
-        onCerrarSesion={() => {
-          setCerrando(true);
-          void cerrarSesion();
-        }}
-      />
-      <main className={estilos.principal}>
-        <div className={estilos.cabecera}>
-          <div className={estilos.titulos}>
-            <h1 className={estilos.titulo}>
-              {TEXTOS_PLATAFORMA.tituloEmpresas}
-            </h1>
-            <p className={estilos.subtitulo}>
-              {TEXTOS_PLATAFORMA.subtituloEmpresas}
-            </p>
-          </div>
-          <Button
-            type="button"
-            className={estilos.crear}
-            onClick={abrirFormulario}
-          >
-            {TEXTOS_ALTA_EMPRESA.crear}
-          </Button>
+    <MarcoPlataforma>
+      <div className={estilos.cabecera}>
+        <div className={estilos.titulos}>
+          <h1 className={estilos.titulo}>{TEXTOS_PLATAFORMA.tituloEmpresas}</h1>
+          <p className={estilos.subtitulo}>
+            {TEXTOS_PLATAFORMA.subtituloEmpresas}
+          </p>
         </div>
-        {creada !== null && <AvisoEmpresaCreada razonSocial={creada} />}
-        {falloAlta?.donde === 'alerta' && (
-          <AlertaError titulo={falloAlta.titulo} detalle={falloAlta.detalle} />
-        )}
-        {formAbierto && (
-          <FormularioCrearEmpresa
-            pendiente={crear.isPending}
-            errorRazonSocial={
-              falloAlta?.donde === 'campo' && falloAlta.campo === 'razonSocial'
-                ? falloAlta.texto
-                : undefined
-            }
-            errorRfc={
-              falloAlta?.donde === 'campo' && falloAlta.campo === 'rfc'
-                ? falloAlta.texto
-                : undefined
-            }
-            onEnviar={enviarAlta}
-            onCancelar={cerrarFormulario}
-          />
-        )}
-        {invitada !== null && <AvisoInvitacionEnviada correo={invitada} />}
-        {falloInvitar?.donde === 'alerta' && (
+        <Button
+          type="button"
+          className={estilos.crear}
+          onClick={abrirFormulario}
+        >
+          {TEXTOS_ALTA_EMPRESA.crear}
+        </Button>
+      </div>
+      {creada !== null && <AvisoEmpresaCreada razonSocial={creada} />}
+      {falloAlta?.donde === 'alerta' && (
+        <AlertaError titulo={falloAlta.titulo} detalle={falloAlta.detalle} />
+      )}
+      {formAbierto && (
+        <FormularioCrearEmpresa
+          pendiente={crear.isPending}
+          errorRazonSocial={
+            falloAlta?.donde === 'campo' && falloAlta.campo === 'razonSocial'
+              ? falloAlta.texto
+              : undefined
+          }
+          errorRfc={
+            falloAlta?.donde === 'campo' && falloAlta.campo === 'rfc'
+              ? falloAlta.texto
+              : undefined
+          }
+          onEnviar={enviarAlta}
+          onCancelar={cerrarFormulario}
+        />
+      )}
+      {invitada !== null && <AvisoInvitacionEnviada correo={invitada} />}
+      {falloInvitar?.donde === 'alerta' && (
+        <AlertaError
+          titulo={falloInvitar.titulo}
+          detalle={falloInvitar.detalle}
+        />
+      )}
+      {invitando && (
+        <FormularioInvitarAdmin
+          key={invitando.id}
+          razonSocial={invitando.razonSocial}
+          pendiente={invitar.isPending}
+          errorCorreo={
+            falloInvitar?.donde === 'campo' ? falloInvitar.texto : undefined
+          }
+          onEnviar={enviarInvitacion}
+          onCancelar={cerrarInvitar}
+        />
+      )}
+      {cambiada !== null && (
+        <AvisoSeparacionCambiada
+          razonSocial={cambiada.razonSocial}
+          activa={cambiada.activa}
+        />
+      )}
+      {falloCambiar?.donde === 'alerta' && (
+        <AlertaError
+          titulo={falloCambiar.titulo}
+          detalle={falloCambiar.detalle}
+        />
+      )}
+      {cambiando && (
+        <FormularioCambiarSeparacion
+          key={cambiando.id}
+          razonSocial={cambiando.razonSocial}
+          desactivar={cambiando.separacionFunciones}
+          pendiente={cambiar.isPending}
+          errorMotivo={
+            falloCambiar?.donde === 'campo' ? falloCambiar.texto : undefined
+          }
+          onEnviar={enviarCambio}
+          onCancelar={cerrarCambiar}
+        />
+      )}
+      <EmpresasPlataforma
+        empresas={empresas.data ?? null}
+        onCrear={abrirFormulario}
+        onInvitar={abrirInvitar}
+        onCambiarSeparacion={abrirCambiar}
+        alerta={
+          fallo ? (
+            <AlertaError titulo={fallo.titulo} detalle={fallo.detalle} />
+          ) : undefined
+        }
+      />
+      <section aria-labelledby="titulo-bancos" className={estilos.bancos}>
+        <div className={estilos.titulos}>
+          <h2 id="titulo-bancos" className={estilos.subtituloSeccion}>
+            {TEXTOS_BANCOS.titulo}
+          </h2>
+          <p className={estilos.subtitulo}>{TEXTOS_BANCOS.descripcion}</p>
+        </div>
+        {levantado !== null && <AvisoVistaPreviaLevantada banco={levantado} />}
+        {falloLevantar && (
           <AlertaError
-            titulo={falloInvitar.titulo}
-            detalle={falloInvitar.detalle}
+            titulo={falloLevantar.titulo}
+            detalle={falloLevantar.detalle}
           />
         )}
-        {invitando && (
-          <FormularioInvitarAdmin
-            key={invitando.id}
-            razonSocial={invitando.razonSocial}
-            pendiente={invitar.isPending}
-            errorCorreo={
-              falloInvitar?.donde === 'campo' ? falloInvitar.texto : undefined
-            }
-            onEnviar={enviarInvitacion}
-            onCancelar={cerrarInvitar}
+        {levantando && (
+          <FormularioLevantarVistaPrevia
+            key={levantando.banco}
+            banco={nombreDeBanco(levantando.banco)}
+            pendiente={levantar.isPending}
+            onConfirmar={confirmarLevantar}
+            onCancelar={cerrarLevantar}
           />
         )}
-        {cambiada !== null && (
-          <AvisoSeparacionCambiada
-            razonSocial={cambiada.razonSocial}
-            activa={cambiada.activa}
-          />
-        )}
-        {falloCambiar?.donde === 'alerta' && (
-          <AlertaError
-            titulo={falloCambiar.titulo}
-            detalle={falloCambiar.detalle}
-          />
-        )}
-        {cambiando && (
-          <FormularioCambiarSeparacion
-            key={cambiando.id}
-            razonSocial={cambiando.razonSocial}
-            desactivar={cambiando.separacionFunciones}
-            pendiente={cambiar.isPending}
-            errorMotivo={
-              falloCambiar?.donde === 'campo' ? falloCambiar.texto : undefined
-            }
-            onEnviar={enviarCambio}
-            onCancelar={cerrarCambiar}
-          />
-        )}
-        <EmpresasPlataforma
-          empresas={empresas.data ?? null}
-          onCrear={abrirFormulario}
-          onInvitar={abrirInvitar}
-          onCambiarSeparacion={abrirCambiar}
+        <TablaBancos
+          bancos={bancos.data ?? null}
+          onLevantar={abrirLevantar}
           alerta={
-            fallo ? (
-              <AlertaError titulo={fallo.titulo} detalle={fallo.detalle} />
+            falloBancos ? (
+              <AlertaError
+                titulo={falloBancos.titulo}
+                detalle={falloBancos.detalle}
+              />
             ) : undefined
           }
         />
-        <section aria-labelledby="titulo-bancos" className={estilos.bancos}>
-          <div className={estilos.titulos}>
-            <h2 id="titulo-bancos" className={estilos.subtituloSeccion}>
-              {TEXTOS_BANCOS.titulo}
-            </h2>
-            <p className={estilos.subtitulo}>{TEXTOS_BANCOS.descripcion}</p>
-          </div>
-          {levantado !== null && (
-            <AvisoVistaPreviaLevantada banco={levantado} />
-          )}
-          {falloLevantar && (
-            <AlertaError
-              titulo={falloLevantar.titulo}
-              detalle={falloLevantar.detalle}
-            />
-          )}
-          {levantando && (
-            <FormularioLevantarVistaPrevia
-              key={levantando.banco}
-              banco={nombreDeBanco(levantando.banco)}
-              pendiente={levantar.isPending}
-              onConfirmar={confirmarLevantar}
-              onCancelar={cerrarLevantar}
-            />
-          )}
-          <TablaBancos
-            bancos={bancos.data ?? null}
-            onLevantar={abrirLevantar}
-            alerta={
-              falloBancos ? (
-                <AlertaError
-                  titulo={falloBancos.titulo}
-                  detalle={falloBancos.detalle}
-                />
-              ) : undefined
-            }
-          />
-        </section>
-      </main>
-    </div>
+      </section>
+    </MarcoPlataforma>
   );
 }

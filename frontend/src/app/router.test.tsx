@@ -347,7 +347,7 @@ describe('guardas en el árbol de rutas', () => {
 describe('mundo de plataforma en el árbol de rutas', () => {
   const hijos = rutas[0]?.children ?? [];
 
-  it('envuelve /plataforma/login y /plataforma en un proveedor de sesión propio', () => {
+  it('envuelve /plataforma/login, /plataforma y /plataforma/medicion en un proveedor de sesión propio', () => {
     const capa = hijos.find((h) =>
       h.children?.some((c) =>
         c.children?.some((n) => n.path === '/plataforma'),
@@ -358,7 +358,11 @@ describe('mundo de plataforma en el árbol de rutas', () => {
     const rutasDeCapa = capa?.children?.flatMap((c) =>
       (c.children ?? []).map((n) => n.path),
     );
-    expect(rutasDeCapa).toEqual(['/plataforma/login', '/plataforma']);
+    expect(rutasDeCapa).toEqual([
+      '/plataforma/login',
+      '/plataforma',
+      '/plataforma/medicion',
+    ]);
   });
 
   it('con la cookie de plataforma, una ruta de empresa lleva a /login y no consulta /plataforma', async () => {

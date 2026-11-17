@@ -1,0 +1,35 @@
+/* Pestañas de la cabecera (PlataformaMedicion.dc.html). Solo tokens de rol. */
+.navegacion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-inline-start: var(--space-16);
+}
+
+.pestana {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--control-height);
+  padding-inline: var(--space-14);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.pestana:hover {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+.pestana:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.pestana[aria-current='page'] {
+  background: var(--color-selected);
+  color: var(--color-text);
+}

@@ -11,6 +11,8 @@ export interface EncabezadoPlataformaProps {
   controlTema: ReactNode;
   /** El cierre de sesión está en curso. */
   cerrando?: boolean;
+  /** Pestañas de las secciones (contenedor); junto a la marca. */
+  navegacion?: ReactNode;
   onCerrarSesion(): void;
 }
 
@@ -22,12 +24,14 @@ export function EncabezadoPlataforma({
   correo,
   controlTema,
   cerrando = false,
+  navegacion,
   onCerrarSesion,
 }: EncabezadoPlataformaProps) {
   return (
     <header className={estilos.encabezado}>
       <div className={estilos.marca}>
         <MarcaPlataforma />
+        {navegacion}
       </div>
       <div className={estilos.tema}>{controlTema}</div>
       <span className={estilos.correo}>{correo}</span>

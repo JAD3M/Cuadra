@@ -3,6 +3,17 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 17 nov 2026
+
+- **Historia 9.2 (el dueño ve la tasa por banco y empresa, y las fracciones de PPD) terminada.** Función
+  `desacuerdo_por_empresa_y_banco()` y `GET /plataforma/desacuerdo`: la tasa de desacuerdo por empresa y banco,
+  calculada por consulta con la definición de la 6.2 y devolviendo solo conteos (el dueño ve el nombre de la empresa,
+  nunca filas de dominio). Una prueba compara la suma por empresa con la tasa de la 6.2. La cabecera del dueño ahora
+  tiene pestañas y la pantalla «Medición» muestra el desacuerdo y los casos difíciles, cada porcentaje con su conteo.
+  Los mockups 20 y 21 se acordaron antes del código. Decisión: la lectura agregada entre empresas extiende AD-5, que
+  solo cubría acciones que escriben; el spine no se enmendó. La prueba de `down()` con datos se ajustó porque asumía
+  que la 6.3 era la última migración, y la prueba de rutas, por la ruta nueva.
+
 ### 12 nov 2026
 
 - **Historia 9.1 (ver la tasa de desacuerdo de mi empresa) terminada.** `GET /medicion/desacuerdo` y el permiso
