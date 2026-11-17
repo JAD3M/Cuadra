@@ -5,6 +5,12 @@
 
 ### 17 nov 2026
 
+- **9.2 integrada (PR #147, #148) y arreglo del build de la imagen (PR #149).** Al integrar, el check
+  `imagen-y-respaldo` falló en los dos PR: `src/testing/recorrido-de-pruebas.ts` importa `scripts/`, que el Dockerfile
+  no copia, y `npm run build` daba TS2307. No era de la 9.2: el workflow de producción solo corre si cambia algo
+  desplegable (migraciones, Dockerfile…), así que el fallo estaba latente en `master`. `tsconfig.build.json` ahora
+  excluye `src/testing` y `src/cargas/testing`. Lección: el `tsc` local no lo detecta porque `scripts/` existe; se
+  reproduce copiando solo `src` y los tsconfig a un directorio limpio.
 - **Historia 9.2 (el dueño ve la tasa por banco y empresa, y las fracciones de PPD) terminada.** Función
   `desacuerdo_por_empresa_y_banco()` y `GET /plataforma/desacuerdo`: la tasa de desacuerdo por empresa y banco,
   calculada por consulta con la definición de la 6.2 y devolviendo solo conteos (el dueño ve el nombre de la empresa,
