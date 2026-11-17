@@ -12,6 +12,7 @@ import { Company } from '../companies/company.entity';
 import { Decision } from '../conciliacion/decision.entity';
 import { DecisionComentario } from '../conciliacion/decision-comentario.entity';
 import { EvidenciaSombra } from '../sombra/evidencia-sombra.entity';
+import { MuestraVerificacion } from '../sombra/muestra-verificacion.entity';
 import { DecisionLinea } from '../conciliacion/decision-linea.entity';
 import { Movimiento } from '../bancos/movimiento.entity';
 import { MovimientoPendiente } from '../bancos/movimiento-pendiente.entity';
@@ -35,6 +36,7 @@ export const ENTIDADES = [
   DecisionLinea,
   DecisionComentario,
   EvidenciaSombra,
+  MuestraVerificacion,
   Bitacora,
   SugerenciaIa,
   Sesion,

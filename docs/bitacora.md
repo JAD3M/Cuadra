@@ -5,6 +5,12 @@
 
 ### 17 nov 2026
 
+- **Historia 9.3 (generar la muestra de verificación del mes) terminada.** Tabla `muestras_verificacion` de solo agregar
+  y `MuestrasService.generar`: sortea el 5 % (mínimo 20) de las confirmaciones en lote de la regla 1 del mes bajo el
+  candado de empresa, lo guarda y no lo repite; sin casos no crea nada. Cola `muestras` con `jobId` por empresa y mes.
+  Decisión con el usuario: sin `UPDATE`; la 9.4 agrega cada marca como fila nueva. Queda sin resolver quién dispara
+  la generación cada mes (no hay cron ni cierre de mes). Dos specs viejas se ajustaron por la tabla nueva (el
+  `TRUNCATE` de tolerancia y la lista de migraciones posteriores del retiro de conciliaciones).
 - **9.2 integrada (PR #147, #148) y arreglo del build de la imagen (PR #149).** Al integrar, el check
   `imagen-y-respaldo` falló en los dos PR: `src/testing/recorrido-de-pruebas.ts` importa `scripts/`, que el Dockerfile
   no copia, y `npm run build` daba TS2307. No era de la 9.2: el workflow de producción solo corre si cambia algo
