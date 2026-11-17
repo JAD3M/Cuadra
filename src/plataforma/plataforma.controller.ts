@@ -27,11 +27,13 @@ import type { UsuarioAutenticado } from '../auth/tipos';
 import { Scope, UsuarioActual } from '../common/decorators/decoradores';
 import { Limite } from '../limite/limite.decorator';
 import { BancosVistaPrevia } from './bancos-vista-previa.service';
+import { DesacuerdoPlataforma } from './desacuerdo-plataforma.service';
 import { FraccionesPlataforma } from './fracciones-plataforma.service';
 import {
   BancoPlataformaDto,
   CambiarSeparacionDto,
   CrearEmpresaDto,
+  DesacuerdoEmpresaBancoDto,
   EmpresaPlataformaDto,
   FraccionesEmpresaDto,
   InvitacionEnviadaDto,
@@ -50,6 +52,7 @@ export class PlataformaController {
     private readonly invitaciones: InvitacionesPlataforma,
     private readonly bancos: BancosVistaPrevia,
     private readonly fracciones: FraccionesPlataforma,
+    private readonly desacuerdo: DesacuerdoPlataforma,
   ) {}
 
   /**
@@ -188,6 +191,22 @@ export class PlataformaController {
   })
   listarFracciones(): Promise<FraccionesEmpresaDto[]> {
     return this.fracciones.listar();
+  }
+
+  @Get('desacuerdo')
+  @ApiCookieAuth()
+  @ApiOperation({
+    summary: 'Tasa de desacuerdo por empresa y por banco',
+    description:
+      'Solo lectura (9.2, FR-37). Por empresa y banco: propuestas de la regla 1 evaluadas, tratadas, desacuerdos y la tasa, con la definición de la historia 6.2. Solo conteos: ningún id de decisión, monto ni RFC. Se calcula por consulta cada vez; no se guarda nada. Una empresa sin propuestas no aparece.',
+  })
+  @ApiOkResponse({ type: [DesacuerdoEmpresaBancoDto] })
+  @ApiUnauthorizedResponse({ description: 'Sin sesión o venció.' })
+  @ApiForbiddenResponse({
+    description: 'La sesión no es de plataforma. Queda en la bitácora.',
+  })
+  listarDesacuerdo(): Promise<DesacuerdoEmpresaBancoDto[]> {
+    return this.desacuerdo.listar();
   }
 
   @Post('bancos/:banco/levantar-vista-previa')

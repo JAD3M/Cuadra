@@ -146,6 +146,40 @@ export class ConteoMovimientosDto {
   comisiones!: number;
 }
 
+export class DesacuerdoEmpresaBancoDto {
+  @ApiProperty() companyId!: string;
+  @ApiProperty() razonSocial!: string;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: 'bbva',
+    description:
+      'Banco del movimiento propuesto; null si la evidencia no lo trae.',
+  })
+  banco!: string | null;
+
+  @ApiProperty({ description: 'Propuestas de la regla 1 evaluadas.' })
+  propuestas!: number;
+
+  @ApiProperty({
+    description: 'Las que la persona ya trató (la muestra de la tasa).',
+  })
+  tratadas!: number;
+
+  @ApiProperty({ description: 'Las tratadas en desacuerdo con Cuadra.' })
+  desacuerdos!: number;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: '0.0500',
+    description:
+      'Desacuerdos entre tratadas, con cuatro decimales; null si no hay tratadas (no un cero).',
+  })
+  tasa!: string | null;
+}
+
 export class FraccionesEmpresaDto {
   @ApiProperty() companyId!: string;
   @ApiProperty() razonSocial!: string;
