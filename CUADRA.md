@@ -1083,7 +1083,7 @@ no un archivo real que alguien meta también al generador.
 - Pendiente: la 9.2 (el dueño ve la tasa por banco y empresa, y las fracciones de PPD).
 
 **El dueño ve la tasa por banco y empresa, y las fracciones de PPD (v2, historia 9.2), terminada el 17 nov 2026
-(pendiente de integrar a `master`).**
+(integrada a `master`, PR #147 y #148).**
 - Backend: la función SQL `desacuerdo_por_empresa_y_banco()` (migración `1790722000000`, `SECURITY DEFINER`, mismo
   patrón que `fracciones_por_empresa()`) cruza empresas y devuelve **solo conteos** por empresa y banco: propuestas,
   tratadas y desacuerdos; nunca ids de decisión, montos ni RFC. `GET /plataforma/desacuerdo` (sesión `plataforma`; una
