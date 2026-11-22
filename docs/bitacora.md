@@ -3,6 +3,15 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 22 nov 2026
+
+- **9.3 integrada (PR #151) y disparo mensual de la muestra.** Con #151 en `master` (checks en verde, incluido
+  `imagen-y-respaldo`), se resolvió el pendiente de quién genera la muestra cada mes: un programador repetible de
+  BullMQ (`0 5 1 * *`, UTC) que el día 1 encola, para el mes anterior, a cada empresa activa. Reutiliza
+  `ColaMuestras.encolar`, que ya era idempotente. Una prueba inestable salió en el camino: dos pruebas usaban el mismo
+  `jobId` (empresa y mes) y el worker en línea aún procesaba el primero, así que BullMQ ignoraba el segundo `add`;
+  se separó el mes y se pausó la cola en esa prueba.
+
 ### 17 nov 2026
 
 - **Historia 9.3 (generar la muestra de verificación del mes) terminada.** Tabla `muestras_verificacion` de solo agregar

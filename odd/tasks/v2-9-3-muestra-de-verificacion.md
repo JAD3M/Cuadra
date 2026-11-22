@@ -16,16 +16,18 @@ Rama: `feat/v2-9-3-muestra-de-verificacion`. Entrega: un PR (backend; sin pantal
 - A4: el 5% se redondea hacia arriba; el tamaño es `min(N, max(20, ceil(0.05 * N)))`.
 - A5: el sorteo es `ORDER BY random()` dentro de una sola sentencia con el candado de empresa tomado; la garantía de «no se re-sortea» es que la muestra se guarda y una segunda corrida devuelve las filas existentes, con un índice único `(company_id, mes, decision_id)` como red. La 9.4 lo ajustará a parcial cuando agregue las filas de marca.
 - A6: «registra que no había con qué» = un `Logger.log` del servicio y el resultado `sin_casos`; no hay tabla de corridas ni acción de bitácora nueva.
-- A7: el disparo mensual (cron o cierre de mes) no existe en el repo: la 9.3 entrega el trabajo (cola, procesador, `encolar(empresa, mes)`), no su programación. Queda pendiente decidir quién lo dispara cada mes.
+- A7: el disparo mensual (cron o cierre de mes) no existe en el repo: la 9.3 entrega el trabajo (cola, procesador, `encolar(empresa, mes)`), no su programación. RESUELTO el 2026-11-22 (L4): programador repetible de BullMQ.
 - A8: el número KAN de la 9.3 no se pudo verificar (sin acceso a Jira desde la sesión).
 
 ## Tasks
 - [x] T1 (S2,S5; inline): migración `muestras_verificacion` (company_id, RLS FORCE, política, GRANT SELECT/INSERT) y entidad.
 - [x] T2 (S1,S2,S3,S4; inline): servicio de generación (candado de empresa, sorteo, idempotencia, sin casos) con pruebas de integración.
 - [x] T3 (S4; inline): cola `muestras`, procesador con `jobId` por empresa y mes, registro en `SombraModule`.
-- [x] T4: notas de cierre (`CUADRA.md`, `docs/bitacora.md`) y PR.
+- [x] T4: notas de cierre (`CUADRA.md`, `docs/bitacora.md`) y PR (#151, integrado).
+- [x] T5 (A7; inline): `ProgramadorMuestras` (programador repetible `0 5 1 * *` UTC, encola a las empresas activas para el mes anterior) y despacho por nombre en `ProcesadorMuestras`.
 
 ## Log
 - L1 (2026-11-17): «sí, intégralo y sigue con la historia que sigue» (siguiente historia según la lista: 9.3).
 - L2 (2026-11-17): el usuario eligió: «con tu recomendación, solo agregar» (A1).
 - L3 (2026-11-17): T1-T3 inline (una sola unidad, sin razón de escritor). RED: el spec no cargaba (`muestras.service` inexistente); GREEN: 11 de 11 en `muestra-verificacion.integracion.spec.ts` (incluye la cola real y dos corridas a la vez). Suite completa: 122 archivos; fallaron 2 specs viejas por la tabla nueva (`TRUNCATE` de `tolerancia.integracion.spec.ts` y la lista de migraciones posteriores de `retiro-conciliaciones.migracion.spec.ts`), ya corregidas y en verde; `down-con-datos.migracion.spec.ts` se actualizó con un `undo` más. `eslint` y `prettier` limpios; el build con solo `src` copiado a un directorio limpio compila. Risk: item 1 (migración y tabla nueva de solo agregar; sin datos existentes que cambiar, el `down` solo borra la tabla nueva) y item 2 (RLS/GRANTs de tabla de dominio nueva).
+- L4 (2026-11-22): «sigamos tu recomendacion de un job repetible de BullMQ que encole a todas las empresas el dia 1 para el mes anterior». T5 inline. RED: el spec no cargaba (`programador-muestras` inexistente); GREEN: 7 pruebas nuevas. Suite completa: 123 archivos, 2215 pruebas en verde. Una prueba salió inestable (1 de 3 corridas): mismo `jobId` que la prueba anterior mientras el worker en línea aún lo procesaba; se corrigió con mes propio y cola en pausa, 12 corridas seguidas sin fallos. `eslint`, `prettier` y `tsc` limpios. Risk: none (agrega un provider que solo se registra donde se consumen las colas; `ProcesadorMuestras` conserva su camino para los trabajos por empresa).
