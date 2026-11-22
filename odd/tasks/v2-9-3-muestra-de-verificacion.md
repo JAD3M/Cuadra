@@ -17,7 +17,7 @@ Rama: `feat/v2-9-3-muestra-de-verificacion`. Entrega: un PR (backend; sin pantal
 - A5: el sorteo es `ORDER BY random()` dentro de una sola sentencia con el candado de empresa tomado; la garantía de «no se re-sortea» es que la muestra se guarda y una segunda corrida devuelve las filas existentes, con un índice único `(company_id, mes, decision_id)` como red. La 9.4 lo ajustará a parcial cuando agregue las filas de marca.
 - A6: «registra que no había con qué» = un `Logger.log` del servicio y el resultado `sin_casos`; no hay tabla de corridas ni acción de bitácora nueva.
 - A7: el disparo mensual (cron o cierre de mes) no existe en el repo: la 9.3 entrega el trabajo (cola, procesador, `encolar(empresa, mes)`), no su programación. RESUELTO el 2026-11-22 (L4): programador repetible de BullMQ.
-- A8: el número KAN de la 9.3 no se pudo verificar (sin acceso a Jira desde la sesión).
+- A8: el número KAN de la 9.3 es KAN-168 (verificado el 2026-11-22 y pasado a Finalizado).
 
 ## Tasks
 - [x] T1 (S2,S5; inline): migración `muestras_verificacion` (company_id, RLS FORCE, política, GRANT SELECT/INSERT) y entidad.

@@ -1104,8 +1104,8 @@ no un archivo real que alguien meta también al generador.
 - Pendiente: el número de la historia en Jira (KAN) no se pudo verificar desde la sesión; hay que pasarla a
   Finalizado al integrar.
 
-**Generar la muestra de verificación del mes (v2, historia 9.3), terminada el 17 nov 2026 (integrada, PR #151; disparo
-mensual el 22 nov 2026).**
+**Generar la muestra de verificación del mes (v2, historia 9.3), terminada el 17 nov 2026 (integrada: PR #151 y #152, este
+último el 22 nov 2026).**
 - Tabla `muestras_verificacion` (migración `1790723000000`, clase 1, solo agregar: `cuadra_app` solo hace `SELECT` e
   `INSERT`; `company_id`, RLS con FORCE, política y GRANTs en la misma migración): `company_id`, `mes` (primer día,
   UTC) y `decision_id`. Índice único `(company_id, mes, decision_id)`.
@@ -1124,7 +1124,7 @@ mensual el 22 nov 2026).**
   por su nombre (`programar-muestras`) y encola, para el mes anterior, a cada empresa con `activa = true`. Un fallo
   con una empresa no frena a las demás y hace fallar el trabajo al final. Cada encolado ya era idempotente por
   empresa y mes. Se registra solo en el proceso que consume las colas (el worker en producción).
-- Pendiente: el número de la historia en Jira (KAN) no se pudo verificar desde la sesión.
+- Jira: KAN-168, Finalizado al integrar (PR #151 y #152).
 
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
