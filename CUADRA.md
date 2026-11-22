@@ -1104,6 +1104,25 @@ no un archivo real que alguien meta también al generador.
 - Pendiente: el número de la historia en Jira (KAN) no se pudo verificar desde la sesión; hay que pasarla a
   Finalizado al integrar.
 
+**Generar la muestra de verificación del mes (v2, historia 9.3), terminada el 17 nov 2026 (pendiente de integrar a
+`master`).**
+- Tabla `muestras_verificacion` (migración `1790723000000`, clase 1, solo agregar: `cuadra_app` solo hace `SELECT` e
+  `INSERT`; `company_id`, RLS con FORCE, política y GRANTs en la misma migración): `company_id`, `mes` (primer día,
+  UTC) y `decision_id`. Índice único `(company_id, mes, decision_id)`.
+- `MuestrasService.generar(empresa, 'AAAA-MM')`, bajo el candado de empresa (AD-19): elige al azar el 5 % (hacia
+  arriba, mínimo 20, o todas si hay menos) de las decisiones `confirmada`, de la regla 1 (`referencia_monto_exacto`),
+  con `lote_id` y `confirmada_at` dentro del mes. Una reabierta ya no cuenta. La muestra se guarda y no se
+  re-sortea: otra corrida del mismo mes devuelve las mismas filas (`existente`) aunque lleguen más confirmaciones.
+  Sin confirmaciones en lote no crea nada y lo registra (`sin_casos`, `Logger`).
+- Trabajo en segundo plano: cola `muestras` (`ColaMuestras.encolar(empresa, mes)`, `jobId` por empresa y mes) y
+  `ProcesadorMuestras`, ambos en `SombraModule`.
+- Decisión (acordada con el usuario): la tabla es de solo agregar. La 9.4 agregará cada marca (verificador, resultado,
+  fecha) como fila nueva en la misma tabla, sin `UPDATE`; el estado de un caso es su última marca. La 9.4 tendrá que
+  ajustar el índice único a parcial.
+- Pendiente: **nadie dispara la generación cada mes**: no existe cron ni cierre de mes en el repo. Hay que decidir
+  quién llama a `ColaMuestras.encolar` (programador de BullMQ o el cierre de mes) antes de la 9.4. El número de la
+  historia en Jira (KAN) no se pudo verificar desde la sesión.
+
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
 **Pendiente (3.2): validar el lector de BBVA con un estado de cuenta real.**
