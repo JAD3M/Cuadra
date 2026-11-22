@@ -1104,8 +1104,8 @@ no un archivo real que alguien meta también al generador.
 - Pendiente: el número de la historia en Jira (KAN) no se pudo verificar desde la sesión; hay que pasarla a
   Finalizado al integrar.
 
-**Generar la muestra de verificación del mes (v2, historia 9.3), terminada el 17 nov 2026 (pendiente de integrar a
-`master`).**
+**Generar la muestra de verificación del mes (v2, historia 9.3), terminada el 17 nov 2026 (integrada, PR #151; disparo
+mensual el 22 nov 2026).**
 - Tabla `muestras_verificacion` (migración `1790723000000`, clase 1, solo agregar: `cuadra_app` solo hace `SELECT` e
   `INSERT`; `company_id`, RLS con FORCE, política y GRANTs en la misma migración): `company_id`, `mes` (primer día,
   UTC) y `decision_id`. Índice único `(company_id, mes, decision_id)`.
@@ -1119,9 +1119,12 @@ no un archivo real que alguien meta también al generador.
 - Decisión (acordada con el usuario): la tabla es de solo agregar. La 9.4 agregará cada marca (verificador, resultado,
   fecha) como fila nueva en la misma tabla, sin `UPDATE`; el estado de un caso es su última marca. La 9.4 tendrá que
   ajustar el índice único a parcial.
-- Pendiente: **nadie dispara la generación cada mes**: no existe cron ni cierre de mes en el repo. Hay que decidir
-  quién llama a `ColaMuestras.encolar` (programador de BullMQ o el cierre de mes) antes de la 9.4. El número de la
-  historia en Jira (KAN) no se pudo verificar desde la sesión.
+- Disparo mensual (22 nov 2026): `ProgramadorMuestras` registra un programador repetible de BullMQ en la cola
+  `muestras` (`upsertJobScheduler`, `0 5 1 * *`, UTC: día 1, 05:00). Al correr, `ProcesadorMuestras` lo reconoce
+  por su nombre (`programar-muestras`) y encola, para el mes anterior, a cada empresa con `activa = true`. Un fallo
+  con una empresa no frena a las demás y hace fallar el trabajo al final. Cada encolado ya era idempotente por
+  empresa y mes. Se registra solo en el proceso que consume las colas (el worker en producción).
+- Pendiente: el número de la historia en Jira (KAN) no se pudo verificar desde la sesión.
 
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 
