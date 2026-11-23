@@ -823,6 +823,22 @@ describe('detalleEvento: acciones de administración (historia 2.7)', () => {
     });
   });
 
+  describe('verificar_muestra', () => {
+    it('muestra el mes y la marca', () => {
+      expect(
+        admin('verificar_muestra', { mes: '2026-09', resultado: 'conforme' }),
+      ).toBe('muestra de 2026-09 · conforme');
+      expect(admin('verificar_muestra', { resultado: 'desacuerdo' })).toBe(
+        'muestra · en desacuerdo',
+      );
+    });
+    it('mal formado da «—»', () => {
+      expect(admin('verificar_muestra', { resultado: 'quizas' })).toBe('—');
+      expect(admin('verificar_muestra', {})).toBe('—');
+      expect(admin('verificar_muestra', 'basura')).toBe('—');
+    });
+  });
+
   it('un rol desconocido se muestra tal cual vino, sin inventar etiqueta', () => {
     expect(admin('quitar_rol', { email: EMAIL, roles: ['contable'] })).toBe(
       `${EMAIL} · roles quitados: contable`,

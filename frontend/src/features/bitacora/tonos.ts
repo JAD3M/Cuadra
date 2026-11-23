@@ -28,4 +28,5 @@ export const TONOS_ACCION: Readonly<Record<AccionBitacora, TonoAccion>> = {
   deshacer_descarte: 'neutral',
   reabrir: 'neutral',
   comentar: 'neutral',
+  verificar_muestra: 'neutral',
 };

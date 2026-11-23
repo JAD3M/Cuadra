@@ -53,7 +53,7 @@ export class MuestrasService {
 
         const guardadas = await manager.query<{ decision_id: string }[]>(
           `SELECT decision_id FROM muestras_verificacion
-            WHERE company_id = $1 AND mes = $2::date
+            WHERE company_id = $1 AND mes = $2::date AND resultado IS NULL
             ORDER BY decision_id`,
           [companyId, primerDia],
         );
