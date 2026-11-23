@@ -3,9 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { ELEMENTOS_NAV, elementoActivo, elementosVisibles } from './navegacion';
 
 describe('configuración de navegación', () => {
-  it('define los seis elementos en orden', () => {
+  it('define los siete elementos en orden', () => {
     expect(ELEMENTOS_NAV.map((e) => e.etiqueta)).toEqual([
       'Bandeja',
+      'Muestra',
       'Cargas',
       'Bitácora',
       'Tolerancia',
@@ -18,6 +19,7 @@ describe('configuración de navegación', () => {
     ['/bandeja', 'Bandeja'],
     ['/casos/abc', 'Bandeja'],
     ['/casos', 'Bandeja'],
+    ['/muestra', 'Muestra'],
     ['/cargas', 'Cargas'],
     ['/bitacora', 'Bitácora'],
     ['/tolerancia', 'Tolerancia'],
@@ -37,12 +39,26 @@ describe('configuración de navegación', () => {
   it('cada elemento declara el permiso de sección que lo muestra', () => {
     expect(ELEMENTOS_NAV.map((e) => [e.clave, e.permiso])).toEqual([
       ['bandeja', 'bandeja.ver'],
+      ['muestra', 'muestra.ver'],
       ['cargas', 'cargas.ver'],
       ['bitacora', 'bitacora.ver'],
       ['tolerancia', 'tolerancia.ver'],
       ['medicion', 'medicion.ver'],
       ['usuarios', 'usuarios.ver'],
     ]);
+  });
+
+  it('«Muestra» solo la ve quien tiene muestra.ver, justo después de Bandeja', () => {
+    expect(
+      elementosVisibles(['bandeja.ver', 'muestra.ver', 'bitacora.ver']).map(
+        (e) => e.etiqueta,
+      ),
+    ).toEqual(['Bandeja', 'Muestra', 'Bitácora']);
+    expect(
+      elementosVisibles(['bandeja.ver', 'muestra.verificar']).map(
+        (e) => e.etiqueta,
+      ),
+    ).toEqual(['Bandeja']);
   });
 
   it.each([

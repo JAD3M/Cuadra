@@ -44,6 +44,12 @@ import {
   TITULO_PAGINA as TITULO_MEDICION,
 } from '@/features/medicion/textos';
 import { MedicionPage } from '@/features/medicion/MedicionPage';
+import {
+  subtituloPagina as subtituloMuestra,
+  TITULO_DOCUMENTO as TITULO_DOCUMENTO_MUESTRA,
+  TITULO_PAGINA as TITULO_MUESTRA,
+} from '@/features/muestra/textos';
+import { MuestraPage } from '@/features/muestra/MuestraPage';
 import { TolerPage } from '@/features/tolerancia/TolerPage';
 import {
   SUBTITULO_PAGINA as SUBTITULO_USUARIOS,
@@ -147,6 +153,15 @@ export const rutas: RouteObject[] = [
                 path: '/casos/:movimientoId',
                 element: <CasoPage />,
                 handle: titulo('Detalle del caso'),
+              },
+              {
+                path: '/muestra',
+                element: <MuestraPage />,
+                handle: {
+                  titulo: TITULO_MUESTRA,
+                  subtituloConEmpresa: subtituloMuestra,
+                  tituloDocumento: TITULO_DOCUMENTO_MUESTRA,
+                } satisfies ManejadorRuta,
               },
               {
                 path: '/cargas',

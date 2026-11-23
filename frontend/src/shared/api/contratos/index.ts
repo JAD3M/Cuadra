@@ -6,6 +6,7 @@ export * from './caso';
 export * from './lote';
 export * from './cargas';
 export * from './medicion';
+export * from './muestra';
 export * from './tolerancia';
 export * from './bitacora';
 export * from './invitaciones';

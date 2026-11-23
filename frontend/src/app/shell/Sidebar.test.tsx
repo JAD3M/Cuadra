@@ -66,6 +66,28 @@ describe('Sidebar', () => {
     ]);
   });
 
+  it('con muestra.ver agrega «Muestra» entre Bandeja y Cargas y la marca actual en /muestra', () => {
+    dibujar('/muestra', { capacidades: [...TODAS, 'muestra.ver'] });
+    const nav = screen.getByRole('navigation', {
+      name: 'Navegación principal',
+    });
+    const enlaces = within(nav).getAllByRole('link');
+    expect(enlaces.map((e) => e.getAttribute('href'))).toEqual([
+      '/bandeja',
+      '/muestra',
+      '/cargas',
+      '/bitacora',
+      '/tolerancia',
+    ]);
+    expect(screen.getByRole('link', { name: 'Muestra' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    expect(screen.getByRole('link', { name: 'Bandeja' })).not.toHaveAttribute(
+      'aria-current',
+    );
+  });
+
   it('marca como actual solo el enlace de la ruta', () => {
     dibujar('/cargas');
     const actuales = screen

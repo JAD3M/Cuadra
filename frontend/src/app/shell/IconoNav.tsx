@@ -3,6 +3,7 @@ import type { IconoNav as Icono } from './navegacion';
 /** Trazos de las maquetas (viewBox 24). */
 const TRAZOS: Record<Icono, string[]> = {
   bandeja: ['M3 13h5l2 3h4l2-3h5', 'M5 5h14l2 8v6H3v-6z'],
+  muestra: ['M9 11l2 2 4-4', 'M8 17h8'],
   cargas: ['M12 16V4', 'M7 9l5-5 5 5', 'M4 20h16'],
   bitacora: ['M6 3h10l4 4v14H6z', 'M10 12h6M10 16h6'],
   tolerancia: ['M12 2v3M12 19v3M2 12h3M19 12h3'],
@@ -27,6 +28,9 @@ export function IconoNav({ icono }: { icono: Icono }) {
       focusable="false"
     >
       {icono === 'tolerancia' && <circle cx="12" cy="12" r="3" />}
+      {icono === 'muestra' && (
+        <rect x="4" y="3" width="16" height="18" rx="2" />
+      )}
       {icono === 'usuarios' && <circle cx="9" cy="8" r="3.5" />}
       {TRAZOS[icono].map((d) => (
         <path key={d} d={d} />

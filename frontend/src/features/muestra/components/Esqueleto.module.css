@@ -1,0 +1,44 @@
+/* Carga de Muestra.dc.html. Solo tokens de rol. */
+.esqueleto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-14);
+}
+
+.bloque {
+  border-radius: var(--radius-sm);
+  background: var(--color-border-subtle);
+}
+
+.avance {
+  inline-size: 100%;
+  block-size: 96px;
+}
+
+.dos {
+  display: grid;
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+  gap: var(--space-20);
+}
+
+.columna {
+  block-size: 520px;
+}
+
+.oculto {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .dos {
+    grid-template-columns: 1fr;
+  }
+}

@@ -249,6 +249,7 @@ describe('guardas en el árbol de rutas', () => {
     expect(protegida?.children?.[0]?.children?.map((n) => n.path)).toEqual([
       '/bandeja',
       '/casos/:movimientoId',
+      '/muestra',
       '/cargas',
       '/cargas/:cargaId/vista-previa',
       '/tolerancia',

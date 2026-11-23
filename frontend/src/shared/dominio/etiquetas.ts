@@ -1,4 +1,5 @@
 import { type EstadoBandeja } from './bandeja';
+import { REGLA_REFERENCIA_MONTO_EXACTO } from './reglas';
 import {
   type AccionBitacora,
   type EstadoCarga,
@@ -168,4 +169,18 @@ export const ETIQUETAS_TIPO_CARGA: Record<TipoCarga, string> = {
  */
 export function ordenarRoles(roles: readonly Rol[]): Rol[] {
   return [...roles].sort((a, b) => ROLES.indexOf(a) - ROLES.indexOf(b));
+}
+
+/**
+ * Rótulo de las reglas del motor que el frontend conoce (mockup
+ * `Muestra.dc.html`). Un código sin rótulo se muestra tal cual: la pantalla no
+ * inventa nombres de reglas.
+ */
+const ETIQUETAS_REGLA: Record<string, string> = {
+  [REGLA_REFERENCIA_MONTO_EXACTO]: 'Regla 1 · referencia y monto',
+};
+
+export function etiquetaRegla(regla: string | null): string | null {
+  if (regla === null) return null;
+  return ETIQUETAS_REGLA[regla] ?? regla;
 }
