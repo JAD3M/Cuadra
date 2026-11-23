@@ -15,11 +15,21 @@ import type { Rol } from '../common/entities/tipos';
 import type {
   CasoMuestraDto,
   CfdiMuestraDto,
+  MarcaDeCasoDto,
   MarcaGuardadaDto,
   MarcaMuestra,
   MuestraDto,
   ResultadoMuestra,
 } from './dto/muestra.dto';
+
+/** Las marcas del mes de la empresa, la más reciente primero (el estado es la última). */
+const MARCAS = `
+  SELECT x.decision_id AS "decisionId", x.resultado, x.created_at AS cuando,
+         u.nombre AS quien
+    FROM muestras_verificacion x
+    JOIN users u ON u.id = x.verificador_id
+   WHERE x.company_id = $1 AND x.mes = $2::date AND x.resultado IS NOT NULL
+   ORDER BY x.created_at DESC, x.id DESC`;
 
 const MES = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -28,6 +38,7 @@ interface FilaCaso {
   movimientoId: string;
   estado: string;
   regla: string | null;
+  motivo: string | null;
   confirmadaPorId: string | null;
   confirmadaPor: string | null;
   confirmadaAt: Date | null;
@@ -38,19 +49,27 @@ interface FilaCaso {
   moneda: string;
   banco: string | null;
   cfdis: CfdiMuestraDto[] | null;
-  marca: ResultadoMuestra | null;
-  marcadaPor: string | null;
-  marcadaAt: Date | null;
+}
+
+interface FilaMarca {
+  decisionId: string;
+  resultado: ResultadoMuestra;
+  cuando: Date;
+  quien: string;
+}
+
+interface Elegibles {
+  ids: ReadonlySet<string>;
+  hayRevisor: boolean;
 }
 
 const CASOS = `
-  SELECT d.id AS "decisionId", d.movimiento_id AS "movimientoId", d.estado, d.regla,
+  SELECT d.id AS "decisionId", d.movimiento_id AS "movimientoId", d.estado, d.regla, d.motivo,
          d.confirmada_por_id AS "confirmadaPorId", uc.nombre AS "confirmadaPor",
          d.confirmada_at AS "confirmadaAt",
          to_char(m.fecha, 'YYYY-MM-DD') AS fecha, m.descripcion, m.referencia,
          m.monto::text AS monto, m.moneda, m.banco,
-         lc.cfdis,
-         ult.resultado AS marca, uv.nombre AS "marcadaPor", ult.created_at AS "marcadaAt"
+         lc.cfdis
     FROM muestras_verificacion s
     JOIN decisiones d ON d.id = s.decision_id AND d.company_id = $1
     JOIN movimientos m ON m.id = d.movimiento_id AND m.company_id = $1
@@ -65,15 +84,6 @@ const CASOS = `
         JOIN cfdi f ON f.company_id = $1 AND f.id = l.cfdi_id
        WHERE l.company_id = $1 AND l.decision_id = d.id
     ) lc ON true
-    LEFT JOIN LATERAL (
-      SELECT x.resultado, x.verificador_id, x.created_at
-        FROM muestras_verificacion x
-       WHERE x.company_id = $1 AND x.decision_id = s.decision_id
-         AND x.mes = s.mes AND x.resultado IS NOT NULL
-       ORDER BY x.created_at DESC, x.id DESC
-       LIMIT 1
-    ) ult ON true
-    LEFT JOIN users uv ON uv.id = ult.verificador_id
    WHERE s.company_id = $1 AND s.mes = $2::date AND s.resultado IS NULL
    ORDER BY m.fecha, d.id`;
 
@@ -111,11 +121,20 @@ export class VerificacionMuestraService {
       )
     ).map((f) => f.mes);
     const mes = mesPedido ?? meses[0] ?? null;
+    const elegibles = await this.elegibles(manager, companyId);
     if (mes === null) {
       return {
         mes,
         meses,
-        avance: { total: 0, conformes: 0, desacuerdos: 0, pendientes: 0 },
+        avance: {
+          total: 0,
+          conformes: 0,
+          desacuerdos: 0,
+          pendientes: 0,
+          reabiertas: 0,
+        },
+        sinRevisor: !elegibles.hayRevisor,
+        puedeVerificar: elegibles.ids.has(userId),
         casos: [],
       };
     }
@@ -124,8 +143,27 @@ export class VerificacionMuestraService {
       companyId,
       `${mes}-01`,
     ]);
-    const elegibles = await this.elegibles(manager, companyId);
-    const casos = filas.map((f) => aCaso(f, puedeMarcar(userId, elegibles, f)));
+    const marcasDelMes = await manager.query<FilaMarca[]>(MARCAS, [
+      companyId,
+      `${mes}-01`,
+    ]);
+    const marcasPorCaso = new Map<string, MarcaDeCasoDto[]>();
+    for (const m of marcasDelMes) {
+      const lista = marcasPorCaso.get(m.decisionId) ?? [];
+      lista.push({
+        quien: m.quien,
+        resultado: m.resultado,
+        cuando: new Date(m.cuando).toISOString(),
+      });
+      marcasPorCaso.set(m.decisionId, lista);
+    }
+    const casos = filas.map((f) =>
+      aCaso(
+        f,
+        marcasPorCaso.get(f.decisionId) ?? [],
+        puedeMarcar(userId, elegibles.ids, f),
+      ),
+    );
     return {
       mes,
       meses,
@@ -133,8 +171,13 @@ export class VerificacionMuestraService {
         total: casos.length,
         conformes: casos.filter((c) => c.marca === 'conforme').length,
         desacuerdos: casos.filter((c) => c.marca === 'desacuerdo').length,
-        pendientes: casos.filter((c) => c.marca === 'pendiente').length,
+        pendientes: casos.filter((c) => c.marca === 'pendiente' && !c.reabierta)
+          .length,
+        reabiertas: casos.filter((c) => c.marca === 'pendiente' && c.reabierta)
+          .length,
       },
+      sinRevisor: !elegibles.hayRevisor,
+      puedeVerificar: elegibles.ids.has(userId),
       casos,
     };
   }
@@ -168,7 +211,7 @@ export class VerificacionMuestraService {
     const caso = casos[0];
 
     // El 403 va antes del 409: quien no puede marcar no averigua el estado.
-    const elegibles = await this.elegibles(manager, companyId);
+    const elegibles = (await this.elegibles(manager, companyId)).ids;
     if (
       !puedeMarcar(quien.userId, elegibles, {
         confirmadaPorId: caso.confirmadaPorId,
@@ -248,7 +291,7 @@ export class VerificacionMuestraService {
   private async elegibles(
     manager: EntityManager,
     companyId: string,
-  ): Promise<ReadonlySet<string>> {
+  ): Promise<Elegibles> {
     const filas = await manager.query<{ userId: string; rol: Rol }[]>(
       `SELECT r.user_id AS "userId", r.rol
          FROM user_company_roles r
@@ -258,7 +301,10 @@ export class VerificacionMuestraService {
     );
     const revisores = filas.filter((f) => f.rol === 'revisor');
     const elegidos = revisores.length > 0 ? revisores : filas;
-    return new Set(elegidos.map((f) => f.userId));
+    return {
+      ids: new Set(elegidos.map((f) => f.userId)),
+      hayRevisor: revisores.length > 0,
+    };
   }
 
   private async rolesDe(
@@ -290,8 +336,13 @@ function puedeMarcar(
   return [...elegibles].some((id) => id !== userId) === false;
 }
 
-function aCaso(f: FilaCaso, puede: boolean): CasoMuestraDto {
-  const marca: MarcaMuestra = f.marca ?? 'pendiente';
+function aCaso(
+  f: FilaCaso,
+  marcas: MarcaDeCasoDto[],
+  puede: boolean,
+): CasoMuestraDto {
+  const ultima = marcas[0];
+  const marca: MarcaMuestra = ultima?.resultado ?? 'pendiente';
   return {
     decisionId: f.decisionId,
     movimientoId: f.movimientoId,
@@ -302,14 +353,16 @@ function aCaso(f: FilaCaso, puede: boolean): CasoMuestraDto {
     moneda: f.moneda,
     banco: f.banco,
     regla: f.regla,
+    motivo: f.motivo,
     cfdis: f.cfdis ?? [],
     confirmadaPor: f.confirmadaPor,
     confirmadaAt: f.confirmadaAt
       ? new Date(f.confirmadaAt).toISOString()
       : null,
     marca,
-    marcadaPor: f.marcadaPor,
-    marcadaAt: f.marcadaAt ? new Date(f.marcadaAt).toISOString() : null,
+    marcadaPor: ultima?.quien ?? null,
+    marcadaAt: ultima?.cuando ?? null,
+    marcas,
     reabierta: f.estado !== 'confirmada',
     puedeMarcar: puede,
   };

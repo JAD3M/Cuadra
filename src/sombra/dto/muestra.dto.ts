@@ -30,6 +30,12 @@ export class CfdiMuestraDto {
   @ApiProperty() moneda: string;
 }
 
+export class MarcaDeCasoDto {
+  @ApiProperty({ description: 'Nombre de quien marcó.' }) quien: string;
+  @ApiProperty({ enum: RESULTADOS_MUESTRA }) resultado: ResultadoMuestra;
+  @ApiProperty({ description: 'Fecha y hora (ISO 8601).' }) cuando: string;
+}
+
 export class CasoMuestraDto {
   @ApiProperty() decisionId: string;
   @ApiProperty({ description: 'Para enlazar al detalle del caso (5.7).' })
@@ -42,6 +48,13 @@ export class CasoMuestraDto {
   @ApiProperty() moneda: string;
   @ApiProperty({ nullable: true, type: String }) banco: string | null;
   @ApiProperty({ nullable: true, type: String }) regla: string | null;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description:
+      'Por qué el motor propuso esta conciliación, tal como se guardó.',
+  })
+  motivo: string | null;
   @ApiProperty({ type: [CfdiMuestraDto] }) cfdis: CfdiMuestraDto[];
   @ApiProperty({ nullable: true, type: String }) confirmadaPor: string | null;
   @ApiProperty({ nullable: true, type: String, description: 'ISO 8601.' })
@@ -51,6 +64,11 @@ export class CasoMuestraDto {
   @ApiProperty({ nullable: true, type: String }) marcadaPor: string | null;
   @ApiProperty({ nullable: true, type: String, description: 'ISO 8601.' })
   marcadaAt: string | null;
+  @ApiProperty({
+    type: [MarcaDeCasoDto],
+    description: 'Todas las marcas del caso, la más reciente primero.',
+  })
+  marcas: MarcaDeCasoDto[];
   @ApiProperty({
     description:
       'La decisión ya no está confirmada: se muestra, pero no se marca.',
@@ -67,7 +85,16 @@ export class AvanceMuestraDto {
   @ApiProperty() total: number;
   @ApiProperty() conformes: number;
   @ApiProperty() desacuerdos: number;
-  @ApiProperty() pendientes: number;
+  @ApiProperty({
+    description:
+      'Sin marca y todavía confirmados: los que faltan por verificar.',
+  })
+  pendientes: number;
+  @ApiProperty({
+    description:
+      'Reabiertos sin marca: ya no se verifican, no cuentan como pendientes.',
+  })
+  reabiertas: number;
 }
 
 export class MuestraDto {
@@ -83,6 +110,15 @@ export class MuestraDto {
   })
   meses: string[];
   @ApiProperty({ type: AvanceMuestraDto }) avance: AvanceMuestraDto;
+  @ApiProperty({
+    description:
+      'La empresa no tiene a nadie con el rol revisor: verifica el administrador.',
+  })
+  sinRevisor: boolean;
+  @ApiProperty({
+    description: 'Quien consulta es de las personas que pueden verificar.',
+  })
+  puedeVerificar: boolean;
   @ApiProperty({ type: [CasoMuestraDto] }) casos: CasoMuestraDto[];
 }
 

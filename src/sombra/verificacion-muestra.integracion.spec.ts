@@ -115,6 +115,7 @@ async function enLaMuestra(
     diferenciaMonto: '0.0000',
     confirmadaPorId: entorno.persona(opciones.confirma ?? LUIS),
     confirmadaAt: new Date('2026-09-15T12:00:00Z'),
+    motivo: 'Motivo de la propuesta',
   });
   await ds.query(
     `UPDATE decisiones SET lote_id = gen_random_uuid() WHERE id = $1`,
@@ -215,7 +216,9 @@ describe('verificar la muestra (9.4)', () => {
       conformes: 0,
       desacuerdos: 0,
       pendientes: 1,
+      reabiertas: 0,
     });
+    expect(r.body).toMatchObject({ sinRevisor: false, puedeVerificar: true });
     expect(r.body.casos).toHaveLength(1);
     const c = r.body.casos[0];
     expect(c).toMatchObject({
@@ -225,6 +228,8 @@ describe('verificar la muestra (9.4)', () => {
       monto: '1160.0000',
       banco: 'bbva',
       marca: 'pendiente',
+      marcas: [],
+      motivo: 'Motivo de la propuesta',
       reabierta: false,
       puedeMarcar: true,
     });
@@ -326,7 +331,14 @@ describe('verificar la muestra (9.4)', () => {
       conformes: 1,
       desacuerdos: 0,
       pendientes: 0,
+      reabiertas: 0,
     });
+    expect(
+      lectura.casos[0].marcas.map(
+        (m: { resultado: string; quien: string }) => m.resultado,
+      ),
+    ).toEqual(['conforme', 'desacuerdo']);
+    expect(lectura.casos[0].marcas[0].quien).toBeTruthy();
   });
 
   it('en desacuerdo no reabre nada por sí solo (S5)', async () => {
@@ -375,6 +387,27 @@ describe('verificar la muestra (9.4)', () => {
       puedeMarcar: false,
     });
     await marcar(JORGE, caso.id).expect(409);
+    // Un caso reabierto sin marca no cuenta como pendiente: nadie podría resolverlo.
+    expect((await leer(JORGE)).body.avance).toEqual({
+      total: 1,
+      conformes: 0,
+      desacuerdos: 0,
+      pendientes: 0,
+      reabiertas: 1,
+    });
+  });
+
+  it('avisa si la empresa no tiene revisor y quién puede verificar', async () => {
+    await enLaMuestra();
+    expect((await leer(ANA)).body).toMatchObject({
+      sinRevisor: true,
+      puedeVerificar: true,
+    });
+    await darRol(JORGE, 'revisor');
+    expect((await leer(ANA)).body).toMatchObject({
+      sinRevisor: false,
+      puedeVerificar: false,
+    });
   });
 
   it('rechaza un resultado inválido, un caso fuera de la muestra y uno de otra empresa', async () => {
