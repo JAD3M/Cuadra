@@ -278,7 +278,10 @@ describe('verificar la muestra (9.4)', () => {
     await darRol(JORGE, 'revisor');
     const caso = await enLaMuestra({ confirma: LUIS });
 
-    expect((await leer(LUIS)).body.casos[0].puedeMarcar).toBe(false);
+    const deLuis = (await leer(LUIS)).body.casos[0];
+    expect(deLuis.puedeMarcar).toBe(false);
+    expect(deLuis.confirmadaPorMi).toBe(true);
+    expect((await leer(JORGE)).body.casos[0].confirmadaPorMi).toBe(false);
     await marcar(LUIS, caso.id).expect(403);
     await marcar(JORGE, caso.id).expect(201);
   });

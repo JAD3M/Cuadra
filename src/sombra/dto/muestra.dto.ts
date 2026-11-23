@@ -57,6 +57,8 @@ export class CasoMuestraDto {
   motivo: string | null;
   @ApiProperty({ type: [CfdiMuestraDto] }) cfdis: CfdiMuestraDto[];
   @ApiProperty({ nullable: true, type: String }) confirmadaPor: string | null;
+  @ApiProperty({ description: 'Quien consulta es quien confirmó el lote.' })
+  confirmadaPorMi: boolean;
   @ApiProperty({ nullable: true, type: String, description: 'ISO 8601.' })
   confirmadaAt: string | null;
   @ApiProperty({ enum: ['pendiente', ...RESULTADOS_MUESTRA] })

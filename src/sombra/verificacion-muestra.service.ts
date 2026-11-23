@@ -162,6 +162,7 @@ export class VerificacionMuestraService {
         f,
         marcasPorCaso.get(f.decisionId) ?? [],
         puedeMarcar(userId, elegibles.ids, f),
+        f.confirmadaPorId === userId,
       ),
     );
     return {
@@ -340,6 +341,7 @@ function aCaso(
   f: FilaCaso,
   marcas: MarcaDeCasoDto[],
   puede: boolean,
+  confirmadaPorMi: boolean,
 ): CasoMuestraDto {
   const ultima = marcas[0];
   const marca: MarcaMuestra = ultima?.resultado ?? 'pendiente';
@@ -356,6 +358,7 @@ function aCaso(
     motivo: f.motivo,
     cfdis: f.cfdis ?? [],
     confirmadaPor: f.confirmadaPor,
+    confirmadaPorMi,
     confirmadaAt: f.confirmadaAt
       ? new Date(f.confirmadaAt).toISOString()
       : null,
