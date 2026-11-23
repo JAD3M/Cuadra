@@ -46,7 +46,7 @@ describe('matriz de permisos (FR-53)', () => {
   });
 
   it('acciones: el auditor nunca tiene una acción que cambie algo', () => {
-    const lecturas = ['bandeja.ver', 'bitacora.ver'];
+    const lecturas = ['bandeja.ver', 'bitacora.ver', 'muestra.ver'];
     for (const permiso of PERMISOS) {
       if (lecturas.includes(permiso)) continue;
       expect(rolesConPermiso(permiso)).not.toContain('auditor');
@@ -71,6 +71,11 @@ describe('matriz de permisos (FR-53)', () => {
       'revisor',
     ]);
     expect(rolesConPermiso('muestra.verificar')).toEqual(['admin', 'revisor']);
+    expect(rolesConPermiso('muestra.ver')).toEqual([
+      'admin',
+      'revisor',
+      'auditor',
+    ]);
     expect(rolesConPermiso('tolerancia.editar')).toEqual(['admin']);
     expect(rolesConPermiso('usuarios.gestionar')).toEqual(['admin']);
   });
@@ -114,6 +119,7 @@ describe('matriz de permisos (FR-53)', () => {
       expect(permisosDeRoles(['auditor'])).toEqual([
         'bandeja.ver',
         'bitacora.ver',
+        'muestra.ver',
       ]);
     });
 
@@ -121,6 +127,7 @@ describe('matriz de permisos (FR-53)', () => {
       expect(permisosDeRoles(['revisor'])).toEqual([
         'bandeja.ver',
         'bitacora.ver',
+        'muestra.ver',
         'conciliaciones.resolver',
         'movimientos.descartar',
         'movimientos.deshacer_descarte',
@@ -135,7 +142,14 @@ describe('matriz de permisos (FR-53)', () => {
 
     it('varios roles son la unión, en el orden de PERMISOS y sin repetidos', () => {
       const union = permisosDeRoles(['contador', 'auditor']);
-      expect(union).toEqual(permisosDeRoles(['contador']));
+      // El auditor solo agrega la lectura de la muestra (9.4).
+      expect(union).toEqual(
+        PERMISOS.filter(
+          (p) =>
+            (permisosDeRoles(['contador']) as readonly string[]).includes(p) ||
+            p === 'muestra.ver',
+        ),
+      );
       const orden = PERMISOS.filter((p) =>
         (union as readonly string[]).includes(p),
       );

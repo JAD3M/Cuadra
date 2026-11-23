@@ -61,7 +61,7 @@ afterAll(async () => {
   await r?.cerrar();
 });
 
-const PERMISOS_DE_SECCION = ['bandeja.ver', 'bitacora.ver'];
+const PERMISOS_DE_SECCION = ['bandeja.ver', 'bitacora.ver', 'muestra.ver'];
 
 interface FilaBandeja {
   movimientoId: string;
@@ -164,7 +164,7 @@ describe('UJ-3: Pedro controla que el mes sea confiable (FR-70)', () => {
     expect(await estadoDe(confirmada)).toBe('confirmada');
   });
 
-  it('el revisor entra y su menú muestra solo la bandeja y la bitácora', async () => {
+  it('el revisor entra y su menú muestra solo la bandeja, la bitácora y la muestra', async () => {
     const res = await http()
       .get('/auth/contexto')
       .set('Cookie', tokenRevisor)
@@ -256,7 +256,7 @@ describe('UJ-3: Pedro controla que el mes sea confiable (FR-70)', () => {
     expect(estado).toBe('conciliado');
   });
 
-  it('la auditora ve la bandeja y la bitácora sin ninguna acción disponible', async () => {
+  it('la auditora ve la bandeja, la bitácora y la muestra sin ninguna acción disponible', async () => {
     const contexto = (
       await http()
         .get('/auth/contexto')

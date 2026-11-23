@@ -21,10 +21,13 @@ Rama: `feat/v2-9-4-verificar-la-muestra`. Entrega: PR en cadena si pasa de 400 l
 - A5: ítem de menú «Muestra» para revisor, admin y auditor. Hace falta el permiso de sección `muestra.ver` (`admin`, `revisor`, `auditor`); `muestra.verificar` ya existe (`admin`, `revisor`).
 - A6: el `admin` verifica solo si la empresa no tiene ningún `revisor` (comentario de `matriz.ts`).
 - A7: la lectura de la muestra devuelve por caso un resumen con JOIN (decisión, movimiento, CFDI), sin reusar `CasosService.obtener` (es por movimiento).
+- A8: un caso cuya decisión ya no está `confirmada` (reabierta) se muestra como `reabierta` y no se marca (409 si se intenta). Supuesto mío, no pedido por la historia: un falso positivo es peor que no conciliar.
+- A9: elegibles = revisores activos de la empresa y, solo si no hay ninguno, admins activos. Quien confirmó el lote queda fuera solo si hay otra persona elegible. Una sola función (`puedeMarcar`) alimenta el botón (`puedeMarcar` del GET) y el POST.
+- A10: el 403 del POST por regla de negocio deja `acceso_denegado` en la bitácora y va antes del 409.
 
 ## Tasks
 - [x] T1 (S4,S8; inline): migración `1790724000000` (columnas de marca, índice parcial, CHECK de `verificar_muestra`), entidad, `tipos.ts`, espejo y deriva.
-- [ ] T2 (S2,S3,S4,S5,S6; inline): servicio y controller (`GET` muestra, `POST` marca) con candado, bitácora en la misma sentencia y permiso `muestra.ver`.
+- [x] T2 (S2,S3,S4,S5,S6; inline): servicio y controller (`GET` muestra, `POST` marca) con candado, bitácora en la misma sentencia y permiso `muestra.ver`.
 - [ ] T3 (S1,S6,S9; inline): frontend: contrato, hook, pantalla, ruta, menú, tema claro/oscuro.
 - [ ] T4 (S7; inline): ampliar la E2E de Pedro (`uj3-controlar-el-mes.integracion.spec.ts`).
 - [ ] T5: notas de cierre (`CUADRA.md`, `docs/bitacora.md`), Jira KAN-169 y repaso.
@@ -32,3 +35,5 @@ Rama: `feat/v2-9-4-verificar-la-muestra`. Entrega: PR en cadena si pasa de 400 l
 ## Log
 - L1 (2026-11-22): «continuemos donde lo dejamos» → «lo apruebo» (los mockups 22 y 23 y sus cinco supuestos).
 - L2 (2026-11-22): mapa del explorador: acción de referencia `comentar` (commit `1f4859e`, migración `1790718000000`); la lista `ACCIONES_ANTES` del CHECK debe copiarse de la última migración que tocó `ck_bitacora_accion`; AD-7 menciona `levantar_vista_previa`, que no está en `ACCIONES_BITACORA` (no afecta a la 9.4).
+- L3 (2026-11-22): T1 inline, commit `ef1796d`. RED: 3 de 5 fallaban en `marcas-verificacion.integracion.spec.ts`; GREEN: 180/180 en `src/sombra` y `src/database`, 525/525 en frontend. Hallazgo: mi primer CHECK dejaba pasar `resultado` nulo con `verificador_id` (NULL en la rama OR); lo detectó la prueba y se corrigió con `resultado IS NOT NULL AND`.
+- L4 (2026-11-22): T2 inline. RED: 13 de 13 en `verificacion-muestra.integracion.spec.ts` (404, la ruta no existía); GREEN: 13/13 y suite completa 2233 (las dos pruebas de la E2E de Pedro y de `/auth/contexto` que fijaban las capacidades del revisor y del auditor se actualizaron por `muestra.ver`). Endpoints: `GET /muestra?mes=AAAA-MM`, `POST /muestra/casos/:decisionId/verificar`.

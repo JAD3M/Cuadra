@@ -284,7 +284,11 @@ describe('AuthService.contexto', () => {
 
     const contexto = await service.contexto(user.id, EMPRESA_A.id);
 
-    expect(contexto.capacidades).toEqual(['bandeja.ver', 'bitacora.ver']);
+    expect(contexto.capacidades).toEqual([
+      'bandeja.ver',
+      'bitacora.ver',
+      'muestra.ver',
+    ]);
   });
 
   it('filtra por usuario, empresa y vigencia, sin pedir passwordHash', async () => {
