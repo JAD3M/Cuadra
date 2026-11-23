@@ -267,6 +267,7 @@ describe('bitácora de administración: filtros y vacío', () => {
       'Descarte deshecho',
       'Confirmación reabierta',
       'Comentario',
+      'Muestra verificada',
     ]);
   });
 
