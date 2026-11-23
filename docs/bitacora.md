@@ -11,6 +11,9 @@
   `ColaMuestras.encolar`, que ya era idempotente. Una prueba inestable salió en el camino: dos pruebas usaban el mismo
   `jobId` (empresa y mes) y el worker en línea aún procesaba el primero, así que BullMQ ignoraba el segundo `add`;
   se separó el mes y se pausó la cola en esa prueba.
+- **Repaso de la 9.3 y Jira.** #152 integrado; KAN-167 (9.2) y KAN-168 (9.3) pasadas a Finalizado. Pendiente para la
+  9.4: ajustar el índice único a parcial, la acción `verificar_muestra` y el mockup. El programador mensual solo se
+  probó contra el Redis de pruebas; conviene revisar la cola `muestras` el primer día 1 que corra en producción.
 
 ### 17 nov 2026
 
