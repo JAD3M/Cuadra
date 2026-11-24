@@ -5,6 +5,15 @@
 
 ### 22 nov 2026
 
+- **Historia 9.4 (verificar la muestra, caso por caso) terminada.** Cada marca es una fila nueva de
+  `muestras_verificacion` (el estado de un caso es su última marca); el índice único del sorteo pasó a parcial y la
+  acción `verificar_muestra` quedó registrada en `tipos.ts`, su espejo, el CHECK y la deriva. `GET /muestra` y
+  `POST /muestra/casos/:decisionId/verificar`, con permiso nuevo `muestra.ver` y la regla de quién marca decidida en el
+  servidor (revisor; el admin solo sin revisores; quien confirmó el lote no, habiendo otra persona). Pantalla según los
+  mockups 22 y 23, acordados con el usuario antes del código. Una prueba atrapó un bug de mi CHECK (con `NULL` en una
+  rama del `OR` dejaba pasar una fila a medias). La revisión nativa de la parte de permisos salió aprobada y su
+  advertencia (un caso reabierto contaba como pendiente) se resolvió. Hecho aparte: se corrigieron los títulos de la 9.2
+  y la 9.3 que decían «sin verificar en Jira» (KAN-167 y KAN-168 ya estaban en Finalizado).
 - **9.3 integrada (PR #151) y disparo mensual de la muestra.** Con #151 en `master` (checks en verde, incluido
   `imagen-y-respaldo`), se resolvió el pendiente de quién genera la muestra cada mes: un programador repetible de
   BullMQ (`0 5 1 * *`, UTC) que el día 1 encola, para el mes anterior, a cada empresa activa. Reutiliza

@@ -1002,7 +1002,7 @@ no un archivo real que alguien meta también al generador.
   auditora ve bandeja y bitácora y cada acción le da 403.
 - «Editarla» no tiene endpoint: lo único que cambia una confirmación es reabrirla.
 - El CI no cambió; el spec entra en la lista blanca de `arquitectura.spec.ts` (siembra y limpia al dueño).
-- Pendiente (épica 9): ampliar esta prueba con la verificación de la muestra mensual.
+- Ampliada con la verificación de la muestra mensual (historia 9.4, 22 nov 2026).
 
 **Lista de verificación manual del demo (v2, historia 7.5), terminada el 12 nov 2026.**
 - `docs/verificacion-demo.md`: preparación del entorno (1.7), personas del seed y tres recorridos con la pantalla
@@ -1125,6 +1125,31 @@ no un archivo real que alguien meta también al generador.
   con una empresa no frena a las demás y hace fallar el trabajo al final. Cada encolado ya era idempotente por
   empresa y mes. Se registra solo en el proceso que consume las colas (el worker en producción).
 - Jira: KAN-168, Finalizado al integrar (PR #151 y #152).
+
+**Verificar la muestra, caso por caso (v2, historia 9.4), terminada el 22 nov 2026 (KAN-169; Finalizado al integrar).**
+- Migración `1790724000000`: `muestras_verificacion` sigue de solo agregar (`cuadra_app`: `SELECT` e `INSERT`). Cada marca
+  es una fila nueva con `verificador_id` y `resultado` (`conforme` | `desacuerdo`); la fecha es `created_at`. El CHECK
+  `ck_muestras_verificacion_marca` exige que van juntos o ninguno (la fila del sorteo no tiene marca) y el índice único
+  pasó a parcial (`WHERE resultado IS NULL`): el sorteo es único por empresa, mes y decisión; las marcas se acumulan y el
+  estado de un caso es su última. La acción `verificar_muestra` entró a `tipos.ts`, a su espejo y al CHECK de la bitácora.
+- Permiso nuevo `muestra.ver` (admin, revisor, auditor) para abrir la sección; `muestra.verificar` (admin, revisor) ya existía.
+- API (`src/sombra/muestra.controller.ts`, `verificacion-muestra.service.ts`): `GET /muestra?mes=AAAA-MM` (sin mes, el
+  más reciente) y `POST /muestra/casos/:decisionId/verificar`. La empresa sale de la sesión. Quién marca lo decide el
+  servidor con una sola función (`puedeMarcar`) que alimenta el botón y el POST: revisores activos y, solo si no hay
+  ninguno, administradores; quien confirmó el lote queda fuera si hay otra persona elegible. El POST toma el candado de
+  empresa (como reabrir), escribe la marca y su fila de bitácora en la misma sentencia y deja `acceso_denegado` ante un 403
+  de regla de negocio, antes del 409.
+- «En desacuerdo» no reabre nada; la pantalla enlaza al detalle del caso, donde ya vive la reapertura (5.7).
+- Decisión mía (no pedida por la historia): un caso reabierto se muestra pero no se marca (409) y no cuenta como
+  pendiente (`avance.reabiertas`). El mockup todavía no tiene ese estado.
+- Frontend (`frontend/src/features/muestra/`, ruta `/muestra`, ítem «Muestra» del menú): mockups 22 y 23. Quien consulta
+  se identifica como «propio» por `confirmadaPorMi`, que da el servidor, no por el nombre.
+- La E2E de Pedro (7.4) cubre la verificación: sorteo, marcas, bitácora, la administradora que ya no marca con revisor,
+  la auditora que solo ve y la contadora que no la ve.
+- Pendiente: el paso de la muestra en el recorrido C de la lista de verificación manual del demo (`docs/`), que no es
+  automatizado; y mirar la pantalla en un navegador (el escritor no pudo abrirla).
+- Pendiente: acordar en el mockup los estados que no tenía: caso reabierto, tarjeta del CFDI sin fecha (la API no la da),
+  moneda distinta de MXN y botones deshabilitados sin texto para quien no es elegible.
 
 El layout de BBVA es sintético: falta validarlo con un PDF real.
 

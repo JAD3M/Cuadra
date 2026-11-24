@@ -3,12 +3,24 @@ import { puede } from '@/shared/dominio';
 
 /** Identificador del icono decorativo de cada elemento de navegación. */
 export type IconoNav =
-  'bandeja' | 'cargas' | 'bitacora' | 'tolerancia' | 'medicion' | 'usuarios';
+  | 'bandeja'
+  | 'muestra'
+  | 'cargas'
+  | 'bitacora'
+  | 'tolerancia'
+  | 'medicion'
+  | 'usuarios';
 
 export interface ElementoNav {
   /** Clave estable, también usada para localizar el contador de pendientes. */
   clave:
-    'bandeja' | 'cargas' | 'bitacora' | 'tolerancia' | 'medicion' | 'usuarios';
+    | 'bandeja'
+    | 'muestra'
+    | 'cargas'
+    | 'bitacora'
+    | 'tolerancia'
+    | 'medicion'
+    | 'usuarios';
   etiqueta: string;
   /** Destino del enlace. */
   ruta: string;
@@ -31,6 +43,14 @@ export const ELEMENTOS_NAV: readonly ElementoNav[] = [
     activoEn: ['/bandeja', '/casos'],
     icono: 'bandeja',
     permiso: 'bandeja.ver',
+  },
+  {
+    clave: 'muestra',
+    etiqueta: 'Muestra',
+    ruta: '/muestra',
+    activoEn: ['/muestra'],
+    icono: 'muestra',
+    permiso: 'muestra.ver',
   },
   {
     clave: 'cargas',

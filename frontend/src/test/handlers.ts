@@ -3,6 +3,7 @@ import { crearHandlersBandeja } from '@/test/handlersBandeja';
 import { crearHandlersBitacora } from '@/test/handlersBitacora';
 import { crearHandlersCargas } from '@/test/handlersCargas';
 import { crearHandlersCaso } from '@/test/handlersCaso';
+import { crearHandlersMuestra } from '@/test/handlersMuestra';
 import { crearHandlersTolerancia } from '@/test/handlersTolerancia';
 import { CAMBIOS_INICIALES } from '@/test/fixturesTolerancia';
 import {
@@ -39,6 +40,7 @@ const cargas = crearHandlersCargas();
 // Arranca con los eventos de la tolerancia (`CAMBIOS_INICIALES`); los flujos de
 // la bitácora fijan los suyos con `almacenes.bitacora.establecer(...)`.
 const bitacora = crearHandlersBitacora(CAMBIOS_INICIALES);
+const muestra = crearHandlersMuestra();
 const tolerancia = crearHandlersTolerancia('0.5000', undefined, bitacora);
 
 /**
@@ -46,7 +48,14 @@ const tolerancia = crearHandlersTolerancia('0.5000', undefined, bitacora);
  * fije los datos que sirven (`establecer`) o fuerce un fallo (`opciones`). Los
  * limpia `reiniciarHandlers` tras cada prueba.
  */
-export const almacenes = { bandeja, caso, cargas, tolerancia, bitacora };
+export const almacenes = {
+  bandeja,
+  caso,
+  cargas,
+  tolerancia,
+  bitacora,
+  muestra,
+};
 
 /** Contexto de la empresa B si es la elegida; cualquier otra, el de la A. */
 function contextoDe(empresaId: string | null) {
@@ -105,6 +114,7 @@ export const handlers = [
   ...cargas.handlers,
   ...bitacora.handlersUsuarios,
   ...tolerancia.handlers,
+  ...muestra.handlers,
 ];
 
 /**
@@ -118,4 +128,5 @@ export function reiniciarHandlers(): void {
   cargas.reiniciar();
   tolerancia.reiniciar();
   bitacora.reiniciar();
+  muestra.reiniciar();
 }

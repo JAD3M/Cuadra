@@ -1,6 +1,7 @@
 import type { DataSource } from 'typeorm';
 import { permisosDeRoles } from '../auth/permisos/matriz';
 import { ConciliacionService } from '../conciliacion/conciliacion.service';
+import { MuestrasService } from '../sombra/muestras.service';
 import { filas } from '../database/testing/base-de-pruebas';
 import {
   cfdiDeEjemploPara,
@@ -18,7 +19,8 @@ import { FACTURAS } from '../../scripts/ejemplos/juego';
  * 7.2: el dueño de la plataforma la da de alta e invita a su administradora, que
  * invita a la contadora, al revisor y a la auditora. Un solo recorrido
  * encadenado: cada paso usa lo que dejó el anterior. La contadora sube; la
- * administradora confirma; el revisor y la auditora controlan lo ajeno.
+ * administradora confirma; el revisor y la auditora controlan lo ajeno. Desde la
+ * historia 9.4 el revisor también verifica la muestra del mes.
  */
 
 jest.setTimeout(120_000);
@@ -254,6 +256,66 @@ describe('UJ-3: Pedro controla que el mes sea confiable (FR-70)', () => {
       [movimientoConfirmado],
     );
     expect(estado).toBe('conciliado');
+  });
+
+  it('verifica la muestra del mes: el revisor marca, la administradora ya no, la auditora solo ve (9.4)', async () => {
+    // El sorteo mensual (9.3) elige las confirmaciones en lote del mes.
+    const mes = new Date().toISOString().slice(0, 7);
+    const sorteo = await r.app.get(MuestrasService).generar(A, mes);
+    expect(sorteo.decisionIds).toEqual([confirmada]);
+
+    const leerMuestra = (token: string) =>
+      http().get(`/muestra?mes=${mes}`).set('Cookie', token);
+    const marcar = (token: string, resultado: string) =>
+      http()
+        .post(`/muestra/casos/${confirmada}/verificar`)
+        .set('Cookie', token)
+        .send({ resultado });
+    interface Lectura {
+      sinRevisor: boolean;
+      avance: { total: number; conformes: number; desacuerdos: number };
+      casos: { decisionId: string; marca: string; puedeMarcar: boolean }[];
+    }
+
+    // Pedro (revisor) ve el caso con su factura y su movimiento, y lo marca.
+    const antes = (await leerMuestra(tokenRevisor).expect(200)).body as Lectura;
+    expect(antes.sinRevisor).toBe(false);
+    expect(antes.casos).toMatchObject([
+      { decisionId: confirmada, marca: 'pendiente', puedeMarcar: true },
+    ]);
+    await marcar(tokenRevisor, 'desacuerdo').expect(201);
+    await marcar(tokenRevisor, 'conforme').expect(201);
+    const despues = (await leerMuestra(tokenRevisor).expect(200))
+      .body as Lectura;
+    expect(despues.casos[0].marca).toBe('conforme');
+    expect(despues.avance).toMatchObject({
+      total: 1,
+      conformes: 1,
+      desacuerdos: 0,
+    });
+    // En desacuerdo no reabre nada, tampoco la marca final.
+    expect(await estadoDe(confirmada)).toBe('confirmada');
+
+    // Cada marca quedó en la bitácora, con Pedro como autor.
+    const rastro = await bitacora(tokenAna, 'verificar_muestra');
+    expect(rastro).toHaveLength(2);
+    expect(rastro.every((e) => e.usuario?.email === CORREO_REVISOR)).toBe(true);
+
+    // Con revisor en la empresa, la administradora lee pero ya no marca.
+    expect(
+      ((await leerMuestra(tokenAna).expect(200)).body as Lectura).casos[0]
+        .puedeMarcar,
+    ).toBe(false);
+    await marcar(tokenAna, 'conforme').expect(403);
+
+    // La auditora la ve sin poder marcarla; la contadora no la ve.
+    expect(
+      ((await leerMuestra(tokenAuditora).expect(200)).body as Lectura).casos[0]
+        .puedeMarcar,
+    ).toBe(false);
+    await marcar(tokenAuditora, 'conforme').expect(403);
+    await leerMuestra(tokenLuis).expect(403);
+    expect(await estadoDe(confirmada)).toBe('confirmada');
   });
 
   it('la auditora ve la bandeja, la bitácora y la muestra sin ninguna acción disponible', async () => {

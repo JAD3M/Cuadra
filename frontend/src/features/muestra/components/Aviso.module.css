@@ -1,0 +1,54 @@
+/*
+ * Avisos de la muestra (clases .info, .ok y .warn de Muestra.dc.html). Solo
+ * tokens de rol: info usa el tono de sugerencia, ok el de conciliado y ámbar
+ * el de sin match.
+ */
+.aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-14) var(--space-16);
+  border: 1px solid var(--_borde);
+  border-radius: var(--radius-md);
+  background: var(--_fondo);
+}
+
+.info {
+  --_borde: var(--estado-sugerencia-tile-border);
+  --_fondo: var(--estado-sugerencia-tile-bg);
+  --_acento: var(--estado-sugerencia-accent);
+}
+
+.ok {
+  --_borde: var(--estado-conciliado-tile-border);
+  --_fondo: var(--estado-conciliado-tile-bg);
+  --_acento: var(--estado-conciliado-accent);
+}
+
+.ambar {
+  --_borde: var(--estado-sin-match-tile-border);
+  --_fondo: var(--estado-sin-match-tile-bg);
+  --_acento: var(--estado-sin-match-accent);
+}
+
+.icono {
+  flex-shrink: 0;
+  margin-block-start: 2px;
+  color: var(--_acento);
+}
+
+.texto {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.titulo {
+  color: var(--color-text);
+}
+
+.detalle {
+  color: var(--color-text-soft);
+  font-size: var(--text-md);
+}
