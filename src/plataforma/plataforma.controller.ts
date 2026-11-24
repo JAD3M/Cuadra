@@ -27,7 +27,9 @@ import type { UsuarioAutenticado } from '../auth/tipos';
 import { Scope, UsuarioActual } from '../common/decorators/decoradores';
 import { Limite } from '../limite/limite.decorator';
 import { BancosVistaPrevia } from './bancos-vista-previa.service';
+import { CondicionCierrePlataforma } from './condicion-cierre.service';
 import { DesacuerdoPlataforma } from './desacuerdo-plataforma.service';
+import { CondicionCierreDto } from './dto/condicion-cierre.dto';
 import { FraccionesPlataforma } from './fracciones-plataforma.service';
 import {
   BancoPlataformaDto,
@@ -53,6 +55,7 @@ export class PlataformaController {
     private readonly bancos: BancosVistaPrevia,
     private readonly fracciones: FraccionesPlataforma,
     private readonly desacuerdo: DesacuerdoPlataforma,
+    private readonly condicionCierre: CondicionCierrePlataforma,
   ) {}
 
   /**
@@ -207,6 +210,23 @@ export class PlataformaController {
   })
   listarDesacuerdo(): Promise<DesacuerdoEmpresaBancoDto[]> {
     return this.desacuerdo.listar();
+  }
+
+  @Get('condicion-cierre')
+  @ApiCookieAuth()
+  @ApiOperation({
+    summary:
+      'Si los datos cumplen la condición para considerar el cierre automático',
+    description:
+      'Solo lectura (9.5, FR-37, SM-C1). Al menos 1,000 propuestas de la regla 1, en al menos 3 empresas y durante al menos 3 meses, con la tasa de desacuerdo <= 0.5 % evaluada con la más alta de las respuestas registradas y la muestra verificada. Solo informa: no activa nada y el cierre automático no existe en la v2. Se calcula por consulta cada vez; no se guarda nada. Solo conteos: ningún id de decisión, monto ni RFC.',
+  })
+  @ApiOkResponse({ type: CondicionCierreDto })
+  @ApiUnauthorizedResponse({ description: 'Sin sesión o venció.' })
+  @ApiForbiddenResponse({
+    description: 'La sesión no es de plataforma. Queda en la bitácora.',
+  })
+  consultarCondicionCierre(): Promise<CondicionCierreDto> {
+    return this.condicionCierre.consultar();
   }
 
   @Post('bancos/:banco/levantar-vista-previa')

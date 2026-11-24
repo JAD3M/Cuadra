@@ -19,6 +19,7 @@ import { opcionesDataSource } from './data-source';
 
 jest.setTimeout(120_000);
 
+const MIGRACION_CONDICION = 'ConteosCondicionCierre1790725000000';
 const MIGRACION_MARCAS = 'MarcasMuestraVerificacion1790724000000';
 const MIGRACION_DESACUERDO = 'DesacuerdoPorEmpresaYBanco1790722000000';
 const MIGRACION_CLASE = 'ClaseDeMovimiento1790721000000';
@@ -172,12 +173,34 @@ async function contar(tabla: string): Promise<number> {
 
 describe('down() con datos', () => {
   it('antes de deshacer, la base está al día con los datos sembrados', async () => {
-    expect(await ultima()).toBe(MIGRACION_MARCAS);
+    expect(await ultima()).toBe(MIGRACION_CONDICION);
     expect(await existeColumnaClase()).toBe(true);
     expect(await existeFuncion()).toBe(true);
     expect(await contar('movimientos')).toBe(2);
     expect(await contar('cfdi')).toBe(1);
     expect(await contar('evidencia_sombra')).toBe(2);
+  });
+
+  it('9.5: deshacer quita solo la función de conteos y no toca la evidencia ni la muestra', async () => {
+    const existeCondicion = async () =>
+      (
+        await filas(
+          ds,
+          `SELECT 1 FROM pg_proc WHERE proname = 'conteos_condicion_cierre'`,
+        )
+      ).length === 1;
+    expect(await existeCondicion()).toBe(true);
+
+    await ds.undoLastMigration();
+
+    expect(await ultima()).toBe(MIGRACION_MARCAS);
+    expect(await existeCondicion()).toBe(false);
+    expect(await contar('evidencia_sombra')).toBe(2);
+    expect(await contar('movimientos')).toBe(2);
+
+    await ds.runMigrations();
+    expect(await ultima()).toBe(MIGRACION_CONDICION);
+    expect(await existeCondicion()).toBe(true);
   });
 
   it('9.2: deshacer quita solo la función y no toca la evidencia ni los movimientos', async () => {
@@ -190,6 +213,7 @@ describe('down() con datos', () => {
       ).length === 1;
     expect(await existeDesacuerdo()).toBe(true);
 
+    await ds.undoLastMigration(); // 9.5
     await ds.undoLastMigration(); // 9.4
     await ds.undoLastMigration(); // 9.3
     expect(await ultima()).toBe(MIGRACION_DESACUERDO);
@@ -212,7 +236,7 @@ describe('down() con datos', () => {
 
     await ds.runMigrations();
 
-    expect(await ultima()).toBe(MIGRACION_MARCAS);
+    expect(await ultima()).toBe(MIGRACION_CONDICION);
     expect(await existeColumnaClase()).toBe(true);
     expect(await existeFuncion()).toBe(true);
     expect(await contar('movimientos')).toBe(2);
@@ -231,6 +255,7 @@ describe('down() con datos', () => {
   });
 
   it('6.2: con eventos de la persona el down falla y no deja nada a medias', async () => {
+    await ds.undoLastMigration(); // 9.5
     await ds.undoLastMigration(); // 9.4
     await ds.undoLastMigration(); // 9.3
     await ds.undoLastMigration(); // 9.2
@@ -280,7 +305,7 @@ describe('down() con datos', () => {
     expect(await contar('evidencia_sombra')).toBe(1);
 
     await ds.runMigrations();
-    expect(await ultima()).toBe(MIGRACION_MARCAS);
+    expect(await ultima()).toBe(MIGRACION_CONDICION);
     expect(
       (
         await una<{ def: string }>(
