@@ -18,6 +18,8 @@ export const PERMISOS = [
   'usuarios.ver',
   // Historia 9.1: la medición de la empresa.
   'medicion.ver',
+  // Historia 9.4: ver la muestra de verificación (el auditor la ve, no la marca).
+  'muestra.ver',
   // Acciones.
   'cargas.cargar',
   'conciliaciones.resolver',
@@ -48,7 +50,8 @@ export type PermisoEmpresa = Exclude<Permiso, (typeof PERMISOS_DUENO)[number]>;
  * rol; la historia que construya la acción verifica la autoría.
  *
  * `muestra.verificar` también queda condicionada (admin solo si no hay
- * revisor, [SUPUESTO] del PRD) y lo verifica la historia que la construya.
+ * revisor, [SUPUESTO] del PRD; y no quien confirmó el lote si hay otra
+ * persona). Lo verifica `VerificacionMuestraService` (historia 9.4).
  */
 export const PERMISOS_PROPIOS = [
   'movimientos.deshacer_descarte',
@@ -62,6 +65,7 @@ export const MATRIZ_PERMISOS: Record<Permiso, readonly Rol[]> = {
   'bitacora.ver': ['admin', 'contador', 'revisor', 'auditor'],
   'usuarios.ver': ['admin'],
   'medicion.ver': ['admin'],
+  'muestra.ver': ['admin', 'revisor', 'auditor'],
   'cargas.cargar': ['admin', 'contador'],
   'conciliaciones.resolver': ['admin', 'contador', 'revisor'],
   'movimientos.descartar': ['admin', 'contador', 'revisor'],

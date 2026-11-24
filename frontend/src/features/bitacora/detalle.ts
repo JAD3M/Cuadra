@@ -336,6 +336,17 @@ function detalleReabrir(datos: Objeto): string {
   return `confirmación reabierta · el caso vuelve a pendiente · motivo: ${motivo}`;
 }
 
+/** Verificar un caso de la muestra (9.4): conforme o en desacuerdo; no reabre nada. */
+function detalleVerificarMuestra(datos: Objeto): string {
+  const resultado = texto(datos.resultado);
+  if (resultado !== 'conforme' && resultado !== 'desacuerdo') {
+    return SIN_DETALLE;
+  }
+  const mes = texto(datos.mes);
+  const cuando = mes === undefined ? '' : ` de ${mes}`;
+  return `muestra${cuando} · ${resultado === 'conforme' ? 'conforme' : 'en desacuerdo'}`;
+}
+
 /** Comentar una decisión (5.9): no cambia nada, solo queda lo que se dijo. */
 function detalleComentar(datos: Objeto): string {
   const comentario = texto(datos.texto);
@@ -387,6 +398,8 @@ export function detalleEvento({
       return detalleReabrir(datos);
     case 'comentar':
       return detalleComentar(datos);
+    case 'verificar_muestra':
+      return detalleVerificarMuestra(datos);
     default:
       return SIN_DETALLE;
   }

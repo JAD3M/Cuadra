@@ -787,7 +787,7 @@ describe('GET /auth/contexto', () => {
       expect(caps).not.toContain('tolerancia.ver');
     });
 
-    it('auditor solo ve bandeja y bitácora, sin acciones', async () => {
+    it('auditor solo ve bandeja, bitácora y muestra, sin acciones', async () => {
       await ds.query(
         `INSERT INTO user_company_roles (user_id, company_id, rol)
          VALUES ((SELECT id FROM users WHERE email = $1), $2, 'auditor')`,
@@ -796,7 +796,7 @@ describe('GET /auth/contexto', () => {
       try {
         const caps = await capacidadesDe(await tokenSesion(ANA, TRANSPORTES));
 
-        expect(caps).toEqual(['bandeja.ver', 'bitacora.ver']);
+        expect(caps).toEqual(['bandeja.ver', 'bitacora.ver', 'muestra.ver']);
       } finally {
         await ds.query(
           `DELETE FROM user_company_roles
