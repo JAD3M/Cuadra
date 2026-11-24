@@ -1126,7 +1126,7 @@ no un archivo real que alguien meta también al generador.
   empresa y mes. Se registra solo en el proceso que consume las colas (el worker en producción).
 - Jira: KAN-168, Finalizado al integrar (PR #151 y #152).
 
-**Verificar la muestra, caso por caso (v2, historia 9.4), terminada el 22 nov 2026 (KAN-169; Finalizado al integrar).**
+**Verificar la muestra, caso por caso (v2, historia 9.4), terminada el 22 nov 2026 (integrada, PR #154 y #155; KAN-169 Finalizado).**
 - Migración `1790724000000`: `muestras_verificacion` sigue de solo agregar (`cuadra_app`: `SELECT` e `INSERT`). Cada marca
   es una fila nueva con `verificador_id` y `resultado` (`conforme` | `desacuerdo`); la fecha es `created_at`. El CHECK
   `ck_muestras_verificacion_marca` exige que van juntos o ninguno (la fila del sorteo no tiene marca) y el índice único
