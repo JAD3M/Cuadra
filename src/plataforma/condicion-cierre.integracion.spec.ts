@@ -232,6 +232,35 @@ describe('GET /plataforma/condicion-cierre (9.5)', () => {
     });
   });
 
+  it('los meses se cuentan en UTC aunque la sesión de la base use otra zona (A1)', async () => {
+    const id = await propuesta(A, 'bbva');
+    const otra = await propuesta(A, 'bbva');
+    // 23:30 del 31 de julio en México es el 1 de agosto a las 05:30 en UTC.
+    await ds.query(
+      `UPDATE evidencia_sombra SET created_at = '2026-07-31T23:30:00-06:00'
+        WHERE decision_id = $1 AND evento = 'habria_cerrado'`,
+      [id],
+    );
+    await ds.query(
+      `UPDATE evidencia_sombra SET created_at = '2026-08-15T12:00:00Z'
+        WHERE decision_id = $1 AND evento = 'habria_cerrado'`,
+      [otra],
+    );
+
+    const qr = ds.createQueryRunner();
+    try {
+      await qr.query(`SET TIME ZONE 'America/Mexico_City'`);
+      const { meses } = await una<{ meses: string }>(
+        qr,
+        `SELECT meses FROM conteos_condicion_cierre()`,
+      );
+      // En hora local serían dos meses (julio y agosto); en UTC es solo agosto.
+      expect(Number(meses)).toBe(1);
+    } finally {
+      await qr.release();
+    }
+  });
+
   it('las respuestas registradas son la tasa de la 6.2, sumada entre empresas (S2)', async () => {
     const dueno = await loginDueno();
     await confirmar(await propuesta(A, 'bbva'), tokenA);
