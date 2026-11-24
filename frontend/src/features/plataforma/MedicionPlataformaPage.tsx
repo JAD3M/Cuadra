@@ -3,19 +3,21 @@ import { AlertaError } from '@/shared/ui/AlertaError';
 import { Button } from '@/shared/ui/Button';
 import { useAccionesPlataforma } from '@/shared/sesion/plataforma';
 import { AvisoSinDatos } from './components/AvisoSinDatos';
+import { CondicionCierre } from './components/CondicionCierre';
 import { EsqueletoMedicion } from './components/EsqueletoMedicion';
 import estilos from './components/MedicionPlataforma.module.css';
 import { TablaDesacuerdo } from './components/TablaDesacuerdo';
 import { TablaFracciones } from './components/TablaFracciones';
 import { MarcoPlataforma } from './MarcoPlataforma';
 import { TEXTOS_MEDICION_PLATAFORMA as T } from './textos';
+import { useCondicionCierrePlataforma } from './useCondicionCierrePlataforma';
 import { useDesacuerdoPlataforma } from './useDesacuerdoPlataforma';
 import { esFinDeSesion } from './useEmpresasPlataforma';
 import { useFraccionesPlataforma } from './useFraccionesPlataforma';
 import { vistaMedicionPlataforma } from './vistaMedicionPlataforma';
 
 /**
- * Pantalla «Medición» del dueño (historia 9.2). Contenedor: lee las dos
+ * Pantalla «Medición» del dueño (historia 9.2). Contenedor: lee las tres
  * consultas y deja la decisión de qué mostrar a `vistaMedicionPlataforma`; las
  * tablas solo reciben props. No decide nada: muestra lo que devuelve la API.
  */
@@ -23,11 +25,14 @@ export function MedicionPlataformaPage() {
   const { terminar } = useAccionesPlataforma();
   const desacuerdo = useDesacuerdoPlataforma();
   const fracciones = useFraccionesPlataforma();
+  const condicion = useCondicionCierrePlataforma();
 
   // Si la API dice que la sesión ya no vale, la guarda lleva al acceso con el
   // aviso de sesión terminada; mientras tanto no se muestra el error de red.
   const finDeSesion =
-    esFinDeSesion(desacuerdo.error) || esFinDeSesion(fracciones.error);
+    esFinDeSesion(desacuerdo.error) ||
+    esFinDeSesion(fracciones.error) ||
+    esFinDeSesion(condicion.error);
   useEffect(() => {
     if (finDeSesion) terminar();
   }, [finDeSesion, terminar]);
@@ -44,6 +49,11 @@ export function MedicionPlataformaPage() {
           cargando: fracciones.isPending,
           error: fracciones.isError,
           datos: fracciones.data,
+        },
+        condicion: {
+          cargando: condicion.isPending,
+          error: condicion.isError,
+          datos: condicion.data,
         },
       });
 
@@ -65,6 +75,7 @@ export function MedicionPlataformaPage() {
               onClick={() => {
                 void desacuerdo.refetch();
                 void fracciones.refetch();
+                void condicion.refetch();
               }}
             >
               {T.reintentar}
@@ -105,6 +116,18 @@ export function MedicionPlataformaPage() {
             </div>
             <TablaFracciones filas={vista.fracciones} />
             <p className={estilos.nota}>{T.notaFracciones}</p>
+          </section>
+          <section
+            aria-labelledby="titulo-condicion"
+            className={estilos.seccion}
+          >
+            <div className={estilos.titulos}>
+              <h2 id="titulo-condicion" className={estilos.tituloSeccion}>
+                {T.condicionTitulo}
+              </h2>
+              <p className={estilos.texto}>{T.condicionDescripcion}</p>
+            </div>
+            <CondicionCierre condicion={vista.condicion} />
           </section>
         </>
       )}

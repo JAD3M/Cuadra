@@ -128,6 +128,45 @@ export const fraccionesPlataforma = z.object({
 
 export const listaFraccionesPlataforma = z.array(fraccionesPlataforma);
 
+/** Umbral de la condición: lo que se pide, lo que hay y lo que falta. */
+const criterioCondicion = z.object({
+  pide: conteo,
+  hoy: conteo,
+  falta: conteo,
+  cumple: z.boolean(),
+});
+
+/** Una de las dos medidas de la tasa; `tasa` es texto o `null` sin casos. */
+const medidaTasaCondicion = z.object({
+  casos: conteo,
+  desacuerdos: conteo,
+  tasa: z.string().nullable(),
+});
+
+/**
+ * `GET /plataforma/condicion-cierre` (historia 9.5): si los datos de todas las
+ * empresas cumplen la condición del PRD para considerar el cierre automático.
+ * El servidor decide `cumple` y `falta`; las tasas viajan como texto de cuatro
+ * decimales ("0.0495"), nunca como número.
+ */
+export const condicionCierrePlataforma = z.object({
+  cumple: z.boolean(),
+  criterios: z.object({
+    propuestas: criterioCondicion,
+    empresas: criterioCondicion,
+    meses: criterioCondicion,
+  }),
+  tasa: z.object({
+    registradas: medidaTasaCondicion,
+    muestra: medidaTasaCondicion,
+    usada: z.enum(['registradas', 'muestra']).nullable(),
+    tasaUsada: z.string().nullable(),
+    exceso: z.string().nullable(),
+    maxima: z.string(),
+    cumple: z.boolean(),
+  }),
+});
+
 export type UsuarioPlataforma = z.infer<typeof usuarioPlataforma>;
 export type RespuestaSesionPlataforma = z.infer<
   typeof respuestaSesionPlataforma
@@ -141,3 +180,6 @@ export type SolicitudCambiarSeparacion = z.infer<
 export type BancoPlataforma = z.infer<typeof bancoPlataforma>;
 export type DesacuerdoPlataforma = z.infer<typeof desacuerdoPlataforma>;
 export type FraccionesPlataforma = z.infer<typeof fraccionesPlataforma>;
+export type CondicionCierrePlataforma = z.infer<
+  typeof condicionCierrePlataforma
+>;

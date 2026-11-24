@@ -130,3 +130,104 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* Condición para considerar el cierre automático (historia 9.5). */
+.subtitulo {
+  margin: 0;
+  font-size: var(--text-2xl);
+  letter-spacing: -0.01em;
+}
+
+.avisoCondicion {
+  display: flex;
+  gap: var(--space-12);
+  align-items: flex-start;
+  padding: var(--space-14) var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.avisoCondicion svg {
+  flex-shrink: 0;
+  margin-block-start: 2px;
+}
+
+.cumple {
+  border-color: var(--estado-conciliado-tile-border);
+  background: var(--estado-conciliado-tint);
+}
+
+.cumple svg,
+.estadoCumple {
+  color: var(--estado-conciliado-accent);
+}
+
+.noCumple {
+  border-color: var(--estado-sin-match-tile-border);
+  background: var(--estado-sin-match-tint);
+}
+
+.noCumple svg,
+.estadoNoCumple {
+  color: var(--estado-sin-match-text);
+}
+
+.informa {
+  border-color: var(--estado-sugerencia-tile-border);
+  background: var(--estado-sugerencia-tile-bg);
+}
+
+.informa svg {
+  color: var(--color-accent);
+}
+
+.estado {
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.tasas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-16);
+}
+
+.medida {
+  box-sizing: border-box;
+  flex: 1 1 320px;
+  min-inline-size: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: var(--space-18) var(--space-20);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-sidebar);
+}
+
+.medidaNombre {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-label-wide);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.medidaTasa {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-title);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.medidaUsada {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--color-accent);
+}
+
+/* El apoyo de la condición sí puede partirse en líneas: no es una cifra. */
+.apoyoLibre {
+  white-space: normal;
+}

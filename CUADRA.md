@@ -1148,6 +1148,27 @@ no un archivo real que alguien meta también al generador.
   la auditora que solo ve y la contadora que no la ve.
 - Pendiente: el paso de la muestra en el recorrido C de la lista de verificación manual del demo (`docs/`), que no es
   automatizado; y mirar la pantalla en un navegador (el escritor no pudo abrirla).
+
+**La condición del cierre automático (v2, historia 9.5), terminada el 24 nov 2026 (en rama, PR pendiente; KAN-170 En curso).**
+- Es solo lectura: informa si los datos de todas las empresas cumplen la condición del PRD y no activa nada. El cierre
+  automático sigue sin existir en la v2 (AD-3: `confirmada` exige persona).
+- Migración `1790725000000`: la función `conteos_condicion_cierre()` (`SECURITY DEFINER`, `search_path` fijo, `EXECUTE` solo
+  para `cuadra_app`) devuelve una fila de conteos: empresas y meses con propuestas, casos verificados y los que salieron en
+  desacuerdo (de cada caso de la muestra, solo su última marca). No hay tabla nueva ni nada guardado.
+- API: `GET /plataforma/condicion-cierre` (sesión de plataforma; una sesión de empresa recibe 403). El servicio combina esos
+  conteos con `desacuerdo_por_empresa_y_banco()` (9.2) y se los pasa a `evaluarCondicionCierre`, una función pura
+  (`src/plataforma/condicion-cierre.ts`). Se calcula en cada consulta.
+- Umbrales: al menos 1,000 propuestas de la regla 1, 3 empresas y 3 meses, y tasa de desacuerdo <= 0.5 %. La tasa se evalúa
+  con la más alta de las respuestas registradas (la definición de la 6.2) y de la muestra verificada. Se compara con
+  enteros (`200·d <= n`), nunca con flotante; las tasas viajan como texto de cuatro decimales. El servidor decide `cumple`
+  y `falta`; el frontend solo pinta.
+- Supuestos míos (el mockup 20 y 21 los refleja): «meses» son meses calendario (UTC) distintos con propuestas, no el lapso;
+  y si falta una de las dos medidas (sin tratadas o sin verificados) el criterio de la tasa no se cumple, porque un falso
+  positivo es peor que no conciliar.
+- Frontend (`frontend/src/features/plataforma/`, sección nueva en Medición): mockups 20 y 21.
+- Revisión nativa del backend (ítem 2 de riesgo: función que lee entre empresas): aprobada. Su aviso de que el exceso salía
+  en cero al redondear la tasa se corrigió. Pendiente menor: una prueba del borde de mes UTC.
+- Con esta queda cerrada la épica 9.
 - Pendiente: acordar en el mockup los estados que no tenía: caso reabierto, tarjeta del CFDI sin fecha (la API no la da),
   moneda distinta de MXN y botones deshabilitados sin texto para quien no es elegible.
 
