@@ -1167,7 +1167,8 @@ no un archivo real que alguien meta también al generador.
   positivo es peor que no conciliar.
 - Frontend (`frontend/src/features/plataforma/`, sección nueva en Medición): mockups 20 y 21.
 - Revisión nativa del backend (ítem 2 de riesgo: función que lee entre empresas): aprobada. Su aviso de que el exceso salía
-  en cero al redondear la tasa se corrigió. Pendiente menor: una prueba del borde de mes UTC.
+  en cero al redondear la tasa se corrigió, y el conteo de meses en UTC tiene su prueba (con la sesión de la base en
+  otra zona).
 - Con esta queda cerrada la épica 9.
 - Pendiente: acordar en el mockup los estados que no tenía: caso reabierto, tarjeta del CFDI sin fecha (la API no la da),
   moneda distinta de MXN y botones deshabilitados sin texto para quien no es elegible.

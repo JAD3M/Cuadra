@@ -13,8 +13,8 @@
   exceso en cero se corrigió con RED/GREEN. Cierra la épica 9.
 - **Repaso de la 9.5 y Jira.** #157 (backend) y #158 (pantalla) integrados en cadena con los checks en verde;
   KAN-170 pasada a Finalizado. Pendiente: la pantalla nunca se vio en un navegador y los textos de los casos que el
-  mockup no cubre («Faltan A, B y C de datos», «todavía no se puede calcular la tasa de desacuerdo») no se acordaron;
-  falta una prueba del borde de mes UTC. Para la etapa 2 (el cierre automático) la condición ya existe, pero cambiar la
+  mockup no cubre («Faltan A, B y C de datos», «todavía no se puede calcular la tasa de desacuerdo») no se acordaron.
+  La prueba del borde de mes UTC se agregó después. Para la etapa 2 (el cierre automático) la condición ya existe, pero cambiar la
   restricción de AD-3 sigue siendo una historia aparte.
 
 ### 23 nov 2026
