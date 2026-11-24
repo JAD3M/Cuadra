@@ -28,6 +28,7 @@
     "schema:log": "npm run typeorm -- schema:log",
     "seed": "ts-node src/database/seeds/seed.ts",
     "sembrar:dueno": "ts-node src/database/seeds/sembrar-dueno.ts",
+    "sortear:muestra": "ts-node src/database/seeds/sortear-muestra.ts",
     "demo:generar": "ts-node scripts/demo/generar.ts",
     "ejemplos:generar": "ts-node scripts/ejemplos/generar.ts",
     "demo": "ts-node scripts/demo/ejecutar.ts"
