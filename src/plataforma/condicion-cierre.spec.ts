@@ -112,6 +112,20 @@ describe('evaluarCondicionCierre (9.5)', () => {
     expect(sobre.cumple).toBe(false);
   });
 
+  it('si no cumple, el exceso nunca sale en cero aunque la tasa se redondee al máximo', () => {
+    const r = evaluarCondicionCierre({
+      ...CUMPLIDA,
+      tratadas: 1_000_000,
+      desacuerdos: 5001,
+      verificados: 1_000_000,
+      desacuerdosMuestra: 0,
+    });
+
+    expect(r.tasa.tasaUsada).toBe('0.0050');
+    expect(r.tasa.cumple).toBe(false);
+    expect(r.tasa.exceso).toBe('0.0001');
+  });
+
   it('usa la más alta aunque la otra sea mejor: la muestra no tapa a las respuestas', () => {
     const r = evaluarCondicionCierre({
       ...CUMPLIDA,

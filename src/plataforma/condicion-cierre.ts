@@ -115,7 +115,11 @@ export function evaluarCondicionCierre(c: ConteosCondicion): CondicionCierre {
       ? null
       : dentro
         ? '0.0000'
-        : new Decimal(tasaUsada).minus(TASA_MAXIMA).toFixed(4);
+        : // Con la tasa exacta y hacia arriba: si no cumple, nunca sale en cero.
+          new Decimal(elegida.desacuerdos)
+            .div(elegida.casos)
+            .minus(TASA_MAXIMA)
+            .toFixed(4, Decimal.ROUND_CEIL);
 
   // Supuesto A2: sin una de las dos medidas el criterio no se cumple.
   const tasa: TasaDeLaCondicion = {
