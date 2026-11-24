@@ -3,6 +3,15 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 24 nov 2026
+
+- **Historia 9.5 (la condición del cierre automático) terminada en rama.** El dueño ve en Plataforma · Medición si los
+  datos cumplen la condición del PRD (1,000 propuestas de la regla 1, 3 empresas, 3 meses y tasa de desacuerdo <= 0.5 %
+  con la más alta de las respuestas registradas y la muestra verificada) y cuánto falta. Solo informa: no activa nada.
+  `GET /plataforma/condicion-cierre` sobre una función de conteos `SECURITY DEFINER` y una evaluación pura con enteros.
+  Mockups 20 y 21 ampliados y acordados con el usuario antes del código. La revisión nativa salió aprobada; su aviso del
+  exceso en cero se corrigió con RED/GREEN. Cierra la épica 9. Quedan pendientes los PR (en cadena) y el repaso.
+
 ### 23 nov 2026
 
 - **Repaso de la 9.4 y Jira.** #154 (backend) y #155 (pantalla) integrados en cadena; KAN-169 pasada a Finalizado. El CI
