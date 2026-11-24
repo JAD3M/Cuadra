@@ -30,7 +30,7 @@ Rama: `feat/v2-9-4-verificar-la-muestra`. Entrega: PR en cadena si pasa de 400 l
 - [x] T2 (S2,S3,S4,S5,S6; inline): servicio y controller (`GET` muestra, `POST` marca) con candado, bitácora en la misma sentencia y permiso `muestra.ver`.
 - [x] T3 (S1,S6,S9; delegado por el respaldo de contexto): frontend: contrato, hook, pantalla, ruta, menú, tema claro/oscuro.
 - [x] T4 (S7; inline): ampliar la E2E de Pedro (`uj3-controlar-el-mes.integracion.spec.ts`).
-- [ ] T5: notas de cierre (`CUADRA.md`, `docs/bitacora.md`), Jira KAN-169 y repaso.
+- [x] T5 (inline): notas de cierre (`CUADRA.md`, `docs/bitacora.md`), Jira KAN-169 y repaso.
 
 ## Log
 - L1 (2026-11-22): «continuemos donde lo dejamos» → «lo apruebo» (los mockups 22 y 23 y sus cinco supuestos).
@@ -40,3 +40,4 @@ Rama: `feat/v2-9-4-verificar-la-muestra`. Entrega: PR en cadena si pasa de 400 l
 - L5 (2026-11-22): T2 commit `b07bde1`. Risk: item 2 (permiso `muestra.ver` y regla de quién verifica). Evaluación nativa `high_risk`; el usuario eligió «Review this change»; lentes riesgo y fiabilidad: aprobada, autoridad consumida. Advertencia no bloqueante R3-001 (`verificacion-muestra.service.ts:120`): un caso reabierto cuenta como `pendiente` en `avance` y nadie puede resolverlo; pendiente de decidir en T3 con el mockup (no reabrir la revisión).
 - L6 (2026-11-22): T3. Backend ampliado antes (motivo, marcas, `sinRevisor`, `puedeVerificar`, `reabiertas`, `confirmadaPorMi`; resuelve R3-001): RED 4 de 14, GREEN 14/14. Frontend por un escritor delegado (razón: respaldo de contexto del padre): `features/muestra/`, contrato, ruta `/muestra`, menú, pruebas de flujo. Spot check del padre: suite completa 326 archivos / 5184 pruebas, typecheck, eslint y prettier limpios. Arreglo del padre: `bitacoraAdministracion.test.tsx` (lista del filtro de acciones, rota por la T1) y `confirmadaPorMi` del servidor en lugar de comparar nombres. Sin verificación visual (no hay navegador). Desvíos del mockup a acordar: caso reabierto (sin botones, una línea de texto), tarjeta CFDI sin fecha (la API no la da), moneda distinta de MXN con su código, botones deshabilitados sin texto para quien no es elegible. Risk: none.
 - L7 (2026-11-22): T4 inline. Nuevo paso en `uj3-controlar-el-mes.integracion.spec.ts` (sorteo, Pedro marca desacuerdo y luego conforme, bitácora, la administradora ya no marca, la auditora solo ve, la contadora no ve): 7/7 en verde. No hubo RED: la función ya existía y el paso solo la recorre de punta a punta. Risk: none.
+- L8 (2026-11-23): PR #154 y #155 integrados; KAN-169 en Finalizado; repaso guardado en Engram (`repaso/9.4`). CI del #154 falló por el test de la lista de acciones (el espejo del enum iba en el #154 y la línea del test en el #155): se movió al #154, `3669114`. Risk: none.

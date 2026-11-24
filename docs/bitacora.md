@@ -3,6 +3,15 @@
 > Historial del proyecto, día por día: cada cambio de decisión, alcance o plan.
 > Lo más reciente arriba. El contexto vigente está en [`CUADRA.md`](../CUADRA.md).
 
+### 23 nov 2026
+
+- **Repaso de la 9.4 y Jira.** #154 (backend) y #155 (pantalla) integrados en cadena; KAN-169 pasada a Finalizado. El CI
+  del primero falló porque el espejo del enum con `Muestra verificada` viajó en el #154 pero la línea que lo espera en
+  `bitacoraAdministracion.test.tsx` quedó en un commit del #155; se movió al #154 (commit `3669114`) y el #155 recibió un
+  merge de esa rama. Regla repetida de la 5.6: el test de la lista de acciones va con el espejo, en el PR del enum.
+  Pendiente: la pantalla nunca se vio en un navegador y quedan cuatro desvíos del mockup sin acordar (caso reabierto,
+  tarjeta CFDI sin fecha, moneda distinta de MXN, botones deshabilitados sin texto).
+
 ### 22 nov 2026
 
 - **Historia 9.4 (verificar la muestra, caso por caso) terminada.** Cada marca es una fila nueva de
