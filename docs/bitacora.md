@@ -11,6 +11,11 @@
   `GET /plataforma/condicion-cierre` sobre una función de conteos `SECURITY DEFINER` y una evaluación pura con enteros.
   Mockups 20 y 21 ampliados y acordados con el usuario antes del código. La revisión nativa salió aprobada; su aviso del
   exceso en cero se corrigió con RED/GREEN. Cierra la épica 9.
+- **Comando para sortear la muestra a mano (desarrollo y demo).** El programador mensual solo sortea el día 1 y para el
+  mes anterior, así que el recorrido C7 del demo no tenía casos que verificar. `npm run sortear:muestra -- AAAA-MM
+  [--empresa=RFC]` reutiliza `MuestrasService.generar` (mismo candado de empresa; la muestra se guarda y no se
+  re-sortea). Descartado un endpoint HTTP: agregaba superficie de ataque y un permiso solo para el demo. Probado contra
+  la base de pruebas; no corrido contra el stack del demo.
 - **Repaso de la 9.5 y Jira.** #157 (backend) y #158 (pantalla) integrados en cadena con los checks en verde;
   KAN-170 pasada a Finalizado. Pendiente: la pantalla nunca se vio en un navegador y los textos de los casos que el
   mockup no cubre («Faltan A, B y C de datos», «todavía no se puede calcular la tasa de desacuerdo») no se acordaron.
