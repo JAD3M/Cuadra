@@ -21,10 +21,12 @@ Rama: `feat/v2-9-5-condicion-cierre-automatico`. Entrega: PR en cadena si pasa d
 - A7: ruta `GET /plataforma/condicion-cierre`, sesión `plataforma`; una sesión de empresa recibe 403 y queda en su bitácora como las demás rutas de plataforma.
 
 ## Tasks
-- [ ] T1 (S1,S2,S3,S4,S5,S6; inline): backend: migración con la función de conteos, servicio con la evaluación pura, DTO, ruta en `PlataformaController`, pruebas (unitarias de la evaluación; integración: umbrales, reapertura y verificación que cambian el resultado, 403 y 401).
+- [x] T1 (S1,S2,S3,S4,S5,S6; inline; commits `492fa0e` y `35511b6`): backend: migración con la función de conteos, servicio con la evaluación pura, DTO, ruta en `PlataformaController`, pruebas (unitarias de la evaluación; integración: umbrales, reapertura y verificación que cambian el resultado, 403 y 401).
 - [ ] T2 (S1,S2,S3,S4,S7; inline): frontend: contrato, hook, vista (estados cargando, error, sin datos, no cumple, cumple), sección en `MedicionPlataformaPage`, tema claro y oscuro, pruebas.
 - [ ] T3 (inline): notas de cierre (`CUADRA.md`, `docs/bitacora.md`), Jira KAN-170 y repaso de la historia (y cierre de la épica 9).
 
 ## Log
 - L1 (2026-11-24): «si agregalo» (la sección de la condición en los mockups 20 y 21) → «aprobado, arranca con el documento ODD».
 - L2 (2026-11-24): mapa: función de referencia `desacuerdo_por_empresa_y_banco()` (migración `1790722000000`), `src/plataforma/desacuerdo-plataforma.service.ts` y su ruta `GET /plataforma/desacuerdo` en `plataforma.controller.ts`; en el frontend `frontend/src/features/plataforma/` (`useDesacuerdoPlataforma.ts`, `vistaMedicionPlataforma.ts`, `MedicionPlataformaPage.tsx`, `components/`). La marca de la muestra vive en `muestras_verificacion` (solo agregar, `resultado` nulo en la fila del sorteo).
+- L3 (2026-11-24): T1 inline. RED: `condicion-cierre.spec.ts` fallaba por módulo inexistente; GREEN 9/9. La integración (`condicion-cierre.integracion.spec.ts`, 11) se escribió después del servicio, sin RED observado. Suite completa 2256/2256; `down-con-datos` ajustada a la migración `1790725000000` (más una prueba de su `down`). Lint, formato y build limpios.
+- L4 (2026-11-24): Risk: item 2 (función `SECURITY DEFINER` que lee entre empresas; solo conteos). Evaluación nativa `high_risk`; el usuario eligió «Review this change»; lentes riesgo y fiabilidad: aprobada y acuse hecho (autoridad quemada). Riesgo sin hallazgos. Fiabilidad: R3-exceso-redondeo (WARNING, real) corregido con RED/GREEN en `35511b6`; R3-conteo-meses-sin-prueba-utc (SUGGESTION) queda pendiente: la sesión de la base ya es UTC y la prueba no distinguiría el borde.
