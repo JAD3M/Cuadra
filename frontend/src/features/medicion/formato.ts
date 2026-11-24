@@ -9,3 +9,12 @@ export function formatearTasa(tasa: string): string | null {
   const centesimas = String(Number(`${m[1]}${m[2]}`)).padStart(3, '0');
   return `${centesimas.slice(0, -2)}.${centesimas.slice(-2)} %`;
 }
+
+/**
+ * Una diferencia entre tasas ("0.0445") como puntos porcentuales con dos
+ * decimales ("4.45 puntos"), sin flotante. `null` si no es una tasa válida.
+ */
+export function formatearPuntos(diferencia: string): string | null {
+  const porcentaje = formatearTasa(diferencia);
+  return porcentaje === null ? null : porcentaje.replace(/ %$/, ' puntos');
+}

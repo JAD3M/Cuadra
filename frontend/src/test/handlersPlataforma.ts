@@ -134,6 +134,50 @@ export interface FraccionesSimuladas {
   fraccionComisiones: string | null;
 }
 
+/** Cuerpo de `GET /plataforma/condicion-cierre` (historia 9.5). */
+export interface CondicionSimulada {
+  cumple: boolean;
+  criterios: Record<
+    'propuestas' | 'empresas' | 'meses',
+    { pide: number; hoy: number; falta: number; cumple: boolean }
+  >;
+  tasa: {
+    registradas: { casos: number; desacuerdos: number; tasa: string | null };
+    muestra: { casos: number; desacuerdos: number; tasa: string | null };
+    usada: 'registradas' | 'muestra' | null;
+    tasaUsada: string | null;
+    exceso: string | null;
+    maxima: string;
+    cumple: boolean;
+  };
+}
+
+/** Sin una sola propuesta ni caso verificado: lo que sale con la base vacía. */
+export const CONDICION_SIN_DATOS: CondicionSimulada = {
+  cumple: false,
+  criterios: {
+    propuestas: { pide: 1000, hoy: 0, falta: 1000, cumple: false },
+    empresas: { pide: 3, hoy: 0, falta: 3, cumple: false },
+    meses: { pide: 3, hoy: 0, falta: 3, cumple: false },
+  },
+  tasa: {
+    registradas: { casos: 0, desacuerdos: 0, tasa: null },
+    muestra: { casos: 0, desacuerdos: 0, tasa: null },
+    usada: null,
+    tasaUsada: null,
+    exceso: null,
+    maxima: '0.0050',
+    cumple: false,
+  },
+};
+
+let condicionSimulada: CondicionSimulada = CONDICION_SIN_DATOS;
+
+/** Deja en el servidor simulado esta condición de cierre (y nada más). */
+export function sembrarCondicionPlataforma(c: CondicionSimulada): void {
+  condicionSimulada = c;
+}
+
 /** Filas que devuelven `GET /plataforma/desacuerdo` y `/plataforma/fracciones`. */
 const desacuerdoSimulado: DesacuerdoSimulado[] = [];
 const fraccionesSimuladas: FraccionesSimuladas[] = [];
@@ -241,6 +285,11 @@ export function crearHandlersPlataforma() {
         ? HttpResponse.json(fraccionesSimuladas.map((f) => ({ ...f })))
         : rechazoDeSesion(),
     ),
+    http.get('/api/plataforma/condicion-cierre', () =>
+      haySesionPlataforma()
+        ? HttpResponse.json(condicionSimulada)
+        : rechazoDeSesion(),
+    ),
     // Como el backend: 404 si no existe, 422 si faltan cargas aceptadas, 409 si
     // ya estaba levantado, 201 con el banco ya levantado.
     http.post(
@@ -274,6 +323,7 @@ export function usarHandlersPlataforma(): void {
   levantamientosRecibidos.length = 0;
   desacuerdoSimulado.length = 0;
   fraccionesSimuladas.length = 0;
+  condicionSimulada = CONDICION_SIN_DATOS;
   servidor.use(...crearHandlersPlataforma());
 }
 
@@ -392,6 +442,13 @@ export function desacuerdoPlataformaFalla(status: number) {
 export function fraccionesPlataformaFalla(status: number) {
   servidor.use(
     http.get('/api/plataforma/fracciones', () => cuerpoDeError(status)),
+  );
+}
+
+/** `GET /plataforma/condicion-cierre` responde `status`. */
+export function condicionPlataformaFalla(status: number) {
+  servidor.use(
+    http.get('/api/plataforma/condicion-cierre', () => cuerpoDeError(status)),
   );
 }
 
