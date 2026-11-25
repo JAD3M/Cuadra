@@ -1146,8 +1146,9 @@ no un archivo real que alguien meta también al generador.
   se identifica como «propio» por `confirmadaPorMi`, que da el servidor, no por el nombre.
 - La E2E de Pedro (7.4) cubre la verificación: sorteo, marcas, bitácora, la administradora que ya no marca con revisor,
   la auditora que solo ve y la contadora que no la ve.
-- Pendiente: el paso de la muestra en el recorrido C de la lista de verificación manual del demo (`docs/`), que no es
-  automatizado; y mirar la pantalla en un navegador (el escritor no pudo abrirla).
+- Pendiente: mirar la pantalla en un navegador (el escritor no pudo abrirla). El paso de la muestra del recorrido C del
+  demo se resolvió con `npm run sortear:muestra -- AAAA-MM [--empresa=RFC]` (reutiliza `MuestrasService.generar`; no
+  pasa por HTTP ni por la cola).
 
 **La condición del cierre automático (v2, historia 9.5), terminada el 24 nov 2026 (integrada, PR #157 y #158; KAN-170 Finalizado).**
 - Es solo lectura: informa si los datos de todas las empresas cumplen la condición del PRD y no activa nada. El cierre
