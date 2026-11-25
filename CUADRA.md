@@ -1149,7 +1149,7 @@ no un archivo real que alguien meta también al generador.
 - Pendiente: el paso de la muestra en el recorrido C de la lista de verificación manual del demo (`docs/`), que no es
   automatizado; y mirar la pantalla en un navegador (el escritor no pudo abrirla).
 
-**La condición del cierre automático (v2, historia 9.5), terminada el 24 nov 2026 (en rama, PR pendiente; KAN-170 En curso).**
+**La condición del cierre automático (v2, historia 9.5), terminada el 24 nov 2026 (integrada, PR #157 y #158; KAN-170 Finalizado).**
 - Es solo lectura: informa si los datos de todas las empresas cumplen la condición del PRD y no activa nada. El cierre
   automático sigue sin existir en la v2 (AD-3: `confirmada` exige persona).
 - Migración `1790725000000`: la función `conteos_condicion_cierre()` (`SECURITY DEFINER`, `search_path` fijo, `EXECUTE` solo
@@ -1167,7 +1167,8 @@ no un archivo real que alguien meta también al generador.
   positivo es peor que no conciliar.
 - Frontend (`frontend/src/features/plataforma/`, sección nueva en Medición): mockups 20 y 21.
 - Revisión nativa del backend (ítem 2 de riesgo: función que lee entre empresas): aprobada. Su aviso de que el exceso salía
-  en cero al redondear la tasa se corrigió. Pendiente menor: una prueba del borde de mes UTC.
+  en cero al redondear la tasa se corrigió, y el conteo de meses en UTC tiene su prueba (con la sesión de la base en
+  otra zona).
 - Con esta queda cerrada la épica 9.
 - Pendiente: acordar en el mockup los estados que no tenía: caso reabierto, tarjeta del CFDI sin fecha (la API no la da),
   moneda distinta de MXN y botones deshabilitados sin texto para quien no es elegible.

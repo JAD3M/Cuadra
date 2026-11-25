@@ -49,7 +49,7 @@ Mockups: 10 y 11 (plataforma), 12 y 13 (invitación), 16 y 17 (usuarios).
 | [ ] A3 | Busca en el log «Correo simulado a admin-demo@ejemplo.test» y abre el enlace `/invitacion/…`. | «Te invitaron a administrar Demo Verificación SA de CV» y el formulario de cuenta nueva. | Sin línea en el log: `NODE_ENV=development` en `.env`. |
 | [ ] A4 | Escribe un nombre y una contraseña corta (menos de 12 caracteres). Luego una de 12 o más y «Crear cuenta y entrar». | Con la corta: «La contraseña debe tener al menos 12 caracteres.». Con la buena entra a la bandeja de la empresa nueva, vacía. | El log de la API; que la invitación no haya caducado. |
 | [ ] A5 | Cierra sesión. Entra como Ana → **Usuarios** → «Invitar a una persona»: `revisor-demo@ejemplo.test` con rol revisor; e «Invitar a otra persona»: `auditora-demo@ejemplo.test` con rol auditor. | Las dos aparecen en «Personas de tu empresa» con su invitación pendiente. | Luis no ve **Usuarios** (solo la administradora). Si Ana no lo ve, revisa que entró a Ferretería. |
-| [ ] A6 | Acepta las dos invitaciones con los enlaces del log (crea las cuentas). | Cada persona entra a Ferretería y su menú muestra solo **Bandeja** y **Bitácora** (sin Cargas, Tolerancia ni Usuarios). | `GET /auth/contexto` en la pestaña Red: `capacidades` debe traer solo `bandeja.ver` y `bitacora.ver`. |
+| [ ] A6 | Acepta las dos invitaciones con los enlaces del log (crea las cuentas). | Cada persona entra a Ferretería y su menú muestra solo **Bandeja**, **Muestra** y **Bitácora** (sin Cargas, Tolerancia ni Usuarios). | `GET /auth/contexto` en la pestaña Red: `capacidades` debe traer solo `bandeja.ver`, `bitacora.ver` y `muestra.ver`. |
 
 ## Recorrido B. Conciliar el mes
 
@@ -72,17 +72,17 @@ previa), 2 y 7 (bandeja), 3 y 8 (detalle), 6 (bitácora).
 
 ## Recorrido C. Revisión
 
-Empresa: Ferretería del Bajío, con el revisor creado en A6. Mockups: 2, 3 y 6.
+Empresa: Ferretería del Bajío, con el revisor creado en A6. Mockups: 2, 3, 6 y 22.
 
 | | Qué hacer | Qué se debe ver | Si falla, revisa |
 |---|---|---|---|
-| [ ] C1 | Entra como `revisor-demo@ejemplo.test`. | El menú muestra solo **Bandeja** y **Bitácora**. | Ver A6. |
+| [ ] C1 | Entra como `revisor-demo@ejemplo.test`. | El menú muestra solo **Bandeja**, **Muestra** y **Bitácora**. | Ver A6. |
 | [ ] C2 | Abre la Bandeja y un caso sin resolver. | Los pendientes con sus candidatos y su explicación (el motivo de cada propuesta). | Que el recorrido B haya dejado casos pendientes (B5). |
 | [ ] C3 | Abre la confirmación de `1,160.00` que dejó Ana en B9 → «Reabrir confirmación» con un motivo. | Se rechaza (sin permiso) y la confirmación sigue conciliada. | El mensaje y el estado; la Bitácora debe registrar el acceso denegado (C6). |
 | [ ] C4 | En la misma confirmación escribe en «Dejar un comentario» y «Comentar». | El comentario aparece en el detalle y como evento en **Bitácora**; el caso sigue conciliado. | Que el texto no esté vacío ni exceda el límite. |
-| [ ] C5 | Entra como `auditora-demo@ejemplo.test`. | Ve **Bandeja** y **Bitácora**, con el mismo contenido, y ninguna acción: ni confirmar, ni descartar, ni comentar, ni reabrir. | Ver A6. |
+| [ ] C5 | Entra como `auditora-demo@ejemplo.test`. | Ve **Bandeja**, **Muestra** y **Bitácora**, con el mismo contenido en las dos primeras, y ninguna acción: ni confirmar, ni descartar, ni comentar, ni reabrir, ni marcar la muestra. | Ver A6. |
 | [ ] C6 | Entra como Ana → **Bitácora** y filtra por acción «acceso denegado». | Hay una entrada del revisor por el intento de C3. | El filtro de acción y las fechas. |
-| [ ] C7 | _Pendiente (épica 9)_: verificación de la muestra mensual. | Se agrega aquí cuando exista. | — |
+| [ ] C7 | _No recorrible a mano todavía_: marcar los casos de la muestra mensual (pantalla **Muestra**, mockups 22 / 23). | La muestra la sortea solo el programador mensual (día 1, 05:00 UTC, para el mes anterior) y no hay un comando para sortearla en desarrollo. Mientras no exista, la pantalla dice «No hay muestra de este mes». Cuando haya un comando, este paso pide: el revisor marca un caso «Conforme» y otro «En desacuerdo», y ambos quedan en **Bitácora** como `verificar_muestra`. | — |
 
 ## Temas claro y oscuro
 
